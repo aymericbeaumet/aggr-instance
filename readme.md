@@ -1,6 +1,6 @@
-# A fork-ready aggr reader
+# Aggr
 
-This repository is a complete [aggr](https://github.com/aymericbeaumet/aggr) reader: one config
+This repository setups [aggr](https://github.com/aymericbeaumet/aggr): one config
 file and one GitHub workflow. The workflow fetches the sources every half hour, appends new items
 to the `aggr` branch, and publishes an installable static reader on GitHub Pages.
 
