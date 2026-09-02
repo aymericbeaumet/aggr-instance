@@ -1,0 +1,83 @@
+<p>I spend a fair amount of time wandering around in the terminal. The chances are
+that you are too since you dared to open this story. My daily activities led me
+to contribute to various kinds of projects (professional, personal and
+open-source). For my sanity, I tend to follow strict rules to organize my
+workspace, which helps me keep things tidied up and easily reachable. Or so I
+thought.</p>
+<p>I decided to arrange my projects by following the
+<a href="https://golang.org/doc/code.html#Workspaces" target="_blank" rel="nofollow noopener noreferrer">Go philosophy</a>: make the
+arborescence mirrors the urls where they are reachable. e.g.,
+<code>~/Workspace/src/github.com/aymericbeaumet/dotfiles</code> would contain the project
+<a href="https://github.com/aymericbeaumet/dotfiles" target="_blank" rel="nofollow noopener noreferrer">dotfiles</a> owned by
+<a href="https://github.com/aymericbeaumet" target="_blank" rel="nofollow noopener noreferrer">@aymericbeaumet</a> and accessible at
+<a href="https://github.com" target="_blank" rel="nofollow noopener noreferrer">github.com</a>. That&rsquo;s great, but I am now facing a complex
+directory structure tedious to navigate quickly. Making it, in the end, harder
+to access the resources I need.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ <span class="nb">pwd</span>
+</span></span><span class="line"><span class="cl">/Users/aymericbeaumet/Workspace/src/github.com/brigad/back-end
+</span></span></code></pre></div><p><em>Nobody wants to manually deal with this.</em></p>
+<p>Remembering and typing the location of each project (even while leveraging
+autocomplete) is time-consuming. Creating shell aliases is not scalable.
+Instead, I would like to rely on the pseudo-unicity of each project name to find
+it among all the directories on my computer.</p>
+<h2 id="z"><a href="#z" aria-label="z? permalink" class="anchor before"></a>z?</h2>
+<p>Several tools exist to tackle this problem. My favorite is
+<a href="https://github.com/rupa/z" target="_blank" rel="nofollow noopener noreferrer"><em>z</em></a>. It follows the Unix philosophy by being small,
+focused and interoperable. <em>z</em> allows jumping around swiftly, automatically
+learning from your habits. The entries are ranked based on the
+<a href="https://en.wikipedia.org/wiki/Frecency" target="_blank" rel="nofollow noopener noreferrer">frecency</a> at which you access the
+directories.</p>
+<p>Let’s walk through the basics of this tool. Below is how I advise to install it
+for Zsh on macOS (the install process should be similar for other shells and
+operating systems):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ brew install z
+</span></span><span class="line"><span class="cl">$ <span class="nb">echo</span> <span class="s2">&#34;source &#39;</span><span class="k">$(</span>brew --prefix z<span class="k">)</span><span class="s2">/etc/profile.d/z.sh&#39;&#34;</span> &gt;&gt; ~/.zshenv
+</span></span></code></pre></div><p><em>Install z for Zsh on macOS.</em></p>
+<p>Note how installing <em>z</em> is not enough to start using it. You have to source
+<code>z.sh</code> at the beginning of each shell session to activate it. The <code>~/.zshenv</code>
+configuration file is appropriate as Zsh
+<a href="http://zsh.sourceforge.net/Intro/intro_3.html" target="_blank" rel="nofollow noopener noreferrer">loads it in most circumstances</a>,
+making the tool accessible in a wide-variety of contexts (terminals, editors,
+IDEs, scripts, etc.).</p>
+<h2 id="lets-play"><a href="#lets-play" aria-label="let’s play permalink" class="anchor before"></a>Let’s play</h2>
+<p>Once the install and setup are complete: start a new shell session, <code>cd</code> through
+some folders and execute <code>z</code> to confirm it has been accurately tracking your
+activity:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ z <span class="p">|</span> sort -rn <span class="p">|</span> head -3
+</span></span><span class="line"><span class="cl">5331.72    /Users/aymericbeaumet/Workspace/src/github.com/brigad/back-end
+</span></span><span class="line"><span class="cl">637.255    /Users/aymericbeaumet/Workspace/src/github.com/brigad/ops
+</span></span><span class="line"><span class="cl">386.198 /Users/aymericbeaumet/.config/dotfiles
+</span></span></code></pre></div><p><em>Top 3 directories based on frecency.</em></p>
+<p>As shown above, I spend quite some time navigating through
+<a href="https://github.com/brigad" target="_blank" rel="nofollow noopener noreferrer">Brigad</a> projects, but it seems I also often access
+my <a href="https://github.com/aymericbeaumet/dotfiles" target="_blank" rel="nofollow noopener noreferrer">dotfiles</a> to tweak some
+configuration. The ranking score is volatile, and one could observe significant
+changes in a brief amount of time.</p>
+<p>Now that <em>z</em> has accumulated some knowledge try it by navigating to one of the
+tracked folders. Navigating is as simple as executing the <code>z</code> command followed
+by the directory name:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ z dotfiles
+</span></span><span class="line"><span class="cl">$ <span class="nb">pwd</span>
+</span></span><span class="line"><span class="cl">/Users/aymericbeaumet/.config/dotfiles
+</span></span></code></pre></div><p><em>Navigating by matching with a whole directory name.</em></p>
+<p>As a matter of facts, I do prefer to leverage partial matching (imagine <code>**</code>
+surrounding your search pattern) to type fewer characters. Hence, <code>z dot</code> is
+valid and should produce a similar behavior as <code>z dotfiles</code> (modulo possible
+name collisions, but you get the idea). This works because <em>z</em> relies on regular
+expressions. For example, the snippet below will navigate to the directory
+ending with the letters “tmp” (with the highest score):</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">$ z tmp$
+</span></span><span class="line"><span class="cl">$ <span class="nb">pwd</span>
+</span></span><span class="line"><span class="cl">/private/tmp
+</span></span></code></pre></div><p><em>Navigating by matching with a regular expression.</em></p>
+<p>Neat right? I guess you start seeing the possibilities of this tool. And we have
+only scratched the surface of its capabilities. I suggest you dive in its
+<a href="https://github.com/rupa/z/blob/master/README" target="_blank" rel="nofollow noopener noreferrer">documentation</a> to get an idea of
+its full potential. Features such as autocomplete, subdirectories matching,
+consecutive matching, etc. are a game changer.</p>
+<h2 id="conclusion"><a href="#conclusion" aria-label="conclusion permalink" class="anchor before"></a>Conclusion</h2>
+<p><em>z</em> is tremendous. This tool saves me a non-trivial amount of time every single
+day. When one starts relying on it, there is no going back. And I hope it’s
+going to fit your workflow as well as mine.</p>
+<p>I would be grateful to hear any of your time-saving tricks. Feel free to share
+your experiences!</p>

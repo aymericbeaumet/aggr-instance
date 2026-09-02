@@ -1,0 +1,181 @@
+<p><em>Edit (March 5th 2015): the frontend community has evolved in the last few
+months and tends to be less hostile to the CommonsJS style (e.g.: Angular is now
+available on npm). This article has been rewritten accordingly.</em></p>
+<p><a href="https://angularjs.org/" target="_blank" rel="nofollow noopener noreferrer">AngularJS</a> is a frontend framework developed by folks
+at Google. It allows to build advanced web applications in a modular way by
+splitting the code base into small components. This brings a lot of advantages
+like a clean separation of concerns and an easier testability.</p>
+<p><a href="http://browserify.org/" target="_blank" rel="nofollow noopener noreferrer">Browserify</a> is a tool which allows to benefit from the
+<a href="http://wiki.commonjs.org/wiki/CommonJS" target="_blank" rel="nofollow noopener noreferrer">CommonJS</a> modules in theoretically any
+JavaScript environments. Given an entry point, it computes a dependency tree,
+resolves it and produces a single output file. By consuming the <code>package.json</code>,
+Browserify enables to require <code>node_modules</code> in the build. This allows to rely
+on <a href="https://www.npmjs.com/" target="_blank" rel="nofollow noopener noreferrer">npm</a> as a package manager for frontend dependencies,
+where <a href="https://bower.io/" target="_blank" rel="nofollow noopener noreferrer">Bower</a> or <a href="http://component.github.io/" target="_blank" rel="nofollow noopener noreferrer">Component</a>
+would have been usually used.</p>
+<p>When I first heard about Browserify, I immediately thought the modularity it
+brings would be really nice to build AngularJS applications. And it actually is.
+However they are not a perfect match by now, and some drawbacks need to be
+fixed.</p>
+<p>This article presents a solution to structure an AngularJS application using
+Browserify. It covers the use of non-CommonJS modules as dependencies.</p>
+<h2 id="a-sample-application"><a href="#a-sample-application" aria-label="a sample application permalink" class="anchor before"></a>A sample application</h2>
+<p>Let’s consider a sample application which sets an entry in the local storage,
+and uses it to react differently whether it’s the first time a user is loading
+the page. It will be used as a support to identify the trouble cases and detail
+how to tackle them. So create an empty folder and let’s get started!</p>
+<p>First, create an <code>app.js</code> file which will be the entry point:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-javascript" data-lang="javascript"><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">angular</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s2">&#34;angular&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">app</span> <span class="o">=</span> <span class="nx">angular</span><span class="p">.</span><span class="nx">module</span><span class="p">(</span><span class="s2">&#34;app&#34;</span><span class="p">,</span> <span class="p">[</span><span class="nx">require</span><span class="p">(</span><span class="s2">&#34;angular-local-storage&#34;</span><span class="p">)]);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nx">app</span><span class="p">.</span><span class="nx">run</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">localStorageService</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">localStorageService</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">&#34;lastVisit&#34;</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">angular</span><span class="p">.</span><span class="nx">element</span><span class="p">(</span><span class="s2">&#34;body&#34;</span><span class="p">).</span><span class="nx">text</span><span class="p">(</span><span class="s2">&#34;Hello stranger!&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">angular</span><span class="p">.</span><span class="nx">element</span><span class="p">(</span><span class="s2">&#34;body&#34;</span><span class="p">).</span><span class="nx">text</span><span class="p">(</span><span class="s2">&#34;Welcome back!&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">localStorageService</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="s2">&#34;lastVisit&#34;</span><span class="p">,</span> <span class="nb">Date</span><span class="p">.</span><span class="nx">now</span><span class="p">());</span>
+</span></span><span class="line"><span class="cl"><span class="p">});</span>
+</span></span></code></pre></div><p>Neat, isn’t it? If you come from a Node.js background I’m sure you do like it.</p>
+<p>Now let’s generate the <code>package.json</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">npm init
+</span></span><span class="line"><span class="cl">npm install --save angular angular-local-storage jquery
+</span></span><span class="line"><span class="cl">npm install -D browserify
+</span></span></code></pre></div><p>Then compile the application:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">./node_modules/.bin/browserify app.js -o bundle.js
+</span></span></code></pre></div><p>And finally create a basic <code>index.html</code> to load it:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-html" data-lang="html"><span class="line"><span class="cl"><span class="p">&lt;</span><span class="nt">html</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="cl">	<span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="cl">		<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;bundle.js&#34;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="cl">	<span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="cl">	<span class="p">&lt;</span><span class="nt">body</span> <span class="na">ng-app</span><span class="o">=</span><span class="s">&#34;app&#34;</span><span class="p">&gt;&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
+</span></span></code></pre></div><p>Pretty simple huh? But as you might expect, this doesn’t work. Open <code>index.html</code>
+in a web browser and take a look at the console to find a nice JavaScript error.</p>
+<h2 id="explanations"><a href="#explanations" aria-label="explanations permalink" class="anchor before"></a>Explanations</h2>
+<p>There are several issues occurring here.</p>
+<h3 id="modules-not-defining-an-entry-point"><a href="#modules-not-defining-an-entry-point" aria-label="modules not defining an entry point permalink" class="anchor before"></a>Modules not defining an entry point</h3>
+<p>When a module is required, Browserify looks in the <code>node_modules</code> folder to find
+its <code>package.json</code> and loads it. Browserify expects it to have a <code>main</code> property
+which contains the relative path to the file which should be loaded.</p>
+<p>It is usual that this property is missing, that it points to the wrong file or
+that the <code>package.json</code> itself is missing. In such case, you can override the
+file to load in the own project’s <code>package.json</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nt">&#34;browser&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;angular&#34;</span><span class="p">:</span> <span class="s2">&#34;./node_modules/angular/angular.js&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;angular-local-storage&#34;</span><span class="p">:</span> <span class="s2">&#34;./node_modules/angular-local-storage/dist/angular-local-storage.js&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h3 id="modules-not-properly-exporting-their-content"><a href="#modules-not-properly-exporting-their-content" aria-label="modules not properly exporting their content permalink" class="anchor before"></a>Modules not properly exporting their content</h3>
+<p>When Browserify requires the file indicated by the <code>main</code> property in the
+module’s <code>package.json</code>, it is usual that this file does not properly export its
+content in the CommonJS style. Also, we expect AngularJS modules to export their
+names so that we could directly require them in our AngularJS modules
+definitions.</p>
+<p>To this end, <a href="https://github.com/thlorenz/browserify-shim" target="_blank" rel="nofollow noopener noreferrer">browserify-shim</a> can
+be used.</p>
+<p>First install it:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">npm install -D browserify-shim
+</span></span></code></pre></div><p>Then, update the <code>package.json</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nt">&#34;browserify-shim&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;angular&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nt">&#34;exports&#34;</span><span class="p">:</span> <span class="s2">&#34;angular&#34;</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;angular-local-storage&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nt">&#34;exports&#34;</span><span class="p">:</span> <span class="s2">&#34;angular.module(&#39;LocalStorageModule&#39;).name&#34;</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">},</span>
+</span></span><span class="line"><span class="cl">	<span class="nt">&#34;browserify&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;transform&#34;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&#34;browserify-shim&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><ul>
+<li><code>angular</code> exports the global variable <code>angular</code></li>
+<li><code>angular-local-storage</code> exports its AngularJS module name <code>LocalStorageModule</code></li>
+</ul>
+<h3 id="modules-fetching-their-dependencies-on-the-global-context"><a href="#modules-fetching-their-dependencies-on-the-global-context" aria-label="modules fetching their dependencies on the global context permalink" class="anchor before"></a>Modules fetching their dependencies on the global context</h3>
+<p>Some frontend modules relies on the fact their dependencies will be exposed on
+the global object (generally the <code>window</code> object in most browsers). This is an
+anti-pattern of the CommonJS architecture which favors separation of concerns.</p>
+<p>For example, AngularJS expects jQuery to be exposed at the <code>window.jQuery</code>
+property.</p>
+<p>One solution is to wrap the module into a function which exposes a global object
+with the appropriate properties. Hopefully, this could also easily done via
+<em>browserify-shim</em> (see above for the installation).</p>
+<p>Then, update the <code>package.json</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nt">&#34;browserify-shim&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;angular&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nt">&#34;depends&#34;</span><span class="p">:</span> <span class="s2">&#34;jquery:jQuery&#34;</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;angular-local-storage&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nt">&#34;depends&#34;</span><span class="p">:</span> <span class="s2">&#34;angular&#34;</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><ul>
+<li><code>angular</code> will be provided the <code>jquery</code> module on a fake window object at the
+property <code>jQuery</code></li>
+<li><code>angular-local-storage</code> will be provided the <code>angular</code> module the same way</li>
+</ul>
+<h2 id="wrap-up"><a href="#wrap-up" aria-label="wrap up permalink" class="anchor before"></a>Wrap up</h2>
+<p>You should have added the following content to your <code>package.json</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nt">&#34;browser&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;angular&#34;</span><span class="p">:</span> <span class="s2">&#34;./node_modules/angular/angular.js&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;angular-local-storage&#34;</span><span class="p">:</span> <span class="s2">&#34;./node_modules/angular-local-storage/dist/angular-local-storage.js&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="p">},</span>
+</span></span><span class="line"><span class="cl">	<span class="nt">&#34;browserify-shim&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;angular&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nt">&#34;depends&#34;</span><span class="p">:</span> <span class="s2">&#34;jquery:jQuery&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nt">&#34;exports&#34;</span><span class="p">:</span> <span class="s2">&#34;angular&#34;</span>
+</span></span><span class="line"><span class="cl">		<span class="p">},</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;angular-local-storage&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">			<span class="nt">&#34;depends&#34;</span><span class="p">:</span> <span class="s2">&#34;angular&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">			<span class="nt">&#34;exports&#34;</span><span class="p">:</span> <span class="s2">&#34;angular.module(&#39;LocalStorageModule&#39;).name&#34;</span>
+</span></span><span class="line"><span class="cl">		<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="p">},</span>
+</span></span><span class="line"><span class="cl">	<span class="nt">&#34;browserify&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nt">&#34;transform&#34;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&#34;browserify-shim&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>Once you’ve made those corrections, you should be able to compile and run the
+sample application:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">./node_modules/.bin/browserify app.js -o bundle.js
+</span></span></code></pre></div><p>Check it really works by opening <code>index.html</code>.</p>
+<p>A working example can be found <a href="#attachments">attached to this post</a>.</p>
+<h2 id="side-notes"><a href="#side-notes" aria-label="side notes permalink" class="anchor before"></a>Side notes</h2>
+<p>Some related facts which can save you time when dealing with Browserify:</p>
+<ul>
+<li>modules not published to npm can be installed by giving their git repository
+URL: <code>npm install git+https://github.com/angular-ui/ui-router.git</code>. Note that
+it is also possible to directly pass a GitHub repository:
+<code>npm install angular-ui/ui-router</code>. A version can be specified by appending
+<code>#tag</code>. See the <a href="https://docs.npmjs.com/cli/install" target="_blank" rel="nofollow noopener noreferrer">documentation</a> for more
+information</li>
+<li>modules not containing a <code>package.json</code> cannot be installed using npm (even by
+directly providing a git repository). To tackle this issue, a third party
+installer like <a href="https://github.com/shama/napa" target="_blank" rel="nofollow noopener noreferrer">napa</a> has to be used</li>
+<li><code>napa</code> will directly install the dependencies in the <code>node_modules</code> directory</li>
+<li>the <code>postinstall</code> script is equivalent to <code>install</code>. It is executed after the
+modules installation. However, I find it to be more explicit</li>
+<li>you should place <code>napa</code> into the <code>postinstall</code> script</li>
+<li>the paths provided in the <code>browser</code> field needs to be relative to the root
+<code>package.json</code> path. It is mandatory to start each entry by <code>./</code></li>
+<li>it is possible to indicate files in another repository than <code>node_modules</code>
+when filling the browser field (e.g.: <code>bower_components</code>)</li>
+<li>centralizing Browserify options in the <code>package.json</code> is a good practice since
+it allows to keep a constant behavior when invoking it in different ways (CLI,
+API)</li>
+</ul>
+<h2 id="conclusion"><a href="#conclusion" aria-label="conclusion permalink" class="anchor before"></a>Conclusion</h2>
+<p>Even though there is a little more code to write to setup a project, this
+solution provides a beautiful way to organize its code in logical bricks. It
+totally matches the way AngularJS has been thought.</p>
+<p>Also, managing all the dependencies in a single place is really useful.
+Especially when developing full-stack JavaScript applications, hence potentially
+sharing dependencies between the frontend and the backend (e.g.: Async.js,
+Bluebird, Moment.js, highlight.js, …). Using a CommonJS loader allows to rely on
+the exact same versions of the modules both client-side and server-side.</p>
