@@ -1,6 +1,6 @@
 # Aggr
 
-This repository setups [aggr](https://github.com/aymericbeaumet/aggr): one config
+This repository setups [aggr](https://github.com/aymericbeaumet/aggr) with one config
 file and one GitHub workflow. The workflow fetches the sources every half hour, appends new items
 to the `aggr` branch, and publishes an installable static reader on GitHub Pages.
 
