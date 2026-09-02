@@ -1,8 +1,16 @@
-# aggr.aymericbeaumet.com
+# A fork-ready aggr reader
 
-My reader, built by [aggr](https://github.com/aymericbeaumet/aggr): the workflow fetches the
-sources in `aggr-*.toml` every half hour, appends new items to the `aggr` branch and publishes
-the site at <https://aggr.aymericbeaumet.com>.
+This repository is a complete [aggr](https://github.com/aymericbeaumet/aggr) reader: one config
+file and one GitHub workflow. The workflow fetches the sources every half hour, appends new items
+to the `aggr` branch, and publishes an installable static reader on GitHub Pages.
 
-**Fork it** for your own: edit `aggr.toml` (remove `url`, or set your domain), keep the topic
-files you want, enable workflows in the Actions tab of your fork and run "aggr" once.
+## Make it yours
+
+1. Fork this repository.
+2. Edit the title and `[[sources]]` in `aggr.toml`.
+3. Enable workflows in the fork's Actions tab.
+4. Run the `aggr` workflow once.
+
+Your reader appears at `https://<you>.github.io/<repo>/`. Add a custom domain in Settings →
+Pages if you want one; no repository changes are required. More source types, labels, categories,
+themes and defaults are documented in the [aggr README](https://github.com/aymericbeaumet/aggr).
