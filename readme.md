@@ -7,7 +7,8 @@ to the `aggr` branch, and publishes a static reader on GitHub Pages.
 ## Make it yours
 
 1. Fork this repository.
-2. Edit the title and `[[sources]]` in `aggr.toml`.
+2. Edit the title and `[[sources]]` in `aggr.toml`. A source normally needs only a name, its
+   canonical website URL, and an optional category; aggr discovers feeds automatically.
 3. Enable workflows in the fork's Actions tab.
 4. Run the `aggr` workflow once.
 
