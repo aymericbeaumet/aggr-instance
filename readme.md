@@ -1,12 +1,13 @@
-# aggr
+# aggr-instance
 
-This is a ready-to-run [aggr](https://github.com/aymericbeaumet/aggr) reader. Its workflow checks
-the sources every half hour, keeps the reading archive on the `aggr` branch, and publishes a fast,
-installable static site on GitHub Pages.
+This repository is a ready-to-run [aggr](https://github.com/aymericbeaumet/aggr) instance. Its
+workflow checks the sources every half hour, keeps the reading archive on the `aggr` branch, and
+publishes a fast, installable static site on GitHub Pages. The stable `@v1` workflow automatically
+uses the latest compatible aggr release.
 
 ## Make it yours
 
-1. **[Fork this repo](https://github.com/aymericbeaumet/aggr-config/fork).**
+1. **[Fork this repo](https://github.com/aymericbeaumet/aggr-instance/fork).**
 2. Enable workflows in the fork's Actions tab and run the `aggr` workflow once.
 3. Edit the title and sources in `aggr.toml` whenever you like.
 
