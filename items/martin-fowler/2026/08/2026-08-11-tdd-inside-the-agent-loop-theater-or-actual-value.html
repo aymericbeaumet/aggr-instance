@@ -1,0 +1,547 @@
+<div id="readability-page-1" class="page"><div>
+<p>The TDD (test-driven development) workflow can be used with AI-augmented coding in multiple ways:</p>
+
+<ol>
+<li>Human writes the tests: A human defines the test scenarios in some form, be it in natural language, in BDD style, or directly in code. Then AI writes the implementation to make those tests pass (with maybe a first step that transforms the human's scenarios into code).</li>
+
+<li>Review checkpoint for the human: AI writes a failing test, human looks at it to review that the test is testing the wanted behavior, then AI writes the implementation</li>
+
+<li>Fully inside the agentic loop: Prompt an agent to write failing tests first, one by one, and then write the implementation and check that the previously failing test is green.</li>
+</ol>
+
+<p>At this stage, that last usage is by far the most common one. But does it really make a difference, asking an agent to follow a TDD workflow fully inside its own loop? Does it really provide value, or is it one of the rare examples where what's good for the human might be irrelevant or bad for a coding agent?</p>
+
+<p>I created an exploratory evaluation setup to scratch the surface of this question and see what I would find. It is far from a comprehensive and structured eval result, but it did create some hypotheses to think about if you are working hard to get your agent to use TDD.</p>
+
+<p><b>TLDR;</b> Based on Opus's judgment of the quality of the outcomes, there was no clearly discernable difference based on TDD workflow versus no TDD workflow. On the contrary, more than once Opus ranked the non-TDD workflow solutions slightly higher in design and test quality. There was also no meaningful difference in mutation scores across the solutions.</p>
+
+<section id="TheSetup">
+<h2>The setup</h2>
+
+<ul>
+<li><i>Tasks:</i> I created a small, medium and a larger task with the help of Claude, all green field implementations of a bit of business logic. I had it make a bunch of suggestions, asking for idiosyncratic and specific logic to increase the probability that there will be variance between solutions, and not just a repetition of something that is already dominant in the training data.</li>
+
+<li><i>Instructions:</i> In all runs, I included instructions to achieve at least 80% code coverage.</li>
+
+<li><i>Model:</i> I used Sonnet 4.6 to generate the solutions.</li>
+
+<li><i>Judgment of TDD adherence:</i> Evaluation of adherence to TDD was also done by Sonnet 4.6.</li>
+
+<li><i>Judgment of solutions:</i> Opus 4.8 compared the quality of both solutions and their tests, without knowledge of how the solutions were created. I didn't give very specific inputs on what I consider to be good quality, as this was a very open exploration. And in my experience, the more specific I would have gotten, the more the model could have over-indexed unnecessarily on the quality criteria I list. Opus has shown to be quite a capable model in terms of judgment of code quality. For its ranking of the solutions, it created a rubric on the fly to pass to all subagents that were evaluating the individual solutions.</li>
+</ul>
+
+<div id="tdd_comparison_overview.svg"><p><img alt="Flow graph of the approach: In each batch, I ran the same task with and with TDD instructions, twice each. Then had Opus compare the four solutions, without knowledge of how they were created. Then made the session transcripts available to Opus and asked it to hypothesise if and how the agent's approach might have had an influence on the quality of the solutions." src="https://martinfowler.com/articles/exploring-gen-ai/tdd_comparison_overview.svg" width="960"></p>
+</div>
+
+<p>When you draw your own conclusions from my results, the main caveats to consider are:</p>
+
+<ul>
+<li>This is obviously a very small sample size, so take it with a grain of salt</li>
+
+<li>Judgment of what “quality” means was almost fully left to Opus (with only a few pointers about test quality)</li>
+
+<li>None of the runs ever followed TDD perfectly, but pretty well</li>
+
+<li>The coding tasks given to the agents were all greenfield and relatively small, purely about business logic</li>
+</ul>
+</section>
+
+<section id="HowGoodAreAgentsEvenAtTdd">
+<h2>How good are agents even at TDD?</h2>
+
+<p>Before I even started, I needed to make sure the TDD instructions were actually followed. Historically that hasn't gone well for me: agents often write the implementation first and generate tests after, skip confirming the red step, or over-implement ahead of the current test so the next one passes without ever going red.</p>
+
+<p>The prompt I ended up using worked well enough with Sonnet to use for the comparison, though all sessions showed some of these failures to an extent. For each TDD run, I had an independent agent judge how well the workflow was followed, based on the session transcript, so that I wouldn't accidentally take into account a run that didn't meaningfully do it.</p>
+</section>
+
+<section id="Results">
+<h2>Results</h2>
+
+<p>I created 5 batches of solutions, with two non-TDD and two TDD solutions each. In one batch, I also added two runs that were instructed to write the tests first, without full TDD discipline (no incremental red/green).</p>
+
+<p>Across the small (1 batch) and medium (3 batches) tasks there was a bit of a pattern: Opus ranked the two non-TDD solutions #1 and #2, and the two TDD solutions #3 and #4. Only once - after I strengthened the TDD prompt with a more explicit refactor-and-design-review step - did a TDD solution rank #1. In that same batch, the other TDD solution, run with the identical prompt, ranked last though... For the larger task, TDD landed in the middle, while the two non-TDD runs took both the best and the worst spot.</p>
+
+<p>(Details in the appendix)</p>
+</section>
+
+<section id="Hypotheses">
+<h2>Hypotheses</h2>
+
+<p>So in summary, both TDD and non-TDD scored both as a best and a worst solution across the batches, with TDD overall performing slightly worse.</p>
+
+<p>Asked to look at the session traces to hypothesize about the results with knowledge of which workflow was used for which, Opus found that the non-TDD and test-first runs always created the full design (architecture, data types, edge cases, contracts) before writing any code or tests, rather than working through it one requirement/test at a time. That seemed to be the thing that moved the needle slightly towards comparatively better data models, more cross-cutting edge cases, and better completeness of the functionality.</p>
+
+<p>The TDD instructions actively work against such an up front design step. The design in those runs emerged from the sum of many locally-minimal decisions and was rarely revisited, so it tended to land on whatever shape the first test happened to lock in. Behaviour the agent didn't think to write a test for didn't get implemented at all.</p>
+
+<p>When I chatted to <a href="https://ivettordog.com/">Ivett Ördög</a> about this, she had this theory: “The way AI agents were trained is that they have seen completed functions and descriptions of those functions. The number of actual step-by-step TDD examples they have seen is a tiny part of the training data. That means that the LLM has an internal representation of code that is a direct translation of requirements to code, and not a process of how to get to that representation.”</p>
+</section>
+
+<section id="GoalsOfTdd-StillAchievedInTheAgentLoop">
+<h2>Goals of TDD - still achieved in the agent loop?</h2>
+
+<p>The following are my general reflections about using TDD in the agent loop, not only based on this experiment. I'm going through the ultimate goals I personally have when I use TDD, skipping some of the ones that are about having tests in the first place, and unit tests in particular (like refactoring safety net, living documentation, test coverage), focussing on the ones that are specific to the TDD workflow.</p>
+
+<section id="TestFirstgtgtAvoidingTautology">
+<h3>Test first &gt;&gt; Avoiding tautology</h3>
+
+<p>Test-first makes it easier to assert the output I want, rather than restating the implementation. Such a test can never fail when the implementation is wrong as it was derived from the same logic it's supposedly checking. When the assertions are decoupled from the specific implementation path, the test can actually catch when the behaviour is not what I intended.</p>
+
+<p><b>Still achieved in the agent loop?</b><br>
+        In my experiment, some TDD sessions had this problem anyway, in spite of writing the test first. In one particularly obvious example, tests checked the implementation's output against itself, re-running the same code to produce the “expected” answer (<a href="https://github.com/birgitta410/tdd-comparisons/blob/main/tdd-analysis-01-medium-redo/sol-2026-07-10_16-40-51/tdd-analysis-1783694844961.md#potential-issues--observations">see 4. on this list of observations</a>). Writing the test first doesn't reliably prevent this - it might make it less probable, which is all we can ever hope for anyway with LLMs, but from this small data set I can't draw any conclusions about that probability.</p>
+</section>
+
+<section id="TestFirstgtgtTestability">
+<h3>Test first &gt;&gt; Testability</h3>
+
+<p>Test-first ensures the code is designed to be testable from the start, rather than retrofitting tests that are more complex and brittle than necessary.</p>
+
+<p><b>Still achieved in the agent loop?</b><br>
+        The results didn't give me any clear cut signals either way. For what it's worth, the size and nature of the tasks I chose didn't require a lot of design complexity that could have surfaced this. To an extent though, testability is a corollary to driving design (see below).</p>
+</section>
+
+<section id="Red-greengtgtTestEffectiveness">
+<h3>Red-green &gt;&gt; Test effectiveness</h3>
+
+<p>Observing a test fail first, then succeed (<i>red-green</i>), proves it will actually catch a regression.</p>
+
+<p><b>Still achieved in the agent loop?</b><br>
+        How much sense does this really make when the human is removed? Watching a test go red is only proof of anything if someone is checking <i>why</i> it went red. When the agent both writes the test and confirms it failed, a red test tells you the agent ran it and saw failure, not that the failure was for the right reason. The evaluations of TDD adherence in my experiment also show this: agents still sometimes skipped or faked the red step, or implemented ahead of the test so that it passed immediately. Regression effectiveness can be monitored and improved with mutation testing (<a href="https://martinfowler.com/articles/sensors-for-coding-agents.html#TheTestSuiteAsARegressionSensor">as I wrote about here</a>). Mutation scores across the solutions didn't show any signals that TDD runs produced meaningfully better mutation scores than non-TDD runs. I don't really care <i>how</i> regression quality was achieved, as long as I have a mechanism to see how good it is.</p>
+</section>
+
+<section id="TestFirstRed-green-refactorgtgtDrivingBetterDesign">
+<h3>Test first, red-green-refactor &gt;&gt; Driving better design</h3>
+
+<p>Writing the test first forces us to specify usage before implementation, pushing toward better interfaces and more modular code. The refactoring step in the TDD loop further pushes us to improve the design step by step.</p>
+
+<p><b>Still achieved in the agent loop?</b><br>
+        The experiment at least hasn't demonstrated superior design in the TDD runs at all. I now even wonder if TDD makes it worse, based on Opus's scoring, as the non-TDD solutions more often than not were ranked higher, and the design flaws it listed made sense to me. But the data set is of course too small to definitively conclude anything. (If anybody has time and tokens to run a larger experiment, that would be very interesting!)</p>
+
+<p>When humans write a test first, it forces us to think about usage before implementation, we have to sit with the friction of specifying behaviour and expectations before knowing how to build it. An agent doesn't experience that and can write a test the same instant it plans an implementation. Without a human checkpoint between the two, is there really any purpose left to writing the test first?</p>
+</section>
+
+<section id="SmallStepsgtgtYagni">
+<h3>Small steps &gt;&gt; YAGNI</h3>
+
+<p>Writing only enough code to pass the next test is about restraint. It's supposed to stop us from building abstractions or handling cases nobody has asked for yet.</p>
+
+<p><b>Still achieved in the agent loop?</b><br>
+        This is a very human-centered benefit that gets lost when an agent does TDD by itself. We don't get to sit in that friction anymore where we really have to think about all the intricacies of what we're building. That is theoretically shifting to when we are writing the specs to give to an agent, but we don't have a TDD-like mechanism there that lets us think the spec through in small steps. <br>
+        Couldn't an agent work in those small steps though and ask us questions whenever it finds something that might be unnecessary? In my general experience, they're not very good at that. And in the experiment as well, minimal-implementation instructions didn't reliably stop them from building more. They frequently overshot and implemented more than the current test demanded, because they had the full requirement available. We usually don't spoon-feed the spec one by one, that would be very inefficient.</p>
+</section>
+
+<section id="SmallStepsgtgtFastLocalizedFeedback">
+<h3>Small steps &gt;&gt; Fast, localized feedback</h3>
+
+<p>Taking one small step at a time means that when a test fails, I know almost exactly what caused it, as the only thing that changed since the last green state is the one thing you just wrote.</p>
+
+<p><b>Still achieved in the agent loop?</b><br>
+        The setup didn't show if agents got stuck debugging more frequently with versus without TDD. But in my general experience, agents are usually reasonably good at figuring out why a test is red, even without having taken small, deliberate steps to get there. I'm still doubtful if the times when they do get stuck could be meaningfully mitigated with small TDD steps, and if the overall cost/benefit comparison would hold up.</p>
+</section>
+
+<section id="SmallStepsgtgtConfidenceAndLearning">
+<h3>Small steps &gt;&gt; Confidence and learning</h3>
+
+<p>In Kent Beck's preface to “Test-driven Development by example”, his biggest rationale for TDD is “managing fear”. He says that the legitimate fear of hard problems makes developers tentative, less communicative, and avoidant of feedback. With TDD, each passing test shows us progress, so we can relax <i>knowing that progress is locked in</i>. The tests are a psychological mechanism that helps us keep going.</p>
+
+<p><b>Still achieved in the agent loop?</b><br>
+        This is very much about managing a <i>human's</i> fear and giving a <i>human</i> permission to relax. That doesn't transfer when the agent is doing TDD inside of the loop, as it doesn't give me the same control and trust as when I do it myself, step by step.</p>
+</section>
+</section>
+
+<section id="Costs">
+<h2>Costs</h2>
+
+<section id="AtLeast3xTheTokens">
+<h3>At least 3x the tokens</h3>
+
+<p><i>See detailed numbers in the appendix.</i></p>
+
+<p>Naturally, as a TDD workflow requires many more turns and tool calls, more tokens will be used. However, many of those will be cache hits, so note that the 3x or more factor of tokens aren't a direct representation of how much more costly it is. (Unfortunately, I didn't track cache hits during the experiment.)</p>
+</section>
+
+<section id="PromptMaintenanceAndTesting">
+<h3>Prompt maintenance and testing</h3>
+
+<p>TDD is a process that doesn't seem to “come natural” to models. It's like an uphill battle against the training data, and takes a lot of iterations on a prompt to get it to follow the process most of the time. For example, when I realised after my first batches that the agent didn't do much refactoring in the red-green-refactor loop, I changed the prompt to put more emphasis on that step, as it's of course crucial to TDD. I later asked Opus to look at those sessions and see if it found an improvement in refactoring efforts. It did report an increase in refactoring steps - however, it also listed some cases in which the agent set out to refactor, but decided the design was good enough even in cases where Opus thought it clearly wasn't (e.g. when everything was implemented in one big module, but could have clearly been split up into multiple responsibilities).</p>
+
+<p>TDD is a comparatively complex set of instructions with lots of variables, and consequently lots of variations in how agents interpret it. So I imagine this type of prompt to be even more volatile across models than simpler instructions are, meaning it takes effort to keep the prompt working across models and model releases.</p>
+</section>
+
+<div id="tdd_by_agents_costs_benefits.png"><p><img alt="Overview graphic summarising the costs (tokens, instructions) of agents using TDD, and the benefits of TDD and how they play out inside of the agent loop. The benefits are basically a summary of what is listed in the article." src="https://martinfowler.com/articles/exploring-gen-ai/tdd_by_agents_costs_benefits.png" width="900"></p>
+</div>
+</section>
+
+<section id="MyConclusions">
+<h2>My conclusions</h2>
+
+<p>I think at this point there is generally more and more evidence that being overly specific about <i>how</i> we want a model to do something is not a sustainable approach. Instead, we should find as many ways as we can to monitor the outcomes and give feedback. That feedback should be automated wherever possible, and we need to carefully think about where we insert ourselves as arbiters of what is good and correct.</p>
+
+<p>Even though I am aware that my little eval is far from representing a broad perspective on the effectiveness of TDD, it definitely hasn't given me any new indications that all this effort is worth it. Especially not if we can find other ways to achieve the majority of TDD benefits.</p>
+
+<p>I personally have stopped telling my coding agents to write tests first, let alone do TDD (which I never did, to be honest), until I see evals or other strong arguments that convince me otherwise. I'm trying to focus instead on the benefits of TDD when I use it outside of the agent loop, and exploring alternative ways to achieve them.</p>
+
+<section id="HowToGetGoodRegressionTests">
+<h3>How to get good regression tests?</h3>
+
+<p><i>...so that the agent and me get signals when existing functionality breaks</i></p>
+
+<p>I still care about solid regression tests, because even though an agent can of course fix red tests the wrong way around, at least the red test gives it a feedback signal to double check pre-existing requirements that might have broken. I <a href="https://martinfowler.com/articles/sensors-for-coding-agents.html#TheTestSuiteAsARegressionSensor">monitor and improve regression quality with the help of mutation testing</a>, instead of giving elaborate TDD instructions and hoping for the best.</p>
+</section>
+
+<section id="HowToBuildRegularRefactoringIntoTheProcess">
+<h3>How to build regular refactoring into the process?</h3>
+
+<p><i>...so that the codebase remains easy to change</i></p>
+
+<p>Refactoring remains crucial, but the small steps of traditional TDD don't seem to be an efficient or effective way to do it in the agent loop. A few examples of triggers for refactorings: Give the agent <a href="https://martinfowler.com/articles/sensors-for-coding-agents.html#StaticCodeAnalysisBasicLinting">access to static code analysis</a>; run regular <a href="https://martinfowler.com/articles/sensors-for-coding-agents.html#StaticCodeAnalysisAiModularityReview">reviews of structure and modularity</a>; develop team rituals to maintain a good understanding of the codebase and catch drift early; keep an eye on the trend of number of files touched per change, and number of <a href="https://martinfowler.com/articles/exploring-gen-ai/refactoring-economic-benefit.html">tokens are for a change</a>.</p>
+</section>
+
+<section id="HowToGetConfidence">
+<h3>How to get confidence?</h3>
+
+<p><i>...so that I am not afraid to push to production</i></p>
+
+<p>The hardest question remains, how do we get that confidence that TDD was giving us, how do we manage fear, how do we lock in progress? I don't have a clear answer to that, but I'll just mention one of the things that seems like a good building block for that: I have recently tried out the <a href="https://lexler.github.io/augmented-coding-patterns/patterns/approved-scenarios/">Approved Scenarios</a> approach that Ivett Ördög is advocating for. In my words (don't hold her to it), it's a form of semi-manual testing that is supported by a bespoke test runner for each application. That runner shows me functional test scenarios in an easy to think about way, and allows me to “freeze” expectations (scenarios / fixtures) in that runner after I have thoroughly confirmed them. Whenever those frozen expectations are violated in the future, I have to approve them again. My colleague Matteo Vaccari gave a great overview of <a href="https://www.youtube.com/watch?v=3tdmoj35HG0">his experiences with that approach here</a>.</p>
+
+<p>Whatever ends up giving us trust and confidence in our software in the future - I think the role of TDD as we've known it is significantly smaller than pre-GenAI.</p>
+</section>
+</section>
+
+<hr>
+</div><div>
+<section id="AppendixResultsAccordingToOpusEvaluation">
+<h2>Appendix: Results, according to Opus evaluation</h2>
+
+<p>You can find the full results <a href="https://github.com/birgitta410/tdd-comparisons/">in this repository</a>.</p>
+
+<ul>
+<li>NT = No TDD instructions</li>
+
+<li>T = TDD instructions</li>
+
+<li>TF = Test-first instructions</li>
+</ul>
+
+<section id="TokenUsageAcrossAllBatches">
+<h3>Token usage across all batches</h3>
+
+<p>Broken down per task size:</p>
+
+<table>
+<thead>
+<tr><th>Task</th><th>NT avg tokens</th><th>T avg tokens</th><th>T / NT factor</th></tr>
+</thead>
+
+<tbody>
+<tr><td>Small</td><td>119,815 (n=2)</td><td>1,018,245 (n=2)</td><td>8.50x</td></tr>
+
+<tr><td>Medium</td><td>736,486 (n=2)</td><td>2,181,105 (n=6)</td><td>2.96x</td></tr>
+
+<tr><td>Large</td><td>253,621 (n=2)</td><td>1,239,408 (n=2)</td><td>4.89x</td></tr>
+</tbody>
+</table>
+
+<p>Only the medium size were done with added test-first instructions</p>
+
+<p><i>Caveat</i>: these numbers are only a rough proxy for session cost, not a measure of how much code or thinking went into a solution. The setup that recorded the token usage used the <a href="https://github.com/earendil-works/pi-coding-agent">pi-coding-agent</a> SDK's <code>getSessionStats()</code>, which sums <code>input + output + cacheRead + cacheWrite</code> usage across every assistant turn in the session. That is a running total across the whole conversation, since every turn re-reads the accumulated context and each of those re-reads (usually mostly served from cache) is counted again in that turn's <code>cacheRead</code>. So “Total Tokens” tracks more how many turns a session took, weighted by how large the context had grown by then. It therefore weights cheap cache-read tokens the same as expensive fresh tokens, so it likely overstates TDD's true dollar cost. With these small sample sizes, treat the multipliers as directional: TDD reliably cost several times more, how many times exactly is variable.</p>
+</section>
+
+<section id="MediumTaskRound1">
+<h3>Medium task, round 1</h3>
+
+<p><b>Task:</b> Build a 4-stage Python pipeline (parse → aggregate → format → validate) that transforms raw <code>ROW_ID:CATEGORY:VALUE:PERIOD</code> strings into a plain-text report.</p>
+
+<p>The numbers</p>
+
+<table>
+<thead>
+<tr><th>ID</th><th>TDD</th><th>Test Count</th><th>Coverage</th><th>Mutation Score</th><th>Total Tokens</th><th>Turns</th><th>Tool Calls</th></tr>
+</thead>
+
+<tbody>
+<tr><td>NT1</td><td>No</td><td>75</td><td>100%</td><td>84.2%</td><td>769,814</td><td>31</td><td>37</td></tr>
+
+<tr><td>NT2</td><td>No</td><td>107</td><td>100%</td><td>89.6%</td><td>703,159</td><td>21</td><td>24</td></tr>
+
+<tr><td>T1</td><td>Yes</td><td>30</td><td>100%</td><td>81.0%</td><td>1,519,762</td><td>71</td><td>28</td></tr>
+
+<tr><td>T2</td><td>Yes</td><td>34</td><td>99%</td><td>77.3%</td><td>2,580,897</td><td>103</td><td>60</td></tr>
+</tbody>
+</table>
+
+<p>The overall verdict</p>
+
+<table>
+<thead>
+<tr><th>ID</th><th>TDD</th><th>Rank</th><th>Verdict</th></tr>
+</thead>
+
+<tbody>
+<tr><td>NT1</td><td>No</td><td>1</td><td>Module-per-stage, dataclasses, `Decimal`; no correctness bugs, strongest error handling, only solution checking duplicate ROW_IDs; validation self-referential but harmless</td></tr>
+
+<tr><td>NT2</td><td>No</td><td>2</td><td>Module-per-stage, dataclasses, float/round; best-engineered and largest suite, but validator rejects its own valid fractional output (false-rejection bug); TOTAL row never validated</td></tr>
+
+<tr><td>T1</td><td>Yes</td><td>3</td><td>Single module, dicts, float; correct core stages but validation is circular (re-runs formatter); accepts `nan`/`inf`, ignores duplicate ROW_IDs</td></tr>
+
+<tr><td>T2</td><td>Yes</td><td>4</td><td>Single module, dicts, float; active TOTAL-row bug (headcount summed into dollars) enshrined by a test; missing validation check #3 entirely</td></tr>
+</tbody>
+</table>
+
+<p>(This round's ranking was based on Verdict, test count, coverage and mutation score only — Opus's Design/Code/Test sub-scores were introduced starting with the next round.)</p>
+</section>
+
+<section id="MediumTaskRound2">
+<h3>Medium task, round 2</h3>
+
+<p><b>Task:</b> Same 4-stage report pipeline as 01-medium, rerun with stricter TDD adherence and a new test-first variant added (NT1/NT2 reuse the same codebases from 01-medium).</p>
+
+<table>
+<thead>
+<tr><th>ID</th><th>Approach</th><th>Test Count</th><th>Coverage</th><th>Total Tokens</th><th>Turns</th><th>Tool Calls</th></tr>
+</thead>
+
+<tbody>
+<tr><td>NT1</td><td>No TDD</td><td>107</td><td>100%</td><td>703,159</td><td>21</td><td>20</td></tr>
+
+<tr><td>TF2</td><td>Test-first</td><td>90</td><td>92%</td><td>619,531</td><td>27</td><td>26</td></tr>
+
+<tr><td>NT2</td><td>No TDD</td><td>75</td><td>100%</td><td>769,814</td><td>31</td><td>30</td></tr>
+
+<tr><td>T2</td><td>TDD</td><td>29</td><td>98%</td><td>2,099,280</td><td>96</td><td>95</td></tr>
+
+<tr><td>TF1</td><td>Test-first</td><td>62</td><td>99%</td><td>268,323</td><td>17</td><td>16</td></tr>
+
+<tr><td>T1</td><td>TDD</td><td>25</td><td>100%</td><td>2,017,739</td><td>90</td><td>89</td></tr>
+</tbody>
+</table>
+
+
+
+<table>
+<thead>
+<tr><th>ID</th><th>Approach</th><th>Design</th><th>Code</th><th>Tests</th><th>Avg</th><th>Impl/Test LOC</th></tr>
+</thead>
+
+<tbody>
+<tr><td>NT1</td><td>No TDD</td><td>8</td><td>8</td><td>8</td><td>8.0</td><td>497 / 881</td></tr>
+
+<tr><td>TF2</td><td>Test-first</td><td>8</td><td>8</td><td>7</td><td>8.0</td><td>484 / 850</td></tr>
+
+<tr><td>NT2</td><td>No TDD</td><td>8</td><td>8</td><td>7</td><td>7.5</td><td>330 / 430</td></tr>
+
+<tr><td>T2</td><td>TDD</td><td>7</td><td>7</td><td>6</td><td>6.5</td><td>207 / 304</td></tr>
+
+<tr><td>TF1</td><td>Test-first</td><td>6</td><td>6</td><td>6</td><td>6.0</td><td>348 / 360</td></tr>
+
+<tr><td>T1</td><td>TDD</td><td>6</td><td>6</td><td>6</td><td>6.0</td><td>142 / 228</td></tr>
+</tbody>
+</table>
+
+
+
+<table>
+<thead>
+<tr><th>ID</th><th>Approach</th><th>Rank</th><th>Verdict</th></tr>
+</thead>
+
+<tbody>
+<tr><td>NT1</td><td>No TDD</td><td>1</td><td>Deepest suite, cleanest validation reusing formatter's layout; HEADCOUNT mixed into dollar totals unguarded by tests</td></tr>
+
+<tr><td>TF2</td><td>Test-first</td><td>2</td><td>`Decimal` throughout, strong parse/validate; check 3 is unreachable dead code, validate module cluttered</td></tr>
+
+<tr><td>NT2</td><td>No TDD</td><td>3</td><td>Clean design, `Decimal`, correct parse; thinner tests, one no-op test, validation self-referential</td></tr>
+
+<tr><td>T2</td><td>TDD</td><td>4</td><td>Clean happy path, correct formatting; crashes on malformed input instead of returning structured parse errors</td></tr>
+
+<tr><td>TF1</td><td>Test-first</td><td>5</td><td>Strongest parser of the single-file solutions; broken TOTAL row (headcount as dollars), dead scaffolding shipped</td></tr>
+
+<tr><td>T1</td><td>TDD</td><td>6</td><td>Most compact (142 LOC); crashes on malformed input, most tautological validation, thinnest test suite</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="MediumTaskRound3improvedTddInstructions">
+<h3>Medium task, round 3 (improved TDD instructions)</h3>
+
+<p><b>Task:</b> Same 4-stage report pipeline as 01-medium, rerun with an improved TDD prompt (emphasising upfront design and refactoring); NT1/NT2 again reuse the 01-medium codebases.</p>
+
+<table>
+<thead>
+<tr><th>ID</th><th>TDD</th><th>Test Count</th><th>Coverage</th><th>Mutation Score</th><th>Total Tokens</th><th>Turns</th><th>Tool Calls</th></tr>
+</thead>
+
+<tbody>
+<tr><td>T1</td><td>Yes</td><td>51</td><td>100%</td><td>90.2%</td><td>3,447,283</td><td>117</td><td>116</td></tr>
+
+<tr><td>NT1</td><td>No</td><td>107</td><td>100%</td><td>89.6%</td><td>703,159</td><td>21</td><td>20</td></tr>
+
+<tr><td>NT2</td><td>No</td><td>75</td><td>100%</td><td>84.2%</td><td>769,814</td><td>31</td><td>30</td></tr>
+
+<tr><td>T2</td><td>Yes</td><td>43</td><td>100%</td><td>81.1%</td><td>1,421,671</td><td>61</td><td>60</td></tr>
+</tbody>
+</table>
+
+
+
+<table>
+<thead>
+<tr><th>ID</th><th>TDD</th><th>Design</th><th>Code</th><th>Tests</th><th>Avg</th></tr>
+</thead>
+
+<tbody>
+<tr><td>---</td><td>---</td><td>------</td><td>----</td><td>-----</td><td>----</td></tr>
+
+<tr><td>T1</td><td>Yes</td><td>8</td><td>8</td><td>7</td><td>7.67</td></tr>
+
+<tr><td>NT1</td><td>No</td><td>8</td><td>8</td><td>6</td><td>7.33</td></tr>
+
+<tr><td>NT2</td><td>No</td><td>8</td><td>7</td><td>6</td><td>7.0</td></tr>
+
+<tr><td>T2</td><td>Yes</td><td>7</td><td>7</td><td>6</td><td>6.67</td></tr>
+</tbody>
+</table>
+
+
+
+<table>
+<thead>
+<tr><th>Rank</th><th>ID</th><th>TDD</th><th>Headline weakness</th></tr>
+</thead>
+
+<tbody>
+<tr><td>1</td><td>T1</td><td>Yes</td><td>HEADCOUNT-only TOTAL row printed as `$`; validation is a substring check, not arithmetic</td></tr>
+
+<tr><td>2</td><td>NT1</td><td>No</td><td>Fractional HEADCOUNT → spurious ValidationError on valid input; tests lean on monkeypatching</td></tr>
+
+<tr><td>3</td><td>NT2</td><td>No</td><td>`NaN`/`Infinity` crash the pipeline instead of a ParseError; validation re-runs the formatter</td></tr>
+
+<tr><td>4</td><td>T2</td><td>Yes</td><td>Validation is tautological (checks aggregate against itself); width check is only a comment</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="SmallTask">
+<h3>Small task</h3>
+
+<p><b>Task:</b> Build a Python module that validates medical appointment slot codes in <code>DAY-TIME-ROOM-CHECKSUM</code> format, returning a structured result identifying which rule failed and why.</p>
+
+<table>
+<thead>
+<tr><th>ID</th><th>TDD</th><th>Test Count</th><th>Coverage</th><th>Mutation Score</th><th>Total Tokens</th><th>Turns</th><th>Tool Calls</th></tr>
+</thead>
+
+<tbody>
+<tr><td>NT1</td><td>No</td><td>61</td><td>100%</td><td>89.6%</td><td>122,108</td><td>10</td><td>15</td></tr>
+
+<tr><td>NT2</td><td>No</td><td>58</td><td>100%</td><td>92.3%</td><td>117,522</td><td>10</td><td>20</td></tr>
+
+<tr><td>T1</td><td>Yes</td><td>21</td><td>100%</td><td>93.6%</td><td>894,451</td><td>55</td><td>37</td></tr>
+
+<tr><td>T2</td><td>Yes</td><td>20</td><td>100%</td><td>93.2%</td><td>1,142,039</td><td>68</td><td>26</td></tr>
+</tbody>
+</table>
+
+
+
+<table>
+<thead>
+<tr><th>ID</th><th>TDD</th><th>Design</th><th>Code</th><th>Tests</th><th>Avg</th></tr>
+</thead>
+
+<tbody>
+<tr><td>NT1</td><td>No</td><td>8</td><td>9</td><td>9</td><td>8.67</td></tr>
+
+<tr><td>NT2</td><td>No</td><td>8</td><td>8</td><td>8</td><td>8.0</td></tr>
+
+<tr><td>T1</td><td>Yes</td><td>7</td><td>8</td><td>7</td><td>7.33</td></tr>
+
+<tr><td>T2</td><td>Yes</td><td>6</td><td>7</td><td>7</td><td>6.67</td></tr>
+</tbody>
+</table>
+
+
+
+<table>
+<thead>
+<tr><th>ID</th><th>TDD</th><th>Rank</th><th>Verdict</th></tr>
+</thead>
+
+<tbody>
+<tr><td>NT1</td><td>No</td><td>1</td><td>Best overall — dataclass result, no bugs, 61 reason-asserting tests</td></tr>
+
+<tr><td>NT2</td><td>No</td><td>2</td><td>Very close — dataclass result, but a Unicode-digit spec deviation</td></tr>
+
+<tr><td>T1</td><td>Yes</td><td>3</td><td>Correct &amp; clean, but dict result + fewer tests + dead code</td></tr>
+
+<tr><td>T2</td><td>Yes</td><td>4</td><td>Weakest design (free-text error) + a genuine crash bug</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="LargerTask">
+<h3>Larger task</h3>
+
+<p><b>Task:</b> Build an in-memory Python loyalty points engine with tiered earn rates (Bronze/Silver/Gold), trailing-365-day spend tracking for tier recalculation, and point redemption.</p>
+
+<table>
+<thead>
+<tr><th>ID</th><th>TDD</th><th>Test Count</th><th>Coverage</th><th>Mutation Score</th><th>Total Tokens</th><th>Turns</th><th>Tool Calls</th></tr>
+</thead>
+
+<tbody>
+<tr><td>NT2</td><td>No</td><td>69</td><td>100%</td><td>86.9%</td><td>322,148</td><td>14</td><td>13</td></tr>
+
+<tr><td>T2</td><td>Yes</td><td>22</td><td>99%</td><td>85.6%</td><td>1,225,517</td><td>63</td><td>62</td></tr>
+
+<tr><td>T1</td><td>Yes</td><td>21</td><td>99%</td><td>85.2%</td><td>1,253,300</td><td>67</td><td>66</td></tr>
+
+<tr><td>NT1</td><td>No</td><td>74</td><td>99%</td><td>89.4%</td><td>185,094</td><td>11</td><td>9</td></tr>
+</tbody>
+</table>
+
+
+
+<table>
+<thead>
+<tr><th>ID</th><th>TDD</th><th>Design</th><th>Code</th><th>Tests</th><th>Correctness</th><th>Avg</th></tr>
+</thead>
+
+<tbody>
+<tr><td>NT2</td><td>No</td><td>8</td><td>9</td><td>8</td><td>8</td><td>8.25</td></tr>
+
+<tr><td>T2</td><td>Yes</td><td>7</td><td>7</td><td>8</td><td>8</td><td>7.5</td></tr>
+
+<tr><td>T1</td><td>Yes</td><td>7</td><td>7</td><td>7</td><td>9</td><td>7.5</td></tr>
+
+<tr><td>NT1</td><td>No</td><td>8</td><td>7</td><td>6</td><td>6</td><td>6.75</td></tr>
+</tbody>
+</table>
+
+
+
+<table>
+<thead>
+<tr><th>ID</th><th>TDD</th><th>Rank</th><th>Verdict</th></tr>
+</thead>
+
+<tbody>
+<tr><td>NT2</td><td>No</td><td>1</td><td>Only solution with real input validation; precise boundary tests; minor out-of-order purchase edge cases only</td></tr>
+
+<tr><td>T2</td><td>Yes</td><td>2</td><td>Clean typed data model, all core rules correct; no error handling, duplicate purchase ID bug, dead state fields</td></tr>
+
+<tr><td>T1</td><td>Yes</td><td>3</td><td>Most functionally correct (no bugs found on probing); untyped nested dicts, vestigial structure, fewest tests</td></tr>
+
+<tr><td>NT1</td><td>No</td><td>4</td><td>Highest design score, 74 tests — but two High bugs: wrong batch draw-down order; future-dated points counted as spendable</td></tr>
+</tbody>
+</table>
+</section>
+</section>
+
+<section id="">
+<p><b>Acknowledgements</b></p>
+
+<p>Thanks to Ivett Ördög, Matteo Vaccari, Dan Mutton, Lukasz Plotnicki, and Emily Bache, for taking the time to review, and for the feedback and valuable discussions that helped improve this post.</p>
+
+<p>GenAI was used for research, pulling together ideas into structure, and polishing the language.</p>
+</section>
+</div></div>
