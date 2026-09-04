@@ -1,0 +1,131 @@
+<div id="readability-page-1" class="page"><div><p>I have recently been playing with
+<a href="https://github.com/chromedp/chromedp" target="_blank" rel="nofollow noopener noreferrer">chromedp</a>. Chromedp is a Go library that
+enables you to control a Chromium browser programmatically. This can be used for
+different tasks: from testing to scraping. I have some memories of implementing
+a similar program in Node.js, and I was pleased to leverage a strongly typed
+language for the job.</p><p>I was able to quickly start experimenting by following the
+<a href="https://github.com/chromedp/examples" target="_blank" rel="nofollow noopener noreferrer">examples</a> and browsing the
+<a href="https://pkg.go.dev/github.com/chromedp/chromedp" target="_blank" rel="nofollow noopener noreferrer">documentation</a>. For the
+record, this is what the chromedp hello world looks like:</p><div><pre tabindex="0"><code data-lang="go"><span><span><span>func</span><span> </span><span>main</span><span>()</span><span> </span><span>{</span><span>
+</span></span></span><span><span><span>	</span><span>ctx</span><span>,</span><span> </span><span>cancel</span><span> </span><span>:=</span><span> </span><span>chromedp</span><span>.</span><span>NewContext</span><span>(</span><span>context</span><span>.</span><span>Background</span><span>())</span><span>
+</span></span></span><span><span><span>	</span><span>defer</span><span> </span><span>cancel</span><span>()</span><span>
+</span></span></span><span><span><span>
+</span></span></span><span><span><span>	</span><span>if</span><span> </span><span>err</span><span> </span><span>:=</span><span> </span><span>chromedp</span><span>.</span><span>Run</span><span>(</span><span>
+</span></span></span><span><span><span>		</span><span>ctx</span><span>,</span><span>
+</span></span></span><span><span><span>		</span><span>chromedp</span><span>.</span><span>Navigate</span><span>(</span><span>"https://github.com"</span><span>),</span><span>
+</span></span></span><span><span><span>	</span><span>);</span><span> </span><span>err</span><span> </span><span>!=</span><span> </span><span>nil</span><span> </span><span>{</span><span>
+</span></span></span><span><span><span>		</span><span>panic</span><span>(</span><span>err</span><span>)</span><span>
+</span></span></span><span><span><span>	</span><span>}</span><span>
+</span></span></span><span><span><span>}</span><span>
+</span></span></span></code></pre></div><h2 id="the-problem"><a href="#the-problem" aria-label="the problem permalink"></a>The problem</h2><p>Not so long after I started getting results, I suddenly heard my MacBook Pro
+fans running crazy. Similar to what’s happening when a <code>brew install</code> is not
+going as expected, and you feel like you are recompiling gcc from scratch. This
+was accompanied by a weirdly unpleasant gentle warmth on my hands and an
+increasing slowness on the macOS UI.</p><p>A quick look at the <a href="https://aymericbeaumet.com/resources/chromium_zombies.png">activity monitor</a> revealed
+that the Chromium processes were not terminated as expected. They were also
+using a lot of RAM, and forced my computer to swap (hence the perceived
+slowness).</p><p>Running <code>pkill Chromium</code> got me out of trouble. But now remains the question:
+how to prevent this from happening in the future? A quick search on Google led
+me to the chromedp issue tracker, were several
+<a href="https://github.com/chromedp/chromedp/issues/81" target="_blank" rel="nofollow noopener noreferrer">resolved</a>
+<a href="https://github.com/chromedp/chromedp/issues/289" target="_blank" rel="nofollow noopener noreferrer">issues</a> are reporting this
+very problem. They were all closed, and I didn’t have the same symptoms, so I
+opened a <a href="https://github.com/chromedp/chromedp/issues/752" target="_blank" rel="nofollow noopener noreferrer">new one</a> to keep
+track of what I was facing.</p><p><em>TLDR: if you are looking for the solution, jump to the
+<a href="#the-solution">end of this post</a>.</em></p><h2 id="the-quick-fix"><a href="#the-quick-fix" aria-label="the quick fix permalink"></a>The quick fix</h2><p>This problem will at some point be fixed upstream, but in the meantime I was
+looking for a temporary solution that would prevent the zombie processes from
+stacking (and eating my RAM). As it happens, the Chromium processes are spawned
+with the same user as the Go process. That means it should theoratically be
+possible (permission wise) to kill them from within the Go process right before
+it dies. I quickly tried to confirm this theory with the following code:</p><div><pre tabindex="0"><code data-lang="go"><span><span><span>func</span><span> </span><span>main</span><span>()</span><span> </span><span>{</span><span>
+</span></span></span><span><span><span>	</span><span>ctx</span><span>,</span><span> </span><span>cancel</span><span> </span><span>:=</span><span> </span><span>chromedp</span><span>.</span><span>NewContext</span><span>(</span><span>context</span><span>.</span><span>Background</span><span>())</span><span>
+</span></span></span><span><span><span>	</span><span>defer</span><span> </span><span>func</span><span>()</span><span> </span><span>{</span><span>
+</span></span></span><span><span><span>		</span><span>cancel</span><span>()</span><span>
+</span></span></span><span><span><span>		</span><span>if</span><span> </span><span>_</span><span>,</span><span> </span><span>err</span><span> </span><span>:=</span><span> </span><span>exec</span><span>.</span><span>Command</span><span>(</span><span>"pkill"</span><span>,</span><span> </span><span>"Chromium"</span><span>).</span><span>Output</span><span>();</span><span> </span><span>err</span><span> </span><span>!=</span><span> </span><span>nil</span><span> </span><span>{</span><span>
+</span></span></span><span><span><span>			</span><span>log</span><span>.</span><span>Println</span><span>(</span><span>"[warn] Failed to kill Chromium processes"</span><span>,</span><span> </span><span>err</span><span>)</span><span>
+</span></span></span><span><span><span>		</span><span>}</span><span>
+</span></span></span><span><span><span>	</span><span>}()</span><span>
+</span></span></span><span><span><span>
+</span></span></span><span><span><span>	</span><span>// ...</span><span>
+</span></span></span><span><span><span>}</span><span>
+</span></span></span></code></pre></div><p>It is not as accurate as I would like it to be. All the Chromium processes on my
+machine (whose my user has rights on) would die, but this works. That being
+said, I’m not using Chromium as my primary browser, so I’m not really impacted.
+But then came the time to write this blog post, and I was sure at some point
+someone would face this issue <em>and</em> would also be using Chromium as its primary
+browser. So I started digging.</p><h2 id="going-down-the-rabbit-hole"><a href="#going-down-the-rabbit-hole" aria-label="going down the rabbit hole permalink"></a>Going down the rabbit hole</h2><p>As it turns out, <code>man pkill</code> gives us some interesting leads to explore. <code>pkill</code>
+(and <code>pgrep</code> for that matters, as they share most of their options) does support
+a flag allowing to restrict the processes receiving the signal to only the
+descendants of a specific PID (or said otherwise: all the processes whose parent
+is PID). This is achieved by providing the <code>-P &lt;PID&gt;</code> flag.</p><p>Once the code is adjusted to leverage the
+<a href="https://golang.org/pkg/os/#Getpid" target="_blank" rel="nofollow noopener noreferrer"><code>os.Getpid()</code></a> function, only the Chromium
+processes started by the Go process will be killed:</p><div><pre tabindex="0"><code data-lang="go"><span><span><span>_</span><span>,</span><span> </span><span>err</span><span> </span><span>:=</span><span> </span><span>exec</span><span>.</span><span>Command</span><span>(</span><span>"pkill"</span><span>,</span><span> </span><span>"-P"</span><span>,</span><span> </span><span>strconv</span><span>.</span><span>Itoa</span><span>(</span><span>os</span><span>.</span><span>Getpid</span><span>()),</span><span> </span><span>"Chromium"</span><span>).</span><span>Output</span><span>()</span><span>
+</span></span></span></code></pre></div><p>Or so I thought, this doesn’t work. As it turns out, the Chrome processes are
+not directly attached to the Go process as there are intermediate forks. So
+trying to match the parent process will not behave as you would expect.</p><p>While looking at the activity monitor, I noticed there was something else than
+the process ID (PID) mentioned: the process group ID (PGID). I was not sure what
+this was about. A quick look at the
+<a href="https://en.wikipedia.org/wiki/Process_group" target="_blank" rel="nofollow noopener noreferrer">Wikipedia page</a> reads:</p><blockquote><p>In a POSIX-conformant operating system, a process group denotes a collection
+of one or more processes. Among other things, a process group is used to
+control the distribution of a signal; when a signal is directed to a process
+group, the signal is delivered to each process that is a member of the group.</p></blockquote><p>It felt like this was one way to go, so I decided to dig this whole process
+group concept. Reading <code>man ps</code> helped me craft these two commands:</p><ol><li><code>ps -o pid,pgid,command</code>: which lists all the processes on the system, along
+with their PID, PGID, and the full command</li><li><code>ps -g &lt;PGID&gt;</code>: which lists all the processes belonging to a specific process
+group ID</li></ol><p>By using the first command, I found my Go process PGID (<em>46499</em>), and by using
+the second one I was able to list all of the processes in this group:</p><div><pre tabindex="0"><code data-lang="bash"><span><span>$ ps -g <span>46499</span>
+</span></span><span><span>  PID TTY           TIME CMD
+</span></span><span><span><span>46499</span> ttys001    0:00.77 go run .
+</span></span><span><span><span>46518</span> ttys001    0:38.43 /var/folders/dg/3zgc8tkd0wg7d0zc0mst6jc00000gn/T/go-build917574381/b001/exe/scraper
+</span></span><span><span><span>46520</span> ttys001    0:01.72 /Applications/Chromium.app/Contents/MacOS/Chromium --disable-popup-blocking --safebr
+</span></span><span><span><span>46521</span> ttys001    0:00.80 /Applications/Chromium.app/Contents/Frameworks/Chromium Framework.framework/Versions
+</span></span><span><span><span>46522</span> ttys001    0:08.18 /Applications/Chromium.app/Contents/Frameworks/Chromium Framework.framework/Versions
+</span></span></code></pre></div><p>This lists all the processes belonging to the Go process group (including
+Chromium’s). We are getting close to what we want. As it turns out, <code>pkill</code> also
+supports the <code>-g</code> flag (with the same semantic). So changing the code as follows
+should behave as expected:</p><div><pre tabindex="0"><code data-lang="go"><span><span><span>_</span><span>,</span><span> </span><span>err</span><span> </span><span>:=</span><span> </span><span>exec</span><span>.</span><span>Command</span><span>(</span><span>"pkill"</span><span>,</span><span> </span><span>"-g"</span><span>,</span><span> </span><span>strconv</span><span>.</span><span>Itoa</span><span>(</span><span>os</span><span>.</span><span>Getpid</span><span>()),</span><span> </span><span>"Chromium"</span><span>).</span><span>Output</span><span>()</span><span>
+</span></span></span></code></pre></div><p>But it doesn’t. If you look carefully at the <code>ps</code> command above, you can see the
+actual <code>scraper</code> process, but above it is the <code>go run .</code> process, which is the
+process that created the group. As we can see, the process group ID is the PID
+of the process that created the group. So we should be careful to use the <em>go
+run</em> PID instead. In Go, you can get the PID of the parent process with
+<a href="https://golang.org/pkg/os/#Getppid" target="_blank" rel="nofollow noopener noreferrer">os.Getppid()</a>, which gives us:</p><div><pre tabindex="0"><code data-lang="go"><span><span><span>_</span><span>,</span><span> </span><span>err</span><span> </span><span>:=</span><span> </span><span>exec</span><span>.</span><span>Command</span><span>(</span><span>"pkill"</span><span>,</span><span> </span><span>"-g"</span><span>,</span><span> </span><span>strconv</span><span>.</span><span>Itoa</span><span>(</span><span>os</span><span>.</span><span>Getppid</span><span>()),</span><span> </span><span>"Chromium"</span><span>).</span><span>Output</span><span>()</span><span>
+</span></span></span></code></pre></div><p>Does it work? Yes, finally! Well, it works when we <code>go run .</code>, but what happens
+when we <code>go build</code> and directly run the binary? Well, it’s not working. The
+reason is that the process group is no longer the one created by <em>go run</em>, but
+the one created by the binary itself as we run it directly. So we need to
+account for that when we try to guess the PGID from the code.</p><p>An easy solution is to try to <code>pkill</code> both for the current pid <em>and</em> the parent
+pid. At least one of them will be the process group ID. So as long as they don’t
+both fail, it means we have succeeded to kill all the zombie processes:</p><div><pre tabindex="0"><code data-lang="go"><span><span><span>_</span><span>,</span><span> </span><span>errA</span><span> </span><span>:=</span><span> </span><span>exec</span><span>.</span><span>Command</span><span>(</span><span>"pkill"</span><span>,</span><span> </span><span>"-g"</span><span>,</span><span> </span><span>strconv</span><span>.</span><span>Itoa</span><span>(</span><span>os</span><span>.</span><span>Getppid</span><span>()),</span><span> </span><span>"Chromium"</span><span>).</span><span>Output</span><span>()</span><span>
+</span></span></span><span><span><span>_</span><span>,</span><span> </span><span>errB</span><span> </span><span>:=</span><span> </span><span>exec</span><span>.</span><span>Command</span><span>(</span><span>"pkill"</span><span>,</span><span> </span><span>"-g"</span><span>,</span><span> </span><span>strconv</span><span>.</span><span>Itoa</span><span>(</span><span>os</span><span>.</span><span>Getpid</span><span>()),</span><span> </span><span>"Chromium"</span><span>).</span><span>Output</span><span>()</span><span>
+</span></span></span></code></pre></div><p>This works. But I don’t find this elegant as we expect half of the <code>pkill</code>
+commands to fail during a normal execution process. Can we take it one step
+further? Let’s have a look at <code>man pkill</code>:</p><pre tabindex="0"><code>-g pgrp     Restrict matches to processes with a process group ID in the comma-separated list
+            pgrp.  The value zero is taken to mean the process group ID of the running pgrep
+            or pkill command.
+</code></pre><p>Reading this teaches us we could pass a comma-separated list of PID to <code>-g</code>,
+which enables to only call <em>pkill</em> once by passing both the PGID and the PID at
+the same time. But the second part of the description is much more interesting:
+by passing <code>-g 0</code> we ask <em>pkill</em> to infer for us what is the current process
+group ID. That greatly simplifies the code by moving this responsibility out of
+Go.</p><h3 id="the-solution"><a href="#the-solution" aria-label="the solution permalink"></a>The solution</h3><p>By applying this to our piece of code, we reach this solution:</p><div><pre tabindex="0"><code data-lang="go"><span><span><span>func</span><span> </span><span>main</span><span>()</span><span> </span><span>{</span><span>
+</span></span></span><span><span><span>	</span><span>ctx</span><span>,</span><span> </span><span>cancel</span><span> </span><span>:=</span><span> </span><span>chromedp</span><span>.</span><span>NewContext</span><span>(</span><span>context</span><span>.</span><span>Background</span><span>())</span><span>
+</span></span></span><span><span><span>	</span><span>defer</span><span> </span><span>func</span><span>()</span><span> </span><span>{</span><span>
+</span></span></span><span><span><span>		</span><span>cancel</span><span>()</span><span>
+</span></span></span><span><span><span>		</span><span>// Prevent Chromium processes from hanging</span><span>
+</span></span></span><span><span><span>		</span><span>if</span><span> </span><span>_</span><span>,</span><span> </span><span>err</span><span> </span><span>:=</span><span> </span><span>exec</span><span>.</span><span>Command</span><span>(</span><span>"pkill"</span><span>,</span><span> </span><span>"-g"</span><span>,</span><span> </span><span>"0"</span><span>,</span><span> </span><span>"Chromium"</span><span>).</span><span>Output</span><span>();</span><span> </span><span>err</span><span> </span><span>!=</span><span> </span><span>nil</span><span> </span><span>{</span><span>
+</span></span></span><span><span><span>			</span><span>log</span><span>.</span><span>Println</span><span>(</span><span>"[warn] Failed to kill Chromium processes"</span><span>,</span><span> </span><span>err</span><span>)</span><span>
+</span></span></span><span><span><span>		</span><span>}</span><span>
+</span></span></span><span><span><span>	</span><span>}()</span><span>
+</span></span></span><span><span><span>
+</span></span></span><span><span><span>	</span><span>// ...</span><span>
+</span></span></span><span><span><span>}</span><span>
+</span></span></span></code></pre></div><p>This does exactly what we want: it kills all the Chromium processes that have
+been started by the Go process without impacting any other Chromium process that
+would be running on your machine. This is simple, elegant, and works on all
+POSIX systems. It also has the advantage of being transposable to any other
+stack you use. Bingo!</p><h2 id="conclusion"><a href="#conclusion" aria-label="conclusion permalink"></a>Conclusion</h2><p>You might be wondering: was it worth digging all the way through considering you
+already had a working solution from the get-go? That’s a good point. Well, first
+it was not working the way I expected it to. And second, I strongly believe our
+knowledge is always (and will always be) shallow, which makes me strive to take
+the time to dig deeper whenever I have the opportunity.</p><p>It is enjoyable how sometimes a simple problem will challenge you on something
+you thought was well outside your comfort zone.</p></div></div>

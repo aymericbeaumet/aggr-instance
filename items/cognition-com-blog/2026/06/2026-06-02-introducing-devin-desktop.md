@@ -1,0 +1,29 @@
+---
+title: Introducing Devin Desktop
+link: https://cognition.com/blog/introducing-devin-desktop
+source: cognition-com-blog
+published: 2026-06-02T00:00:00Z
+first_seen: 2026-09-04T12:14:41.802665207Z
+content: extracted
+html: 2026-06-02-introducing-devin-desktop.html
+---
+
+By Scott Wu and Jeff Wang06.02.26
+
+We’re excited to announce Devin Desktop - the next generation of Windsurf.
+
+Earlier this year, we launched Windsurf 2.0 with the Agent Command Center and Devin inside Windsurf. Since then, one thing has become increasingly clear: the work of software engineers is shifting towards agent management.
+
+The best engineers we work with are not just pair programming with one agent at a time. They are using agents to scope and plan work, delegating tasks to cloud agents, reviewing progress, and deciding what makes it to production.
+
+We took the IDE foundation of Windsurf and built Devin Desktop for that world.
+
+Devin Desktop makes the Agent Command Center the default surface in the IDE, so you can manage local and cloud agents, PRs, and context from one place. We built Spaces to enable related agents to share context, so they can collaborate effectively on tasks.
+
+We also built Devin Desktop to be open. From the beginning, Devin has been built to use the best model for each task instead of being tied to a single model. With support for the Agent Client Protocol (ACP), we are extending that same idea to agents running in Devin Desktop. Any ACP-compatible agent can run inside Devin Desktop alongside Devin, so teams can use the agents that work best for different parts of the development lifecycle and manage them from the same surface.
+
+At the same time, we believe the IDE still matters to serious developers. Some work starts locally and some work needs review and QA. Some work needs you to jump in, inspect the code, and make the last-mile edit yourself. When that happens, your editor, extensions, keybindings, LSPs, terminal, and workflows matter, so we built the agent manager into the full IDE, which remains fully backwards-compatible with Windsurf.
+
+You can read the full product details on the [Devin blog](https://devin.ai/blog/windsurf-is-now-devin-desktop).
+
+Give it a try and let us know what you think.

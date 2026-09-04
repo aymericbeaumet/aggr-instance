@@ -1,0 +1,57 @@
+---
+title: 'Closing the Agent Loop: Devin Autofixes Review Comments'
+link: https://cognition.com/blog/closing-the-agent-loop-devin-autofixes-review-comments
+source: cognition-com-blog
+published: 2026-02-10T00:00:00Z
+first_seen: 2026-09-04T12:14:41.802665207Z
+content: extracted
+html: 2026-02-10-closing-the-agent-loop-devin-autofixes-review-comments.html
+---
+
+We built a feature that massively increased our internal token spend on Devin. But our PRs are now much more free of bugs and we can't go back.\
+
+Two weeks ago, we built [Devin Review](https://app.devin.ai/review), a new interface that helps you detect bugs and understand complex code in PRs. Why? Agents are generating code faster than teams can review them. The human bottleneck shifts from writing code to reviewing it.
+
+We found, however, that users would waste time copying & pasting between their coding agents and the review agent. Today, **we're closing this loop.**
+
+## What we shipped
+
+Devin can now be configured to **autofix** incoming review comments from Devin Review and other review bots. Devin also continues to autofix lint and CI/CD issues. These move us a big step forward in closing the agent loop: writing and fixing its own code until its fully correct.
+
+When a GitHub bot comments on a PR - a linter flags an issue, CI catches a test failure, a security scanner surfaces a vulnerability - Devin can automatically pick it up and fix it.
+
+![Closing the Agent Loop: Devin Autofixes Review Comments](https://cdn.sanity.io/images/2mc9cv2v/production/a3a17f863367c56531361bf83c07601f32188f0d-1878x1204.png?w=1600&fit=max)
+
+It works with any bot that comments on PRs. Linters, CI pipelines, security scanners, dependency managers - if it leaves a comment, Devin handles it.
+
+No human in the loop for mechanical fixes.
+
+Devin doesn't just flag problems, it resolves them. Then it feeds the fix back into the PR, creating a true feedback loop between the coding agent and the bug catcher.
+
+Why couldn't the code just be correct the first time? Even the best engineers might not catch everything on their first pass - you're focused on solving the problem, not stress-testing the solution. A review agent spends dedicated reasoning on the diff after it's written, and can go deep into specific issues not obvious just from the original plan. One agent writes, the other pressure-tests, and this continues in a loop.
+
+## Write, catch, fix, merge
+
+The agent writes. The reviewer catches. Bot triggers fire. Fixes get applied automatically. CI runs clean. The PR is ready for human review.
+
+The human's job narrows to the decisions that require judgment: architecture, product direction, edge cases that need domain knowledge. Everything mechanical - the lint errors, the missed null checks, the off-by-one - gets caught and fixed before you even open the diff.
+
+A coding agent is a tool. A coding agent paired with a review agent that catches bugs, suggests fixes, and automatically resolves them through bot triggers - that's a system. Systems compound. Tools don't.
+
+There's still a gap: running the app, clicking through flows, writing unit tests. We're closing it. More soon.
+
+## Getting started
+
+To enable bot triggers, go to Settings > Customization > Autofix settings and choose which bots Devin should respond to.
+
+To try Devin Review on any GitHub PR, replace github.com with devinreview.com in the URL.
+
+Both public and private PRs work without an account!
+
+Configure auto-review at [app.devin.ai/settings/review](https://app.devin.ai/settings/review) and Devin starts reviewing every PR automatically - when they're opened, when commits are pushed, when reviewers are added.
+
+Or run it from your terminal:
+
+npx devin-review \<https://github.com/owner/repo/pull/123>
+
+Try it on your next PR.

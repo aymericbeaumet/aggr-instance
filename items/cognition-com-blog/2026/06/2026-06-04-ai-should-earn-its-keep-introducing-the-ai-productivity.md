@@ -1,0 +1,44 @@
+---
+title: 'AI should earn its keep: Introducing the AI Productivity Guarantee'
+link: https://cognition.com/blog/ai-guarantee
+source: cognition-com-blog
+published: 2026-06-04T00:00:00Z
+first_seen: 2026-09-04T12:14:41.802665207Z
+content: extracted
+html: 2026-06-04-ai-should-earn-its-keep-introducing-the-ai-productivity.html
+---
+
+By Scott Wu06.04.26
+
+![AI should earn its keep: Introducing the AI Productivity Guarantee](https://cdn.sanity.io/images/2mc9cv2v/production/d378ef146ec6070438bfaeab4d9e47e8b886e55d-1920x1080.jpg?w=1600&fit=max)
+
+Companies are spending more on AI than ever, but most of them can’t tell you what they’re getting for it. Dashboards show activity metrics like tokens consumed and lines of code generated, but none of them actually answer the question: **how much value is the business actually getting out?**
+
+The industry needs to move from maximizing usage metrics to maximizing outcomes — and right now, there’s no good standard for measuring that. AI vendors should be the ones to provide it.
+
+We built an AI estimator that measures the productive engineering output Devin is providing to enterprise customers. We validated our estimator against engineers’ assessment of the time it would have taken to do the same work on their own.
+
+The results made us confident enough to offer a guarantee to our enterprise customers: if Devin delivers less engineering value than you’re paying for, Cognition will fund your usage up to $10M until it does. We're calling it the AI Productivity Guarantee, and we hope other AI companies will move in a similar direction.
+
+### **How it works**
+
+An agent reviews each completed Devin session and estimates two things:
+
+1. Did this session result in useful output?
+2. If so: how long would a human engineer have taken to produce the same work?
+
+We measure in hours of productive output because lines of code don’t correspond to effort: a critical bug that takes hours to investigate might be a two-line fix. The estimator agent has access to the user’s prompt, the PR if one exists, every action Devin took, and codebase context from [DeepWiki](https://deepwiki.com/). If the session resulted in unmerged PRs or was classified as otherwise unproductive, the output is considered not useful. We assembled a dataset of human time estimates from users at our enterprise customers for validation. See the [technical details of our methodology](https://cognition.ai/blog/ai-productivity).
+
+### **Validation and limitations**
+
+We asked a set of users across our enterprise customers how long their Devin tasks would have taken by hand. No single estimate is perfect, but across many tasks with varying complexity, the highs and lows average out.
+
+This produces an estimate of engineering productivity from agents — hours of useful output. It does not replace measuring ROI, which requires deeper context on the business value of each task. At Cognition, our customer-facing teams collaborate directly with enterprises to understand the full ROI impact of their agent deployments. This estimator provides a baseline by measuring productive output. We plan to keep iterating and publishing what we learn.
+
+### **The AI Productivity Guarantee**
+
+We built Cognition around delivering real engineering value. Devin is model-independent — we use the right model for each task, helping customers optimize price performance. Devin has fine-grained controls to manage spend and steer users towards more productive prompts already. Our teams embed directly into customer accounts: identifying high-value projects, pair-programming with engineers on their backlog, running enablement workshops on productively managing fleets of agents, and measuring outcomes.
+
+Because of these features, our engagement model, and our review of historical productivity data, we’re now confident enough to put a financial commitment behind Devin's productivity in enterprise deployments. Engineering hours are converted to dollar value using a standard global rate and compared against each customer’s actual consumption near the end of their annual contract. If the value falls short, we issue credits up to $10M.
+
+Every AI vendor should be able to tell their customers what they're getting for their money. We'd like to see more of the industry move in this direction. If you're interested in learning more about the AI Productivity Guarantee, contact us [here](https://devin.ai/guarantee). Existing customers can reach out to their account team.

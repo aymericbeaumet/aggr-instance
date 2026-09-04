@@ -1,0 +1,36 @@
+---
+title: Devin is Now FedRAMP High In-Process, Unlocking Autonomous AI Engineering for Federal Agencies
+link: https://cognition.com/blog/devin-fedramp-high-in-process
+source: cognition-com-blog
+published: 2026-07-13T11:00:00Z
+first_seen: 2026-09-04T12:14:41.802665207Z
+content: extracted
+html: 2026-07-13-devin-is-now-fedramp-high-in-process-unlocking-autonomous.html
+---
+
+By Shands Pickett07.13.26
+
+Cognition's entire platform is now FedRAMP Class D (High) In-Process and listed on the [FedRAMP Marketplace](https://marketplace.fedramp.gov), which gives engineering teams working in federal environments access to Devin, the autonomous cloud AI software engineer.
+
+This extends FedRAMP High authorization beyond Devin Desktop (formerly Windsurf) to the full Cognition platform including Devin Cloud, the flagship autonomous AI software engineer. Devin Cloud can complete software engineering work end-to-end: understanding code, writing code, reviewing it, and checking its own work using its own computer — then handing over merge-ready PRs. Devin Desktop and CLI are already FedRAMP High Authorized and compliant for workloads with ITAR and DoW IL4, IL5, IL6 requirements.
+
+Engineering teams in the U.S. Army, U.S. Navy, and NASA's Jet Propulsion Laboratory, alongside defense leaders like Anduril, already use Devin to accelerate their engineering velocity. Devin is also trusted by the world's leading enterprises across industries, including Goldman Sachs, Citi, Dell, and Mercedes-Benz.
+
+## How Devin helps federal engineering teams
+
+Devin helps defense & civilian engineering teams across:
+
+- **Finding and fixing security vulnerabilities.** Mythos-class models make fixing vulnerabilities in aging government systems mission-critical for every federal agency. [Devin Security Swarm](https://devin.ai/security) finds vulnerabilities, validates their exploitability, and opens remediation pull requests for review. In independent benchmarking, Devin had the highest recall and 30 percent lower cost per finding than the next most accurate alternative. Built to support agencies responding to the Cybersecurity and Infrastructure Security Agency Binding Operational Directives on AI security, it compresses months of remediation into hours.
+- **Modernizing legacy code.** Much of the government still runs on decades-old code like COBOL. Devin works directly inside these systems, documents how they function, and translates them into modern languages. Fleets of Devins working in parallel can upgrade legacy software 5-40x faster than humans alone.
+- **Accelerating each engineer.** Every engineer can command their own fleet of Devins to ship more. Cognition is a partner in the U.S. Office of Personnel Management's U.S. Tech Force effort to strengthen the federal digital workforce.
+- **Migrating legacy systems to the cloud.** Devin refactors legacy applications to be cloud-native and writes the secure infrastructure code needed to deploy them reliably on federal cloud platforms.
+
+## What makes Devin different
+
+- **Model-agnostic platform:** Devin routes each task to the model best suited for it, across frontier lab models, open-source, and Cognition's in-house models. This enables teams to get the best price performance and avoid vendor lock-in. The [Devin Fusion](https://cognition.com/blog/devin-fusion) harness achieves frontier-level performance at 60% lower cost by using model routing.
+- **Governance & security:** Every agent works in its own isolated virtual machine, and organizations decide exactly which repositories and credentials it can use. Every action the agent takes is logged, and its work goes through human review before anything merges. Leadership sets access controls and usage budgets centrally, with full visibility into what agents did and produced.
+- **Forward-deployed partnership:** Every deployment also comes with dedicated engineers from Cognition who own technical success and train engineers to work effectively with agents. They also help leadership measure results, like time and cost saved per project, or vulnerabilities remediated.
+
+Engineers working on some of the nation's greatest problems do their work in often difficult conditions: sprawling legacy codebases, tight budgets, and limited access to the best tools. We're pursuing FedRAMP authorization for the full Cognition platform and Devin cloud agent to help these engineers scale up their capacity and deliver far more.
+
+Agencies and enterprises ready to put autonomous AI software engineering to work can reach us at [public.sector@cognition.ai](mailto:public.sector@cognition.ai) or learn more at [devin.ai/government](https://devin.ai/government).
