@@ -1,0 +1,54 @@
+---
+title: Why I’m Writing Rachel’s Ramblings
+link: https://martinfowler.com/rachels-ramblings/intro.html
+source: martin-fowler
+published: 2026-07-28T12:32:00Z
+updated: 2026-07-28T12:32:00Z
+first_seen: 2026-09-04T09:21:49.209340827Z
+authors:
+- Rachel Laycock
+labels:
+- rachels-ramblings
+content: extracted
+html: 2026-07-28-why-i-m-writing-rachel-s-ramblings.html
+---
+
+**TL;DR**\
+*I have ideas. I haven’t been writing them. That’s about to change. I promise… myself.*
+
+I’ve been thinking a lot about talent. Actually, I’ve been thinking a lot about thinking. And writing. Or more specifically, not writing. This really hit me earlier this year at the Future of Software conference. I was surrounded by people sharing their latest ideas and I had a slightly uncomfortable realization:
+
+I have my own.
+
+Not just opinions. Actual patterns. Hypotheses. Things I’m seeing across clients, across teams, across the industry that feel new or at least not well articulated yet in a way that a leader can think about and act upon in some way that can influence how they strategise and plan for the future. Because helping clients and other leaders internal and external to thoughtworks do this is actually a big part of what I do and without letting my northern humbleness get in my own way, I’m actually pretty good at it. If I wasn’t I wouldn’t be the global CTO of a future thinking tech org, you know the kind that has Martin Fowler as its Chief Scientist. A title I know he loves… Martin, by the way, is one of the people pushing me to do this, which is weird because on paper I’m his boss but I don’t believe in the traditional idea of a boss anyway. I’m a strong believer in the servant leadership type but I’ll save that for when I write about that.
+
+Anyway the point is for all the ideas I have and discussion I have I don’t do a good job of writing it down. At best I’ll stick it in a presentation deck when I’m forced to communicate with them in some forum or another. I hate decks and love writing so I’m obviously doing something wrong.
+
+So why haven’t I been writing? It’s easy to say I’ve been too busy. I don’t have an easy job. It’s a fun one but not easy. I also have two small children, 5 and 8. In case you are interested, I attempt to give as much time as possible to this busy job. And then I try to have a life. I’m also writing an epic world building sci-fi fantasy book which is a huge passion project I may also share more about so I am definitely busy. But that’s not actually the real reason I haven’t been writing this down and pushing it out publicly. The real reasons…
+
+1. I overthink it.
+2. I move too fast to the next idea.
+3. I’ve convinced myself it needs to be more polished than it does.
+
+So this is an experiment.
+
+Rachel’s Ramblings is exactly what it sounds like. Fast, imperfect, thinking out loud. Naming ideas early rather than waiting until they’re fully formed. Because the reality is, most of what I do day to day isn’t answering known questions. It’s spotting patterns and asking questions we haven’t quite figured out yet.
+
+My brain works a bit like a knowledge graph. Constant associations, constant pattern matching. That’s useful in conversations, in client work, in strategy.
+
+It’s less useful if it never gets written down.
+
+So this is me fixing that.
+
+I’ll write about:
+
+- what is the future of software
+- how software development is changing in the age of AI and what that means for engineers, leaders, and organizations
+- how platforms, agents, and people actually work together
+- and occasionally, how I manage the reality of doing this job with all the other things I have going on
+
+Some of it will be wrong. Some of it will evolve. That’s the point.
+
+If nothing else, this is a forcing function to turn thinking into something that exists outside my head.
+
+Let’s see where it goes.
