@@ -1,0 +1,304 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text"><p><a href="https://github.com/MoonshotAI/Moonlight/blob/master/Moonlight.pdf"><img width="80%" src="https://github.com/MoonshotAI/Moonlight/raw/master/figures/banner.png"></a></p>
+
+
+<p dir="auto"><h2 tabindex="-1" dir="auto">Abstract</h2><a id="user-content-abstract" aria-label="Permalink: Abstract" href="#abstract"></a></p>
+<p dir="auto">Recently, the <a href="https://github.com/KellerJordan/Muon">Muon optimizer</a> based on matrix orthogonalization has demonstrated strong results in training small-scale language models, but the scalability to larger models has not been proven. We identify two crucial techniques for scaling up Muon: (1) adding weight decay and (2) carefully adjusting the per-parameter update scale. These techniques allow Muon to work out-of-the-box on large-scale training without the need of hyper-parameter tuning. Scaling law experiments indicate that Muon achieves ∼ 2× computational efficiency compared to AdamW with compute optimal training.</p>
+<p dir="auto">Based on these improvements, we introduce <strong>Moonlight</strong>, a 3B/16B-parameter Mixture-of-Expert (MoE) model trained with 5.7T tokens using Muon. Our model improves the current Pareto frontier, achieving better performance with much fewer training FLOPs compared to prior models.</p>
+<p dir="auto">We open-source our distributed Muon implementation that is memory optimal and communication efficient. We also release the pretrained, instruction-tuned, and intermediate checkpoints to support future research.</p>
+<p dir="auto">Our code is available at <a href="https://github.com/MoonshotAI/Moonlight">MoonshotAI/Moonlight</a>.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Key Ingredients</h2><a id="user-content-key-ingredients" aria-label="Permalink: Key Ingredients" href="#key-ingredients"></a></p>
+<p dir="auto">Our work builds upon Muon while systematically identifying and resolving its limitations in large-scale training scenarios. Our technical contributions include:</p>
+<ul dir="auto">
+<li>
+<p dir="auto"><strong>Analysis for Effective Scaling of Muon</strong>: Through extensive analysis, we identify that weight decay plays a crucial roles in Muon's scalability. Besides, we proposed to keep a consistent update root mean square (RMS) across different matrix and non-matrix parameters through parameter-wise update scale adjustments. Such adjustments significantly enhanced training stability.</p>
+</li>
+<li>
+<p dir="auto"><strong>Efficient Distributed Implementation</strong>: We develop a distributed version of Muon with ZeRO-1 style optimization, achieving optimal memory efficiency and reduced communication overhead while preserving the mathematical properties of the algorithm.</p>
+</li>
+<li>
+<p dir="auto"><strong>Scaling Law Validation</strong>: We performed scaling law research that compares Muon with strong AdamW baselines, and showed the superior performance of Muon (see Figure 1). Based on the scaling law results, Muon achieves comparable performance to AdamW trained counterparts while requiring only approximately 52% of the training FLOPs.</p>
+</li>
+</ul>
+<div dir="auto">
+  <p><a target="_blank" rel="noopener noreferrer" href="https://github.com/MoonshotAI/Moonlight/blob/master/figures/scaling.png"><img width="90%" src="https://github.com/MoonshotAI/Moonlight/raw/master/figures/scaling.png"></a></p><p dir="auto"><em>Scaling up with Muon. <b>(a)</b> Scaling law experiments comparing Muon and Adam. Muon is 2 times more sample efficient than Adam. <b>(b)</b> The MMLU performance of our Moonlight model optimized with Muon and other comparable models. Moonlight advances the Pareto frontier of performance vs training FLOPs.</em></p>
+</div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Performance</h2><a id="user-content-performance" aria-label="Permalink: Performance" href="#performance"></a></p>
+<p dir="auto">We named our lightweight model trained with Muon "Moonlight". We compared Moonlight with SOTA public models at similar scale:</p>
+<ul dir="auto">
+<li><strong>LLAMA3-3B</strong> is a 3B-parameter dense model trained with 9T tokens</li>
+<li><strong>Qwen2.5-3B</strong> is a 3B-parameter dense model trained with 18T tokens</li>
+<li><strong>Deepseek-v2-Lite</strong> is a 2.4B/16B-parameter MOE model trained with 5.7T tokens</li>
+</ul>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Benchmark (Metric)</strong></th>
+<th><strong>Llama3.2-3B</strong></th>
+<th><strong>Qwen2.5-3B</strong></th>
+<th><strong>DSV2-Lite</strong></th>
+<th><strong>Moonlight</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Activated Param†</td>
+<td>2.81B</td>
+<td>2.77B</td>
+<td>2.24B</td>
+<td>2.24B</td>
+</tr>
+<tr>
+<td></td>
+<td>Total Params†</td>
+<td>2.81B</td>
+<td>2.77B</td>
+<td>15.29B</td>
+<td>15.29B</td>
+</tr>
+<tr>
+<td></td>
+<td>Training Tokens</td>
+<td>9T</td>
+<td>18T</td>
+<td>5.7T</td>
+<td>5.7T</td>
+</tr>
+<tr>
+<td></td>
+<td>Optimizer</td>
+<td>AdamW</td>
+<td>*</td>
+<td>AdamW</td>
+<td>Muon</td>
+</tr>
+<tr>
+<td><strong>English</strong></td>
+<td>MMLU</td>
+<td>54.75</td>
+<td>65.6</td>
+<td>58.3</td>
+<td><strong>70.0</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>MMLU-pro</td>
+<td>25.0</td>
+<td>34.6</td>
+<td>25.5</td>
+<td><strong>42.4</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>BBH</td>
+<td>46.8</td>
+<td>56.3</td>
+<td>44.1</td>
+<td><strong>65.2</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>TriviaQA‡</td>
+<td>59.6</td>
+<td>51.1</td>
+<td>65.1</td>
+<td><strong>66.3</strong></td>
+</tr>
+<tr>
+<td><strong>Code</strong></td>
+<td>HumanEval</td>
+<td>28.0</td>
+<td>42.1</td>
+<td>29.9</td>
+<td><strong>48.1</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>MBPP</td>
+<td>48.7</td>
+<td>57.1</td>
+<td>43.2</td>
+<td><strong>63.8</strong></td>
+</tr>
+<tr>
+<td><strong>Math</strong></td>
+<td>GSM8K</td>
+<td>34.0</td>
+<td><strong>79.1</strong></td>
+<td>41.1</td>
+<td>77.4</td>
+</tr>
+<tr>
+<td></td>
+<td>MATH</td>
+<td>8.5</td>
+<td>42.6</td>
+<td>17.1</td>
+<td><strong>45.3</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>CMath</td>
+<td>-</td>
+<td>80.0</td>
+<td>58.4</td>
+<td><strong>81.1</strong></td>
+</tr>
+<tr>
+<td><strong>Chinese</strong></td>
+<td>C-Eval</td>
+<td>-</td>
+<td>75.0</td>
+<td>60.3</td>
+<td><strong>77.2</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>CMMLU</td>
+<td>-</td>
+<td>75.0</td>
+<td>64.3</td>
+<td><strong>78.2</strong></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><em>Qwen 2 &amp; 2.5 reports didn't disclose their optimizer information. †The reported parameter counts exclude the embedding parameters. ‡We test all listed models with the full set of TriviaQA.</em></p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Example usage</h2><a id="user-content-example-usage" aria-label="Permalink: Example usage" href="#example-usage"></a></p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Model Download</h3><a id="user-content-model-download" aria-label="Permalink: Model Download" href="#model-download"></a></p>
+<div dir="auto">
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th><strong>Model</strong></th>
+<th><strong>#Total Params</strong></th>
+<th><strong>#Activated Params</strong></th>
+<th><strong>Context Length</strong></th>
+<th><strong>Download Link</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Moonlight</td>
+<td>16B</td>
+<td>3B</td>
+<td>8K</td>
+<td><a href="https://huggingface.co/moonshotai/Moonlight-16B-A3B" rel="nofollow">🤗 Hugging Face</a></td>
+</tr>
+<tr>
+<td>Moonlight-Instruct</td>
+<td>16B</td>
+<td>3B</td>
+<td>8K</td>
+<td><a href="https://huggingface.co/moonshotai/Moonlight-16B-A3B-Instruct" rel="nofollow">🤗 Hugging Face</a></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+</div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Inference with Hugging Face Transformers</h3><a id="user-content-inference-with-hugging-face-transformers" aria-label="Permalink: Inference with Hugging Face Transformers" href="#inference-with-hugging-face-transformers"></a></p>
+<p dir="auto">We introduce how to use our model at inference stage using transformers library. It is recommended to use python=3.10, torch&gt;=2.1.0, and transformers=4.48.2 as the development environment.</p>
+<p dir="auto">For our pretrained model (Moonlight):</p>
+<div dir="auto" data-snippet-clipboard-copy-content="from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model_path = &quot;moonshotai/Moonlight-16B-A3B&quot;
+model = AutoModelForCausalLM.from_pretrained(
+    model_path,
+    torch_dtype=&quot;auto&quot;,
+    device_map=&quot;auto&quot;,
+    trust_remote_code=True,
+)
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+
+prompt = &quot;1+1=2, 1+2=&quot;
+inputs = tokenizer(prompt, return_tensors=&quot;pt&quot;, padding=True, truncation=True).to(model.device)
+generated_ids = model.generate(**inputs, max_new_tokens=100)
+response = tokenizer.batch_decode(generated_ids)[0]
+print(response)"><pre><span>from</span> <span>transformers</span> <span>import</span> <span>AutoModelForCausalLM</span>, <span>AutoTokenizer</span>
+
+<span>model_path</span> <span>=</span> <span>"moonshotai/Moonlight-16B-A3B"</span>
+<span>model</span> <span>=</span> <span>AutoModelForCausalLM</span>.<span>from_pretrained</span>(
+    <span>model_path</span>,
+    <span>torch_dtype</span><span>=</span><span>"auto"</span>,
+    <span>device_map</span><span>=</span><span>"auto"</span>,
+    <span>trust_remote_code</span><span>=</span><span>True</span>,
+)
+<span>tokenizer</span> <span>=</span> <span>AutoTokenizer</span>.<span>from_pretrained</span>(<span>model_path</span>, <span>trust_remote_code</span><span>=</span><span>True</span>)
+
+<span>prompt</span> <span>=</span> <span>"1+1=2, 1+2="</span>
+<span>inputs</span> <span>=</span> <span>tokenizer</span>(<span>prompt</span>, <span>return_tensors</span><span>=</span><span>"pt"</span>, <span>padding</span><span>=</span><span>True</span>, <span>truncation</span><span>=</span><span>True</span>).<span>to</span>(<span>model</span>.<span>device</span>)
+<span>generated_ids</span> <span>=</span> <span>model</span>.<span>generate</span>(<span>**</span><span>inputs</span>, <span>max_new_tokens</span><span>=</span><span>100</span>)
+<span>response</span> <span>=</span> <span>tokenizer</span>.<span>batch_decode</span>(<span>generated_ids</span>)[<span>0</span>]
+<span>print</span>(<span>response</span>)</pre></div>
+<p dir="auto">For our instruct model (Moonlight-Instruct):</p>
+<div dir="auto" data-snippet-clipboard-copy-content="from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model_path = &quot;moonshotai/Moonlight-16B-A3B-Instruct&quot;
+model = AutoModelForCausalLM.from_pretrained(
+    model_path,
+    torch_dtype=&quot;auto&quot;,
+    device_map=&quot;auto&quot;,
+    trust_remote_code=True
+)
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+
+messages = [
+    {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;You are a helpful assistant provided by Moonshot-AI.&quot;},
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Is 123 a prime?&quot;}
+]
+input_ids = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors=&quot;pt&quot;).to(model.device)
+generated_ids = model.generate(inputs=input_ids, max_new_tokens=500)
+response = tokenizer.batch_decode(generated_ids)[0]
+print(response)"><pre><span>from</span> <span>transformers</span> <span>import</span> <span>AutoModelForCausalLM</span>, <span>AutoTokenizer</span>
+
+<span>model_path</span> <span>=</span> <span>"moonshotai/Moonlight-16B-A3B-Instruct"</span>
+<span>model</span> <span>=</span> <span>AutoModelForCausalLM</span>.<span>from_pretrained</span>(
+    <span>model_path</span>,
+    <span>torch_dtype</span><span>=</span><span>"auto"</span>,
+    <span>device_map</span><span>=</span><span>"auto"</span>,
+    <span>trust_remote_code</span><span>=</span><span>True</span>
+)
+<span>tokenizer</span> <span>=</span> <span>AutoTokenizer</span>.<span>from_pretrained</span>(<span>model_path</span>, <span>trust_remote_code</span><span>=</span><span>True</span>)
+
+<span>messages</span> <span>=</span> [
+    {<span>"role"</span>: <span>"system"</span>, <span>"content"</span>: <span>"You are a helpful assistant provided by Moonshot-AI."</span>},
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"Is 123 a prime?"</span>}
+]
+<span>input_ids</span> <span>=</span> <span>tokenizer</span>.<span>apply_chat_template</span>(<span>messages</span>, <span>add_generation_prompt</span><span>=</span><span>True</span>, <span>return_tensors</span><span>=</span><span>"pt"</span>).<span>to</span>(<span>model</span>.<span>device</span>)
+<span>generated_ids</span> <span>=</span> <span>model</span>.<span>generate</span>(<span>inputs</span><span>=</span><span>input_ids</span>, <span>max_new_tokens</span><span>=</span><span>500</span>)
+<span>response</span> <span>=</span> <span>tokenizer</span>.<span>batch_decode</span>(<span>generated_ids</span>)[<span>0</span>]
+<span>print</span>(<span>response</span>)</pre></div>
+<p dir="auto">Moonlight has the same architecture as DeepSeek-V3, which is supported by many popular inference engines, such as VLLM and SGLang. As a result, our model can also be easily deployed using these tools.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Training</h3><a id="user-content-training" aria-label="Permalink: Training" href="#training"></a></p>
+<div data-snippet-clipboard-copy-content="# train qwen-like dense model with muon
+python3 examples/toy_train.py --model qwen --optimizer muon --dataset openwebtext-100k --hidden_size 896 --lr 1e-3
+
+# train qwen-like dense model with adamw
+python3 examples/toy_train.py --model qwen --optimizer adamw --dataset openwebtext-100k --hidden_size 896 --lr 1e-3"><pre><code># train qwen-like dense model with muon
+python3 examples/toy_train.py --model qwen --optimizer muon --dataset openwebtext-100k --hidden_size 896 --lr 1e-3
+
+# train qwen-like dense model with adamw
+python3 examples/toy_train.py --model qwen --optimizer adamw --dataset openwebtext-100k --hidden_size 896 --lr 1e-3
+</code></pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Intermediate Checkpoints</h2><a id="user-content-intermediate-checkpoints" aria-label="Permalink: Intermediate Checkpoints" href="#intermediate-checkpoints"></a></p>
+<p dir="auto">To support ongoing research efforts, we will soon release our intermediate checkpoints. Coming soon...</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Citation</h2><a id="user-content-citation" aria-label="Permalink: Citation" href="#citation"></a></p>
+<p dir="auto">If you find Moonlight is useful or want to use in your projects, please kindly cite our paper:</p>
+<div data-snippet-clipboard-copy-content="@misc{liu2025muonscalablellmtraining,
+      title={Muon is Scalable for LLM Training}, 
+      author={Jingyuan Liu and Jianlin Su and Xingcheng Yao and Zhejun Jiang and Guokun Lai and Yulun Du and Yidao Qin and Weixin Xu and Enzhe Lu and Junjie Yan and Yanru Chen and Huabin Zheng and Yibo Liu and Shaowei Liu and Bohong Yin and Weiran He and Han Zhu and Yuzhi Wang and Jianzhou Wang and Mengnan Dong and Zheng Zhang and Yongsheng Kang and Hao Zhang and Xinran Xu and Yutao Zhang and Yuxin Wu and Xinyu Zhou and Zhilin Yang},
+      year={2025},
+      eprint={2502.16982},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2502.16982}, 
+}"><pre><code>@misc{liu2025muonscalablellmtraining,
+      title={Muon is Scalable for LLM Training}, 
+      author={Jingyuan Liu and Jianlin Su and Xingcheng Yao and Zhejun Jiang and Guokun Lai and Yulun Du and Yidao Qin and Weixin Xu and Enzhe Lu and Junjie Yan and Yanru Chen and Huabin Zheng and Yibo Liu and Shaowei Liu and Bohong Yin and Weiran He and Han Zhu and Yuzhi Wang and Jianzhou Wang and Mengnan Dong and Zheng Zhang and Yongsheng Kang and Hao Zhang and Xinran Xu and Yutao Zhang and Yuxin Wu and Xinyu Zhou and Zhilin Yang},
+      year={2025},
+      eprint={2502.16982},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2502.16982}, 
+}
+</code></pre></div>
+</article></div></div>

@@ -1,0 +1,69 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text"><p dir="auto">
+  <a href="https://arxiv.org/abs/2502.13189" rel="nofollow"><img width="80%" src="https://github.com/MoonshotAI/MoBA/raw/master/figures/banner.png"></a>
+</p>
+
+<p dir="auto">
+  <a href="https://github.com/MoonshotAI/MoBA/blob/master/MoBA_Tech_Report.pdf"><img src="https://github.com/MoonshotAI/MoBA/raw/master/figures/logo.png" height="16" width="16"><b> Full Report</b></a>
+</p>
+<p dir="auto">🚀 Introducing <strong>MoBA --- Mixture of Block Attention</strong></p>
+<ul dir="auto">
+<li><strong>Trainable Block Sparse Attention</strong>: The full context is divided into blocks, where each query token learns to attend to the most relevant KV blocks, enabling efficient processing of long sequences.</li>
+<li><strong>Parameter-less Gating Mechanism</strong>: A novel Parameter-less top-k gating mechanism is introduced to selects the most relevant blocks for each query token, ensuring that the model focuses only on the most informative blocks.</li>
+<li><strong>Seamlessly Transition between Full and Sparse Attention</strong>: MoBA is designed to be a flexible substitute for full attention, allowing seamless transitions between full and sparse attention modes.</li>
+</ul>
+<p dir="auto">
+  <a target="_blank" rel="noopener noreferrer" href="https://github.com/MoonshotAI/MoBA/blob/master/figures/running_example.png"><img width="40%" src="https://github.com/MoonshotAI/MoBA/raw/master/figures/running_example.png"></a>
+  <a target="_blank" rel="noopener noreferrer" href="https://github.com/MoonshotAI/MoBA/blob/master/figures/moba_with_flash_attn.png"><img width="40%" src="https://github.com/MoonshotAI/MoBA/raw/master/figures/moba_with_flash_attn.png"></a>
+</p>
+<blockquote>
+<p dir="auto"><strong>Note</strong>: MoBA requires continue training of existing models to achieve its acceleration benefits. It is not a drop-in sparse attention solution that can be directly applied to pretrained models without additional training.</p>
+</blockquote>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Abstract</h2><a id="user-content-abstract" aria-label="Permalink: Abstract" href="#abstract"></a></p>
+<p dir="auto">Scaling the effective context length is essential for advancing large language models (LLMs) toward artificial general intelligence (AGI). However, the quadratic increase in computational complexity inherent in traditional attention mechanisms presents a prohibitive overhead. Existing approaches either impose strongly biased structures, such as sink or window attention which are task-specific, or radically modify the attention mechanism into linear approximations, whose performance in complex reasoning tasks remains inadequately explored.</p>
+<p dir="auto">In this work, we propose a solution that adheres to the <strong>“less structure”</strong> principle, allowing the model to autonomously determine where to attend, rather than introducing predefined biases. We introduce Mixture of Block Attention (MoBA), an innovative approach that applies the principles of Mixture of Experts (MoE) to the attention mechanism. This novel architecture demonstrates superior performance on long-context tasks while offering a key advantage: the ability to seamlessly transition between full and sparse attention, enhancing efficiency without the risk of compromising performance. MoBA has already been deployed to support Kimi’s long-context requests and demonstrates significant advancements in efficient attention computation for LLMs.</p>
+<p dir="auto">Our code is available at <a href="https://github.com/MoonshotAI/MoBA">MoonshotAI/MoBA</a>.</p>
+<p dir="auto">
+  <a target="_blank" rel="noopener noreferrer" href="https://github.com/MoonshotAI/MoBA/blob/master/figures/computation_time.png"><img width="40%" src="https://github.com/MoonshotAI/MoBA/raw/master/figures/computation_time.png"></a>
+</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Evaluation with 1M context length</h3><a id="user-content-evaluation-with-1m-context-length" aria-label="Permalink: Evaluation with 1M context length" href="#evaluation-with-1m-context-length"></a></p>
+<p dir="auto">
+  <a target="_blank" rel="noopener noreferrer" href="https://github.com/MoonshotAI/MoBA/blob/master/figures/needle-in-a-haystack.png"><img width="80%" src="https://github.com/MoonshotAI/MoBA/raw/master/figures/needle-in-a-haystack.png"></a>
+</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Environment Setup</h2><a id="user-content-environment-setup" aria-label="Permalink: Environment Setup" href="#environment-setup"></a></p>
+<p dir="auto"><strong>Note that current kernel implementations rely on <code>flash-attn==2.6.3</code> and <code>torch &gt;= 2.1.0</code></strong></p>
+<div dir="auto" data-snippet-clipboard-copy-content="conda create -n moba python=3.10
+conda activate moba
+pip install ."><pre>conda create -n moba python=3.10
+conda activate moba
+pip install <span>.</span></pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Quick Start</h2><a id="user-content-quick-start" aria-label="Permalink: Quick Start" href="#quick-start"></a></p>
+<p dir="auto">We provide a transformers-friendly implementation for MoBA.</p>
+<p dir="auto">Feel free to choose attention backends by <code>--attn</code> between <code>moba</code> and <code>moba_naive</code>.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="python3 examples/llama.py --model meta-llama/Llama-3.1-8B --attn moba"><pre>python3 examples/llama.py --model meta-llama/Llama-3.1-8B --attn moba</pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Implementation Details</h3><a id="user-content-implementation-details" aria-label="Permalink: Implementation Details" href="#implementation-details"></a></p>
+<ul dir="auto">
+<li><strong>moba_naive</strong>: A naive implementation based on attention masks. It's designed to help understand how MoBA selects corresponding chunks. You may save and visualize the attention masks to see the block selection process.</li>
+<li><strong>moba_efficient</strong>: Our production-ready implementation optimized for performance. It achieves up to 40x speedup compared to moba_naive (tested with 32K sequence length, 1 attention head, MoBA Block 2048 and MoBA Topk 3). We recommend using this version for practical applications.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Unit Tests</h2><a id="user-content-unit-tests" aria-label="Permalink: Unit Tests" href="#unit-tests"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="pytest tests/test_moba_attn.py"><pre>pytest tests/test_moba_attn.py</pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">References</h2><a id="user-content-references" aria-label="Permalink: References" href="#references"></a></p>
+<ul dir="auto">
+<li>Llama Implementation: <a href="https://github.com/huggingface/transformers">huggingface/transformers</a></li>
+<li>Flash Attention: <a href="https://github.com/Dao-AILab/flash-attention">Dao-AILab/flash-attention</a></li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Citation</h2><a id="user-content-citation" aria-label="Permalink: Citation" href="#citation"></a></p>
+<p dir="auto">If you find MoBA is useful or want to use in your projects, please kindly cite our paper:</p>
+<div data-snippet-clipboard-copy-content="@article{lu2025mobamixtureblockattention,
+  author = {Enzhe Lu and Zhejun Jiang and Jingyuan Liu and Yulun Du and Tao Jiang and Chao Hong and Shaowei Liu and Weiran He and Enming Yuan and Yuzhi Wang and Zhiqi Huang and Huan Yuan and Suting Xu and Xinran Xu and Guokun Lai and Yanru Chen and Huabin Zheng and Junjie Yan and Jianlin Su and Yuxin Wu and Yutao Zhang and Zhilin Yang and Xinyu Zhou and Mingxing Zhang and Jiezhong Qiu},
+  title = {MoBA: Mixture of Block Attention for Long-Context LLMs},
+  journal={arXiv preprint arXiv:2502.13189},
+  year={2025}
+}"><pre><code>@article{lu2025mobamixtureblockattention,
+  author = {Enzhe Lu and Zhejun Jiang and Jingyuan Liu and Yulun Du and Tao Jiang and Chao Hong and Shaowei Liu and Weiran He and Enming Yuan and Yuzhi Wang and Zhiqi Huang and Huan Yuan and Suting Xu and Xinran Xu and Guokun Lai and Yanru Chen and Huabin Zheng and Junjie Yan and Jianlin Su and Yuxin Wu and Yutao Zhang and Zhilin Yang and Xinyu Zhou and Mingxing Zhang and Jiezhong Qiu},
+  title = {MoBA: Mixture of Block Attention for Long-Context LLMs},
+  journal={arXiv preprint arXiv:2502.13189},
+  year={2025}
+}
+</code></pre></div>
+</article></div></div>

@@ -1,0 +1,408 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text">
+
+<p dir="auto"><h2 tabindex="-1" dir="auto">1. Introduction</h2><a id="user-content-1-introduction" aria-label="Permalink: 1. Introduction" href="#1-introduction"></a></p>
+<p dir="auto">We present <strong>Kimi-VL</strong>, an efficient open-source Mixture-of-Experts (MoE) vision-language model (VLM) that offers <strong>advanced multimodal reasoning, long-context understanding, and strong agent capabilities</strong>—all while activating only <strong>2.8B</strong> parameters in its language decoder (Kimi-VL-A3B).</p>
+<p dir="auto">Kimi-VL demonstrates strong performance across challenging domains:
+as a general-purpose VLM, Kimi-VL excels in multi-turn agent interaction tasks (e.g.,OSWorld), achieving state-of-the-art results comparable to flagship models.
+Furthermore, it exhibits remarkable capabilities across diverse challenging vision language tasks, including college-level image and video comprehension, optical character recognition (OCR), mathematical reasoning, multi-image understanding, and etc.</p>
+<p dir="auto">In comparative evaluations, it effectively competes with cutting-edge efficient VLMs such as GPT-4o-mini, Qwen2.5-VL-7B, and Gemma-3-12B-IT, while surpassing GPT-4o in several specialized domains.</p>
+<p dir="auto">Kimi-VL also advances the pareto frontiers of multimodal models in processing long contexts and perceiving clearly: Equipped with a 128K extended context window, Kimi-VL can processes long and diverse inputs, achieving impressive scores of 64.5 on LongVideoBench, and 35.1 on MMLongBench-Doc; Its native-resolution vision encoder, MoonViT, further allows it to see and understand ultra-high-resolution visual inputs, achieving 83.2 on InfoVQA and 34.5 on ScreenSpot-Pro, while maintaining lower computational cost with common visual inputs and general tasks.</p>
+<p dir="auto">Building on this foundation, we introduce an advanced long-thinking variant: <strong>Kimi-VL-Thinking</strong>. Developed through long chain-of-thought (CoT) supervised fine-tuning (SFT) and reinforcement learning (RL), this model exhibits strong long-horizon reasoning capabilities. It achieves scores of 61.7 on MMMU, 36.8 on MathVision, and 71.3 on MathVista while maintaining the compact 2.8B activated LLM parameter footprint, setting a new standard for efficient yet capable multimodal <strong>thinking</strong> models.</p>
+<p dir="auto"><i>Besides original model variants, we also provide a new <a href="https://huggingface.co/moonshotai/Kimi-VL-A3B-Thinking-2506" rel="nofollow">Kimi-VL-A3B-Thinking-2506</a> variant with several new or improved abilities:</i></p><i>
+<ul dir="auto">
+<li>It Thinks Smarter while Consuming Less Tokens: The 2506 version reaches better accuracy on multimodal reasoning benchmarks: 56.9 on MathVision (+20.1), 80.1 on MathVista (+8.4), 46.3 on MMMU-Pro (+3.2), 64.0 on MMMU (+2.1), while in average reducing 20% thinking length.</li>
+<li>It Sees Clearer with Thinking: Unlike the previous version that specializes on thinking tasks, the 2506 version can also achieve the same or even better ability on general visual perception and understanding, e.g. MMBench-EN-v1.1 (84.4), MMStar (70.4), RealWorldQA (70.0), MMVet (78.4) compared to the original non-thinking version (Kimi-VL-A3B-Instruct).</li>
+<li>It Extends to Video Scenarios: The new 2506 version also improves on video reasoning and understanding benchmarks. It sets new state-of-the-art for open-source models on VideoMMMU (65.2), while also retaining good ability on general video understanding (71.9 on Video-MME).</li>
+<li>It Extends to Higher Resolution: The new 2506 version supports 3.2 million total pixels in a single image (1792x1792), 4X compared to the original release. This leads to non-trivial improvements on high-resolution perception and OS-agent grounding benchmarks: 83.2 on V* Benchmark (without extra tools), 52.8 on ScreenSpot-Pro, 52.5 on OSWorld-G (full set with refusal).</li>
+</ul>
+</i>
+<p dir="auto"><h2 tabindex="-1" dir="auto">2. Architecture</h2><a id="user-content-2-architecture" aria-label="Permalink: 2. Architecture" href="#2-architecture"></a></p>
+<p dir="auto">The model adopts an MoE language model, a native-resolution visual encoder (MoonViT), and an MLP projector, as illustrated in the following image.</p>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/MoonshotAI/Kimi-VL/blob/main/figures/arch.png"><img width="90%" src="https://github.com/MoonshotAI/Kimi-VL/raw/main/figures/arch.png"></a></p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">3. News</h2><a id="user-content-3-news" aria-label="Permalink: 3. News" href="#3-news"></a></p>
+<ul dir="auto">
+<li>2025.06.21: Release of Kimi-VL-A3B-Thinking-2506: <a href="https://huggingface.co/blog/moonshotai/kimi-vl-a3b-thinking-2506" rel="nofollow">Tech Blog &amp; Cookbook</a>, <a href="https://huggingface.co/moonshotai/Kimi-VL-A3B-Thinking-2506" rel="nofollow">🤗 Hugging Face</a></li>
+<li>2025.04.15: <a href="https://github.com/vllm-project/vllm">vLLM</a> has supported Kimi-VL deployment. See <a href="https://github.com/vllm-project/vllm/pull/16387" data-hovercard-type="pull_request" data-hovercard-url="/vllm-project/vllm/pull/16387/hovercard">#16387</a> for details.</li>
+<li>2025.04.14: <a href="https://github.com/hiyouga/LLaMA-Factory">LLaMA-Factory</a> has supported Kimi-VL finetuning. See <a href="https://github.com/hiyouga/LLaMA-Factory/pull/7719" data-hovercard-type="pull_request" data-hovercard-url="/hiyouga/LlamaFactory/pull/7719/hovercard">#7719</a> for details.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">4. Model Variants</h2><a id="user-content-4-model-variants" aria-label="Permalink: 4. Model Variants" href="#4-model-variants"></a></p>
+<p dir="auto">🤗 For common general multimodal perception and understanding, OCR, long video and long document, video perception, and OS-agent uses, we recommend <code>Kimi-VL-A3B-Instruct</code> for efficient inference; meanwhile, our new thinking version, <code>Kimi-VL-A3B-Thinking-2506</code> also has excellent multimodal perception, long video and long document and OS-agent grounding abilities while achieving better multimodal reasoning skills. See <a href="https://huggingface.co/blog/moonshotai/kimi-vl-a3b-thinking-2506" rel="nofollow">this blog</a> for more information.</p>
+<div dir="auto">
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th><strong>Model</strong></th>
+<th><strong>#Total Params</strong></th>
+<th><strong>#Activated Params</strong></th>
+<th><strong>Context Length</strong></th>
+<th><strong>Download Link</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🔥Kimi-VL-A3B-Thinking-2506</td>
+<td>16B</td>
+<td>3B</td>
+<td>128K</td>
+<td><a href="https://huggingface.co/moonshotai/Kimi-VL-A3B-Thinking-2506" rel="nofollow">🤗 Hugging Face</a></td>
+</tr>
+<tr>
+<td>Kimi-VL-A3B-Instruct</td>
+<td>16B</td>
+<td>3B</td>
+<td>128K</td>
+<td><a href="https://huggingface.co/moonshotai/Kimi-VL-A3B-Instruct" rel="nofollow">🤗 Hugging Face</a></td>
+</tr>
+<tr>
+<td>Kimi-VL-A3B-Thinking (deprecated)</td>
+<td>16B</td>
+<td>3B</td>
+<td>128K</td>
+<td><a href="https://huggingface.co/moonshotai/Kimi-VL-A3B-Thinking" rel="nofollow">🤗 Hugging Face</a></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+</div>
+<div dir="auto"><p dir="auto">Note</p><p dir="auto">Recommended parameter settings:</p>
+<ul dir="auto">
+<li>For <strong>Thinking models</strong>, it is recommended to use <code>Temperature = 0.8</code>.</li>
+<li>For <strong>Instruct models</strong>, it is recommended to use <code>Temperature = 0.2</code>.</li>
+</ul>
+</div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Hugging Face Demo</h3><a id="user-content-hugging-face-demo" aria-label="Permalink: Hugging Face Demo" href="#hugging-face-demo"></a></p>
+<blockquote>
+<p dir="auto">🤗 We serve our model demo in Hugging Face spaces:</p>
+<ul dir="auto">
+<li>Chat with <strong>Kimi-VL-A3B-Thinking-2506</strong>👀🤔🗺️🎬📖🖥️ (<em>unifying thinking, general understanding, puzzle solving, agent, video, PDF</em>) model on <a href="https://huggingface.co/spaces/moonshotai/Kimi-VL-A3B-Thinking/" rel="nofollow">Chat Web</a>.</li>
+</ul>
+</blockquote>
+<p dir="auto"><h2 tabindex="-1" dir="auto">5. Performance</h2><a id="user-content-5-performance" aria-label="Permalink: 5. Performance" href="#5-performance"></a></p>
+<div dir="auto"><p dir="auto">Note</p><p dir="auto">See the performance of Kimi-VL-A3B-Thinking-2506 at <a href="https://huggingface.co/moonshotai/Kimi-VL-A3B-Thinking-2506#2-performance" rel="nofollow">Hugging Face</a>.</p>
+</div>
+<p dir="auto">As an efficient model, Kimi-VL can robustly handle diverse tasks (fine-grained perception, math, college-level problems, OCR, agent, etc) across a broad spectrum of input forms (single-image, multi-image, video, long-document, etc).</p>
+<p dir="auto">A brief comparison with existing 10B-level dense VLMs and DeepSeek-VL2 (A4.5B):</p>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/MoonshotAI/Kimi-VL/blob/main/figures/instruct_perf.png"><img width="100%" src="https://github.com/MoonshotAI/Kimi-VL/raw/main/figures/instruct_perf.png"></a></p>
+<p dir="auto">With effective long-thinking abilities, Kimi-VL-A3B-Thinking (2504 version) can match the performance of 30B/70B frontier open-source VLMs on MathVision benchmark:</p>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/MoonshotAI/Kimi-VL/blob/main/figures/thinking_perf.png"><img width="100%" src="https://github.com/MoonshotAI/Kimi-VL/raw/main/figures/thinking_perf.png"></a></p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">6. Example usage</h2><a id="user-content-6-example-usage" aria-label="Permalink: 6. Example usage" href="#6-example-usage"></a></p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Setup</h3><a id="user-content-setup" aria-label="Permalink: Setup" href="#setup"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="conda create -n kimi-vl python=3.10 -y
+conda activate kimi-vl
+pip install -r requirements.txt"><pre>conda create -n kimi-vl python=3.10 -y
+conda activate kimi-vl
+pip install -r requirements.txt</pre></div>
+<div dir="auto"><p dir="auto">Note</p><p dir="auto">If you encounter Out-of-Memory or want to speed up inference, please install <strong>flash-attn</strong> with <code>pip install flash-attn --no-build-isolation</code>.</p>
+</div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Inference with Hugging Face Transformers</h3><a id="user-content-inference-with-hugging-face-transformers" aria-label="Permalink: Inference with Hugging Face Transformers" href="#inference-with-hugging-face-transformers"></a></p>
+<p dir="auto">We introduce how to use our model at inference stage using transformers library. It is recommended to use python=3.10, torch=2.5.1, and transformers=4.51.3 as the development environment.</p>
+<p dir="auto"><h4 tabindex="-1" dir="auto">Kimi-VL-A3B-Instruct:</h4><a id="user-content-kimi-vl-a3b-instruct" aria-label="Permalink: Kimi-VL-A3B-Instruct:" href="#kimi-vl-a3b-instruct"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="import torch
+from PIL import Image
+from transformers import AutoModelForCausalLM, AutoProcessor
+
+model_path = &quot;moonshotai/Kimi-VL-A3B-Instruct&quot;
+model = AutoModelForCausalLM.from_pretrained(
+    model_path,
+    torch_dtype=&quot;auto&quot;,
+    device_map=&quot;auto&quot;,
+    trust_remote_code=True,
+)
+# If flash-attn has been installed, it is recommended to set torch_dtype=torch.bfloat16 and attn_implementation=&quot;flash_attention_2&quot;
+# to save memory and speed up inference
+# model = AutoModelForCausalLM.from_pretrained(
+#     model_path,
+#     torch_dtype=torch.bfloat16,
+#     device_map=&quot;auto&quot;,
+#     trust_remote_code=True,
+#     attn_implementation=&quot;flash_attention_2&quot;
+# )
+
+processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+
+image_path = &quot;./figures/demo.png&quot;
+image = Image.open(image_path)
+messages = [
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: [{&quot;type&quot;: &quot;image&quot;, &quot;image&quot;: image_path}, {&quot;type&quot;: &quot;text&quot;, &quot;text&quot;: &quot;What is the dome building in the picture? Think step by step.&quot;}]}
+]
+text = processor.apply_chat_template(messages, add_generation_prompt=True, return_tensors=&quot;pt&quot;)
+inputs = processor(images=image, text=text, return_tensors=&quot;pt&quot;, padding=True, truncation=True).to(model.device)
+generated_ids = model.generate(**inputs, max_new_tokens=512)
+generated_ids_trimmed = [
+    out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+]
+response = processor.batch_decode(
+    generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+)[0]
+print(response)"><pre><span>import</span> <span>torch</span>
+<span>from</span> <span>PIL</span> <span>import</span> <span>Image</span>
+<span>from</span> <span>transformers</span> <span>import</span> <span>AutoModelForCausalLM</span>, <span>AutoProcessor</span>
+
+<span>model_path</span> <span>=</span> <span>"moonshotai/Kimi-VL-A3B-Instruct"</span>
+<span>model</span> <span>=</span> <span>AutoModelForCausalLM</span>.<span>from_pretrained</span>(
+    <span>model_path</span>,
+    <span>torch_dtype</span><span>=</span><span>"auto"</span>,
+    <span>device_map</span><span>=</span><span>"auto"</span>,
+    <span>trust_remote_code</span><span>=</span><span>True</span>,
+)
+<span># If flash-attn has been installed, it is recommended to set torch_dtype=torch.bfloat16 and attn_implementation="flash_attention_2"</span>
+<span># to save memory and speed up inference</span>
+<span># model = AutoModelForCausalLM.from_pretrained(</span>
+<span>#     model_path,</span>
+<span>#     torch_dtype=torch.bfloat16,</span>
+<span>#     device_map="auto",</span>
+<span>#     trust_remote_code=True,</span>
+<span>#     attn_implementation="flash_attention_2"</span>
+<span># )</span>
+
+<span>processor</span> <span>=</span> <span>AutoProcessor</span>.<span>from_pretrained</span>(<span>model_path</span>, <span>trust_remote_code</span><span>=</span><span>True</span>)
+
+<span>image_path</span> <span>=</span> <span>"./figures/demo.png"</span>
+<span>image</span> <span>=</span> <span>Image</span>.<span>open</span>(<span>image_path</span>)
+<span>messages</span> <span>=</span> [
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: [{<span>"type"</span>: <span>"image"</span>, <span>"image"</span>: <span>image_path</span>}, {<span>"type"</span>: <span>"text"</span>, <span>"text"</span>: <span>"What is the dome building in the picture? Think step by step."</span>}]}
+]
+<span>text</span> <span>=</span> <span>processor</span>.<span>apply_chat_template</span>(<span>messages</span>, <span>add_generation_prompt</span><span>=</span><span>True</span>, <span>return_tensors</span><span>=</span><span>"pt"</span>)
+<span>inputs</span> <span>=</span> <span>processor</span>(<span>images</span><span>=</span><span>image</span>, <span>text</span><span>=</span><span>text</span>, <span>return_tensors</span><span>=</span><span>"pt"</span>, <span>padding</span><span>=</span><span>True</span>, <span>truncation</span><span>=</span><span>True</span>).<span>to</span>(<span>model</span>.<span>device</span>)
+<span>generated_ids</span> <span>=</span> <span>model</span>.<span>generate</span>(<span>**</span><span>inputs</span>, <span>max_new_tokens</span><span>=</span><span>512</span>)
+<span>generated_ids_trimmed</span> <span>=</span> [
+    <span>out_ids</span>[<span>len</span>(<span>in_ids</span>) :] <span>for</span> <span>in_ids</span>, <span>out_ids</span> <span>in</span> <span>zip</span>(<span>inputs</span>.<span>input_ids</span>, <span>generated_ids</span>)
+]
+<span>response</span> <span>=</span> <span>processor</span>.<span>batch_decode</span>(
+    <span>generated_ids_trimmed</span>, <span>skip_special_tokens</span><span>=</span><span>True</span>, <span>clean_up_tokenization_spaces</span><span>=</span><span>False</span>
+)[<span>0</span>]
+<span>print</span>(<span>response</span>)</pre></div>
+<p dir="auto"><h4 tabindex="-1" dir="auto">Kimi-VL-A3B-Thinking-2506:</h4><a id="user-content-kimi-vl-a3b-thinking-2506" aria-label="Permalink: Kimi-VL-A3B-Thinking-2506:" href="#kimi-vl-a3b-thinking-2506"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="import torch
+from PIL import Image
+from transformers import AutoModelForCausalLM, AutoProcessor
+
+model_path = &quot;moonshotai/Kimi-VL-A3B-Thinking-2506&quot;
+model = AutoModelForCausalLM.from_pretrained(
+    model_path,
+    torch_dtype=&quot;auto&quot;,
+    device_map=&quot;auto&quot;,
+    trust_remote_code=True,
+)
+# If flash-attn has been installed, it is recommended to set torch_dtype=torch.bfloat16 and attn_implementation=&quot;flash_attention_2&quot;
+# to save memory and speed up inference
+# model = AutoModelForCausalLM.from_pretrained(
+#     model_path,
+#     torch_dtype=torch.bfloat16,
+#     device_map=&quot;auto&quot;,
+#     trust_remote_code=True,
+#     attn_implementation=&quot;flash_attention_2&quot;
+# )
+processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+
+image_paths = [&quot;./figures/demo1.png&quot;, &quot;./figures/demo2.png&quot;]
+images = [Image.open(path) for path in image_paths]
+messages = [
+    {
+        &quot;role&quot;: &quot;user&quot;,
+        &quot;content&quot;: [
+            {&quot;type&quot;: &quot;image&quot;, &quot;image&quot;: image_path} for image_path in image_paths
+        ] + [{&quot;type&quot;: &quot;text&quot;, &quot;text&quot;: &quot;Please infer step by step who this manuscript belongs to and what it records&quot;}],
+    },
+]
+text = processor.apply_chat_template(messages, add_generation_prompt=True, return_tensors=&quot;pt&quot;)
+inputs = processor(images=images, text=text, return_tensors=&quot;pt&quot;, padding=True, truncation=True).to(model.device)
+generated_ids = model.generate(**inputs, max_new_tokens=32768, temperature=0.8)
+generated_ids_trimmed = [
+    out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+]
+response = processor.batch_decode(
+    generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+)[0]
+print(response)"><pre><span>import</span> <span>torch</span>
+<span>from</span> <span>PIL</span> <span>import</span> <span>Image</span>
+<span>from</span> <span>transformers</span> <span>import</span> <span>AutoModelForCausalLM</span>, <span>AutoProcessor</span>
+
+<span>model_path</span> <span>=</span> <span>"moonshotai/Kimi-VL-A3B-Thinking-2506"</span>
+<span>model</span> <span>=</span> <span>AutoModelForCausalLM</span>.<span>from_pretrained</span>(
+    <span>model_path</span>,
+    <span>torch_dtype</span><span>=</span><span>"auto"</span>,
+    <span>device_map</span><span>=</span><span>"auto"</span>,
+    <span>trust_remote_code</span><span>=</span><span>True</span>,
+)
+<span># If flash-attn has been installed, it is recommended to set torch_dtype=torch.bfloat16 and attn_implementation="flash_attention_2"</span>
+<span># to save memory and speed up inference</span>
+<span># model = AutoModelForCausalLM.from_pretrained(</span>
+<span>#     model_path,</span>
+<span>#     torch_dtype=torch.bfloat16,</span>
+<span>#     device_map="auto",</span>
+<span>#     trust_remote_code=True,</span>
+<span>#     attn_implementation="flash_attention_2"</span>
+<span># )</span>
+<span>processor</span> <span>=</span> <span>AutoProcessor</span>.<span>from_pretrained</span>(<span>model_path</span>, <span>trust_remote_code</span><span>=</span><span>True</span>)
+
+<span>image_paths</span> <span>=</span> [<span>"./figures/demo1.png"</span>, <span>"./figures/demo2.png"</span>]
+<span>images</span> <span>=</span> [<span>Image</span>.<span>open</span>(<span>path</span>) <span>for</span> <span>path</span> <span>in</span> <span>image_paths</span>]
+<span>messages</span> <span>=</span> [
+    {
+        <span>"role"</span>: <span>"user"</span>,
+        <span>"content"</span>: [
+            {<span>"type"</span>: <span>"image"</span>, <span>"image"</span>: <span>image_path</span>} <span>for</span> <span>image_path</span> <span>in</span> <span>image_paths</span>
+        ] <span>+</span> [{<span>"type"</span>: <span>"text"</span>, <span>"text"</span>: <span>"Please infer step by step who this manuscript belongs to and what it records"</span>}],
+    },
+]
+<span>text</span> <span>=</span> <span>processor</span>.<span>apply_chat_template</span>(<span>messages</span>, <span>add_generation_prompt</span><span>=</span><span>True</span>, <span>return_tensors</span><span>=</span><span>"pt"</span>)
+<span>inputs</span> <span>=</span> <span>processor</span>(<span>images</span><span>=</span><span>images</span>, <span>text</span><span>=</span><span>text</span>, <span>return_tensors</span><span>=</span><span>"pt"</span>, <span>padding</span><span>=</span><span>True</span>, <span>truncation</span><span>=</span><span>True</span>).<span>to</span>(<span>model</span>.<span>device</span>)
+<span>generated_ids</span> <span>=</span> <span>model</span>.<span>generate</span>(<span>**</span><span>inputs</span>, <span>max_new_tokens</span><span>=</span><span>32768</span>, <span>temperature</span><span>=</span><span>0.8</span>)
+<span>generated_ids_trimmed</span> <span>=</span> [
+    <span>out_ids</span>[<span>len</span>(<span>in_ids</span>) :] <span>for</span> <span>in_ids</span>, <span>out_ids</span> <span>in</span> <span>zip</span>(<span>inputs</span>.<span>input_ids</span>, <span>generated_ids</span>)
+]
+<span>response</span> <span>=</span> <span>processor</span>.<span>batch_decode</span>(
+    <span>generated_ids_trimmed</span>, <span>skip_special_tokens</span><span>=</span><span>True</span>, <span>clean_up_tokenization_spaces</span><span>=</span><span>False</span>
+)[<span>0</span>]
+<span>print</span>(<span>response</span>)</pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">7. Finetuning</h2><a id="user-content-7-finetuning" aria-label="Permalink: 7. Finetuning" href="#7-finetuning"></a></p>
+<p dir="auto">Collaborating closely with the open-source community, Kimi-VL now offers seamless support for efficient fine-tuning through the latest version of <a href="https://github.com/hiyouga/LLaMA-Factory">LLaMA-Factory</a>.</p>
+<p dir="auto">The framework enables Single-GPU LoRA fine-tuning with 50GB of VRAM, as well as Multi-GPU full/lora fine-tuning using DeepSpeed ZeRO-2. For more detailed configuration instructions, check out <a href="https://github.com/hiyouga/LLaMA-Factory/pull/7719#issue-2992644288" data-hovercard-type="pull_request" data-hovercard-url="/hiyouga/LlamaFactory/pull/7719/hovercard">this PR</a>.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">8. Deployment</h2><a id="user-content-8-deployment" aria-label="Permalink: 8. Deployment" href="#8-deployment"></a></p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Using vLLM</h3><a id="user-content-using-vllm" aria-label="Permalink: Using vLLM" href="#using-vllm"></a></p>
+<p dir="auto">The <a href="https://github.com/vllm-project/vllm">vLLM main branch</a> has supported Kimi-VL deployment. You are welcome to deploy Kimi-VL using vLLM.</p>
+<p dir="auto"><h4 tabindex="-1" dir="auto">Offline Inference</h4><a id="user-content-offline-inference" aria-label="Permalink: Offline Inference" href="#offline-inference"></a></p>
+
+<div dir="auto" data-snippet-clipboard-copy-content="from PIL import Image
+from transformers import AutoProcessor
+from vllm import LLM, SamplingParams
+
+model_path = &quot;moonshotai/Kimi-VL-A3B-Instruct&quot;  # or &quot;moonshotai/Kimi-VL-A3B-Thinking-2506&quot;
+llm = LLM(
+    model_path,
+    trust_remote_code=True,
+)
+
+processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+
+image_path = &quot;./figures/demo.png&quot;
+image = Image.open(image_path)
+messages = [
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: [{&quot;type&quot;: &quot;image&quot;, &quot;image&quot;: image_path}, {&quot;type&quot;: &quot;text&quot;, &quot;text&quot;: &quot;What is the dome building in the picture? Think step by step.&quot;}]}
+]
+text = processor.apply_chat_template(messages, add_generation_prompt=True, return_tensors=&quot;pt&quot;)
+outputs = llm.generate([{&quot;prompt&quot;: text, &quot;multi_modal_data&quot;: {&quot;image&quot;: image}}], sampling_params = SamplingParams(max_tokens=512))
+
+print(&quot;-&quot; * 50)
+for o in outputs:
+    generated_text = o.outputs[0].text
+    print(generated_text)
+    print(&quot;-&quot; * 50)"><pre><span>from</span> <span>PIL</span> <span>import</span> <span>Image</span>
+<span>from</span> <span>transformers</span> <span>import</span> <span>AutoProcessor</span>
+<span>from</span> <span>vllm</span> <span>import</span> <span>LLM</span>, <span>SamplingParams</span>
+
+<span>model_path</span> <span>=</span> <span>"moonshotai/Kimi-VL-A3B-Instruct"</span>  <span># or "moonshotai/Kimi-VL-A3B-Thinking-2506"</span>
+<span>llm</span> <span>=</span> <span>LLM</span>(
+    <span>model_path</span>,
+    <span>trust_remote_code</span><span>=</span><span>True</span>,
+)
+
+<span>processor</span> <span>=</span> <span>AutoProcessor</span>.<span>from_pretrained</span>(<span>model_path</span>, <span>trust_remote_code</span><span>=</span><span>True</span>)
+
+<span>image_path</span> <span>=</span> <span>"./figures/demo.png"</span>
+<span>image</span> <span>=</span> <span>Image</span>.<span>open</span>(<span>image_path</span>)
+<span>messages</span> <span>=</span> [
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: [{<span>"type"</span>: <span>"image"</span>, <span>"image"</span>: <span>image_path</span>}, {<span>"type"</span>: <span>"text"</span>, <span>"text"</span>: <span>"What is the dome building in the picture? Think step by step."</span>}]}
+]
+<span>text</span> <span>=</span> <span>processor</span>.<span>apply_chat_template</span>(<span>messages</span>, <span>add_generation_prompt</span><span>=</span><span>True</span>, <span>return_tensors</span><span>=</span><span>"pt"</span>)
+<span>outputs</span> <span>=</span> <span>llm</span>.<span>generate</span>([{<span>"prompt"</span>: <span>text</span>, <span>"multi_modal_data"</span>: {<span>"image"</span>: <span>image</span>}}], <span>sampling_params</span> <span>=</span> <span>SamplingParams</span>(<span>max_tokens</span><span>=</span><span>512</span>))
+
+<span>print</span>(<span>"-"</span> <span>*</span> <span>50</span>)
+<span>for</span> <span>o</span> <span>in</span> <span>outputs</span>:
+    <span>generated_text</span> <span>=</span> <span>o</span>.<span>outputs</span>[<span>0</span>].<span>text</span>
+    <span>print</span>(<span>generated_text</span>)
+    <span>print</span>(<span>"-"</span> <span>*</span> <span>50</span>)</pre></div>
+<p dir="auto"><h4 tabindex="-1" dir="auto">OpenAI-Compatible Server</h4><a id="user-content-openai-compatible-server" aria-label="Permalink: OpenAI-Compatible Server" href="#openai-compatible-server"></a></p>
+
+<p dir="auto">Serve Kimi-VL with <code>vllm serve</code> command:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="# If you need a longer context window, you can set --max-model-len and --max-num-batched-tokens to 131072
+# If you need more input images, you can set --limit-mm-per-prompt image=256 or 512
+
+# kimi-vl-thinking-2506
+vllm serve moonshotai/Kimi-VL-A3B-Thinking-2506 --served-model-name kimi-vl-thinking-2506 --trust-remote-code --tensor-parallel-size 1 --max-num-batched-tokens 32768 --max-model-len 32768 --limit-mm-per-prompt image=64
+
+# kimi-vl-instruct
+vllm serve moonshotai/Kimi-VL-A3B-Instruct --served-model-name kimi-vl --trust-remote-code --tensor-parallel-size 1 --max-num-batched-tokens 32768 --max-model-len 32768 --limit-mm-per-prompt image=64"><pre><span><span>#</span> If you need a longer context window, you can set --max-model-len and --max-num-batched-tokens to 131072</span>
+<span><span>#</span> If you need more input images, you can set --limit-mm-per-prompt image=256 or 512</span>
+
+<span><span>#</span> kimi-vl-thinking-2506</span>
+vllm serve moonshotai/Kimi-VL-A3B-Thinking-2506 --served-model-name kimi-vl-thinking-2506 --trust-remote-code --tensor-parallel-size 1 --max-num-batched-tokens 32768 --max-model-len 32768 --limit-mm-per-prompt image=64
+
+<span><span>#</span> kimi-vl-instruct</span>
+vllm serve moonshotai/Kimi-VL-A3B-Instruct --served-model-name kimi-vl --trust-remote-code --tensor-parallel-size 1 --max-num-batched-tokens 32768 --max-model-len 32768 --limit-mm-per-prompt image=64</pre></div>
+<p dir="auto">Call the API</p>
+<div dir="auto" data-snippet-clipboard-copy-content="import base64
+from PIL import Image
+from io import BytesIO
+from openai import OpenAI
+
+client = OpenAI(
+    base_url=&quot;http://localhost:8000/v1&quot;,
+    api_key=&quot;token-abc123&quot;,
+)
+
+image_path = &quot;./figures/demo.png&quot;
+image = Image.open(image_path).convert(&quot;RGB&quot;)
+
+buffered = BytesIO()
+image.save(buffered, format=&quot;JPEG&quot;)
+img_b64_str = base64.b64encode(buffered.getvalue()).decode(&quot;utf-8&quot;)
+base64_image_url = f&quot;data:image/jpeg;base64,{img_b64_str}&quot;
+
+messages = [
+    {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: [{&quot;type&quot;: &quot;image_url&quot;, &quot;image_url&quot;: {&quot;url&quot;: base64_image_url}}, {&quot;type&quot;: &quot;text&quot;, &quot;text&quot;: &quot;What is the dome building in the picture? Think step by step.&quot;}]}
+]
+
+completion = client.chat.completions.create(
+  model=&quot;kimi-vl-thinking-2506&quot;, # or kimi-vl
+  messages=messages
+)
+
+print(completion.choices[0].message)"><pre><span>import</span> <span>base64</span>
+<span>from</span> <span>PIL</span> <span>import</span> <span>Image</span>
+<span>from</span> <span>io</span> <span>import</span> <span>BytesIO</span>
+<span>from</span> <span>openai</span> <span>import</span> <span>OpenAI</span>
+
+<span>client</span> <span>=</span> <span>OpenAI</span>(
+    <span>base_url</span><span>=</span><span>"http://localhost:8000/v1"</span>,
+    <span>api_key</span><span>=</span><span>"token-abc123"</span>,
+)
+
+<span>image_path</span> <span>=</span> <span>"./figures/demo.png"</span>
+<span>image</span> <span>=</span> <span>Image</span>.<span>open</span>(<span>image_path</span>).<span>convert</span>(<span>"RGB"</span>)
+
+<span>buffered</span> <span>=</span> <span>BytesIO</span>()
+<span>image</span>.<span>save</span>(<span>buffered</span>, <span>format</span><span>=</span><span>"JPEG"</span>)
+<span>img_b64_str</span> <span>=</span> <span>base64</span>.<span>b64encode</span>(<span>buffered</span>.<span>getvalue</span>()).<span>decode</span>(<span>"utf-8"</span>)
+<span>base64_image_url</span> <span>=</span> <span>f"data:image/jpeg;base64,<span><span>{</span><span>img_b64_str</span><span>}</span></span>"</span>
+
+<span>messages</span> <span>=</span> [
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: [{<span>"type"</span>: <span>"image_url"</span>, <span>"image_url"</span>: {<span>"url"</span>: <span>base64_image_url</span>}}, {<span>"type"</span>: <span>"text"</span>, <span>"text"</span>: <span>"What is the dome building in the picture? Think step by step."</span>}]}
+]
+
+<span>completion</span> <span>=</span> <span>client</span>.<span>chat</span>.<span>completions</span>.<span>create</span>(
+  <span>model</span><span>=</span><span>"kimi-vl-thinking-2506"</span>, <span># or kimi-vl</span>
+  <span>messages</span><span>=</span><span>messages</span>
+)
+
+<span>print</span>(<span>completion</span>.<span>choices</span>[<span>0</span>].<span>message</span>)</pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">9. Citation</h2><a id="user-content-9-citation" aria-label="Permalink: 9. Citation" href="#9-citation"></a></p>
+<div data-snippet-clipboard-copy-content="@misc{kimiteam2025kimivltechnicalreport,
+      title={{Kimi-VL} Technical Report}, 
+      author={Kimi Team and Angang Du and Bohong Yin and Bowei Xing and Bowen Qu and Bowen Wang and Cheng Chen and Chenlin Zhang and Chenzhuang Du and Chu Wei and Congcong Wang and Dehao Zhang and Dikang Du and Dongliang Wang and Enming Yuan and Enzhe Lu and Fang Li and Flood Sung and Guangda Wei and Guokun Lai and Han Zhu and Hao Ding and Hao Hu and Hao Yang and Hao Zhang and Haoning Wu and Haotian Yao and Haoyu Lu and Heng Wang and Hongcheng Gao and Huabin Zheng and Jiaming Li and Jianlin Su and Jianzhou Wang and Jiaqi Deng and Jiezhong Qiu and Jin Xie and Jinhong Wang and Jingyuan Liu and Junjie Yan and Kun Ouyang and Liang Chen and Lin Sui and Longhui Yu and Mengfan Dong and Mengnan Dong and Nuo Xu and Pengyu Cheng and Qizheng Gu and Runjie Zhou and Shaowei Liu and Sihan Cao and Tao Yu and Tianhui Song and Tongtong Bai and Wei Song and Weiran He and Weixiao Huang and Weixin Xu and Xiaokun Yuan and Xingcheng Yao and Xingzhe Wu and Xinxing Zu and Xinyu Zhou and Xinyuan Wang and Y. Charles and Yan Zhong and Yang Li and Yangyang Hu and Yanru Chen and Yejie Wang and Yibo Liu and Yibo Miao and Yidao Qin and Yimin Chen and Yiping Bao and Yiqin Wang and Yongsheng Kang and Yuanxin Liu and Yulun Du and Yuxin Wu and Yuzhi Wang and Yuzi Yan and Zaida Zhou and Zhaowei Li and Zhejun Jiang and Zheng Zhang and Zhilin Yang and Zhiqi Huang and Zihao Huang and Zijia Zhao and Ziwei Chen},
+      year={2025},
+      eprint={2504.07491},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2504.07491}, 
+}"><pre><code>@misc{kimiteam2025kimivltechnicalreport,
+      title={{Kimi-VL} Technical Report}, 
+      author={Kimi Team and Angang Du and Bohong Yin and Bowei Xing and Bowen Qu and Bowen Wang and Cheng Chen and Chenlin Zhang and Chenzhuang Du and Chu Wei and Congcong Wang and Dehao Zhang and Dikang Du and Dongliang Wang and Enming Yuan and Enzhe Lu and Fang Li and Flood Sung and Guangda Wei and Guokun Lai and Han Zhu and Hao Ding and Hao Hu and Hao Yang and Hao Zhang and Haoning Wu and Haotian Yao and Haoyu Lu and Heng Wang and Hongcheng Gao and Huabin Zheng and Jiaming Li and Jianlin Su and Jianzhou Wang and Jiaqi Deng and Jiezhong Qiu and Jin Xie and Jinhong Wang and Jingyuan Liu and Junjie Yan and Kun Ouyang and Liang Chen and Lin Sui and Longhui Yu and Mengfan Dong and Mengnan Dong and Nuo Xu and Pengyu Cheng and Qizheng Gu and Runjie Zhou and Shaowei Liu and Sihan Cao and Tao Yu and Tianhui Song and Tongtong Bai and Wei Song and Weiran He and Weixiao Huang and Weixin Xu and Xiaokun Yuan and Xingcheng Yao and Xingzhe Wu and Xinxing Zu and Xinyu Zhou and Xinyuan Wang and Y. Charles and Yan Zhong and Yang Li and Yangyang Hu and Yanru Chen and Yejie Wang and Yibo Liu and Yibo Miao and Yidao Qin and Yimin Chen and Yiping Bao and Yiqin Wang and Yongsheng Kang and Yuanxin Liu and Yulun Du and Yuxin Wu and Yuzhi Wang and Yuzi Yan and Zaida Zhou and Zhaowei Li and Zhejun Jiang and Zheng Zhang and Zhilin Yang and Zhiqi Huang and Zihao Huang and Zijia Zhao and Ziwei Chen},
+      year={2025},
+      eprint={2504.07491},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2504.07491}, 
+}
+</code></pre></div>
+</article></div></div>

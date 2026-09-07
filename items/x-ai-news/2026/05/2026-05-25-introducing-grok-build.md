@@ -1,0 +1,48 @@
+---
+title: Introducing Grok Build
+link: https://x.ai/news/grok-build-cli
+source: x-ai-news
+published: 2026-05-25T00:00:00Z
+first_seen: 2026-09-07T17:03:44.343711062Z
+summary: Now in early beta for all SuperGrok and X Premium Plus subscribers — Grok Build is a new coding agent that runs right from your terminal.
+content: extracted
+html: 2026-05-25-introducing-grok-build.html
+preview:
+  file: 2026-05-25-introducing-grok-build.preview-689a01c4c8ec.webp
+  width: 256
+  height: 134
+  color: '#9e4819'
+images:
+- source: https://media.x.ai/v1/website/grok-build-cli-og-5fe6e581.png
+  original:
+    file: 2026-05-25-introducing-grok-build.image-f571056ae55d.png
+    width: 1200
+    height: 630
+  color: '#f86109'
+---
+
+Today we're launching an early beta of Grok Build, a powerful new coding agent for professional software engineering and complex coding work.
+
+Available now to all SuperGrok and X Premium Plus subscribers. Install Grok Build with a single command and sign in with your account:
+
+## [Plan, review, approve](https://x.ai/news/grok-build-cli#plan-review-approve)
+
+For complex tasks, start Grok Build in plan mode. You can approve the plan, comment on individual steps, or rewrite it entirely before execution begins. Once a plan is approved, every change shows up as a clean diff.
+
+## [Works with what you already use](https://x.ai/news/grok-build-cli#works-with-what-you-already-use)
+
+Your AGENTS.md, plugins, hooks, skills, and MCP servers all work out of the box. Start Grok Build in your repo and it picks up your conventions instantly.
+
+## [Subagents that work in parallel](https://x.ai/news/grok-build-cli#subagents-that-work-in-parallel)
+
+For larger tasks, Grok Build delegates work to specialized subagents that run in parallel. Grok Build also supports deep worktree integrations, and you can launch subagents in their own worktrees.
+
+## [Built to fit your workflow](https://x.ai/news/grok-build-cli#built-to-fit-your-workflow)
+
+Headless mode (`-p`) allows easily running agents inside scripts and automations. Grok Build also provides full ACP support to build your own  bots and agent orchestration apps.
+
+## [Try it today](https://x.ai/news/grok-build-cli#try-it-today)
+
+This is an early beta, and your feedback is the fastest way to make it better. Type `/feedback` in Grok Build to send bugs, requests, and reactions straight to the team.
+
+SuperGrok and X Premium Plus subscribers can install Grok Build with the command above and start building. If you don't have SuperGrok yet, [upgrade here](https://grok.com/supergrok?referrer=grok-build) — we're excited to see what you create.

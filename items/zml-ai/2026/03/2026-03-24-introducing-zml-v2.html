@@ -1,0 +1,146 @@
+<div id="readability-page-1" class="page"><div>
+        <p>ZML is an inference stack built close to the hardware. It lowers models directly onto NVIDIA, AMD, TPU, and Trainium
+targets from a single codebase, without depending on and suffering from the Python-heavy runtime layers that most of the
+ecosystem is built around.</p>
+<p>The guiding idea behind zml/v1 was simplicity: give ZML a model and its weights, and the system would take care of
+compilation, placement, and execution for you. That made the first version approachable and effective for standard
+deployments, but it also baked too much behavior into implicit global state. As the project pushed into partial
+compilation, custom passes, sharding, quantization, and more backend-specific execution paths, those implicit shortcuts
+became constraints. ZML/v2 is the rewrite that makes those concepts explicit: platform ownership, compilation, memory,
+IO, and placement are now first-class, so advanced use cases can be expressed directly instead of forced through
+workarounds.</p>
+<h2 id="composability-as-a-core-principle">Composability as a core principle</h2>
+<p>ZML/v2 is a complete rewrite of the framework with a focus on developer experience, performance and most importantly
+<strong>composability</strong>.
+This is a fundamental departure from the original design which was a lot more turnkey but could make more complex programs
+a bit harder than necessary.</p>
+<p>So we’ve decided to strongly orient the design towards composability while also offering an uplift in performance.</p>
+<h2 id="explicit-over-implicit">Explicit over implicit</h2>
+<p>The new API centers around <code>zml.Platform</code>s, which is the main abstraction across accelerators, runtimes, IO etc. In ZML, a
+platform is instantiated and from then on used to transfer data, build, compile and execute programs.</p>
+<p>This is how it all starts:</p>
+<div><pre tabindex="0"><code data-lang="zig"><span><span><span>const</span><span> </span><span>platform</span><span>:</span><span> </span><span>*</span><span>zml</span><span>.</span><span>Platform</span><span> </span><span>=</span><span> </span><span>try</span><span> </span><span>.</span><span>auto</span><span>(</span><span>allocator</span><span>,</span><span> </span><span>io</span><span>,</span><span> </span><span>.{});</span><span>
+</span></span></span></code></pre></div><p>ZML offers various platforms selection mechanisms: compile-time, runtime and manual. The automatic runtime selection
+is the default and will pick the best available platform on the system, but users can also choose to compile for a
+specific platform or manually create a platform with custom options.</p>
+<p>The then built program can now run transparently on all comptime-time enabled platforms, which can be enabled via the
+<code>--@zml//platforms:{cuda,rocm,tpu,neuron}=true</code> build flags. Doing so will download the runtime, strip it to its bare
+minimum and embed it inside the binary sandbox.</p>
+<p>For instance, here is the <strong>entire</strong> CUDA sandbox:</p>
+<pre tabindex="0"><code>$ tree --du -h bazel-bin/examples/llm/llm.runfiles/+cuda_packages+libpjrt_cuda/sandbox/
+[2.9G]  bazel-bin/examples/llm/llm.runfiles/+cuda_packages+libpjrt_cuda/sandbox/
+├── [ 82M]  bin
+│&nbsp;&nbsp; ├── [3.0M]  compat_probe
+│&nbsp;&nbsp; ├── [ 40M]  nvlink
+│&nbsp;&nbsp; └── [ 39M]  ptxas
+├── [2.8G]  lib
+│&nbsp;&nbsp; ├── [409M]  compat
+│&nbsp;&nbsp; │&nbsp;&nbsp; ├── [ 11M]  libcudadebugger.so.1
+│&nbsp;&nbsp; │&nbsp;&nbsp; ├── [ 94M]  libcuda.so.1
+│&nbsp;&nbsp; │&nbsp;&nbsp; ├── [ 86M]  libnvidia-gpucomp.so.590.48.01
+│&nbsp;&nbsp; │&nbsp;&nbsp; ├── [ 24M]  libnvidia-nvvm70.so.4
+│&nbsp;&nbsp; │&nbsp;&nbsp; ├── [ 75M]  libnvidia-nvvm.so.4
+│&nbsp;&nbsp; │&nbsp;&nbsp; ├── [ 14K]  libnvidia-pkcs11-openssl3.so.590.48.01
+│&nbsp;&nbsp; │&nbsp;&nbsp; ├── [ 31M]  libnvidia-ptxjitcompiler.so.1
+│&nbsp;&nbsp; │&nbsp;&nbsp; └── [ 90M]  libnvidia-tileiras.so.590.48.01
+│&nbsp;&nbsp; ├── [479M]  libcublasLt.so.13
+│&nbsp;&nbsp; ├── [ 52M]  libcublas.so.13
+│&nbsp;&nbsp; ├── [740K]  libcudart.so.13
+│&nbsp;&nbsp; ├── [104M]  libcudnn_adv.so.9
+│&nbsp;&nbsp; ├── [2.3M]  libcudnn_cnn.so.9
+│&nbsp;&nbsp; ├── [233M]  libcudnn_engines_precompiled.so.9
+│&nbsp;&nbsp; ├── [ 26M]  libcudnn_engines_runtime_compiled.so.9
+│&nbsp;&nbsp; ├── [3.5M]  libcudnn_graph.so.9
+│&nbsp;&nbsp; ├── [ 56M]  libcudnn_heuristic.so.9
+│&nbsp;&nbsp; ├── [ 37M]  libcudnn_ops.so.9
+│&nbsp;&nbsp; ├── [126K]  libcudnn.so.9
+│&nbsp;&nbsp; ├── [286M]  libcufft.so.12
+│&nbsp;&nbsp; ├── [4.4M]  libcupti.so.13
+│&nbsp;&nbsp; ├── [136M]  libcusolver.so.12
+│&nbsp;&nbsp; ├── [162M]  libcusparse.so.12
+│&nbsp;&nbsp; ├── [218M]  libnccl.so.2
+│&nbsp;&nbsp; ├── [ 95M]  libnvJitLink.so.13
+│&nbsp;&nbsp; ├── [4.2M]  libnvrtc-builtins.so.13.1
+│&nbsp;&nbsp; ├── [109M]  libnvrtc.so.13
+│&nbsp;&nbsp; ├── [ 40M]  libnvshmem_host.so.3
+│&nbsp;&nbsp; ├── [ 39K]  libnvtx3interop.so
+│&nbsp;&nbsp; ├── [383M]  libpjrt_cuda.so
+│&nbsp;&nbsp; ├── [2.9M]  libzmlxcuda.so.0
+│&nbsp;&nbsp; ├── [118K]  libz.so.1
+│&nbsp;&nbsp; ├── [ 72K]  nvshmem_bootstrap_uid.so.3
+│&nbsp;&nbsp; └── [1023K]  nvshmem_transport_ibrc.so.4
+└── [ 77M]  nvvm
+    ├── [ 77M]  bin
+    │&nbsp;&nbsp; └── [ 77M]  cicc
+    └── [458K]  libdevice
+        └── [454K]  libdevice.10.bc
+</code></pre><h2 id="pinned-memory-allocators">Pinned Memory Allocators</h2>
+<p>ZML/v2 enables the explicit allocation and use of pinned memory. Pinned memory is memory that is not movable nor swappable
+and thus can be directly accessed by the DMA engine of the accelerators.
+This functionality is exposed via the <code>zml.mem.DmaAllocator</code> which, combined with Zig’s explicit allocator
+model, enables unique optimizations and removes extraneous copies found in other frameworks.</p>
+<h2 id="zero-and-overlapped-copy-primitives">Zero and overlapped copy primitives</h2>
+<p>Data transfers between host and accelerator now compose with <code>std.Io.Writer</code> via <code>zml.io.MemoryWriter</code>, enabling zero-copy
+and overlapped data movement across the board.</p>
+<p>For instance, loading a model from disk to GPU memory now happens at SSD
+speed when using <code>O_DIRECT</code>, even with staging through the system memory, since transfers are overlapped. This enables
+NVIDIA GPUDirect-like performance on raw POSIX.</p>
+<pre tabindex="0"><code>$ bazel build --config=release //examples/llm --@zml//platforms:cuda=true
+$ bazel-bin/examples/llm/llm --model=/var/models/meta-llama/Llama-3.1-8B-Instruct/
+...
+info(llm): Selected backend: .cuda_fa2
+info(llm): Loaded tokenizer [181.256ms]
+info(llama): Loaded weights [14.96GiB, 1.165s, 12.83GiB/s]
+</code></pre><h2 id="userland-virtual-file-system">Userland Virtual File System</h2>
+<p>Thanks to injectable <code>std.Io</code>, ZML implements a full userland VFS built into the program. It supports local
+files, HTTP endpoints, S3 buckets and Hugging Face repositories. Concretely, this means that models can be loaded directly from each of
+those sources without downloading to disk first, regardless of the underlying FS implementation.</p>
+<p>Let’s try to register an HF implementation and load the tokenizer directly from Hugging Face:</p>
+<div><pre tabindex="0"><code data-lang="zig"><span><span><span>var</span><span> </span><span>vfs</span><span>:</span><span> </span><span>zml</span><span>.</span><span>io</span><span>.</span><span>VFS</span><span> </span><span>=</span><span> </span><span>try</span><span> </span><span>.</span><span>init</span><span>(</span><span>init</span><span>.</span><span>gpa</span><span>,</span><span> </span><span>init</span><span>.</span><span>io</span><span>);</span><span>
+</span></span></span><span><span><span>defer</span><span> </span><span>vfs</span><span>.</span><span>deinit</span><span>();</span><span>
+</span></span></span><span><span><span>
+</span></span></span><span><span><span>var</span><span> </span><span>hf_vfs</span><span>:</span><span> </span><span>zml</span><span>.</span><span>io</span><span>.</span><span>VFS</span><span>.</span><span>HF</span><span> </span><span>=</span><span> </span><span>try</span><span> </span><span>.</span><span>auto</span><span>(</span><span>init</span><span>.</span><span>gpa</span><span>,</span><span> </span><span>init</span><span>.</span><span>io</span><span>,</span><span> </span><span>&amp;</span><span>http_client</span><span>,</span><span> </span><span>init</span><span>.</span><span>environ_map</span><span>);</span><span>
+</span></span></span><span><span><span>defer</span><span> </span><span>hf_vfs</span><span>.</span><span>deinit</span><span>();</span><span>
+</span></span></span><span><span><span>try</span><span> </span><span>vfs</span><span>.</span><span>register</span><span>(</span><span>"hf"</span><span>,</span><span> </span><span>hf_vfs</span><span>.</span><span>io</span><span>());</span><span>
+</span></span></span><span><span><span>
+</span></span></span><span><span><span>// Use the VFS IO from now on</span><span>
+</span></span></span><span><span><span>const</span><span> </span><span>io</span><span> </span><span>=</span><span> </span><span>vfs</span><span>.</span><span>io</span><span>();</span><span>
+</span></span></span><span><span><span>
+</span></span></span><span><span><span>const</span><span> </span><span>tokenizer</span><span>:</span><span> </span><span>zml</span><span>.</span><span>Tokenizer</span><span> </span><span>=</span><span> </span><span>blk</span><span>:</span><span> </span><span>{</span><span>
+</span></span></span><span><span><span>    </span><span>const</span><span> </span><span>file</span><span> </span><span>=</span><span> </span><span>try</span><span> </span><span>std</span><span>.</span><span>Io</span><span>.</span><span>Dir</span><span>.</span><span>openFile</span><span>(.</span><span>cwd</span><span>(),</span><span> </span><span>io</span><span>,</span><span> </span><span>"hf://Qwen/Qwen3-8B/tokenizer.json"</span><span>,</span><span> </span><span>.{});</span><span>
+</span></span></span><span><span><span>    </span><span>defer</span><span> </span><span>file</span><span>.</span><span>close</span><span>(</span><span>io</span><span>);</span><span>
+</span></span></span><span><span><span>    </span><span>var</span><span> </span><span>reader</span><span> </span><span>=</span><span> </span><span>file</span><span>.</span><span>reader</span><span>(</span><span>init</span><span>.</span><span>gpa</span><span>,</span><span> </span><span>&amp;</span><span>.{});</span><span>
+</span></span></span><span><span><span>    </span><span>const</span><span> </span><span>bytes</span><span> </span><span>=</span><span> </span><span>try</span><span> </span><span>reader</span><span>.</span><span>interface</span><span>.</span><span>readAlloc</span><span>(</span><span>init</span><span>.</span><span>gpa</span><span>,</span><span> </span><span>try</span><span> </span><span>file</span><span>.</span><span>length</span><span>(</span><span>io</span><span>));</span><span>
+</span></span></span><span><span><span>    </span><span>defer</span><span> </span><span>init</span><span>.</span><span>gpa</span><span>.</span><span>free</span><span>(</span><span>bytes</span><span>);</span><span>
+</span></span></span><span><span><span>    </span><span>break</span><span> </span><span>:</span><span>blk</span><span> </span><span>try</span><span> </span><span>.</span><span>fromBytes</span><span>(</span><span>init</span><span>.</span><span>gpa</span><span>,</span><span> </span><span>io</span><span>,</span><span> </span><span>bytes</span><span>);</span><span>
+</span></span></span><span><span><span>};</span><span>
+</span></span></span></code></pre></div><p>Or load the model directly from Hugging Face:</p>
+<pre tabindex="0"><code>$ bazel-bin/examples/llm/llm --model=hf://meta-llama/Llama-3.1-8B-Instruct
+</code></pre><h2 id="powerful-sharding-primitives">Powerful sharding primitives</h2>
+<p>Sharding is now a first-class citizen of the programming model instead of an implicit backend detail. We introduce a new public
+<code>zml.sharding</code> API with <code>PhysicalMesh</code>, <code>LogicalMesh</code>, <code>Strategy</code>, <code>Sharding</code>, and <code>Placement</code>. Compile / load / buffer APIs now
+take explicit sharding information and finally <code>zml.ops.manualComputation</code> expresses a shard-local primitive similar to JAX’s <code>shard_map</code>.</p>
+<p>It also fully leverages <a href="https://openxla.org/shardy">Shardy</a> or <a href="https://research.google/blog/general-and-scalable-parallelization-for-neural-networks/">GSPMD</a>
+based on the target platform transparently.</p>
+<h2 id="pluggable-attention-backend">Pluggable Attention backend</h2>
+<p>ZML/v2 provides a pluggable attention backend system, giving a clean way to select and configure different attention implementations
+without rewriting model code around each kernel.</p>
+<p>Instead of baking backend-specific logic into every call site, <code>zml.attention</code> exposes an explicit
+<code>Backend</code> plus backend-typed <code>Parameters</code>, <code>Metadata</code>, and paged-attention <code>Context</code>, so the same high-level attention path can
+target vanilla behavior or optimized CUDA FlashAttention variants like Tri-Dao’s FA2 and FA3.</p>
+<p>The backend is selected automatically based on the platform and accelerator.</p>
+<p>In this release, we took the opportunity to integrate <a href="https://github.com/zml/flash-attention/releases/tag/v2026.3.23">FlashAttention 2 and 3
+built on CUDA for <code>sm80</code> up to <code>sm121</code></a>.</p>
+<h2 id="complete-build-sandboxing">Complete build sandboxing</h2>
+<p>Our build now runs entirely on the 100% hermetic LLVM toolchain <a href="https://github.com/cerisier/toolchains_llvm_bootstrapped">@llvm</a>.
+This enables full reproducibility, better cross-compilation support, and a more consistent development experience across platforms.
+This means that ZML supports remote execution on services such as <a href="https://www.buildbuddy.io/">BuildBuddy</a> or
+<a href="https://www.nativelink.com/">NativeLink</a>.</p>
+<p>On macOS, we no longer rely on Xcode nor Command Line Tools to build ZML. The macOS SDK is downloaded as part of the build.</p>
+<p>Cross compilation is also fully supported, enabling fully working containers for any supported ZML platform to be built right from a Mac.</p>
+<h2 id="examplesllm">//examples/llm</h2>
+<p>Try it today via the <code>llm</code> CLI:</p>
+<pre tabindex="0"><code>$ bazel build --config=release //examples/llm --@zml//platforms:cuda=true
+$ bazel-bin/examples/llm/llm --model=hf://Qwen/Qwen3.5-9B
+</code></pre>
+      </div></div>

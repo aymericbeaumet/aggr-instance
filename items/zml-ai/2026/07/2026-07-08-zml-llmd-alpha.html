@@ -1,0 +1,566 @@
+<div id="readability-page-1" class="page"><div>
+        <p>Today we’re releasing ZML/LLMD. It’s a self-contained inference server that runs LLaMa, Gemma, Qwen and Mistral LLMs
+transparently on <strong>5 architectures</strong>: <strong>NVIDIA CUDA</strong>, <strong>AMD ROCm</strong>, <strong>Google TPU</strong>, <strong>Intel oneAPI</strong> and <strong>Apple
+Metal</strong>.</p>
+<p><img src="https://zml.ai/posts/llmd/llmd1.png" alt="">
+</p>
+<h2 id="modern-serving-features">Modern serving features</h2>
+<p>ZML/LLMD supports modern serving features: <strong>continuous batching</strong>, <strong>paged attention</strong>, <strong>tensor parallel sharding</strong>,
+<strong>prefix caching</strong>, <strong>tool calling</strong> and does so on <strong>all platforms</strong>.</p>
+<p>Metrics are also exposed in the Prometheus format via the <code>/metrics</code> endpoint.</p>
+<h2 id="supported-models">Supported models</h2>
+<p>ZML/LLMD alpha ships with support for the following models:</p>
+<ul>
+<li>Qwen 2, 3, 3.5 and 3.6 series (dense and MoE)</li>
+<li>Gemma 3 and 4 series (dense and MoE)</li>
+<li>LFM2.5 series</li>
+<li>Mistral 3 and Ministral series</li>
+<li>LLaMa 2 and 3 series</li>
+</ul>
+<p>DeepSeek, Kimi, GLM, MiniMax and StepFun models are coming soon.</p>
+<h2 id="native-huggingface-s3-and-gcs-support">Native HuggingFace, S3 and GCS support</h2>
+<p>Built on ZML, ZML/LLMD has native support for ZML’s VFS subsystem, which allows for zero-copy loading of models from
+HuggingFace (<code>hf://</code>), S3 (<code>s3://</code>), and GCS (<code>gs://</code>). This means that you can load models directly from these sources
+without having to download them first, saving time and storage space. Authentication is handled with the standard
+environment or paths for each backend.</p>
+<p>For instance, loading from HuggingFace is as simple as using the <code>hf://</code> prefix on any flag that expects a path:</p>
+<div><pre tabindex="0"><code data-lang="bash"><span><span>$ docker run -p 8000:8000 --shm-size<span>=</span>256GB --gpus<span>=</span>all -e HF_TOKEN -it zmlai/llmd:cuda <span>\
+</span></span></span><span><span>    --model<span>=</span>hf://Qwen/Qwen3-8B
+</span></span></code></pre></div><p>Notice we’re also passing the <code>HF_TOKEN</code> environment variable to authenticate.</p>
+<h2 id="dflash-speculative-decoding">DFlash speculative decoding</h2>
+<p>ZML/LLMD alpha ships with native support for DFlash on Gemma 4 series and soon Qwen series models. DFlash is a new
+speculative decoding algorithm that can speed up tok/s/user by <strong>up to 10x</strong> on supported models.</p>
+<p>To use it, just pass the <code>--dflash-model</code> flag when launching LLMD:</p>
+<div><pre tabindex="0"><code data-lang="bash"><span><span>$ docker run -p 8000:8000 --shm-size<span>=</span>256GB --gpus<span>=</span>all -e HF_TOKEN -it zmlai/llmd:cuda <span>\
+</span></span></span><span><span>    --model<span>=</span>hf://google/gemma-4-31B-it <span>\
+</span></span></span><span><span>    --dflash-model<span>=</span>hf://z-lab/gemma-4-31B-it-DFlash
+</span></span></code></pre></div><p>One nice benefit of ZML’s programming model is the compounding of features across platforms. For instance, DFlash
+transparently runs very well on Intel and Apple GPUs.</p>
+<p>Read about DFlash <a href="https://z-lab.ai/projects/dflash/">on the Z-Lab blog</a> and the
+<a href="https://huggingface.co/collections/z-lab/dflash">currently released DFlash drafters</a>.</p>
+<h2 id="optimized-docker-image">Optimized Docker image</h2>
+<p>On each platform, ZML/LLMD ships the platform runtime as part of the image in a sandboxed manner. Per file optimization
+reduces image sizes by 5-10x. On top of that careful ordering of layers and custom compression improves
+<code>docker pull</code> time by using download/extraction overlapping.</p>
+<p>The result is a small image that can be pulled and run in seconds:</p>
+<div><pre tabindex="0"><code data-lang="bash"><span><span>$ <span>time</span> docker pull zmlai/llmd:cuda
+</span></span><span><span>cuda: Pulling from zmlai/llmd
+</span></span><span><span>...
+</span></span><span><span>Status: Downloaded newer image <span>for</span> zmlai/llmd:cuda
+</span></span><span><span>docker.io/zmlai/llmd:cuda
+</span></span><span><span>
+</span></span><span><span>real    0m13.766s
+</span></span><span><span>user    0m0.021s
+</span></span><span><span>sys     0m0.022s
+</span></span></code></pre></div><table>
+  <thead>
+      <tr>
+          <th>Platform</th>
+          <th>Image</th>
+          <th>Size</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>CUDA</strong></td>
+          <td><code>zmlai/llmd:cuda</code></td>
+          <td><strong>1.7 GB</strong></td>
+      </tr>
+      <tr>
+          <td><strong>ROCm</strong></td>
+          <td><code>zmlai/llmd:rocm</code></td>
+          <td><strong>3.9 GB</strong></td>
+      </tr>
+      <tr>
+          <td><strong>TPU</strong></td>
+          <td><code>zmlai/llmd:tpu</code></td>
+          <td><strong>280 MB</strong></td>
+      </tr>
+      <tr>
+          <td><strong>OneAPI</strong></td>
+          <td><code>zmlai/llmd:oneapi</code></td>
+          <td><strong>350 MB</strong></td>
+      </tr>
+      <tr>
+          <td><strong>Metal</strong></td>
+          <td><code>brew install zml/zml/llmd</code></td>
+          <td><strong>140 MB</strong></td>
+      </tr>
+  </tbody>
+</table>
+<p>Each image ships with everything it needs to run. For instance on Metal the Apple Metal compiler is shipped in the
+archive, or ROCm itself in the AMD image.</p>
+<h3 id="built-in-cuda-compatibility">Built-in CUDA Compatibility</h3>
+<p>On the CUDA platform, ZML/LLMD ships with the <a href="https://docs.nvidia.com/deploy/cuda-compatibility/latest/why-cuda-compatibility.html">CUDA Compatibility layer</a>
+transparently built-in that enables ZML/LLMD to run on a wide range of driver versions without intervention.</p>
+<p>This feature doesn’t require any special configuration as the probe is done automatically at runtime.
+It is also fully sandboxed and doesn’t require any system libraries to be installed.</p>
+<h2 id="automatic-sharding-support">Automatic sharding support</h2>
+<p>ZML/LLMD supports tensor parallel inference on all platforms. It automatically shards the model across multiple devices
+and handles the communication between them transparently.</p>
+<p>Currently only tensor or expert parallel sharding is supported. More control will be added in the near future, for
+instance pipeline parallelism.</p>
+<h2 id="python-free-execution-path">Python-free Execution Path</h2>
+<p>ZML/LLMD runs on ZML’s own ML framework, ZML, built with Zig, MLIR, OpenXLA. It compiles binaries and runtimes ahead of
+time into a single, hermetic artifact. Since the ZML programming model is explicit compilation passes, once compiled,
+there are no hidden compilation happening in the hot path. Latencies are flat and predictable.</p>
+<h2 id="performance">Performance</h2>
+<h3 id="googlegemma-4-26b-a4b-it-bs16">google/gemma-4-26B-A4B-it (bs=16)</h3>
+<table>
+  <thead>
+      <tr>
+          <th>NVIDIA H100x2</th>
+          <th>Avg</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>P50</th>
+          <th>P75</th>
+          <th>P90</th>
+          <th>P95</th>
+          <th>P99</th>
+          <th>P99.9</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>TTFT (ms)</td>
+          <td>127.64</td>
+          <td>70.39</td>
+          <td>162.08</td>
+          <td>141.91</td>
+          <td>142.04</td>
+          <td>142.1</td>
+          <td>143.1</td>
+          <td>158.28</td>
+          <td>161.7</td>
+      </tr>
+      <tr>
+          <td>ITL (ms)</td>
+          <td>12.03</td>
+          <td>0.01</td>
+          <td>85.58</td>
+          <td>11.67</td>
+          <td>12.28</td>
+          <td>13.14</td>
+          <td>16.35</td>
+          <td>68.24</td>
+          <td>74.42</td>
+      </tr>
+      <tr>
+          <td>Total tok/s</td>
+          <td>1317.93</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<table>
+  <thead>
+      <tr>
+          <th>Intel B70x2</th>
+          <th>Avg</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>P50</th>
+          <th>P75</th>
+          <th>P90</th>
+          <th>P95</th>
+          <th>P99</th>
+          <th>P99.9</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>TTFT (ms)</td>
+          <td>426.05</td>
+          <td>117.36</td>
+          <td>1027.4</td>
+          <td>375.38</td>
+          <td>375.4</td>
+          <td>612.75</td>
+          <td>850.48</td>
+          <td>992.01</td>
+          <td>1023.86</td>
+      </tr>
+      <tr>
+          <td>ITL (ms)</td>
+          <td>81.83</td>
+          <td>0.03</td>
+          <td>499.75</td>
+          <td>81.62</td>
+          <td>82.72</td>
+          <td>83.7</td>
+          <td>84.17</td>
+          <td>84.6</td>
+          <td>279.99</td>
+      </tr>
+      <tr>
+          <td>Total tok/s</td>
+          <td>179.31</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<table>
+  <thead>
+      <tr>
+          <th>AMD MI300X</th>
+          <th>Avg</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>P50</th>
+          <th>P75</th>
+          <th>P90</th>
+          <th>P95</th>
+          <th>P99</th>
+          <th>P99.9</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>TTFT (ms)</td>
+          <td>101.86</td>
+          <td>36.3</td>
+          <td>145.35</td>
+          <td>109.7</td>
+          <td>109.76</td>
+          <td>110.39</td>
+          <td>116.76</td>
+          <td>139.63</td>
+          <td>144.77</td>
+      </tr>
+      <tr>
+          <td>ITL (ms)</td>
+          <td>18.52</td>
+          <td>0.02</td>
+          <td>69.33</td>
+          <td>18.4</td>
+          <td>18.82</td>
+          <td>19.12</td>
+          <td>19.26</td>
+          <td>40.41</td>
+          <td>47.75</td>
+      </tr>
+      <tr>
+          <td>Total tok/s</td>
+          <td>858.8</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<table>
+  <thead>
+      <tr>
+          <th>M3 Max</th>
+          <th>Avg</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>P50</th>
+          <th>P75</th>
+          <th>P90</th>
+          <th>P95</th>
+          <th>P99</th>
+          <th>P99.9</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>TTFT (ms)</td>
+          <td>2364.71</td>
+          <td>1840.79</td>
+          <td>2608.73</td>
+          <td>2411.42</td>
+          <td>2411.5</td>
+          <td>2470.67</td>
+          <td>2539.7</td>
+          <td>2594.92</td>
+          <td>2607.35</td>
+      </tr>
+      <tr>
+          <td>ITL (ms)</td>
+          <td>67.01</td>
+          <td>25.81</td>
+          <td>196.99</td>
+          <td>67.02</td>
+          <td>70.63</td>
+          <td>74.5</td>
+          <td>77.41</td>
+          <td>85.19</td>
+          <td>104.45</td>
+      </tr>
+      <tr>
+          <td>Total tok/s</td>
+          <td>109.59</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="googlegemma-4-31b-it--z-labgemma-4-31b-it-dflash-bs16">google/gemma-4-31B-it + z-lab/gemma-4-31B-it-DFlash (bs=16)</h3>
+<table>
+  <thead>
+      <tr>
+          <th>TPU v6ex4</th>
+          <th>Avg</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>P50</th>
+          <th>P75</th>
+          <th>P90</th>
+          <th>P95</th>
+          <th>P99</th>
+          <th>P99.9</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>TTFT (ms)</td>
+          <td>137.64</td>
+          <td>25.36</td>
+          <td>187.67</td>
+          <td>137.79</td>
+          <td>137.82</td>
+          <td>158.75</td>
+          <td>187.17</td>
+          <td>187.57</td>
+          <td>187.66</td>
+      </tr>
+      <tr>
+          <td>ITL (ms)</td>
+          <td>16.73</td>
+          <td>0.01</td>
+          <td>345.35</td>
+          <td>0.02</td>
+          <td>0.08</td>
+          <td>71.85</td>
+          <td>73.76</td>
+          <td>75.63</td>
+          <td>323.83</td>
+      </tr>
+      <tr>
+          <td>Total tok/s</td>
+          <td>943.7</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<table>
+  <thead>
+      <tr>
+          <th>AMD MI300X</th>
+          <th>Avg</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>P50</th>
+          <th>P75</th>
+          <th>P90</th>
+          <th>P95</th>
+          <th>P99</th>
+          <th>P99.9</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>TTFT (ms)</td>
+          <td>254.95</td>
+          <td>57.23</td>
+          <td>368.84</td>
+          <td>268.09</td>
+          <td>268.14</td>
+          <td>268.23</td>
+          <td>283.34</td>
+          <td>351.74</td>
+          <td>367.13</td>
+      </tr>
+      <tr>
+          <td>ITL (ms)</td>
+          <td>21.51</td>
+          <td>0.01</td>
+          <td>140.15</td>
+          <td>0.02</td>
+          <td>0.03</td>
+          <td>91.55</td>
+          <td>93.82</td>
+          <td>109.29</td>
+          <td>139.67</td>
+      </tr>
+      <tr>
+          <td>Total tok/s</td>
+          <td>731.8</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="qwenqwen36-27b-bs8">Qwen/Qwen3.6-27B (bs=8)</h3>
+<table>
+  <thead>
+      <tr>
+          <th>M3 Max</th>
+          <th>Avg</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>P50</th>
+          <th>P75</th>
+          <th>P90</th>
+          <th>P95</th>
+          <th>P99</th>
+          <th>P99.9</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>TTFT (ms)</td>
+          <td>6052.4</td>
+          <td>2684.92</td>
+          <td>7285.46</td>
+          <td>6408.14</td>
+          <td>6408.16</td>
+          <td>6671.36</td>
+          <td>6978.41</td>
+          <td>7224.05</td>
+          <td>7279.32</td>
+      </tr>
+      <tr>
+          <td>ITL (ms)</td>
+          <td>183.96</td>
+          <td>3.33</td>
+          <td>876.88</td>
+          <td>183.83</td>
+          <td>185.05</td>
+          <td>186.34</td>
+          <td>187.62</td>
+          <td>196.88</td>
+          <td>208.71</td>
+      </tr>
+      <tr>
+          <td>Total tok/s</td>
+          <td>33.5</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<table>
+  <thead>
+      <tr>
+          <th>AMD MI300X</th>
+          <th>Avg</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>P50</th>
+          <th>P75</th>
+          <th>P90</th>
+          <th>P95</th>
+          <th>P99</th>
+          <th>P99.9</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>TTFT (ms)</td>
+          <td>259.71</td>
+          <td>68.5</td>
+          <td>357.55</td>
+          <td>241.55</td>
+          <td>270.58</td>
+          <td>357.51</td>
+          <td>357.54</td>
+          <td>357.55</td>
+          <td>357.55</td>
+      </tr>
+      <tr>
+          <td>ITL (ms)</td>
+          <td>30.97</td>
+          <td>0.01</td>
+          <td>115.9</td>
+          <td>31.02</td>
+          <td>31.15</td>
+          <td>31.24</td>
+          <td>31.29</td>
+          <td>31.42</td>
+          <td>34.38</td>
+      </tr>
+      <tr>
+          <td>Total tok/s</td>
+          <td>511.6</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="fast-cold-start">Fast cold start</h3>
+<p>ZML/LLMD has been designed from the ground up to have fast cold start times, as shown here with Qwen 3.6-27B BF16:</p>
+<p>
+    
+</p>
+<h2 id="give-it-a-try">Give it a try</h2>
+<p>Run ZML/LLMD and point your favorite harness to it.</p>
+<p><strong>NVIDIA</strong></p>
+<div><pre tabindex="0"><code data-lang="bash"><span><span>docker run -p 8000:8000 --shm-size<span>=</span>256GB --gpus<span>=</span>all -e HF_TOKEN -it zmlai/llmd:cuda <span>\
+</span></span></span><span><span>    --model<span>=</span>hf://Qwen/Qwen3.6-27B
+</span></span></code></pre></div><p><strong>AMD</strong></p>
+<div><pre tabindex="0"><code data-lang="bash"><span><span>docker run -p 8000:8000 --device<span>=</span>/dev/kfd --device<span>=</span>/dev/dri -e HF_TOKEN -it zmlai/llmd:rocm <span>\
+</span></span></span><span><span>    --model<span>=</span>hf://Qwen/Qwen3.6-27B
+</span></span></code></pre></div><p><strong>Intel</strong></p>
+<div><pre tabindex="0"><code data-lang="bash"><span><span>docker run -p 8000:8000 --device<span>=</span>/dev/dri -e HF_TOKEN -it zmlai/llmd:oneapi <span>\
+</span></span></span><span><span>    --model<span>=</span>hf://Qwen/Qwen3.6-27B
+</span></span></code></pre></div><p><strong>Google TPU</strong></p>
+<div><pre tabindex="0"><code data-lang="bash"><span><span>docker run --net<span>=</span>host --privileged -e HF_TOKEN -it zmlai/llmd:tpu <span>\
+</span></span></span><span><span>    --model<span>=</span>hf://Qwen/Qwen3.6-27B
+</span></span></code></pre></div><p><strong>Apple Metal</strong></p>
+<div><pre tabindex="0"><code data-lang="bash"><span><span>brew install zml/zml/llmd
+</span></span><span><span>llmd --model<span>=</span>hf://Qwen/Qwen3.6-27B
+</span></span></code></pre></div>
+      </div></div>

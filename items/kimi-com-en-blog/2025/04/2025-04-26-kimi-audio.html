@@ -1,0 +1,719 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text"><p dir="auto">
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/MoonshotAI/Kimi-Audio/blob/master/assets/kimia_logo.png"><img src="https://github.com/MoonshotAI/Kimi-Audio/raw/master/assets/kimia_logo.png" width="400"></a>
+</p><p dir="auto">
+Kimi-Audio-7B <a href="https://huggingface.co/moonshotai/Kimi-Audio-7B" rel="nofollow">🤗</a>&nbsp; | Kimi-Audio-7B-Instruct <a href="https://huggingface.co/moonshotai/Kimi-Audio-7B-Instruct" rel="nofollow">🤗</a>&nbsp; | 📑 <a href="https://arxiv.org/pdf/2504.18425" rel="nofollow">Paper</a> &nbsp;&nbsp;
+</p>
+<p dir="auto">We present Kimi-Audio, an open-source audio foundation model excelling in <strong>audio understanding, generation, and conversation</strong>. This repository contains the official implementation, models, and evaluation toolkit for Kimi-Audio.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">🔥🔥🔥 News!!</h2><a id="user-content--news" aria-label="Permalink: 🔥🔥🔥 News!!" href="#-news"></a></p>
+<ul dir="auto">
+<li>May 29, 2025: 👋 We release a finetuning example of <a href="https://github.com/MoonshotAI/Kimi-Audio/tree/master/finetune_codes">Kimi-Audio-7B</a>.</li>
+<li>April 27, 2025: 👋 We release pretrained model weights of <a href="https://huggingface.co/moonshotai/Kimi-Audio-7B" rel="nofollow">Kimi-Audio-7B</a>.</li>
+<li>April 25, 2025: 👋 We release the inference code and model weights of <a href="https://huggingface.co/moonshotai/Kimi-Audio-7B-Instruct" rel="nofollow">Kimi-Audio-7B-Instruct</a>.</li>
+<li>April 25, 2025: 👋 We release the audio evaluation toolkit <a href="https://github.com/MoonshotAI/Kimi-Audio-Evalkit">Kimi-Audio-Evalkit</a>. We can easily reproduce the <strong>our results and baselines</strong> by this toolkit!</li>
+<li>April 25, 2025: 👋 We release the technical report of <a href="https://arxiv.org/pdf/2504.18425" rel="nofollow">Kimi-Audio</a>.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Table of Contents</h2><a id="user-content-table-of-contents" aria-label="Permalink: Table of Contents" href="#table-of-contents"></a></p>
+<ul dir="auto">
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#architecture-overview">Architecture Overview</a></li>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#evaluation">Evaluation</a>
+<ul dir="auto">
+<li><a href="#automatic-speech-recognition-asr">Speech Recognition</a></li>
+<li><a href="#audio-understanding">Audio Understanding</a></li>
+<li><a href="#audio-to-text-chat">Audio-to-Text Chat</a></li>
+<li><a href="#speech-conversation">Speech Conversation</a></li>
+</ul>
+</li>
+<li><a href="#finetune">Finetune</a></li>
+<li><a href="#evaluation-toolkit">Evaluation Toolkit</a></li>
+<li><a href="#generation-testset">Generation Testset</a></li>
+<li><a href="#license">License</a></li>
+<li><a href="#acknowledgements">Acknowledgements</a></li>
+<li><a href="#citation">Citation</a></li>
+<li><a href="#contact-us">Contact Us</a></li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Introduction</h2><a id="user-content-introduction" aria-label="Permalink: Introduction" href="#introduction"></a></p>
+<p dir="auto">Kimi-Audio is designed as a universal audio foundation model capable of handling a wide variety of audio processing tasks within a single unified framework. Key features include:</p>
+<ul dir="auto">
+<li><strong>Universal Capabilities:</strong> Handle diverse tasks like automatic speech recognition (ASR), audio question answering (AQA), automatic audio captioning (AAC), speech emotion recognition (SER), sound event/scene classification (SEC/ASC), and end-to-end speech conversation.</li>
+<li><strong>State-of-the-Art Performance:</strong> Achieve SOTA results on numerous audio benchmarks (see <a href="#evaluation">Evaluation</a> and the <a href="https://arxiv.org/pdf/2504.18425" rel="nofollow">Technical Report</a>).</li>
+<li><strong>Large-Scale Pre-training:</strong> Pre-train on over 13 million hours of diverse audio data (speech, music, sounds) and text data, enabling robust audio reasoning and language understanding.</li>
+<li><strong>Novel Architecture:</strong> Employ a hybrid audio input (continuous acoustic vectors + discrete semantic tokens) and an LLM core with parallel heads for text and audio token generation.</li>
+<li><strong>Efficient Inference:</strong> Feature a chunk-wise streaming detokenizer based on flow matching for low-latency audio generation.</li>
+<li><strong>Open-Source:</strong> Release the code and model checkpoints for both pre-training and instruction fine-tuning, and release a comprehensive evaluation toolkit to foster community research and development.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Architecture Overview</h2><a id="user-content-architecture-overview" aria-label="Permalink: Architecture Overview" href="#architecture-overview"></a></p>
+<p dir="auto">
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/MoonshotAI/Kimi-Audio/blob/master/assets/kimia_framework.png"><img src="https://github.com/MoonshotAI/Kimi-Audio/raw/master/assets/kimia_framework.png" width="70%"></a>
+</p><p dir="auto">Kimi-Audio consists of three main components:</p>
+<ol dir="auto">
+<li><strong>Audio Tokenizer:</strong> Converts input audio into:
+<ul dir="auto">
+<li>Discrete semantic tokens (12.5Hz) using vector quantization.</li>
+<li>Continuous acoustic features derived from a Whisper encoder (downsampled to 12.5Hz).</li>
+</ul>
+</li>
+<li><strong>Audio LLM:</strong> A transformer-based model (initialized from a pre-trained text LLM like Qwen 2.5 7B) with shared layers processing multimodal inputs, followed by parallel heads for autoregressively generating text tokens and discrete audio semantic tokens.</li>
+<li><strong>Audio Detokenizer:</strong> Converts the predicted discrete semantic audio tokens back into high-fidelity waveforms using a flow-matching model and a vocoder (BigVGAN), supporting chunk-wise streaming with a look-ahead mechanism for low latency.</li>
+</ol>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Getting Started</h2><a id="user-content-getting-started" aria-label="Permalink: Getting Started" href="#getting-started"></a></p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Step1: Get the Code</h3><a id="user-content-step1-get-the-code" aria-label="Permalink: Step1: Get the Code" href="#step1-get-the-code"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="git clone https://github.com/MoonshotAI/Kimi-Audio.git
+cd Kimi-Audio
+git submodule update --init --recursive
+pip install -r requirements.txt"><pre>git clone https://github.com/MoonshotAI/Kimi-Audio.git
+<span>cd</span> Kimi-Audio
+git submodule update --init --recursive
+pip install -r requirements.txt</pre></div>
+<p dir="auto">Kimi‑Audio can now be installed directly via <strong>pip</strong>.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="pip install torch
+pip install git+https://github.com/MoonshotAI/Kimi-Audio.git"><pre>pip install torch
+pip install git+https://github.com/MoonshotAI/Kimi-Audio.git</pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Quick Start</h2><a id="user-content-quick-start" aria-label="Permalink: Quick Start" href="#quick-start"></a></p>
+<p dir="auto">This example demonstrates basic usage for generating text from audio (ASR) and generating both text and speech in a conversational turn.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="import soundfile as sf
+from kimia_infer.api.kimia import KimiAudio
+
+# --- 1. Load Model ---
+model_path = &quot;moonshotai/Kimi-Audio-7B-Instruct&quot; 
+model = KimiAudio(model_path=model_path, load_detokenizer=True)
+
+# --- 2. Define Sampling Parameters ---
+sampling_params = {
+    &quot;audio_temperature&quot;: 0.8,
+    &quot;audio_top_k&quot;: 10,
+    &quot;text_temperature&quot;: 0.0,
+    &quot;text_top_k&quot;: 5,
+    &quot;audio_repetition_penalty&quot;: 1.0,
+    &quot;audio_repetition_window_size&quot;: 64,
+    &quot;text_repetition_penalty&quot;: 1.0,
+    &quot;text_repetition_window_size&quot;: 16,
+}
+
+# --- 3. Example 1: Audio-to-Text (ASR) ---
+messages_asr = [
+    # You can provide context or instructions as text
+    {&quot;role&quot;: &quot;user&quot;, &quot;message_type&quot;: &quot;text&quot;, &quot;content&quot;: &quot;Please transcribe the following audio:&quot;},
+    # Provide the audio file path
+    {&quot;role&quot;: &quot;user&quot;, &quot;message_type&quot;: &quot;audio&quot;, &quot;content&quot;: &quot;test_audios/asr_example.wav&quot;}
+]
+
+# Generate only text output
+_, text_output = model.generate(messages_asr, **sampling_params, output_type=&quot;text&quot;)
+print(&quot;&gt;&gt;&gt; ASR Output Text: &quot;, text_output) # Expected output: &quot;这并不是告别，这是一个篇章的结束，也是新篇章的开始。&quot;
+
+
+# --- 4. Example 2: Audio-to-Audio/Text Conversation ---
+messages_conversation = [
+    # Start conversation with an audio query
+    {&quot;role&quot;: &quot;user&quot;, &quot;message_type&quot;: &quot;audio&quot;, &quot;content&quot;: &quot;test_audios/qa_example.wav&quot;}
+]
+
+# Generate both audio and text output
+wav_output, text_output = model.generate(messages_conversation, **sampling_params, output_type=&quot;both&quot;)
+
+# Save the generated audio
+output_audio_path = &quot;output_audio.wav&quot;
+sf.write(output_audio_path, wav_output.detach().cpu().view(-1).numpy(), 24000) # Assuming 24kHz output
+print(f&quot;&gt;&gt;&gt; Conversational Output Audio saved to: {output_audio_path}&quot;)
+print(&quot;&gt;&gt;&gt; Conversational Output Text: &quot;, text_output) # Expected output: &quot;当然可以，这很简单。一二三四五六七八九十。&quot;
+
+# --- 5. Example 3: Audio-to-Audio/Text Conversation with Multiturn ---
+
+messages = [
+    {&quot;role&quot;: &quot;user&quot;, &quot;message_type&quot;: &quot;audio&quot;, &quot;content&quot;: &quot;test_audios/multiturn/case2/multiturn_q1.wav&quot;},
+    # This is the first turn output of Kimi-Audio
+    {&quot;role&quot;: &quot;assistant&quot;, &quot;message_type&quot;: &quot;audio-text&quot;, &quot;content&quot;: [&quot;test_audios/multiturn/case2/multiturn_a1.wav&quot;, &quot;当然可以，这很简单。一二三四五六七八九十。&quot;]},
+    {&quot;role&quot;: &quot;user&quot;, &quot;message_type&quot;: &quot;audio&quot;, &quot;content&quot;: &quot;test_audios/multiturn/case2/multiturn_q2.wav&quot;}
+]
+wav, text = model.generate(messages, **sampling_params, output_type=&quot;both&quot;)
+
+
+# Generate both audio and text output
+wav_output, text_output = model.generate(messages_conversation, **sampling_params, output_type=&quot;both&quot;)
+
+# Save the generated audio
+output_audio_path = &quot;output_audio.wav&quot;
+sf.write(output_audio_path, wav_output.detach().cpu().view(-1).numpy(), 24000) # Assuming 24kHz output
+print(f&quot;&gt;&gt;&gt; Conversational Output Audio saved to: {output_audio_path}&quot;)
+print(&quot;&gt;&gt;&gt; Conversational Output Text: &quot;, text_output) # Expected output: &quot;没问题，继续数下去就是十一十二十三十四十五十六十七十八十九二十。&quot;
+
+print(&quot;Kimi-Audio inference examples complete.&quot;)
+
+"><pre><span>import</span> <span>soundfile</span> <span>as</span> <span>sf</span>
+<span>from</span> <span>kimia_infer</span>.<span>api</span>.<span>kimia</span> <span>import</span> <span>KimiAudio</span>
+
+<span># --- 1. Load Model ---</span>
+<span>model_path</span> <span>=</span> <span>"moonshotai/Kimi-Audio-7B-Instruct"</span> 
+<span>model</span> <span>=</span> <span>KimiAudio</span>(<span>model_path</span><span>=</span><span>model_path</span>, <span>load_detokenizer</span><span>=</span><span>True</span>)
+
+<span># --- 2. Define Sampling Parameters ---</span>
+<span>sampling_params</span> <span>=</span> {
+    <span>"audio_temperature"</span>: <span>0.8</span>,
+    <span>"audio_top_k"</span>: <span>10</span>,
+    <span>"text_temperature"</span>: <span>0.0</span>,
+    <span>"text_top_k"</span>: <span>5</span>,
+    <span>"audio_repetition_penalty"</span>: <span>1.0</span>,
+    <span>"audio_repetition_window_size"</span>: <span>64</span>,
+    <span>"text_repetition_penalty"</span>: <span>1.0</span>,
+    <span>"text_repetition_window_size"</span>: <span>16</span>,
+}
+
+<span># --- 3. Example 1: Audio-to-Text (ASR) ---</span>
+<span>messages_asr</span> <span>=</span> [
+    <span># You can provide context or instructions as text</span>
+    {<span>"role"</span>: <span>"user"</span>, <span>"message_type"</span>: <span>"text"</span>, <span>"content"</span>: <span>"Please transcribe the following audio:"</span>},
+    <span># Provide the audio file path</span>
+    {<span>"role"</span>: <span>"user"</span>, <span>"message_type"</span>: <span>"audio"</span>, <span>"content"</span>: <span>"test_audios/asr_example.wav"</span>}
+]
+
+<span># Generate only text output</span>
+<span>_</span>, <span>text_output</span> <span>=</span> <span>model</span>.<span>generate</span>(<span>messages_asr</span>, <span>**</span><span>sampling_params</span>, <span>output_type</span><span>=</span><span>"text"</span>)
+<span>print</span>(<span>"&gt;&gt;&gt; ASR Output Text: "</span>, <span>text_output</span>) <span># Expected output: "这并不是告别，这是一个篇章的结束，也是新篇章的开始。"</span>
+
+
+<span># --- 4. Example 2: Audio-to-Audio/Text Conversation ---</span>
+<span>messages_conversation</span> <span>=</span> [
+    <span># Start conversation with an audio query</span>
+    {<span>"role"</span>: <span>"user"</span>, <span>"message_type"</span>: <span>"audio"</span>, <span>"content"</span>: <span>"test_audios/qa_example.wav"</span>}
+]
+
+<span># Generate both audio and text output</span>
+<span>wav_output</span>, <span>text_output</span> <span>=</span> <span>model</span>.<span>generate</span>(<span>messages_conversation</span>, <span>**</span><span>sampling_params</span>, <span>output_type</span><span>=</span><span>"both"</span>)
+
+<span># Save the generated audio</span>
+<span>output_audio_path</span> <span>=</span> <span>"output_audio.wav"</span>
+<span>sf</span>.<span>write</span>(<span>output_audio_path</span>, <span>wav_output</span>.<span>detach</span>().<span>cpu</span>().<span>view</span>(<span>-</span><span>1</span>).<span>numpy</span>(), <span>24000</span>) <span># Assuming 24kHz output</span>
+<span>print</span>(<span>f"&gt;&gt;&gt; Conversational Output Audio saved to: <span><span>{</span><span>output_audio_path</span><span>}</span></span>"</span>)
+<span>print</span>(<span>"&gt;&gt;&gt; Conversational Output Text: "</span>, <span>text_output</span>) <span># Expected output: "当然可以，这很简单。一二三四五六七八九十。"</span>
+
+<span># --- 5. Example 3: Audio-to-Audio/Text Conversation with Multiturn ---</span>
+
+<span>messages</span> <span>=</span> [
+    {<span>"role"</span>: <span>"user"</span>, <span>"message_type"</span>: <span>"audio"</span>, <span>"content"</span>: <span>"test_audios/multiturn/case2/multiturn_q1.wav"</span>},
+    <span># This is the first turn output of Kimi-Audio</span>
+    {<span>"role"</span>: <span>"assistant"</span>, <span>"message_type"</span>: <span>"audio-text"</span>, <span>"content"</span>: [<span>"test_audios/multiturn/case2/multiturn_a1.wav"</span>, <span>"当然可以，这很简单。一二三四五六七八九十。"</span>]},
+    {<span>"role"</span>: <span>"user"</span>, <span>"message_type"</span>: <span>"audio"</span>, <span>"content"</span>: <span>"test_audios/multiturn/case2/multiturn_q2.wav"</span>}
+]
+<span>wav</span>, <span>text</span> <span>=</span> <span>model</span>.<span>generate</span>(<span>messages</span>, <span>**</span><span>sampling_params</span>, <span>output_type</span><span>=</span><span>"both"</span>)
+
+
+<span># Generate both audio and text output</span>
+<span>wav_output</span>, <span>text_output</span> <span>=</span> <span>model</span>.<span>generate</span>(<span>messages_conversation</span>, <span>**</span><span>sampling_params</span>, <span>output_type</span><span>=</span><span>"both"</span>)
+
+<span># Save the generated audio</span>
+<span>output_audio_path</span> <span>=</span> <span>"output_audio.wav"</span>
+<span>sf</span>.<span>write</span>(<span>output_audio_path</span>, <span>wav_output</span>.<span>detach</span>().<span>cpu</span>().<span>view</span>(<span>-</span><span>1</span>).<span>numpy</span>(), <span>24000</span>) <span># Assuming 24kHz output</span>
+<span>print</span>(<span>f"&gt;&gt;&gt; Conversational Output Audio saved to: <span><span>{</span><span>output_audio_path</span><span>}</span></span>"</span>)
+<span>print</span>(<span>"&gt;&gt;&gt; Conversational Output Text: "</span>, <span>text_output</span>) <span># Expected output: "没问题，继续数下去就是十一十二十三十四十五十六十七十八十九二十。"</span>
+
+<span>print</span>(<span>"Kimi-Audio inference examples complete."</span>)
+</pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Evaluation</h2><a id="user-content-evaluation" aria-label="Permalink: Evaluation" href="#evaluation"></a></p>
+<p dir="auto">Kimi-Audio achieves state-of-the-art (SOTA) performance across a wide range of audio benchmarks.</p>
+<p dir="auto">The below is the overall performance:</p>
+<p dir="auto">
+    <a target="_blank" rel="noopener noreferrer" href="https://github.com/MoonshotAI/Kimi-Audio/blob/master/assets/kimia_radar_chart.png"><img src="https://github.com/MoonshotAI/Kimi-Audio/raw/master/assets/kimia_radar_chart.png" width="70%"></a>
+</p><p dir="auto">Here are performances on different benchmarks, you can easily reproduce the <strong>our results and baselines</strong> by our <a href="https://github.com/MoonshotAI/Kimi-Audio-Evalkit">Kimi-Audio-Evalkit</a> (also see <a href="#evaluation-toolkit"><strong>Evaluation Toolkit</strong></a>):</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Automatic Speech Recognition (ASR)</h3><a id="user-content-automatic-speech-recognition-asr" aria-label="Permalink: Automatic Speech Recognition (ASR)" href="#automatic-speech-recognition-asr"></a></p>
+<markdown-accessiblity-table><table>
+  <thead>
+    <tr>
+      <th>Datasets</th>
+      <th>Model</th>
+      <th>Performance (WER↓)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="5"><strong>LibriSpeech</strong><br>test-clean | test-other</td>
+      <td>Qwen2-Audio-base</td>
+      <td>1.74 | 4.04</td>
+    </tr>
+    <tr>
+      <td>Baichuan-base</td>
+      <td>3.02 | 6.04</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>3.19 | 10.67</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>2.37 | 4.21</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>1.28</strong> | <strong>2.42</strong></td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>Fleurs</strong><br>zh | en</td>
+      <td>Qwen2-Audio-base</td>
+      <td>3.63 | 5.20</td>
+    </tr>
+    <tr>
+      <td>Baichuan-base</td>
+      <td>4.15 | 8.07</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>4.26 | 8.56</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>2.92 | <strong>4.17</strong></td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>2.69</strong> | 4.44</td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>AISHELL-1</strong></td>
+      <td>Qwen2-Audio-base</td>
+      <td>1.52</td>
+    </tr>
+    <tr>
+      <td>Baichuan-base</td>
+      <td>1.93</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>2.14</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>1.13</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>0.60</strong></td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>AISHELL-2</strong> ios</td>
+      <td>Qwen2-Audio-base</td>
+      <td>3.08</td>
+    </tr>
+    <tr>
+      <td>Baichuan-base</td>
+      <td>3.87</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>3.89</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td><strong>2.56</strong></td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>2.56</strong></td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>WenetSpeech</strong><br>test-meeting | test-net</td>
+      <td>Qwen2-Audio-base</td>
+      <td>8.40 | 7.64</td>
+    </tr>
+    <tr>
+      <td>Baichuan-base</td>
+      <td>13.28 | 10.13</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>10.83 | 9.47</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>7.71 | 6.04</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>6.28</strong> | <strong>5.37</strong></td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>Kimi-ASR Internal Testset</strong><br>subset1 | subset2</td>
+      <td>Qwen2-Audio-base</td>
+      <td>2.31 | 3.24</td>
+    </tr>
+    <tr>
+      <td>Baichuan-base</td>
+      <td>3.41 | 5.60</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>2.82 | 4.74</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>1.53 | 2.68</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>1.42</strong> | <strong>2.44</strong></td>
+    </tr>
+  </tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Audio Understanding</h3><a id="user-content-audio-understanding" aria-label="Permalink: Audio Understanding" href="#audio-understanding"></a></p>
+<markdown-accessiblity-table><table>
+  <thead>
+    <tr>
+      <th>Datasets</th>
+      <th>Model</th>
+      <th>Performance↑</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="6"><strong>MMAU</strong><br>music | sound | speech</td>
+      <td>Qwen2-Audio-base</td>
+      <td>58.98 | 69.07 | 52.55</td>
+    </tr>
+    <tr>
+      <td>Baichuan-chat</td>
+      <td>49.10 | 59.46 | 42.47</td>
+    </tr>
+    <tr>
+      <td>GLM-4-Voice</td>
+      <td>38.92 | 43.54 | 32.43</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>49.40 | 53.75 | 47.75</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td><strong>62.16</strong> | 67.57 | 53.92</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td>61.68 | <strong>73.27</strong> | <strong>60.66</strong></td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>ClothoAQA</strong><br>test | dev</td>
+      <td>Qwen2-Audio-base</td>
+      <td>71.73 | 72.63</td>
+    </tr>
+    <tr>
+      <td>Baichuan-chat</td>
+      <td>48.02 | 48.16</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>45.84 | 44.98</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td><strong>72.86</strong> | 73.12</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td>71.24 | <strong>73.18</strong></td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>VocalSound</strong></td>
+      <td>Qwen2-Audio-base</td>
+      <td>93.82</td>
+    </tr>
+    <tr>
+      <td>Baichuan-base</td>
+      <td>58.17</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>28.58</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>93.73</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>94.85</strong></td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>Nonspeech7k</strong></td>
+      <td>Qwen2-Audio-base</td>
+      <td>87.17</td>
+    </tr>
+    <tr>
+      <td>Baichuan-chat</td>
+      <td>59.03</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>21.38</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>69.89</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>93.93</strong></td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>MELD</strong></td>
+      <td>Qwen2-Audio-base</td>
+      <td>51.23</td>
+    </tr>
+    <tr>
+      <td>Baichuan-chat</td>
+      <td>23.59</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>33.54</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>49.83</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>59.13</strong></td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>TUT2017</strong></td>
+      <td>Qwen2-Audio-base</td>
+      <td>33.83</td>
+    </tr>
+    <tr>
+      <td>Baichuan-base</td>
+      <td>27.9</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>7.41</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>43.27</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>65.25</strong></td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>CochlScene</strong><br>test | dev</td>
+      <td>Qwen2-Audio-base</td>
+      <td>52.69 | 50.96</td>
+    </tr>
+    <tr>
+      <td>Baichuan-base</td>
+      <td>34.93 | 34.56</td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>10.06 | 10.42</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>63.82 | 63.82</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>79.84</strong> | <strong>80.99</strong></td>
+    </tr>
+  </tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Audio-to-Text Chat</h3><a id="user-content-audio-to-text-chat" aria-label="Permalink: Audio-to-Text Chat" href="#audio-to-text-chat"></a></p>
+<markdown-accessiblity-table><table>
+  <thead>
+    <tr>
+      <th>Datasets</th>
+      <th>Model</th>
+      <th>Performance↑</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="6"><b>OpenAudioBench</b><br>AlpacaEval | Llama Questions |<br>Reasoning QA | TriviaQA | Web Questions</td>
+      <td>Qwen2-Audio-chat</td>
+      <td>57.19 | 69.67 | 42.77 | 40.30 | 45.20</td>
+    </tr>
+    <tr>
+      <td>Baichuan-chat</td>
+      <td>59.65 | 74.33 | 46.73 | 55.40 | 58.70</td>
+    </tr>
+    <tr>
+      <td>GLM-4-Voice</td>
+      <td>57.89 | 76.00 | 47.43 | 51.80 | 55.40</td>
+    </tr>
+    <tr>
+      <td>StepAudio-chat</td>
+      <td>56.53 | 72.33 | 60.00 | 56.80 | <b>73.00</b></td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>72.76 | 75.33 | <b>63.76</b> | 57.06 | 62.80</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><b>75.73</b> | <b>79.33</b> | 58.02 | <b>62.10</b> | 70.20</td>
+    </tr>
+    <tr>
+      <td rowspan="6"><b>VoiceBench</b><br>AlpacaEval | CommonEval |<br>SD-QA | MMSU</td>
+      <td>Qwen2-Audio-chat</td>
+      <td>3.69 | 3.40 | 35.35 | 35.43</td>
+    </tr>
+    <tr>
+      <td>Baichuan-chat</td>
+      <td>4.00 | 3.39 | 49.64 | 48.80</td>
+    </tr>
+    <tr>
+      <td>GLM-4-Voice</td>
+      <td>4.06 | 3.48 | 43.31 | 40.11</td>
+    </tr>
+    <tr>
+      <td>StepAudio-chat</td>
+      <td>3.99 | 2.99 | 46.84 | 28.72</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>4.33 | 3.84 | 57.41 | 56.38</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><b>4.46</b> | <b>3.97</b> | <b>63.12</b> | <b>62.17</b></td>
+    </tr>
+    <tr>
+      <td rowspan="6"><b>VoiceBench</b><br>OpenBookQA | IFEval |<br>AdvBench | Avg</td>
+      <td>Qwen2-Audio-chat</td>
+      <td>49.01 | 22.57 | 98.85 | 54.72</td>
+    </tr>
+    <tr>
+      <td>Baichuan-chat</td>
+      <td>63.30 | 41.32 | 86.73 | 62.51</td>
+    </tr>
+    <tr>
+      <td>GLM-4-Voice</td>
+      <td>52.97 | 24.91 | 88.08 | 57.17</td>
+    </tr>
+    <tr>
+      <td>StepAudio-chat</td>
+      <td>31.87 | 29.19 | 65.77 | 48.86</td>
+    </tr>
+    <tr>
+      <td>Qwen2.5-Omni</td>
+      <td>79.12 | 53.88 | 99.62 | 72.83</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><b>83.52</b> | <b>61.10</b> | <b>100.00</b> | <b>76.93</b></td>
+    </tr>
+  </tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Speech Conversation</h3><a id="user-content-speech-conversation" aria-label="Permalink: Speech Conversation" href="#speech-conversation"></a></p>
+<markdown-accessiblity-table>
+  Performance of Kimi-Audio and baseline models on speech conversation.
+  <table><thead>
+    <tr>
+      <th rowspan="2">Model</th>
+      <th colspan="6">Ability</th>
+    </tr>
+    <tr>
+      <th>Speed Control</th>
+      <th>Accent Control</th>
+      <th>Emotion Control</th>
+      <th>Empathy</th>
+      <th>Style Control</th>
+      <th>Avg</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>GPT-4o</td>
+      <td>4.21</td>
+      <td><strong>3.65</strong></td>
+      <td>4.05</td>
+      <td><strong>3.87</strong></td>
+      <td><strong>4.54</strong></td>
+      <td><strong>4.06</strong></td>
+    </tr>
+    <tr>
+      <td>Step-Audio-chat</td>
+      <td>3.25</td>
+      <td>2.87</td>
+      <td>3.33</td>
+      <td>3.05</td>
+      <td>4.14</td>
+      <td>3.33</td>
+    </tr>
+    <tr>
+      <td>GLM-4-Voice</td>
+      <td>3.83</td>
+      <td>3.51</td>
+      <td>3.77</td>
+      <td>3.07</td>
+      <td>4.04</td>
+      <td>3.65</td>
+    </tr>
+    <tr>
+      <td>GPT-4o-mini</td>
+      <td>3.15</td>
+      <td>2.71</td>
+      <td>4.24</td>
+      <td>3.16</td>
+      <td>4.01</td>
+      <td>3.45</td>
+    </tr>
+    <tr>
+      <td>Kimi-Audio</td>
+      <td><strong>4.30</strong></td>
+      <td>3.45</td>
+      <td><strong>4.27</strong></td>
+      <td>3.39</td>
+      <td>4.09</td>
+      <td>3.90</td>
+    </tr>
+  </tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Finetune</h2><a id="user-content-finetune" aria-label="Permalink: Finetune" href="#finetune"></a></p>
+<p dir="auto">We release the pre-trained model and the lightweight finetune codes. Please refer to the <a href="https://github.com/MoonshotAI/Kimi-Audio/blob/master/finetune_codes/README.md">finetune_codes/README.md</a> for more details.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Evaluation Toolkit</h2><a id="user-content-evaluation-toolkit" aria-label="Permalink: Evaluation Toolkit" href="#evaluation-toolkit"></a></p>
+<p dir="auto">Evaluating and comparing audio foundation models is challenging due to inconsistent metrics, varying inference configurations, and a lack of standardized generation evaluation. To address this, we developed and open-sourced an <strong>Evaluation Toolkit</strong>.</p>
+<p dir="auto">Key features:</p>
+<ul dir="auto">
+<li>Integrates Kimi-Audio and other recent audio LLMs.</li>
+<li>Implements standardized metric calculation and integrates LLMs for intelligent judging (e.g., for AQA).</li>
+<li>Provides a unified platform for side-by-side comparisons with shareable inference 'recipes' for reproducibility.</li>
+<li>Includes a benchmark for evaluating speech conversation abilities (control, empathy, style).</li>
+</ul>
+<p dir="auto">We encourage the community to use and contribute to this toolkit to foster more reliable and comparable benchmarking. Find it here: <a href="https://github.com/MoonshotAI/Kimi-Audio-Evalkit">Kimi-Audio-Evalkit</a>.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Generation Testset</h2><a id="user-content-generation-testset" aria-label="Permalink: Generation Testset" href="#generation-testset"></a></p>
+<p dir="auto">We collect and release <a href="https://huggingface.co/datasets/moonshotai/Kimi-Audio-GenTest" rel="nofollow">Kimi-Audio-Generation-Testset</a>, which is designed to benchmark and evaluate the conversational capabilities of audio-based dialogue models. It consists of a collection of audio files containing various instructions and conversational prompts. The primary goal is to assess a model's ability to generate not just relevant, but also appropriately styled audio responses. The language in dataset is Chinese.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">License</h2><a id="user-content-license" aria-label="Permalink: License" href="#license"></a></p>
+<p dir="auto">The model is based and modified from <a href="https://github.com/QwenLM/Qwen2.5">Qwen 2.5-7B</a>. Code derived from Qwen2.5-7B is licensed under the <a href="https://www.apache.org/licenses/LICENSE-2.0" rel="nofollow">Apache 2.0 License</a>. Other parts of the code are licensed under the <a href="https://opensource.org/licenses/MIT" rel="nofollow">MIT License</a>.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Acknowledgements</h2><a id="user-content-acknowledgements" aria-label="Permalink: Acknowledgements" href="#acknowledgements"></a></p>
+<p dir="auto">We would like to thank the following projects and individuals for their contributions to the development of Kimi-Audio:</p>
+<ul dir="auto">
+<li><a href="https://github.com/openai/whisper">Whisper</a></li>
+<li><a href="https://github.com/huggingface/transformers">Transformers</a></li>
+<li><a href="https://github.com/NVIDIA/BigVGAN">BigVGAN</a></li>
+<li><a href="https://github.com/THUDM/GLM-4-Voice">GLM-4-Voice</a></li>
+<li><a href="https://github.com/QwenLM/Qwen/tree/main">Qwen</a></li>
+</ul>
+<p dir="auto">Thank you to all the open-source projects for their contributions to this project!</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Citation</h2><a id="user-content-citation" aria-label="Permalink: Citation" href="#citation"></a></p>
+<p dir="auto">If you find Kimi-Audio useful in your research or applications, please cite our technical report:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="@misc{kimiteam2025kimiaudiotechnicalreport,
+      title={Kimi-Audio Technical Report}, 
+      author={KimiTeam and Ding Ding and Zeqian Ju and Yichong Leng and Songxiang Liu and Tong Liu and Zeyu Shang and Kai Shen and Wei Song and Xu Tan and Heyi Tang and Zhengtao Wang and Chu Wei and Yifei Xin and Xinran Xu and Jianwei Yu and Yutao Zhang and Xinyu Zhou and Y. Charles and Jun Chen and Yanru Chen and Yulun Du and Weiran He and Zhenxing Hu and Guokun Lai and Qingcheng Li and Yangyang Liu and Weidong Sun and Jianzhou Wang and Yuzhi Wang and Yuefeng Wu and Yuxin Wu and Dongchao Yang and Hao Yang and Ying Yang and Zhilin Yang and Aoxiong Yin and Ruibin Yuan and Yutong Zhang and Zaida Zhou},
+      year={2025},
+      eprint={2504.18425},
+      archivePrefix={arXiv},
+      primaryClass={eess.AS},
+      url={https://arxiv.org/abs/2504.18425}, 
+}"><pre><span>@misc</span>{<span>kimiteam2025kimiaudiotechnicalreport</span>,
+      <span>title</span>=<span><span>{</span>Kimi-Audio Technical Report<span>}</span></span>, 
+      <span>author</span>=<span><span>{</span>KimiTeam and Ding Ding and Zeqian Ju and Yichong Leng and Songxiang Liu and Tong Liu and Zeyu Shang and Kai Shen and Wei Song and Xu Tan and Heyi Tang and Zhengtao Wang and Chu Wei and Yifei Xin and Xinran Xu and Jianwei Yu and Yutao Zhang and Xinyu Zhou and Y. Charles and Jun Chen and Yanru Chen and Yulun Du and Weiran He and Zhenxing Hu and Guokun Lai and Qingcheng Li and Yangyang Liu and Weidong Sun and Jianzhou Wang and Yuzhi Wang and Yuefeng Wu and Yuxin Wu and Dongchao Yang and Hao Yang and Ying Yang and Zhilin Yang and Aoxiong Yin and Ruibin Yuan and Yutong Zhang and Zaida Zhou<span>}</span></span>,
+      <span>year</span>=<span><span>{</span>2025<span>}</span></span>,
+      <span>eprint</span>=<span><span>{</span>2504.18425<span>}</span></span>,
+      <span>archivePrefix</span>=<span><span>{</span>arXiv<span>}</span></span>,
+      <span>primaryClass</span>=<span><span>{</span>eess.AS<span>}</span></span>,
+      <span>url</span>=<span><span>{</span>https://arxiv.org/abs/2504.18425<span>}</span></span>, 
+}</pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Contact Us</h2><a id="user-content-contact-us" aria-label="Permalink: Contact Us" href="#contact-us"></a></p>
+<p dir="auto">For questions, issues, or collaboration inquiries, please feel free to open an issue on GitHub.</p>
+</article></div></div>

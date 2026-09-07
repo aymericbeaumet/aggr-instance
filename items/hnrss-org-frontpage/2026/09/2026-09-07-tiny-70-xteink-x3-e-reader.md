@@ -1,0 +1,47 @@
+---
+title: Tiny $70 Xteink X3 e-reader
+link: https://www.theatlantic.com/technology/2026/09/xteink-e-reader-best-technology-years/688539/
+source: hnrss-org-frontpage
+published: 2026-09-07T10:41:29Z
+updated: 2026-09-07T10:41:29Z
+first_seen: 2026-09-07T17:03:44.343711062Z
+authors:
+- samizdis
+summary: 'Article URL: https://www.theatlantic.com/technology/2026/09/xteink-e-reader-best-technology-years/688539/ Comments URL: https://news.ycombinator.com/item?id=49596629 Points: 148 # Comments: 148'
+content: extracted
+html: 2026-09-07-tiny-70-xteink-x3-e-reader.html
+preview:
+  file: 2026-09-07-tiny-70-xteink-x3-e-reader.preview-56c2c6199aa9.webp
+  width: 256
+  height: 133
+  color: '#cda4b4'
+images:
+- source: https://cdn.theatlantic.com/thumbor/F-l99am_yNc2DxXgW2QSql3AHVI=/0x43:2000x1085/1200x625/media/img/mt/2026/09/2026_9_4_3_inch_e_reader/original.gif
+  original:
+    file: 2026-09-07-tiny-70-xteink-x3-e-reader.image-a62006f4cdc4.gif
+    width: 1200
+    height: 625
+  color: '#c797e8'
+---
+
+No matter how you read it, *The Power Broker* is a serious undertaking. The paperback weighs as much as a brick; to avoid lugging around all 1,344 pages, people have cut it apart at the spine and chunked it into sections. Others have organized in-person *Power Broker* marathon readings that run continuously for three full days. I decided to try something else.
+
+Over the past several weeks, I’ve spent 10 hours paging through Robert Caro’s masterpiece on an e-reader the size of a credit card. It’s magnetic, and small enough to attach to the back of my iPhone without adding any real bulk to my pocket. (Yes, this does mean that I have a screen on the back of another screen.) It’s called the Xteink X3, and at a glance, it looks like a cheap gimmick: more electronic junk made by unknown brands and sold on Temu and TikTok Shop—the kind of thing influencers are always hawking. (Can I interest you in a programmable LED hat for $11.60? Or how about $20 AirPod look-alikes made by “Fhumsh”?)
+
+In a sense, it *is* that. *Xteink* sounds less like a real brand name than the kind of garbled text you’ll find in AI-slop memes. (Speaking of which, the official website of the China-based company is full of AI-generated photos of people posing with the device.) And indeed, since the X3’s release on Amazon in May, TikTokers and YouTubers have raved about how the device is a steal and you should buy it right now—just click the link in bio.
+
+[From our August 2026 issue: The end of reading is here](https://www.theatlantic.com/magazine/2026/08/reading-crisis-postliterate-age/687618/)
+
+And so I did. On Amazon, the X3 is $69 and tops the “hot new releases” list for e-readers, beating out a slew of Kindles. In person, the Xteink is many things: plasticky. Flawed. Finicky. Nevertheless, it is the single best piece of technology that I have purchased in years. In the two months before getting this cartoonishly tiny e-reader, I finished only one book. In one month with the X3, I read three books without even really trying—and my iPhone’s average daily screen time dipped by 25 minutes.
+
+The X3 is great becauseof its size, not in spite of it. (For once, “fun-size” actually lives up to the billing.) Because this is such a runt of a device, you can stick it to your phone and have an e-reader in your pocket at all times. As a result, I’ve found myself reading on my morning commute, in line at a museum, even while waiting through Netflix ads. The display on my Xteink may be roughly half the size of the smallest Kindle, but the text is big enough to easily read. Even after three straight hours of inching through *The Power Broker*, my eyes weren’t strained.
+
+The device’s size actually helped me develop a different relationship to reading altogether: Because each “page” on the Xteink amounts to just a paragraph or two—and sometimes less—I’m compelled to finish it. And now that I’m onto the next page, I might as well finish that one too. A YouTuber who recently reviewed the Xteink had the same experience—she referred to the uniquely addictive experience of using the device as the “TikTokification of reading.” I know how terrifying that sounds, but consider the outcome: Whenever there’s even a couple of minutes of free time, I now have a healthy alternative to doomscrolling on Instagram. I don’t even have to put my phone down. Flip over the Bad Screen and fire up the Good Screen.
+
+For all of its charm, the Xteink is a pretty basic piece of hardware. For $70, you get what you pay for. Other popular e-readers now come with AI-powered recaps, high-definition displays, and Android operating systems. Meanwhile, the Xteink has no touch screen, color display, or backlight for reading in the dark. (Xteink recently launched the X4 Pro, a slightly larger and more expensive model that has a reading light and a touch screen.) Just reading a book on the device isn’t necessarily seamless: The preloaded software is horrific and can’t even display book covers or properly format some text. Unlike with a Kindle, you can’t port over books from Amazon with one click.
+
+In spite of itself, the Xteink X3, in all of its 3.7 inches of glory, has become a viral hit. Online, people have posted photos of their Xteink on trips to the Austrian mountains or the Aegean Sea; one anesthesiologist says he tucks it into his scrubs. People are mounting the Xteink X3 to their kitchen hood to display recipes and are making all sorts of bespoke accessories, including 3-D-printed reading lights and a case that looks like a gun ([I’m serious](https://www.theverge.com/tech/970343/e-reader-case-3d-printed-gun)). Fans have built their own open-source firmware, Crosspoint, that considerably upgrades the device. The version I downloaded displays reading stats and an array of fonts, and it lets me screenshot pages as I read. Late last month, Crosspoint added the ability to access books on Libby, the popular library ebook app.
+
+The best thing about the Xteink is not any one feature. It’s that this tiny e-reader is fun in a way so few gadgets are anymore. Despite all our advances, the consumer-electronics landscape of 2026 is predictable and banal. Our laptops, smartphones, and tablets are thinner and more powerful than ever, but that feels like a weak substitute for innovation. Next week, Apple is poised to launch one of its most hyped products in years: a folding iPhone. But even folding smartphones are old news; Samsung released its version in 2019. After shelling out hundreds or thousands of dollars for a new gadget, you might still have to pay for subscriptions [and endure annoying ads](https://www.theatlantic.com/technology/2026/08/bmw-spiderman-ad/688194/). Sometimes, your purchases aren’t even really yours. Amazon recently removed the ability to download ebooks you already own and transfer them to non-Kindle devices.
+
+In other words, we need more gadgets like the Xteink: cheap, simple, and customizable. With few exceptions, these products are now coming out of China. [Neck fans](https://www.theatlantic.com/technology/archive/2024/08/neck-fan-jisulife/679418/) from brands such as JisuLife and Civpower have become sensations for helping people endure the summer heat. Anker’s portable projectors and earbuds are both *Wirecutter*-recommended. Silicon Valley has left a gaping hole in the gadgets markets, and Americans are more than willing to look elsewhere.

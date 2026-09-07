@@ -1,0 +1,91 @@
+---
+title: Grok Voice Think Fast 1.0
+link: https://x.ai/news/grok-voice-think-fast-1
+source: x-ai-news
+published: 2026-04-23T00:00:00Z
+first_seen: 2026-09-07T17:03:44.343711062Z
+summary: Our most capable voice agent is now available via API.
+content: extracted
+html: 2026-04-23-grok-voice-think-fast-1-0.html
+preview:
+  file: 2026-04-23-grok-voice-think-fast-1-0.preview-b2cfc4c10e53.webp
+  width: 256
+  height: 144
+  color: '#121d56'
+images:
+- source: https://media.x.ai/v1/website/grok-voice-think-fast-1-1d8f155a.webp
+  original:
+    file: 2026-04-23-grok-voice-think-fast-1-0.image-6fb7d2504c9c.webp
+    width: 1600
+    height: 900
+  variants:
+  - file: 2026-04-23-grok-voice-think-fast-1-0.image-c957825a3f26.webp
+    width: 48
+    height: 27
+  color: '#000000'
+---
+
+Today, we're excited to announce a step change in xAI's Voice Agent capabilities: Introducing `grok-voice-think-fast-1.0` — our new flagship voice model.
+
+This new model excels at complex, ambiguous, multi-step workflows across customer support, sales, and enterprise applications. It is especially well-suited for high-stakes scenarios that demand precise data entry and high-volume tool calling to address the user's request.
+
+## [Built for the messiness of the real world](https://x.ai/news/grok-voice-think-fast-1#built-for-the-messiness-of-the-real-world)
+
+We built `grok-voice-think-fast-1.0` through tight collaboration with partners like Starlink to combine top-tier intelligence with low response latency and organic conversational ability.
+
+Our model prioritizes snappy responses and unparalleled cost effectiveness without compromising on accuracy or tool orchestration. The result is a model that lets teams confidently deploy complex, multi-turn voice experiences across almost any conceivable use case: Customer support, phone sales, appointment booking, restaurant reservations, and more.
+
+This new model takes the top spot on the τ-voice Bench leaderboard, which evaluates full-duplex voice agents under realistic conditions including noise, accents, interruptions, and turn-taking. [See the benchmark details here](https://taubench.com/#leaderboard?benchmark=voice).
+
+### τ-voice Leaderboard
+
+### Retail
+
+Order handling, returns, promotions in noisy environments
+
+### Airline
+
+Booking changes, delays, and complex itineraries
+
+### Telecom
+
+Plan changes, billing disputes, technical troubleshooting
+
+The model has been battle-tested in the toughest real-world conditions: telephony audio, background noise, heavy accents, and frequent interruptions. It natively supports 25+ languages, making it ideal for global deployments.
+
+## [Precise data entry and read-back](https://x.ai/news/grok-voice-think-fast-1#precise-data-entry-and-read-back)
+
+Collecting and confirming user information is critical for many workflows. Grok Voice is able to seamlessly collect email addresses, physical street addresses, phone numbers, full names, account numbers, and other structured data—even when information is spoken quickly or with a strong accent. It gracefully handles speech disfluencies and accepts natural corrections as a human would.
+
+Processing user input
+
+The model handles the spoken corrections and extracts the intended address.
+
+Calling custom tool
+
+Invoking the address lookup tool with the corrected query parameter.
+
+Confirming the result
+
+Reading back the normalized address with location for user confirmation.
+
+## [Real-time reasoning with zero added latency](https://x.ai/news/grok-voice-think-fast-1#real-time-reasoning-with-zero-added-latency)
+
+Grok Voice Think Fast performs reasoning in the background, allowing it to think through challenging queries and workflows in real-time with no impact on response latency. This enables intelligent answers while retaining the dexterity needed for natural conversation.
+
+## [Harder to fool](https://x.ai/news/grok-voice-think-fast-1#harder-to-fool)
+
+Voice models often default to confident, plausible-sounding answers, despite being completely wrong. We've built `grok-voice-think-fast-1.0` to reason through edge cases before responding, catching obvious mistakes that other models get wrong.
+
+Prompt
+
+Which months of the year are spelled with the letter X?
+
+## [Powering customer support and sales for Starlink](https://x.ai/news/grok-voice-think-fast-1#powering-customer-support-and-sales-for-starlink)
+
+Grok Voice enables Starlink's phone sales and customer support experience at +1 (888) GO STARLINK. This requires working across numerous languages, helping customers through customer support scenarios, and onboarding new customers via sales:
+
+- **20% conversion rate.** In 1 out of every 5 of sales inquiries, the customer purchases Starlink service while on the phone with Grok.
+- **70% resolution rate.** The majority of customer support inquiries are resolved autonomously by the Grok Voice agent with no human in the loop.
+- **28 tools.** This single agent uses dozens of distinct tools across hundreds of support and sales workflows.
+- **Accuracy is critical.** Grok handles high-stakes decisions; the model autonomously performs hardware troubleshooting workflows, issues hardware replacements, and grants service credits.
