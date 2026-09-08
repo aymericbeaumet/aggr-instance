@@ -1,0 +1,67 @@
+<div id="readability-page-1" class="page"><div><p>How much GPU RAM do you actually need to run Qwen3.8 27B without sacrificing quality?</p>
+<p>The full <code>BF16</code> model weighs 55 GB, putting it beyond most consumer hardware.
+Yet the 17 GB <code>Q4_K_M</code> matches the full model on a popular agentic coding benchmark, Terminal-Bench 2.1. It fits on a 24 GB card such as RTX 4090, still leaving room for about 64k tokens of context.</p>
+<p>Compression eventually hits a cliff. At 1 bit, the model performs around random chance on GPQA Diamond, and longer reasoning makes it worse.</p>
+<h2 id="background">Background<a href="#background" aria-label="Link to this section"></a></h2>
+<figure><a href="https://huggingface.co/unsloth/Qwen3.8-27B-GGUF"><img src="https://quesma.com/_astro/hf_unsloth_qwen38_27b_choices.OSlYkgGR_2lHFg.webp" srcset="https://quesma.com/_astro/hf_unsloth_qwen38_27b_choices.OSlYkgGR_Z2u4Aqo.webp 640w, https://quesma.com/_astro/hf_unsloth_qwen38_27b_choices.OSlYkgGR_et1IC.webp 750w, https://quesma.com/_astro/hf_unsloth_qwen38_27b_choices.OSlYkgGR_Z1ItKkC.webp 828w, https://quesma.com/_astro/hf_unsloth_qwen38_27b_choices.OSlYkgGR_RbrwU.webp 1080w, https://quesma.com/_astro/hf_unsloth_qwen38_27b_choices.OSlYkgGR_2lHFg.webp 1170w" alt="Qwen3.8 27B GGUF quantizations available from Unsloth on Hugging Face" loading="lazy" decoding="async" sizes="(min-width: 1170px) 1170px, 100vw" data-astro-image="constrained" data-astro-image-fit="cover" data-astro-image-pos="center" width="1170" height="776"></a><figcaption><p>Qwen3.8 27B GGUF quantizations available from <a href="https://huggingface.co/unsloth/Qwen3.8-27B-GGUF">Unsloth on Hugging
+Face</a>. So much to choose from! I will check 8-bit <code>Q8_0</code> (29 GB), 4-bit <code>Q4_K_M</code> (17 GB), 2-bit <code>UD-Q2_K_XL</code> (10.7 GB), and the smallest one possible, 1-bit <code>UD-IQ1_S</code> (6.2 GB).</p></figcaption></figure>
+<p>Previously, I investigated the Qwen3.6 27B model, which was <a href="https://quesma.com/blog/qwen-quantization-quality/">good at generating SVG pelicans even at 12GB</a>, and <a href="https://quesma.com/blog/quantization-hurts-knowledge/">maintained most of its knowledge up to 16GB</a>.
+At the same time, in Reddit threads, many complain that all quantizations, even the 8-bit ones, give worse results - with people asking <a href="https://forum.level1techs.com/t/why-your-local-llm-feels-dumber-than-it-is/253917">why your local LLM feels dumber than it is</a>. Are these complaints grounded?</p>
+<p>Measuring token prediction differences (KL-divergence, top-1 predictions) is easy, but it does not tell us whether the model gets worse at solving tasks. Some noise might be irrelevant for solving tasks, as (say) a quantized model generates an answer of precisely the same quality, paraphrased a bit. In other cases, a single different token might be a logical error, or even abruptly end the output.</p>
+<div data-astro-cid-qmtrun4c="" data-chart-scope=""><p data-astro-cid-qmtrun4c=""></p></div>
+<p>So, I focus on directly measuring results on popular benchmarks - <a href="https://artificialanalysis.ai/evaluations/gpqa-diamond">GPQA Diamond</a>, instruction-following <a href="https://github.com/allenai/IFBench">IFBench</a>, programming <a href="https://www.tbench.ai/leaderboard/terminal-bench/2.1">Terminal-Bench 2.1</a>.
+First, to replicate official results of the full model <code>BF16</code>, and then to see how quantization affects results.</p>
+<p>I burned around $3,000 on <a href="https://modal.com/">Modal</a> GPUs when I ran models with <a href="https://github.com/ggml-org/llama.cpp">llama.cpp</a> using a build from 16 August 2026 as <a href="https://www.paulsprogrammingnotes.com/2026/08/running-qwen-3-8-27b-16gb.html">earlier builds do not work for this model</a>. I could have run it on my own laptop, in principle, but (unlike pelican-generation), these are time-consuming benchmarks.</p>
+<p>Note that I use <code>F16</code> KV-cache regardless of model quantization, weighing around 2.3 GB per 32k tokens.</p>
+<p>I used <a href="https://huggingface.co/unsloth/Qwen3.8-27B-GGUF">Unsloth quantizations</a>: v2 for the 2-, 4-, and 8-bit models, and <a href="https://unsloth.ai/docs/basics/dynamic-3.0-ggufs">v3</a> for the 1-bit models. <a href="https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/discussions/74">Unsloth replaced the v2 files on 19 August 2026</a>, so the exact files used for most tests are no longer available.</p>
+<p>In short, if you go with a 4-bit quantization <code>Q4_K_M</code> (17GB), you won’t notice a difference on these benchmarks.
+At the same time, the effort setting matters a lot (note that the default is <code>xhigh</code>) - and it is a tricky choice, as <a href="https://simonwillison.net/2026/Aug/16/qwen-38-27b/">it can overthink</a>.</p>
+<h2 id="one-shot-tests">One-shot tests<a href="#one-shot-tests" aria-label="Link to this section"></a></h2>
+<p>The easiest ones are one-shot tests: in this case, graduate-level science GPQA Diamond and instruction-following IFBench.
+I run each at three reasoning efforts: <code>low</code>, <code>medium</code>, and the default <code>xhigh</code>.</p>
+<h3 id="gpqa-diamond">GPQA Diamond<a href="#gpqa-diamond" aria-label="Link to this section"></a></h3>
+<div data-astro-cid-bx6tzkhm="" data-chart-scope=""><p data-astro-cid-bx6tzkhm=""></p></div>
+<p>First and foremost, I was happy I replicated the official results. Running benchmarks is hard; there are many hidden settings or assumptions that can change the results drastically. Here, on the first go, results were as reported by Qwen.</p>
+<p>Second, besides noise (bars are <a href="https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval#Wilson_score_interval">Wilson 95% confidence intervals</a>, very conservative for run-to-run noise), there is little difference down to 4-bit; only the 2-bit scores a bit lower.</p>
+<p>At the same time, thinking level changed the score dractically. The best results, for <code>xhigh</code>, needed around 8k reasoning tokens.</p>
+<h3 id="ifbench">IFBench<a href="#ifbench" aria-label="Link to this section"></a></h3>
+<div data-astro-cid-bx6tzkhm="" data-chart-scope=""><p data-astro-cid-bx6tzkhm=""></p></div>
+<p>Here, to my great surprise, there is no change between models, down to a decent 2-bit one, weighing less than 11 GB.
+Yet, context is even lower, around 4k tokens.</p>
+<h2 id="agentic-coding-and-terminal-bench-21">Agentic coding and Terminal-Bench 2.1<a href="#agentic-coding-and-terminal-bench-21" aria-label="Link to this section"></a></h2>
+<p>How does it work for programming? Terminal-Bench 2.1 is a standard agentic benchmark, with 89 tasks.
+Here I use 3h timeout, <code>xhigh</code> effort. I reserve 98k context.</p>
+<div data-astro-cid-hane4ajp="" data-chart-scope=""><p data-astro-cid-hane4ajp=""></p></div>
+<p>Not only does my measurement of <code>BF16</code> replicate the stated result, but, to my surprise, <code>Q4_K_M</code> does as well.
+I accidentally skipped running <code>Q8_0</code>; yet, in this case, I can safely interpolate between 4-bit and the full model’s values. Running it would be both costly and unnecessary (and would exceed an informal blog post’s budget).
+Only at 2-bit <code>UD-Q2_K_XL</code> things break a bit. A noticeable fall, but still <a href="https://www.tbench.ai/leaderboard/terminal-bench/2.1?lf=%7B%22agent_display%22:%7B%22kind%22:%22categorical%22,%22values%22:%5B%22Terminus+2%22%5D%7D%7D">the level of Opus 4.7 or Gemini 3.1 Pro</a>. Again, far from frontier, but also - far from useless.</p>
+<p>Results are one thing, but what about the process? Do smaller models need more turns, tokens or time to get the result?</p>
+<div data-astro-cid-32g46rrj="" data-chart-scope=""><p data-astro-cid-32g46rrj=""></p></div>
+<p>On the same solved tasks, <code>UD-Q2_K_XL</code> takes as many turns as BF16 but writes about a quarter more tokens.
+The number of turns stay roughly the same.</p>
+<h2 id="the-1-bit-cliff">The 1-bit cliff<a href="#the-1-bit-cliff" aria-label="Link to this section"></a></h2>
+<p>Quality drops off a cliff at 1-bit. <a href="https://quesma.com/blog/quantization-hurts-knowledge/">As with knowledge</a>, quantization damage is nonlinear: first there is no measurable change, then a small decline, and finally a collapse.</p>
+<p>While 2-bit quantizations work to some extent, even the best 1-bit model is useless for these benchmarks:</p>
+<div data-astro-cid-xy3iuv23="" data-chart-scope=""><p data-astro-cid-xy3iuv23=""></p></div>
+<p>As you may see, the scores are around the random guessing level, with the smallest model being below that threshold.
+And longer reasoning makes it worse: at <code>xhigh</code>, scores drop below <code>low</code>, as the model more often reasons until the token budget runs out and returns an empty answer.
+Sure, Unsloth boasts that:</p>
+<blockquote>
+<p>We also made some smaller UD-1bit quants with UD-IQ1_S being 6.2GB (without MTP) which retain around 72% top-1% accuracy yet being 89% smaller.</p>
+</blockquote>
+<p>But in this case, these remaining 28% matter a lot. And this matches another user’s experience, vide <a href="https://www.reddit.com/r/LocalLLaMA/comments/1vtr3h0/ladies_and_gentlemen_i_present_to_you_qwen38_27b/">Qwen3.8 27b 1bit brain damage quant on r/LocalLLaMA</a>.</p>
+<h2 id="costs">Costs<a href="#costs" aria-label="Link to this section"></a></h2>
+<p>Running these benchmarks isn’t cheap.
+Running benchmarks via API is costly, as I know from my <a href="https://quesma.com/benchmarks/">previous benchmarks</a>. Running on rented GPU is much costlier.</p>
+<div data-astro-cid-ikfyiocy="" data-chart-scope=""><p data-astro-cid-ikfyiocy=""></p></div>
+<p>I used Modal, as it is easy to run it from the CLI, including from agents. Other setups may have different pricing. Obviously, this calculation changes if you have your own devices.</p>
+<p>It takes some testing to find the optimal way to run models. Usually, instead of using Multi-Token Prediction (MTP), which works well for a single stream, I use a few parallel streams. The key constraint is whether the GPU has enough memory for both the model and the required KV caches.</p>
+<p>I used NVIDIA L40S (the same Ada Lovelace chip as the RTX 4090 but twice as much memory: 48 GB), H100 (80 GB) and H200 (141 GB). I would like to share costs to give you a ballpark estimate if you want to run benchmarks yourself.</p>
+<div data-astro-cid-e7uozp55="" data-chart-scope=""><p data-astro-cid-e7uozp55=""></p></div>
+<p>For comparison, <a href="https://openrouter.ai/deepseek/deepseek-v4-flash-0731#providers">DeepSeek V4 Flash 0731</a>, a 284B model, costs around $0.1/Mtok for output from the cheapest providers on OpenRouter. I am not sure how much of this difference comes from the efficiency of running models at scale, pricing strategy, or popularity.</p>
+<h2 id="conclusion">Conclusion<a href="#conclusion" aria-label="Link to this section"></a></h2>
+<p>If you run experiments locally, usually pick the best model that fits in your GPU memory together with the required context.
+For most tasks Unsloth’s <code>Q4_K_M</code> should be good enough, without any noticeable difference; for some simpler tasks <code>UD-Q2_K_XL</code> should be more than fine.
+Since people report that KV-caches are more susceptible to quantization, I may test it as well.</p>
+<p>But in general, I believe that quantization should be embraced, rather than feared.</p>
+<p>And what is your experience? Join the discussion on <a href="https://www.reddit.com/r/LocalLLaMA/comments/1vz3ieu/benchmarking_qwen38_27b_quantizations_4bit_holds/">r/LocalLLaMA</a>, <a href="https://news.ycombinator.com/item?id=49611128">Hacker News</a>, or <a href="https://www.linkedin.com/feed/update/urn:li:activity:7498431004932743168/">LinkedIn</a>.</p></div></div>
