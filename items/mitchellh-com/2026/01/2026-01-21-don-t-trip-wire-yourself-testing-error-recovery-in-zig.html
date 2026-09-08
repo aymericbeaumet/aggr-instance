@@ -1,0 +1,201 @@
+<div id="readability-page-1" class="page"><div><p>I've written a library called <a target="_blank" rel="noopener noreferrer" href="https://github.com/ghostty-org/ghostty/blob/main/src/tripwire.zig">Tripwire</a><sup><a href="#user-content-fn-1" id="user-content-fnref-1" data-footnote-ref="true" aria-describedby="footnote-label">1</a></sup>
+for injecting failures into Zig programs for the express purpose of
+testing error handling paths. Outside of unit tests, it is <strong>completely
+optimized away</strong> and has zero runtime cost (space or time).</p>
+<p>Zig has a language feature <a target="_blank" rel="noopener noreferrer" href="https://ziglang.org/documentation/0.15.2/#errdefer"><code>errdefer</code></a>
+for running code on block exit only when an error is being returned.
+The idea is simple: if an error occurs, you need to "undo" your partial
+effects so that when the function returns an error, the world state
+can be in some well-defined state.</p>
+<p>Ironically, error cleanup is one of the most error-prone parts of Zig
+programs and is a consistent source of resource leaks and memory corruption.</p>
+<p>This is easily understood: error codepaths are typically much less frequently
+executed and triggering them in tests can be difficult. As a result,
+they usually are only cognitively reviewed once or twice during development,
+and never truly exercised until a user hits them in production.</p>
+<hr>
+<h2 id="errors-in-zig">Errors in Zig</h2>
+<div><p>This section covers some background on how errors work in general in Zig. If you're familiar with
+Zig error handling, feel free to skip this section.</p></div>
+<p>All functions in Zig can return <a target="_blank" rel="noopener noreferrer" href="https://ziglang.org/documentation/0.15.2/#Errors">error values</a>.
+An error value acts a bit like an enum and looks like this: <code>error.OutOfMemory</code>.
+Error values are collected into name sets known as <a target="_blank" rel="noopener noreferrer" href="https://ziglang.org/documentation/0.15.2/#Error-Set-Type">error sets</a>.
+And functions can return either an error or a success value using
+something called an <a target="_blank" rel="noopener noreferrer" href="https://ziglang.org/documentation/0.15.2/#Error-Union-Type">error union</a>.</p>
+<p>You can wrap an error union (usually a function call result) with
+<a target="_blank" rel="noopener noreferrer" href="https://ziglang.org/documentation/0.15.2/#try"><code>try</code></a> to unwrap the value or return the error.</p>
+<p>And, finally, the key point for this post, you can put <a target="_blank" rel="noopener noreferrer" href="https://ziglang.org/documentation/0.15.2/#errdefer"><code>errdefer</code></a>
+anywhere and when an error is returned (either directly or via <code>try</code>), then
+all prior <code>errdefer</code> statements in the current scope will be executed
+in reverse order.</p>
+<p>All-in-all, it looks a bit like this in a toy example:</p>
+<div><pre tabindex="0"><code><span><span>fn</span><span> create</span><span>(alloc</span><span>:</span><span> Allocator) </span><span>!*</span><span>Widget {</span></span>
+<span><span>    const</span><span> self </span><span>=</span><span> try</span><span> alloc</span><span>.</span><span>create</span><span>(Widget)</span><span>;</span></span>
+<span><span>    errdefer</span><span> alloc</span><span>.</span><span>destroy</span><span>(self)</span><span>;</span></span>
+<span></span>
+<span><span>    self</span><span>.</span><span>*</span><span> =</span><span> try</span><span> .</span><span>init</span><span>(alloc)</span><span>;</span></span>
+<span><span>    errdefer</span><span> self</span><span>.</span><span>deinit</span><span>()</span><span>;</span></span>
+<span></span>
+<span><span>    const</span><span> file </span><span>=</span><span> try</span><span> std</span><span>.</span><span>fs</span><span>.</span><span>cwd</span><span>()</span><span>.</span><span>openFile</span><span>(</span><span>"config.txt"</span><span>,</span><span> .</span><span>{})</span><span>;</span></span>
+<span><span>    // etc...</span></span>
+<span></span>
+<span><span>    return</span><span> self</span><span>;</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>In this example, you can see the basic path:</p>
+<ol>
+<li>After allocating room for <code>Widget</code>, if we see an error we should deallocate.</li>
+<li>After initializing the <code>Widget</code>, if we see an error we should deinitialize it.</li>
+<li>etc.</li>
+</ol>
+<p>This is a quintessential Zig pattern, and you will see it all over the
+Zig standard library and in most Zig programs. This is an easy case where
+<code>errdefer</code> is <em>obviously correct</em> even without tests.</p>
+<p>But the real world gets messy fast.<sup><a href="#user-content-fn-2" id="user-content-fnref-2" data-footnote-ref="true" aria-describedby="footnote-label">2</a></sup></p>
+<hr>
+<h2 id="why-so-fragile">Why So Fragile?</h2>
+<p>It is also useful background to understand why it is so difficult to
+test error handling codepaths in Zig.</p>
+<p>Zig provides some great utilities for program correctness. First,
+it has a number of <a target="_blank" rel="noopener noreferrer" href="https://ziglang.org/documentation/0.15.2/#Illegal-Behavior">runtime safety checks</a>
+covering things from index of bounds to null dereferencing and so on.
+Next, Zig's <a target="_blank" rel="noopener noreferrer" href="https://ziglang.org/documentation/0.15.2/#Memory">parameterized allocators</a>
+make it easier to test out of memory scenarios, constrained memory
+environments, and so on. Finally, Zig has a builtin
+<a target="_blank" rel="noopener noreferrer" href="https://ziglang.org/documentation/0.15.2/#Zig-Test">test framework</a>
+and encourages writing tests culturally.</p>
+<p>But, it has no mechanism to trigger errors to test <code>errdefer</code>. For
+memory allocation errors, you can use specialized allocators like the
+<code>std.testing.failing_allocator</code>, but getting it exactly configured right
+in complex code that does many allocations and whose allocations may be
+conditional is tricky and fragile.</p>
+<p>You always get <code>defer</code> testing for free if you unit test your code because
+defers run unconditionally on block exit. But <code>errdefer</code> only runs
+when errors occur, so if you can't trigger the error, you can't test
+the corresponding <code>errdefer</code>!</p>
+<p>And besides tooling, error handling code by its nature is more rarely
+executed and the state of the world when an error occurs is often
+more complex than the success path (since it is also may be dependent
+on <em>where</em> the error occurred).</p>
+<hr>
+<h2 id="tripwire">Tripwire</h2>
+<p>I ultimately grew tired of eyeballing error handling code and hoping
+it was correct, or spending hours trying to write tests that create
+a perfect-but-fragile scenario to trigger an exact error path. So,
+I wrote <a target="_blank" rel="noopener noreferrer" href="https://github.com/ghostty-org/ghostty/blob/main/src/tripwire.zig">Tripwire</a>.</p>
+<p>Tripwire is a small, single-file library<sup><a href="#user-content-fn-1" id="user-content-fnref-1-2" data-footnote-ref="true" aria-describedby="footnote-label">1</a></sup> that lets you put named
+points in your code where you can trigger errors during tests. Outside of
+tests, it is written in such a way that it is completely optimized away
+(takes no memory and emits no machine code).</p>
+<p>Conceptually it works like this:</p>
+<div><p>How tripwire injects failures</p><div><p><span>Click to trigger:</span></p><div><p>fn init(alloc: Allocator) !*Self {</p><p>    try tw.check(.alloc_buffer);</p><p>    const buf = try alloc.alloc(u8, 1024);</p><p>    errdefer alloc.free(buf);</p><p>    try tw.check(.open_file);<span> ← error injected!</span></p><p>    const file = try openFile("config");</p><p>    errdefer file.close();</p><p>    return self;</p><p>}</p></div><div><p><strong>Triggering .open_file:</strong> Buffer was allocated, so <code>errdefer alloc.free(buf)</code> must run. If it's missing or wrong, the test fails with a memory leak!</p></div></div></div>
+<p>With code, it looks like this:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> tripwire </span><span>=</span><span> @import</span><span>(</span><span>"tripwire.zig"</span><span>)</span><span>;</span></span>
+<span></span>
+<span><span>// Define a tripwire module with named failure points. The second</span></span>
+<span><span>// argument is the function itself to get its error set.</span></span>
+<span><span>const</span><span> init_tw </span><span>=</span><span> tripwire</span><span>.</span><span>module</span><span>(</span><span>enum</span><span> {</span></span>
+<span><span>    alloc_buffer</span><span>,</span></span>
+<span><span>    open_file</span><span>,</span></span>
+<span><span>}</span><span>,</span><span> init)</span><span>;</span></span>
+<span></span>
+<span><span>fn</span><span> init</span><span>(alloc</span><span>:</span><span> Allocator) </span><span>!*</span><span>Self {</span></span>
+<span><span>    // Check the tripwire before the fallible operation.</span></span>
+<span><span>    // In tests, this can be configured to return an error.</span></span>
+<span><span>    // In release builds, this compiles to nothing.</span></span>
+<span><span>    try</span><span> init_tw</span><span>.</span><span>check</span><span>(</span><span>.</span><span>alloc_buffer)</span><span>;</span></span>
+<span><span>    const</span><span> buf </span><span>=</span><span> try</span><span> alloc</span><span>.</span><span>alloc</span><span>(</span><span>u8</span><span>,</span><span> 1024</span><span>)</span><span>;</span></span>
+<span><span>    errdefer</span><span> alloc</span><span>.</span><span>free</span><span>(buf)</span><span>;</span></span>
+<span></span>
+<span><span>    try</span><span> init_tw</span><span>.</span><span>check</span><span>(</span><span>.</span><span>open_file)</span><span>;</span></span>
+<span><span>    const</span><span> file </span><span>=</span><span> try</span><span> std</span><span>.</span><span>fs</span><span>.</span><span>cwd</span><span>()</span><span>.</span><span>openFile</span><span>(</span><span>"config.txt"</span><span>,</span><span> .</span><span>{})</span><span>;</span></span>
+<span><span>    errdefer</span><span> file</span><span>.</span><span>close</span><span>()</span><span>;</span></span>
+<span></span>
+<span><span>    // ...</span></span>
+<span><span>}</span></span>
+<span></span>
+<span><span>test</span><span> "init error on open_file"</span><span> {</span></span>
+<span><span>    // Configure the tripwire to fail at the open_file point.</span></span>
+<span><span>    try</span><span> init_tw</span><span>.</span><span>errorAlways</span><span>(</span><span>.</span><span>open_file</span><span>,</span><span> error</span><span>.</span><span>OutOfMemory)</span><span>;</span></span>
+<span><span>    // Call the function and expect the error.</span></span>
+<span><span>    try</span><span> std</span><span>.</span><span>testing</span><span>.</span><span>expectError</span><span>(</span><span>error</span><span>.</span><span>OutOfMemory</span><span>,</span><span> init</span><span>(std</span><span>.</span><span>testing</span><span>.</span><span>allocator))</span><span>;</span></span>
+<span><span>    // End the tripwire session and reset state.</span></span>
+<span><span>    // This also verifies the tripwire was actually hit.</span></span>
+<span><span>    try</span><span> init_tw</span><span>.</span><span>end</span><span>(</span><span>.</span><span>reset)</span><span>;</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>The key insight is that <code>std.testing.allocator</code> will fail the test if any
+memory is leaked. So by triggering an error at <code>.open_file</code>, we force the
+<code>errdefer alloc.free(buf)</code> to run. If that <code>errdefer</code> was missing or wrong,
+the test would fail with a memory leak. In more complex scenarios, you'd
+add additional state testing in the unit test after the error is tripped.</p>
+<p>Another common pattern I use is to iterate through all possible
+failure points to get complete coverage:</p>
+<div><pre tabindex="0"><code><span><span>test</span><span> "init handles all error points"</span><span> {</span></span>
+<span><span>    for</span><span> (std</span><span>.</span><span>meta</span><span>.</span><span>tags</span><span>(init_tw</span><span>.</span><span>FailPoint)) </span><span>|</span><span>point</span><span>|</span><span> {</span></span>
+<span><span>        try</span><span> init_tw</span><span>.</span><span>errorAlways</span><span>(point</span><span>,</span><span> error</span><span>.</span><span>OutOfMemory)</span><span>;</span></span>
+<span><span>        try</span><span> std</span><span>.</span><span>testing</span><span>.</span><span>expectError</span><span>(</span><span>error</span><span>.</span><span>OutOfMemory</span><span>,</span><span> init</span><span>(std</span><span>.</span><span>testing</span><span>.</span><span>allocator))</span><span>;</span></span>
+<span><span>        try</span><span> init_tw</span><span>.</span><span>end</span><span>(</span><span>.</span><span>reset)</span><span>;</span></span>
+<span><span>    }</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>As I said before, in practice you probably need a bit more expectations
+after the tripwire end to verify that your world state is sensible. But
+even at a basic level, this makes it easy to ensure no runtime safety
+checks or leaks are detected.</p>
+<p>In addition to <code>errorAlways</code>, you can use <code>errorAfter</code> to only
+trigger an error after a certain number of times that that failure
+point has been reached. And <code>end</code> will verify that it was triggered.
+This is useful to catch resource leakage or state corruption due to
+poor loop cleanup.</p>
+<hr>
+<h2 id="zero-cost-outside-of-tests">Zero-Cost Outside of Tests</h2>
+<p>Outside of tests, Tripwire emits no machine code and uses no memory;
+it is completely optimized away.</p>
+<p>To do this, we use Zig's comptime to detect the test framework:</p>
+<div><pre tabindex="0"><code><span><span>/// Whether our module is enabled or not.</span></span>
+<span><span>pub</span><span> const</span><span> enabled </span><span>=</span><span> builtin</span><span>.</span><span>is_test</span><span>;</span></span></code></pre></div>
+<p>And use that to conditionally make our functions no-ops:</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> fn</span><span> check</span><span>(point</span><span>:</span><span> FailPoint) </span><span>callconv</span><span>(</span><span>callingConvention</span><span>()) Error</span><span>!</span><span>void</span><span> {</span></span>
+<span><span>  if</span><span> (</span><span>comptime</span><span> !</span><span>enabled) </span><span>return</span><span>;</span></span>
+<span><span>  // actually do stuff</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>We also use comptime to set the calling convention so that the function
+is inlined if we're not enabled:</p>
+<div><pre tabindex="0"><code><span><span>/// Our calling convention is inline if our tripwire module is</span></span>
+<span><span>/// NOT enabled, so that all calls to `check` are optimized away.</span></span>
+<span><span>fn</span><span> callingConvention</span><span>() std</span><span>.</span><span>builtin</span><span>.</span><span>CallingConvention {</span></span>
+<span><span>    return</span><span> if</span><span> (</span><span>!</span><span>enabled) </span><span>.</span><span>@"inline"</span><span> else</span><span> .</span><span>auto</span><span>;</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>Some have told me this isn't necessary, but we've seen real compilations
+produce machine code with full function call overhead to a function
+with an empty body and only a <code>ret</code>. Inlining fixes this, until we
+figure out what is causing that.</p>
+<p>And finally, the Zig compiler only analyzes and emits code for declarations
+that are actively referenced (or volatile). Since no code references this
+state when Tripwire is disabled, none of our global state gets emitted
+into the binary, either.</p>
+<hr>
+<h2 id="bugs-bugs">Bugs, Bugs</h2>
+<p>I integrated Tripwire into Ghostty in only a handful of places and
+immediately uncovered <a target="_blank" rel="noopener noreferrer" href="https://github.com/ghostty-org/ghostty/pull/10401">many bugs</a>.
+In the initial PR I fixed ~6 <code>errdefer</code> bugs. They've all never been
+known to trigger in the real world but they are bugs nonetheless.</p>
+<p>And most importantly, the bugs are now fixed paired with unit tests that
+verified they exist! If I remove the fix, the tests fail!</p>
+<p>I plan to continue to integrate Tripwire into more parts of the Ghostty
+codebase and to ensure that I'm considering <code>errdefer</code> testing for any newly
+written code by myself, maintainers, or contributors.</p>
+<p>Please, copy the file if you find it useful and use it in your own
+projects! Ghostty is MIT licensed and Tripwire is fully self-contained
+in a single file. Use it!</p>
+<section data-footnotes="true"><h2 id="footnote-label">Footnotes</h2>
+<ol>
+<li id="user-content-fn-1">
+<p>It is a single file. Copy and paste it in your project if you want to use it. <a href="#user-content-fnref-1" data-footnote-backref="" aria-label="Back to reference 1">↩</a> <a href="#user-content-fnref-1-2" data-footnote-backref="" aria-label="Back to reference 1-2">↩<sup>2</sup></a></p>
+</li>
+<li id="user-content-fn-2">
+<p>I originally had a bunch of examples in this post but I think it made
+the post much too long and it's easier to just take a look at some of the commits
+in PR <a target="_blank" rel="noopener noreferrer" href="https://github.com/ghostty-org/ghostty/pull/8249">8249</a> and PR
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/ghostty-org/ghostty/pull/10401">10401</a>. <a href="#user-content-fnref-2" data-footnote-backref="" aria-label="Back to reference 2">↩</a></p>
+</li>
+</ol>
+</section></div></div>

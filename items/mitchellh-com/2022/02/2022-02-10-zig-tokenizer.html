@@ -1,0 +1,76 @@
+<div id="readability-page-1" class="page"><div>
+<details open=""><summary>Table of Contents</summary><div><ul><li><a href="#the-zig-tokenizer">The Zig Tokenizer</a></li><li><a href="#anatomy-of-a-token">Anatomy of a Token</a></li><li><a href="#finding-the-next-token">Finding the Next Token</a></li><li><a href="#the-zig-implementation">The Zig Implementation</a></li><li><a href="#from-tokens-to-trees">From Tokens to Trees</a></li></ul></div></details>
+<p>Tokenization is the first step in a typical compiler pipeline. Tokenization is the process of converting a stream of bytes (the programming language syntax) into a stream of tokens.</p>
+<p>Using Zig as an example, the syntax <code>comptime {}</code> is tokenized into <code>[.keyword_comptime, .l_brace, .r_brace]</code>. Tokenizers usually don’t handle <em>semantics</em> or whether a set of tokens are <em>meaningful.</em> For example, <code>comptime []</code> is not meaningful Zig syntax, but the tokenizer will happily turn that into <code>[.keyword_comptime, .l_bracket, .r_bracket]</code>. It is up to the <a href="https://mitchellh.com/zig/parser">parser</a> (the next step after tokenization) to apply semantic meaning and error in invalid cases.</p>
+<p>There are many ways to write a tokenizer. This page will focus on how Zig’s tokenizer works and does not aim to compare this to other ways to write the tokenizer.</p>
+<h2 id="the-zig-tokenizer">The Zig Tokenizer</h2>
+<p>The Zig language tokenizer is part of the Zig standard library and is at <code>lib/std/zig/tokenizer.zig</code> and exposed as <code>std.zig.Tokenizer</code>. The tokenizer takes a slice of bytes as input and produces one token at a time until EOF. The tokenizer performs no allocations.</p>
+<p>The basic usage is shown below, before we dive in to see how it works:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> std </span><span>=</span><span> @import</span><span>(</span><span>"std"</span><span>)</span><span>;</span></span>
+<span><span>const</span><span> expect </span><span>=</span><span> std</span><span>.</span><span>testing</span><span>.</span><span>expect</span><span>;</span></span>
+<span></span>
+<span><span>const</span><span> tok </span><span>=</span><span> std</span><span>.</span><span>zig</span><span>.</span><span>Tokenizer</span><span>.</span><span>init</span><span>(</span><span>"comptime {}"</span><span>)</span><span>;</span></span>
+<span><span>try</span><span> expect</span><span>(tok</span><span>.</span><span>next</span><span>() </span><span>==</span><span> .</span><span>keyword_comptime)</span><span>;</span></span>
+<span><span>try</span><span> expect</span><span>(tok</span><span>.</span><span>next</span><span>() </span><span>==</span><span> .</span><span>l_brace)</span><span>;</span></span>
+<span><span>try</span><span> expect</span><span>(tok</span><span>.</span><span>next</span><span>() </span><span>==</span><span> .</span><span>r_brace)</span><span>;</span></span>
+<span><span>try</span><span> expect</span><span>(tok</span><span>.</span><span>next</span><span>() </span><span>==</span><span> .</span><span>eof)</span><span>;</span></span></code></pre></div>
+<p>Some important properties of the tokenizer that are worth mentioning:</p>
+<ul>
+<li><strong>Operates on slices, not streams</strong> - The tokenizer takes a <code>[:0] const u8</code> as input, not a reader. This means that for sufficiently large inputs, it is up to the caller to buffer and batch calls to the tokenizer. In practice, programming language inputs are not “sufficiently large” so the entire source file is tokenized at once; this is how Zig works today, too.</li>
+<li><strong>Does not allocate</strong> - The tokenizer does not perform any heap allocation. In systems programming, it’s always useful to understand the memory usage and allocation properties of an API. Side note: with Zig, this is immediately obvious since the Tokenizer doesn’t take an <code>Allocator</code> as a parameter for anything.</li>
+</ul>
+<p>The structure of the tokenizer is equally simple (as shown below). The tokenizer stores the buffer, the current index into the buffer (starts at zero), and a potential invalid token (will be ignored in this article).</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> const</span><span> Tokenizer </span><span>=</span><span> struct</span><span> {</span></span>
+<span><span>    buffer</span><span>:</span><span> [</span><span>:</span><span>0</span><span>]</span><span>const</span><span> u8</span><span>,</span></span>
+<span><span>    index</span><span>:</span><span> usize</span><span>,</span></span>
+<span><span>    pending_invalid_token</span><span>:</span><span> ?</span><span>Token</span><span>,</span></span>
+<span></span>
+<span><span>    // ...</span></span>
+<span><span>}</span><span>;</span></span></code></pre></div>
+<p>It should be apparent how a tokenizer functions with this state, even if you didn’t know anything about tokenizers. The tokenizer moves the index forward one byte at a time in the buffer and constructs a token.</p>
+<h2 id="anatomy-of-a-token">Anatomy of a Token</h2>
+<p>With the high-level API of the tokenizer understood, the next question is: what is the anatomy of a token? In Zig, a token is the following structure:</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> const</span><span> Token </span><span>=</span><span> struct</span><span> {</span></span>
+<span><span>    tag</span><span>:</span><span> Tag</span><span>,</span></span>
+<span><span>    loc</span><span>:</span><span> Loc</span><span>,</span></span>
+<span></span>
+<span><span>    pub</span><span> const</span><span> Loc </span><span>=</span><span> struct</span><span> {</span></span>
+<span><span>        start</span><span>:</span><span> usize</span><span>,</span></span>
+<span><span>        end</span><span>:</span><span> usize</span><span>,</span></span>
+<span><span>    }</span><span>;</span></span>
+<span></span>
+<span><span>    pub</span><span> const</span><span> Tag </span><span>=</span><span> enum</span><span> {</span></span>
+<span><span>        invalid</span><span>,</span></span>
+<span><span>        // ...</span></span>
+<span><span>    }</span><span>;</span></span>
+<span><span>}</span><span>;</span></span></code></pre></div>
+<p>The <code>tag</code> field is an enum that represents all possible token types. Examples of tags are <code>.keyword_comptime, .l_brace, .r_brace, .eof</code>. At the time of writing, Zig has around 120 distinct tags.</p>
+<p>Next, the location of the token is stored in the <code>loc</code> field which is comprised of a <code>start</code> and <code>end</code> index. Given these indices and the original source text (used to initialize the tokenizer), a caller can extract the text of the token using <code>source[tok.loc.start .. tok.loc.end]</code>. Storing only the start and end is a common efficiency trick.</p>
+<p>The information given in the token is fundamental — a tag, a location — but the structure can vary between tokenizers. For example, the <a target="_blank" rel="noopener noreferrer" href="https://pkg.go.dev/go/scanner@go1.17.6#Scanner.Scan">Go tokenizer</a> models tokens as an int constant, and the <code>next()</code> equivalent function in Go returns the token int, position as an int byte offset, and the literal string capture of the token as distinct return values since Go supports multiple return values. This is more or less the same as Zig, but the subtle differences do have an important impact on compiler ergonomics and sometimes performance.</p>
+<h2 id="finding-the-next-token">Finding the Next Token</h2>
+<p>The tokenizer returns one token at a time by calling the <code>next()</code> function.</p>
+<p>This function starts at the current index into the buffer and looks at one byte at a time to construct the token. It uses a single <code>state</code> variable to implement a state machine in order to track what could possibly be next.</p>
+<p>Before going through the actual states of the Zig tokenizer, let’s consider this approach at a high level. Let’s look at how the input <code>while</code>  (including the space) would be tokenized.</p>
+<p>First, a tokenizer would see the character <code>w</code>. At that point, we know it can’t be a number, but it could still be either a keyword or an identifier, so we don’t yet have a complete token. We only look one character at a time, so we grab the next one: <code>h</code>. This can still be an identifier or keyword, so we continue. <code>i</code>, <code>l</code>, <code>e</code>. Now, we have <code>while</code>, which we know is a keyword on its own, but this could <em>still</em> be an identifier because there can be more characters, so we have to look one more character forward. The next input is whitespace. We now definitively know that it is the <code>while</code> keyword, and not an identifier, and a token can be returned. If the next byte was a character such as <code>1</code>, we would know we’re constructing an identifier (incomplete) and that it would never be a keyword (no keyword starts with <code>while1</code>).</p>
+<p>And that’s how the Zig tokenizer works. It maintains a current state (such as “we know we’re building an identifier or a keyword”) and looks one character at a time until it has unambiguously determined the token.</p>
+<p>The tokenizer only looks at the state and the current character; it does not look backward, and it does not peek forward. Most tokenizers don’t. As noted in the beginning, a tokenizer is not concerned with semantics, so non-sensical inputs such as <code>if while comptime x = 7 { else }</code> produce a valid stream of tokens. It is up to the <em>parser</em> to take a stream of tokens and apply semantic meaning to it.</p>
+<h2 id="the-zig-implementation">The Zig Implementation</h2>
+<p>The implementation of <code>next()</code> is done using nested whiles and switches. A snippet is shown below.</p>
+<div><pre tabindex="0"><code><span><span>while</span><span> (</span><span>true</span><span>) </span><span>:</span><span> (self</span><span>.</span><span>index </span><span>+=</span><span> 1</span><span>) {</span></span>
+<span><span>    const</span><span> c </span><span>=</span><span> self</span><span>.</span><span>buffer[self</span><span>.</span><span>index]</span><span>;</span></span>
+<span><span>        switch</span><span> (state) {</span></span>
+<span><span>        .</span><span>start </span><span>=&gt;</span><span> switch</span><span> (c) {</span></span>
+<span><span>            'a'</span><span>...</span><span>'z'</span><span>,</span><span> 'A'</span><span>...</span><span>'Z'</span><span>,</span><span> '_'</span><span> =&gt;</span><span> {</span></span>
+<span><span>                state </span><span>=</span><span> .</span><span>identifier</span><span>;</span></span>
+<span><span>                result</span><span>.</span><span>tag </span><span>=</span><span> .</span><span>identifier</span><span>;</span></span>
+<span><span>            }</span><span>,</span></span>
+<span><span>        }</span></span>
+<span><span>    }</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>The first while is an infinite loop that continues forever, iterating one character at a time through the buffer. The loop body is expected to <code>break</code> when it finds a token or the buffer is empty. A nice property of Zig is that the type of <code>buffer</code> is <code>[:0] const u8</code> and that <code>:0</code> tells us that the buffer is guaranteed to end in a <code>0</code> byte, so we can look for that to break the loop.</p>
+<p>Next, the tokenizer switches on the current <code>state</code>, which is an enum. Then, given a state, we switch on the current character to determine what to do next. In the snippet above, you can see how seeing the first character such as <code>A</code> would move the state to <code>.identifier</code> to build up an identifier.</p>
+<h2 id="from-tokens-to-trees">From Tokens to Trees</h2>
+<p>The next phase of the compiler is the parser. The parser takes the stream of
+tokens generated by
+the tokenizer and converts it to a slightly more meaningful
+abstract syntax tree. Continue reading about <a href="https://mitchellh.com/zig/parser">the Zig parser</a>.</p></div></div>

@@ -1,0 +1,202 @@
+<div id="readability-page-1" class="page"><div><p>As of <a target="_blank" rel="noopener noreferrer" href="https://github.com/simdutf/simdutf/pull/959#top">this PR</a>,
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/simdutf/simdutf">simdutf</a>
+can be used without libc++ or libc++abi<sup><a href="#user-content-fn-1" id="user-content-fnref-1" data-footnote-ref="true" aria-describedby="footnote-label">1</a></sup>.</p>
+<p>Simdutf was the final remaining libc++ dependency in
+<a target="_blank" rel="noopener noreferrer" href="https://libghostty.tip.ghostty.org">libghostty-vt</a><sup><a href="#user-content-fn-2" id="user-content-fnref-2" data-footnote-ref="true" aria-describedby="footnote-label">2</a></sup>.
+After <a target="_blank" rel="noopener noreferrer" href="https://github.com/ghostty-org/ghostty/pull/12291">updating Ghostty to use this new simdutf build</a>,
+we were able to remove libc++ and libc++abi completely from our dependencies.</p>
+<h2 id="the-benefits-of-not-depending-on-libc">The Benefits of Not Depending on libc++</h2>
+<p>Not depending on libc++ makes a library more portable (embedded, WebAssembly,
+freestanding environments), simplifies cross-compilation (no target-specific
+C++ standard library needed), reduces binary size, and can simplify
+static linking.</p>
+<p>As a general purpose, low-level library, simdutf should be as portable and
+flexible as possible. If a downstream consumer can easily use libc++,
+great! But if they can't, they shouldn't be blocked from using simdutf
+since it fundamentally doesn't need it.</p>
+<h2 id="libc-vs-libcabi">libc++ vs libc++abi</h2>
+<p>There are two parts to extricating a program from libc++.</p>
+<p>First, <code>libc++</code> is the C++ standard library, which provides things like
+<code>std::vector</code>, <code>std::string</code>, etc. If you import <code>&lt;vector&gt;</code> or even the libc
+C++ fallbacks like <code>&lt;cstring&gt;</code>, you're depending on libc++.</p>
+<p>The sneakier part is <code>libc++abi</code>, which provides the C++ ABI, including
+things like exception handling, virtual function tables, RTTI, etc.
+If you use any C++ features that require these, you're depending on libc++abi,
+even if you don't import any C++ standard library headers <em>at all</em>.</p>
+<p>For example, the minimal C++ program below depends on libc++abi
+because it uses function-local static variables, which require thread-safe
+initialization that is part of the C++ ABI:</p>
+<div><pre tabindex="0"><code><span><span>struct</span><span> Implementation</span><span> {</span></span>
+<span><span>    int</span><span> version</span><span>;</span></span>
+<span><span>};</span></span>
+<span></span>
+<span><span>const</span><span> Implementation</span><span>&amp;</span><span> get_impl</span><span>()</span><span> {</span></span>
+<span><span>    static</span><span> const</span><span> Implementation impl</span><span>{</span><span>1</span><span>};</span></span>
+<span><span>    return</span><span> impl</span><span>;</span></span>
+<span><span>}</span></span>
+<span></span>
+<span><span>int</span><span> main</span><span>()</span><span> {</span></span>
+<span><span>    return</span><span> get_impl</span><span>().</span><span>version</span><span>;</span></span>
+<span><span>}</span></span></code></pre></div>
+<h2 id="extricating-simdutf-from-libc">Extricating simdutf from libc++</h2>
+<p>Let's talk about <code>libc++</code> first (not the ABI).</p>
+<p>simdutf is a C++ library that makes heavy use of the latest and greatest C++ features and though
+I don't know him personally, <a target="_blank" rel="noopener noreferrer" href="https://lemire.me/en/">Daniel Lemire</a> seems
+to really love utilizing C++ features to their fullest extent. So, simdutf is
+very much a C++ project.</p>
+<p>For there to be any chance that my changes would be accepted, I had to make
+sure that the project could continue to use C++ features without it
+being a headache.</p>
+<h3 id="stl-usage">STL Usage</h3>
+<p>The approach I decided to take was to introduce a
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/mitchellh/simdutf/blob/nolibcxx/include/simdutf/internal/stl_compat.h"><code>stl_compat.h</code> header</a>
+that centralizes all of the C++ standard library types. In
+normal libc++ mode, everything in <code>stl_compat.h</code> is a simple include or
+minimal alias to the corresponding C++ standard library type with no runtime
+overhead.</p>
+<p>In <code>NO_LIBCXX</code> mode, <code>stl_compat.h</code> provides its own implementations of the
+C++ types that simdutf uses, but only just enough for them to be compatible
+with what simdutf needs. For example, <code>stl_compat.h</code> provides its own
+implementation of <code>std::pair</code>.</p>
+<p>As a result, the changes required end up mostly looking like this
+throughout the diff:</p>
+<div><pre tabindex="0"><code><span><span>-</span><span>std::pair&lt;const char *, char32_t *&gt;</span></span>
+<span><span>+</span><span>internal::pair&lt;const char *, char32_t *&gt;</span></span>
+<span><span>arm_convert_latin1_to_utf32(const char *buf, size_t len,</span></span>
+<span><span>                            char32_t *utf32_output) {</span></span></code></pre></div>
+<h3 id="abi-compatibility">ABI Compatibility</h3>
+<p>My goal was to retain as much ABI compatibility as possible.
+Some of the <a target="_blank" rel="noopener noreferrer" href="https://en.wikipedia.org/wiki/Application_binary_interface">public ABI</a>
+expose C++ types such as <code>std::string</code>, so in those scenarios, ABI
+had to be broken. Otherwise, it is fully retained.</p>
+<p>Given <code>SIMDUTF_NO_LIBCXX</code> is a new feature that applies changes
+to the compilation unit, I felt that it was acceptable to break ABI
+<em>only when this flag is present</em>. In the existing case where the
+<code>NO_LIBCXX</code> flag is not present, the ABI is fully retained and simdutf can be
+updated without breaking ABI for existing users.</p>
+<p>I was pleasantly surprised to find that the ABI breakage was very minimal,
+and only applied to a handful of diagnostic functions (e.g. to get
+the name of the active implementation) and helpers to work with other
+C++ types (e.g. text encoding <code>std::string</code>). Since by definition someone
+using <code>SIMDUTF_NO_LIBCXX</code> is not interested in libc++, these ABI
+breakages felt like a feature rather than a bug.</p>
+<h2 id="extricating-simdutf-from-libcabi">Extricating simdutf from libc++abi</h2>
+<p>This task was significantly more complex.</p>
+<p>The main problem was that <code>libc++abi</code> dependencies don't usually show up as
+obvious source-level includes. They show up because the compiler quietly emits
+calls into the C++ ABI runtime for ordinary-looking language features.
+To detect these, I had to write a script that decompiles the object files
+and looks for symbols such as <code>__cxa_guard_acquire</code>.</p>
+<p>The biggest offender in simdutf was the runtime dispatch layer. The original
+code relied heavily on function-local static variables. In C++, those locals
+are guarded by thread-safe initialization helpers such as <code>__cxa_guard_acquire</code>
+and <code>__cxa_guard_release</code>, which are provided by the C++ ABI runtime. So even
+though the code didn't mention libc++abi anywhere, the compiled object still depended on it.
+The fix for this is to use translation-unit static variables instead of
+function-local statics in <code>NO_LIBCXX</code> mode.</p>
+<div><pre tabindex="0"><code><span><span>#</span><span>if</span><span> SIMDUTF_IMPLEMENTATION_ICELAKE</span></span>
+<span><span>  #</span><span>ifdef</span><span> SIMDUTF_NO_LIBCXX</span></span>
+<span><span>static</span><span> const</span><span> icelake</span><span>::</span><span>implementation icelake_singleton</span><span>{};</span></span>
+<span><span>  #</span><span>endif</span></span>
+<span><span>static</span><span> const</span><span> icelake</span><span>::</span><span>implementation</span><span> *</span><span>get_icelake_singleton</span><span>()</span><span> {</span></span>
+<span><span>  #</span><span>ifdef</span><span> SIMDUTF_NO_LIBCXX</span></span>
+<span><span>  return</span><span> &amp;</span><span>icelake_singleton</span><span>;</span></span>
+<span><span>  #</span><span>else</span></span>
+<span><span>  static</span><span> const</span><span> icelake</span><span>::</span><span>implementation icelake_singleton</span><span>{};</span></span>
+<span><span>  return</span><span> &amp;</span><span>icelake_singleton</span><span>;</span></span>
+<span><span>  #</span><span>endif</span></span>
+<span><span>}</span></span>
+<span><span>#</span><span>endif</span></span></code></pre></div>
+<p>Next, simdutf models each backend as a subclass of an abstract <code>implementation</code>
+interface. That design can stay, but abstract-class vtables still reference
+<code>__cxa_pure_virtual</code> for impossible-to-call pure virtual entries.
+In <code>SIMDUTF_NO_LIBCXX</code> mode I chose to provide a tiny local shim
+and ensure the runtime never actually reaches it. I marked this as weak
+so that the symbol can be overridden by the C++ ABI if it is present.</p>
+<div><pre tabindex="0"><code><span><span>#</span><span>ifdef</span><span> SIMDUTF_NO_LIBCXX</span></span>
+<span><span>// The abstract implementation vtable still carries pure-virtual slots even</span></span>
+<span><span>// though correct dispatch never reaches them in this build mode. Provide the</span></span>
+<span><span>// narrowest possible ABI shim so stricter no-libcxx objects do not require</span></span>
+<span><span>// libc++abi just for this unreachable hook. Keep it weak so a toolchain's real</span></span>
+<span><span>// libc++abi definition wins if one is linked in anyway.</span></span>
+<span><span>extern</span><span> "</span><span>C</span><span>"</span><span> SIMDUTF_WEAK </span><span>[[</span><span>noreturn</span><span>]]</span><span> void</span><span> __cxa_pure_virtual</span><span>()</span><span> noexcept</span><span> {</span></span>
+<span><span>  __builtin_trap</span><span>();</span></span>
+<span><span>}</span></span>
+<span><span>#</span><span>endif</span></span></code></pre></div>
+<p>Finally, I wrote a script to audit the build with <code>-fno-exceptions</code> and
+<code>-fno-rtti</code> and check that no symbols such as <code>__cxa_guard_*</code>,
+<code>__gxx_personality</code>, <code>__cxa_throw</code>, <code>typeinfo</code>, or <code>__dynamic_cast</code> ever show
+up. This was added to the simdutf CI to ensure that we never accidentally
+reintroduce libc++abi dependencies in the future for <code>NO_LIBCXX</code> builds.</p>
+<h2 id="validation">Validation</h2>
+<h3 id="internal">Internal</h3>
+<p>simdutf is a correctness and performance critical library, so I had to be
+sure my changes didn't impact either of those. I modified the pre-existing
+test and benchmark suites to run in both <code>NO_LIBCXX</code> and normal modes
+and ensured that all tests passed and benchmarks were unaffected.</p>
+<p>The important part about this is that I committed the changes necessary
+to ensure that the <code>NO_LIBCXX</code> mode is compatible with the existing
+test and benchmark suites. This means that future changes to simdutf
+can continue to validate both.</p>
+<h3 id="external-ghostty">External: Ghostty</h3>
+<p>Next, I updated Ghostty to use the new simdutf from my fork, updated
+our builds to use <code>SIMDUTF_NO_LIBCXX</code>, and added our own suite of tests
+to verify our artifacts have no dependencies on libc++ or libc++abi.</p>
+<p>Ghostty has a robust set of tests that verify our UTF-8 decoding behavior
+(especially invalid inputs). And Ghostty has a built-in benchmark suite
+that tests our UTF-8 throughput in a variety of scenarios. I ran all the
+Ghostty tests and benchmarks and verified that they all passed and that our
+UTF-8 performance was unaffected, as expected.</p>
+<h2 id="pull-request">Pull Request</h2>
+<p>Getting something working and getting something merged are two different things.</p>
+<p>I know too well as a maintainer myself the disparity between "this works"
+and "this can be merged." I know the challenges of verifying someone's work
+and being confident in maintaining it going forward. I know the challenge of
+opening a large PR and not having clarity of why it is being opened.
+And I know the burden of recent AI slop.</p>
+<p>So I put in the effort I would
+want from an all-star contributor and tried to be that person for the
+simdutf maintainers.</p>
+<p>First, I reviewed the entire diff (yes, all ~3,000 lines of it). Then I
+reviewed it again. I re-read the entire diff by hand three or four times.
+I made multiple changes based on things I probably would've commented
+on myself, even if functionally it was fine.</p>
+<p>Next, I hand-wrote a detailed PR description that explains the motivation,
+the approach, the limitations, and the validation. I wanted to make sure that
+the maintainers were aware of the details but also how much thought I put
+into the details.</p>
+<p>Finally, I disclosed that I did use AI to assist me in writing the code. But
+I made it clear that I manually reviewed everything, I didn't use AI in writing
+any of the PR description or comments, and that I was capable and comfortable
+as a human to defend and modify any proposed changes.</p>
+<p>Ironically, the full diff took me about 2 hours to put together, but the
+extra validation work and PR preparation took me about 3 hours. I spent more
+time on the human boundary than the code itself, as we should out of respect
+for the effort maintainers put into their projects.</p>
+<h2 id="final-status">Final Status</h2>
+<p>The <a target="_blank" rel="noopener noreferrer" href="https://github.com/simdutf/simdutf/pull/959">simdutf PR</a> is still
+under review. Initial feedback is positive, and I'm open to any and all
+changes requested of me. There's a possibility that the maintainers will not
+want to merge it, and that's okay, too.</p>
+<p>If you want to use simdutf without libc++ or libc++abi, you can
+<a target="_blank" rel="noopener noreferrer" href="https://github.com/mitchellh/simdutf/tree/nolibcxx">use my fork</a> in the
+meantime. The same instructions for producing an amalgamated single-file plus
+header build apply. When building the C++ and including the header, just
+make sure to define <code>SIMDUTF_NO_LIBCXX</code> to get the no-libc++ version of
+the library.</p>
+<p>The <a target="_blank" rel="noopener noreferrer" href="https://github.com/ghostty-org/ghostty/pull/12291">Ghostty PR</a> is
+now merged. As such, <code>libghostty-vt</code> no longer depends on libc++ or libc++abi
+for SIMD builds.</p>
+<section data-footnotes="true"><h2 id="footnote-label">Footnotes</h2>
+<ol>
+<li id="user-content-fn-1">
+<p>libc++ is the C++ standard library (e.g. <code>std::vector</code>, <code>std::string</code>,
+etc.) and libc++abi is the C++ ABI library (e.g. exception handling, RTTI,
+etc.). <a href="#user-content-fnref-1" data-footnote-backref="" aria-label="Back to reference 1">↩</a></p>
+</li>
+<li id="user-content-fn-2">
+<p>Note that with SIMD disabled, libghostty-vt has always had
+zero dependencies, not even libc. It is a fully freestanding library. <a href="#user-content-fnref-2" data-footnote-backref="" aria-label="Back to reference 2">↩</a></p>
+</li>
+</ol>
+</section></div></div>

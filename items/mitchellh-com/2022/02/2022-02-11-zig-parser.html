@@ -1,0 +1,212 @@
+<div id="readability-page-1" class="page"><div>
+<details open=""><summary>Table of Contents</summary><div><ul><li><a href="#multiarraylist">MultiArrayList</a></li><li><a href="#anatomy-of-the-parser">Anatomy of the Parser</a></li><li><a href="#anatomy-of-an-ast-node">Anatomy of an AST Node</a></li><li><a href="#ast-node-data">AST Node Data</a></li><li><a href="#function-declaration">Function Declaration</a></li><li><a href="#function-prototype">Function Prototype</a></li><li><a href="#function-identifier">Function Identifier</a></li><li><a href="#ast-data-layout-recap">AST Data Layout Recap</a></li><li><a href="#how-parsing-works">How Parsing Works</a></li><li><a href="#parsing-a-zig-file">Parsing a Zig File</a></li><li><a href="#parsing-a-variable-declaration">Parsing a Variable Declaration</a></li><li><a href="#parsing-a-function-definition">Parsing a Function Definition</a></li><li><a href="#finalizing-the-ast">Finalizing the AST</a></li></ul></div></details>
+<p>Parsing is the next step in the compilation pipeline following <a href="https://mitchellh.com/zig/tokenizer">tokenization</a>. Parsing is responsible for constructing an <a target="_blank" rel="noopener noreferrer" href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">abstract syntax tree</a> from a stream of tokens. I’ve previously written about how Zig converts a stream of bytes (source) into a stream of tokens.</p>
+<p>The Zig parser is located at <code>lib/std/zig/parser.zig</code> in the Zig source tree. It is available as part of the standard library via <code>std.zig.parse()</code>. The parser takes full source text and returns an <code>std.zig.Ast</code> (defined in <code>lib/std/zig/Ast.zig</code>).</p>
+<h2 id="multiarraylist">MultiArrayList</h2>
+<p>From parsing onwards, the Zig compiler uses <code>MultiArrayList</code> structures heavily. You must understand the <code>MultiArrayList</code> in order to understand how the parser works as well as the structure of the created AST.</p>
+<p>Before explaining a <code>MultiArrayList</code>, I’ll give a very brief overview of a normal <code>ArrayList</code> (no “Multi”). An <code>ArrayList</code> is a dynamic length array of values. When the array is full, a new larger array is allocated, and existing items are copied into the new array. This is a typical, dynamically allocated, growing (or shrinking) list of items.</p>
+<p>For example, consider the Zig structure below:</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> const</span><span> Tree </span><span>=</span><span> struct</span><span> {</span></span>
+<span><span>    age</span><span>:</span><span> u32</span><span>,</span><span>       // trees can be very old, hence 32-bits</span></span>
+<span><span>    alive</span><span>:</span><span> bool</span><span>,</span><span>    // is this tree still alive?</span></span>
+<span><span>}</span><span>;</span></span></code></pre></div>
+<p>In an <code>ArrayList</code>, many <code>Tree</code> structures are stored like so:</p>
+<div><pre><code>       ┌──────────────┬──────────────┬──────────────┬──────────────┐
+array: │     Tree     │     Tree     │     Tree     │     ...      │
+       └──────────────┴──────────────┴──────────────┴──────────────┘
+</code></pre></div>
+<p>Each <code>Tree</code> requires 8 bytes of memory. An array of four trees is 32 bytes of memory.</p>
+<div><p><strong>Why 8 bytes?</strong> A <code>u32</code> requires 4 bytes. A <code>bool</code> only requires 1 byte but since it is in a struct with a <code>u32</code>, it must be 4-byte aligned, so it also takes up 4 bytes (3 bytes wasted). The total is 8 bytes.</p></div>
+<p>A <code>MultiArrayList</code> is similarly a dynamically allocated list of items. However, each <em>field</em> of the type stored in the array list is stored in a <em>separate contiguous array</em>. This has two primary benefits: (1) less wasted bytes due to alignment and (2) better cache locality. Both of these benefits often result in better performance.</p>
+<p>Given our <code>Tree</code> structure, a <code>MultiArrayList(Tree)</code> is stored like so:</p>
+<div><pre><code>          ┌──────┬──────┬──────┬──────┐
+   age:   │ age  │ age  │ age  │ ...  │
+          └──────┴──────┴──────┴──────┘
+          ┌┬┬┬┬┐
+ alive:   ││││││
+          └┴┴┴┴┘
+</code></pre></div>
+<p>Each field for the struct is stored in a separate contiguous array. An array of four trees uses 20 bytes, or 37.5% less memory. This ignores the overhead of the multiple array pointers, but that overhead is fixed so as the number of items in the list grows, it amortizes to a total of 37.5% less memory required for this example.</p>
+<div><p><strong>Why 20 bytes?</strong> Since the struct is deconstructed, the <code>age</code> field requires 4 bytes, and our example uses 4 trees, hence 16 bytes. The <code>alive</code> field no longer needs to be 4-byte aligned since it isn’t part of a struct anymore, so it only requires 1 byte (no wasted bytes!). Our example uses 4 trees, hence 4 bytes for <code>alive</code>. This sums to 20 bytes total for both fields.</p></div>
+<p>This page will not dive into how <code>MultiArrayList</code> is implemented. For the purpose of understanding the Zig compiler, it is only important to know that almost every structure (tokens, AST nodes, future IR nodes, etc.) is stored as a <code>MultiArrayList</code>. Compiling a real world program usually generates tens of thousands of “nodes” so this results in huge memory savings and improvements in cache locality.</p>
+<h2 id="anatomy-of-the-parser">Anatomy of the Parser</h2>
+<p>The parser uses a struct called <code>Parser</code> to store in-progress parsing state. This is not a publicly exported struct and is only used to manage internal state of the parse operation. Callers are returned an <code>Ast</code> as a result of a parsing operation, which is explored later in this page.</p>
+<p>The structure of the parser at the time of writing is shown below. I’ve inserted newlines to separate the state into functional groups.</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> Parser </span><span>=</span><span> struct</span><span> {</span></span>
+<span><span>    gpa</span><span>:</span><span> Allocator</span><span>,</span></span>
+<span><span>    source</span><span>:</span><span> []</span><span>const</span><span> u8</span><span>,</span></span>
+<span></span>
+<span><span>    token_tags</span><span>:</span><span> []</span><span>const</span><span> Token</span><span>.</span><span>Tag</span><span>,</span></span>
+<span><span>    token_starts</span><span>:</span><span> []</span><span>const</span><span> Ast</span><span>.</span><span>ByteOffset</span><span>,</span></span>
+<span><span>    tok_i</span><span>:</span><span> TokenIndex</span><span>,</span></span>
+<span></span>
+<span><span>    errors</span><span>:</span><span> std</span><span>.</span><span>ArrayListUnmanaged</span><span>(AstError)</span><span>,</span></span>
+<span><span>    nodes</span><span>:</span><span> Ast</span><span>.</span><span>NodeList</span><span>,</span></span>
+<span><span>    extra_data</span><span>:</span><span> std</span><span>.</span><span>ArrayListUnmanaged</span><span>(Node</span><span>.</span><span>Index)</span><span>,</span></span>
+<span><span>    scratch</span><span>:</span><span> std</span><span>.</span><span>ArrayListUnmanaged</span><span>(Node</span><span>.</span><span>Index)</span><span>,</span></span>
+<span><span>}</span><span>;</span></span></code></pre></div>
+<p>The first group contains <code>gpa</code> and <code>source</code>. This is the allocator and full original source code of a single Zig file.</p>
+<p>In the second group, <code>token_tags</code> and <code>token_starts</code> are the deconstructed results of tokenization. As noted earlier, the parser applies data-oriented design for better memory usage and cache locality. Therefore, <code>token_tags.len == token_starts.len</code>, they’re just the struct fields placed into separate contiguous chunks of memory. The <code>tok_i</code> value is the index to the current token that the parser is looking at (starting at 0).</p>
+<p>The third group is the real working state of the parser. This where results that will be part of the <code>Ast</code> are accumulated. This third group is very important since it is the core of what the parser is building.</p>
+<ul>
+<li><code>errors</code> is the list of errors as the parser progresses. Most well-behaved parsers attempt to continue parsing in various error scenarios and Zig’s parser is no different. The Zig parser will accumulate errors in this field and attempt to continue parsing.</li>
+<li><code>nodes</code> is the list of AST nodes. This starts empty and is slowly built up as the parser continues. Understanding the structure of an AST node is extremely important and is covered in the next section.</li>
+<li><code>extra_data</code> is a list of additional information that an AST node may need. For example, for a struct, <code>extra_data</code> contains the full list of all the struct members. This is again an example of data-oriented design; an alternate approach would be to put the extra data directly on a <code>Node</code>, but this makes the overall parser slower since it forces each Node to be much larger.</li>
+<li><code>scratch</code> is temporary work space shared by the parser, usually to build up information for nodes or extra data. This is deallocated once the parser is done working.</li>
+</ul>
+<h2 id="anatomy-of-an-ast-node">Anatomy of an AST Node</h2>
+<p>The result of a parse is a list of AST nodes. Note that the AST itself is still a tree, but the result returned by the parser contains the list of the nodes in the tree since that is how a tree is represented in-memory.</p>
+<p>The AST node structures can be <em>confusing</em> because there is a lot of indirection on top of the data itself being stored in a <code>MultiArrayList</code>. I recommend re-reading this section repeatedly to ensure you understand the structure of an AST node. While learning the internals of the Zig compiler, a lack of a <em>complete understanding</em> of this data pattern caused a lot of issues, because this pattern is reused in every subsequent stage of the compiler.</p>
+<p>The AST structures can be found in <code>lib/std/zig/Ast.zig</code>. The primary structure is <code>Node</code>:</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> const</span><span> Node </span><span>=</span><span> struct</span><span> {</span></span>
+<span><span>    tag</span><span>:</span><span> Tag</span><span>,</span></span>
+<span><span>    main_token</span><span>:</span><span> TokenIndex</span><span>,</span></span>
+<span><span>    data</span><span>:</span><span> Data</span><span>,</span></span>
+<span></span>
+<span><span>    pub</span><span> const</span><span> Data </span><span>=</span><span> struct</span><span> {</span></span>
+<span><span>        lhs</span><span>:</span><span> Index</span><span>,</span></span>
+<span><span>        rhs</span><span>:</span><span> Index</span><span>,</span></span>
+<span><span>    }</span><span>;</span></span>
+<span></span>
+<span><span>    pub</span><span> const</span><span> Index </span><span>=</span><span> u32</span><span>;</span></span>
+<span><span>}</span><span>;</span></span></code></pre></div>
+<p>Note that the parser itself stores nodes in a <code>NodeList</code>, which is a <code>MultiArrayList(Node)</code>, meaning it is the Node structure with each field stored in a separate contiguous block of memory. Conceptually, you can think of nodes as single structs as shown above, but concretely, the fields are split when used.</p>
+<p>The node <code>tag</code> is an enum of possible AST node types. For example, <code>fn_decl</code> for a function declaration, <code>integer_literal</code> for a literal integer, <code>builtin_call</code> for calling a builtin such as <code>@enumToInt</code>.</p>
+<p>The <code>main_token</code> field isn’t extremely important to understand right now. It is the main token associated with the AST node. For example for a function declaration it might be <code>fn</code>. The value is an index into the list of tokens used to build the AST.</p>
+<p>The <code>data</code> field is extremely important. This contains the information associated with an AST node. For example, a function declaration (<code>.tag == .fn_decl</code>) uses data to store the function prototype along with the function body. The data field is covered in detail in the next section.</p>
+<h2 id="ast-node-data">AST Node Data</h2>
+<p>A key part of any AST node is data associated with it. For example, a function declaration has a function name, a parameter list, a return type, body, etc. Looking at the <code>Node</code> structure, it isn’t immediately clear where this information might be.</p>
+<p><strong>This is an extremely important detail to understand before we can dive into how the parser works.</strong> And for those who want to know how the entire compiler pipeline works, this is a particularly critical detail since the AST uses a pattern that is reused throughout the compilation pipeline for other intermediary forms.</p>
+<p>Let’s look at how the AST for a function declaration would be structured for the given Zig code:</p>
+<div><pre tabindex="0"><code><span><span>fn</span><span> add</span><span>(a</span><span>:</span><span> u8</span><span>,</span><span> b</span><span>:</span><span> u8</span><span>) </span><span>callconv</span><span>(</span><span>.</span><span>C) </span><span>u8</span><span> {</span></span>
+<span><span>	return</span><span> a </span><span>+</span><span> b</span><span>;</span></span>
+<span><span>}</span></span></code></pre></div>
+<h2 id="function-declaration">Function Declaration</h2>
+<p>The root AST node for the function declaration has a tag of <code>fn_decl</code>.</p>
+<p>For a <code>fn_decl</code>, the <code>data</code> field <code>lhs</code> stores an index to the function prototype (name, type information, etc.) and the <code>rhs</code> field stores an index to the function body. The only way you’d know this is reading the comments above the <code>.fn_decl</code> tag or reading the source or both.</p>
+<p>The index values in <code>lhs</code> and <code>rhs</code> in this case are the array indices for the <code>Node</code> in the <code>NodeList</code>. So you’d find the function prototype in <code>tree.nodes[lhs]</code> (pseudo-code, not strictly correct).</p>
+<p>So in this case, both fields of <code>data</code> are used to store <code>NodeList</code> indices. This is one usage of <code>data</code> and how information about an AST node is stored. Next, let’s look at the function prototype to determine how we’d determine the parameter list, return type, and calling convention.</p>
+<h2 id="function-prototype">Function Prototype</h2>
+<p>We can get the function prototype by reading the node at <code>tree.nodes[lhs]</code>. This node will have a tag of <code>fn_proto</code> in this case. This type of AST node stores information about the parameter, calling convention, return type, etc.</p>
+<p>This particular AST node type uses <code>lhs</code> and <code>rhs</code> differently. The <code>rhs</code> field is used in the way same way as the function declaration and points to an index in the <code>NodeList</code> for the return type expression (since Zig supports various expressions for a comptime-computed return type in addition to direct type identifiers).</p>
+<p>The <code>lhs</code> field, however, does <em>not</em> point to an AST node. Instead, it is an index into the <code>extra_data</code> field (seen in “Anatomy of the Parser”). This index is the <em>starting index</em> for additional metadata. The length of the additional metadata is known ahead of time based on the AST node type. So, instead of <code>tree.nodes[lhs]</code>, it is <code>tree.extra_data[lhs]</code> in this case. <strong>Important point: <code>lhs/rhs</code> may point to either nodes or extra data.</strong></p>
+<p>As a reminder, the type of <code>extra_data</code> is <code>[]Index</code>. This may appear that <code>lhs</code> being used as <code>tree.extra_data[lhs]</code> is just pointing to <em>another</em> index. No, <code>lhs</code> (for a <code>.fn_proto</code>) is just pointing to the <em>first</em> index in <code>extra_data</code>. The number of subsequent fields to read is also tag-dependent. For a <code>fn_proto</code> this is six fields. How do we know its six? The comments in the source or reading the struct that is encoded:</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> const</span><span> FnProto </span><span>=</span><span> struct</span><span> {</span></span>
+<span><span>    params_start</span><span>:</span><span> Index</span><span>,</span></span>
+<span><span>    params_end</span><span>:</span><span> Index</span><span>,</span></span>
+<span><span>    align_expr</span><span>:</span><span> Index</span><span>,</span></span>
+<span><span>    addrspace_expr</span><span>:</span><span> Index</span><span>,</span></span>
+<span><span>    section_expr</span><span>:</span><span> Index</span><span>,</span></span>
+<span><span>    callconv_expr</span><span>:</span><span> Index</span><span>,</span></span>
+<span><span>}</span><span>;</span></span></code></pre></div>
+<p>So <code>tree.extra_data[lhs]</code> is <code>params_start</code>, <code>tree.extra_data[lhs+1]</code> is <code>params_end</code>, and so on until <code>tree.extra_data[lhs+5]</code> is <code>callconv_expr</code>.</p>
+<p>The <code>Ast</code> struct provides a helper function <code>extraData()</code> to decode this. Given an AST tree <code>tree</code> you can access this easily using the following method. In the example below, <code>idx</code> is the index in the node list where the <code>.fn_proto</code> node exists.</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> fnData </span><span>=</span><span> tree</span><span>.</span><span>extraData</span><span>(idx</span><span>,</span><span> FnProto)</span></span>
+<span><span>fnData</span><span>.</span><span>params_start</span></span>
+<span><span>fnData</span><span>.</span><span>callconv_expr</span></span>
+<span><span>// etc...</span></span></code></pre></div>
+<p>But what is <code>param_start</code>, <code>param_end</code>, etc. on the <code>FnProto</code> struct? These are <code>NodeList</code> indicies for the AST nodes representing the first parameter, last parameter, etc. This is how you read all the extra informatoin about the function prototype.</p>
+<p>As warned earlier, there is a lot of indirection going on here. But this is all extremely important to understand now, or future stages of the pipline will be even more confusion.</p>
+<h2 id="function-identifier">Function Identifier</h2>
+<p>The <code>main_token</code> field is the only field on <code>Node</code> we haven’t used and is the final way that some data may be accessed for an AST node. For a function prototype, you can now see that the identifier itself (the function name) is nowhere to be found.</p>
+<p>Some AST nodes — such as <code>.fn_proto</code> — use the <code>main_token</code> field for this. The <code>main_token</code> of a <code>fn_proto</code> is the index in the token stream to the “fn” keyword. In Zig, the function identifier is always immediately after this keyword. Therefore, you can extract the function identifier by looking at the token at index <code>main_token + 1</code>. This is exactly how later stages of the compiler read the identifier.</p>
+<h2 id="ast-data-layout-recap">AST Data Layout Recap</h2>
+<p>If you’re interested in knowing how the remainder of the Zig compiler works, <strong>it is extremely important that you deeply understand this information storage pattern.</strong> It can be hard to understand on the first read (and maybe the second or third too). This section reviews how data is laid out for the AST.</p>
+<p>AST node data can be found in three locations:</p>
+<ol>
+<li>The token stream (for values such as identifiers)</li>
+<li>The node list to find other AST nodes</li>
+<li>The extra data list to find extra data structures</li>
+</ol>
+<p>Subsequent AST nodes or extra data structures usually contain additional indexes that may point to additional nodes, extra data structures, or tokens. For example, a <code>fn_decl</code> points to a <code>fn_proto</code> points to an extra data <code>FnProto</code> structure which points to one AST node per parameter.</p>
+<p>Finding what data is available and how you access it is dependent on the <code>tag</code>. You must read the comments in <code>lib/std/zig/Ast.zig</code> or read the parser source code to determine exactly what data is being set.</p>
+<h2 id="how-parsing-works">How Parsing Works</h2>
+<p>With a firm understanding of how information about the internal parser state and the structure of the resulting AST, we can now learn about how the parser actually parses some token stream.</p>
+<p>Abstractly, a parser works by inspecting the current token in the token stream and using that as context to determine what the next token can or should be. For example, when parsing the token stream for <code>fn foo</code>, the first token seen is <code>.keyword_fn</code> and the next token expected would be an identifier. If it isn’t an identifier, it is a <em>syntax error</em>.</p>
+<p>Unlike the tokenizer, the parser cares about whether the token order makes sense. The tokenizer just blindly creates tokens, so invalid syntax such as <code>fn pub var foo i32 } {</code> produces a valid token stream. But the parser sees that token stream and produces an error since it is non-sensical.</p>
+<p>Next, let’s look concretely at how the parser parses the simple Zig file shown below.</p>
+<div><pre tabindex="0"><code><span><span>var</span><span> x </span><span>=</span><span> 7</span><span>;</span></span>
+<span></span>
+<span><span>pub</span><span> fn</span><span> inc</span><span>() </span><span>callconv</span><span>(</span><span>.</span><span>C) </span><span>void</span><span> {</span></span>
+<span><span>  x </span><span>+=</span><span> 1</span><span>;</span></span>
+<span><span>}</span></span></code></pre></div>
+<h2 id="parsing-a-zig-file">Parsing a Zig File</h2>
+<p>The primary entry is the <code>parse()</code> function which takes the complete source code of a Zig file. This initializes the parser state and calls <code>parseContainerMembers()</code> to parse the members of the Zig file. A Zig file is implicitly a <code>struct</code>, so the parser is effectively parsing a struct.</p>
+<p>This leads to a while loop that looks at the current token to determine what to expect next. It is structured roughly like the following:</p>
+<div><pre tabindex="0"><code><span><span>while</span><span> (</span><span>true</span><span>) {</span></span>
+<span><span>    switch</span><span> (p</span><span>.</span><span>token_tags[p</span><span>.</span><span>tok_i]) {</span></span>
+<span><span>        .</span><span>keyword_var </span><span>=&gt;</span><span> ...</span></span>
+<span><span>    }</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>Depending on the current token, it determines what to expect next. Our first token is <code>.keyword_var</code> since our example file is defining a variable. This ultimately leads to <code>parseVarDecl</code> to parse the variable declaration. There are many other valid tokens at this point as well: <code>comptime</code>, <code>fn</code>, <code>pub</code>, etc.</p>
+<h2 id="parsing-a-variable-declaration">Parsing a Variable Declaration</h2>
+<p>The first member found in our Zig file is a variable declaration. The call chain eventually leads to <code>parseVarDecl</code> where we’ll see our first AST node created. A simplified version is shown below.</p>
+<div><pre tabindex="0"><code><span><span>fn</span><span> parseVarDecl</span><span>(p</span><span>:</span><span> *</span><span>Parser) </span><span>!</span><span>Node</span><span>.</span><span>Index {</span></span>
+<span><span>    const</span><span> mut_token </span><span>=</span><span> p</span><span>.</span><span>eatToken</span><span>(</span><span>.</span><span>keyword_const) </span><span>orelse</span></span>
+<span><span>        p</span><span>.</span><span>eatToken</span><span>(</span><span>.</span><span>keyword_var) </span><span>orelse</span></span>
+<span><span>        return</span><span> null_node</span><span>;</span></span>
+<span></span>
+<span><span>    _ </span><span>=</span><span> try</span><span> p</span><span>.</span><span>expectToken</span><span>(</span><span>.</span><span>identifier)</span><span>;</span></span>
+<span><span>    const</span><span> type_node</span><span>:</span><span> Node</span><span>.</span><span>Index </span><span>=</span><span> if</span><span> (p</span><span>.</span><span>eatToken</span><span>(</span><span>.</span><span>colon) </span><span>==</span><span> null</span><span>) </span><span>0</span><span> else</span><span> try</span><span> p</span><span>.</span><span>expectTypeExpr</span><span>()</span><span>;</span></span>
+<span><span>    const</span><span> init_node</span><span>:</span><span> Node</span><span>.</span><span>Index </span><span>=</span><span> if</span><span> (p</span><span>.</span><span>eatToken</span><span>(</span><span>.</span><span>equal) </span><span>==</span><span> null</span><span>) </span><span>0</span><span> else</span><span> try</span><span> p</span><span>.</span><span>expectExpr</span><span>()</span><span>;</span></span>
+<span></span>
+<span><span>    return</span><span> p</span><span>.</span><span>addNode</span><span>(</span><span>.</span><span>{</span></span>
+<span><span>        .</span><span>tag </span><span>=</span><span> .</span><span>simple_var_decl</span><span>,</span></span>
+<span><span>        .</span><span>main_token </span><span>=</span><span> mut_token</span><span>,</span></span>
+<span><span>        .</span><span>data </span><span>=</span><span> .</span><span>{</span></span>
+<span><span>            .</span><span>lhs </span><span>=</span><span> type_node</span><span>,</span></span>
+<span><span>            .</span><span>rhs </span><span>=</span><span> init_node</span><span>,</span></span>
+<span><span>        }</span><span>,</span></span>
+<span><span>   })</span><span>;</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>This “eats” the first token: either <code>const</code> or <code>var</code> (this parse function is used for both). “Eating” the token means it is consumed: the current token is returned and the <code>tok_i</code> index in the parser state is incremented. If it isn’t <code>const</code> or <code>var</code>, the <code>null_node</code> value is returned which produces an error up the call chain (a variable declaration must start with <code>const</code> or <code>var</code>).</p>
+<p>Next, we expect an <code>identifier</code> for the variable name. The <code>expectToken</code> function returns an error if the token is not an <code>identifier</code>. For example, if we did <code>var 32</code> then this is where the parser would create and store the error that it expected an identifier, but got an integer literal.</p>
+<p>Next, we have a few potential realities. By using the conditional around <code>eatToken</code>, we can determine what to do next. If the next token is a colon, we expect to find a type expression. For example <code>var x: u32</code>. But type expressions are optional and our actual example doesn’t have one, so this will set <code>type_node</code> to zero.</p>
+<p>We then check if the next token is an equal token. If so, we expect to find a variable initialization expression. Our variable declaration does have this, so this will create an AST node and return the index into the node list. We will not look at <code>expectExpr</code>.</p>
+<p>Notice that this produces multiple valid variable declaration syntaxes, such as <code>var x</code>, <code>var x: i32</code>, and <code>var x: i32 = 42</code>. But also notice what is <em>not valid</em>, such as <code>var : i32 x</code> or <code>var = 32</code>.</p>
+<p>Finally, we call <code>addNode</code> to create the <code>Node</code>. This returns the index into the node list. In this case, we create a <code>.simple_var_decl</code>. If you look at the comments for <code>.simple_var_decl</code>, it notes that the <code>lhs</code> points to the index of the type expression AST node (or zero if there was no type expression) and <code>rhs</code> points to the index of the initialization expression AST node (or zero if there was no initialization).</p>
+<p>The <code>parseVarDecl</code> function returns the index to the <code>.simple_var_decl</code> AST node. This eventually is returned all the way back out to the <code>parseContainerMembers</code> function we started at and is stored in the scratch state. We’ll explain how this scratch state is used later. For now, the <code>while</code> loop continues parsing and looks for the next token, which is <code>.keyword_pub</code> for beginning our function definition.</p>
+<h2 id="parsing-a-function-definition">Parsing a Function Definition</h2>
+<p>Once <code>.keyword_pub</code> is found, the call chain eventually leads to <code>parseFnProto</code> and <code>parseBlock</code> to parse our function prototype and body, respectively. Let’s focus in on <code>parseFnProto</code> since it does something we haven’t seen yet.</p>
+<p>A simplified, incomplete version of <code>parseFnProto</code> is shown below:</p>
+<div><pre tabindex="0"><code><span><span>fn</span><span> parseFnProto</span><span>(p</span><span>:</span><span> *</span><span>Parser) </span><span>!</span><span>Node</span><span>.</span><span>Index {</span></span>
+<span><span>    const</span><span> fn_token </span><span>=</span><span> p</span><span>.</span><span>eatToken</span><span>(</span><span>.</span><span>keyword_fn) </span><span>orelse</span><span> return</span><span> null_node</span><span>;</span></span>
+<span></span>
+<span><span>    // We want the fn proto node to be before its children in the array.</span></span>
+<span><span>    const</span><span> fn_proto_index </span><span>=</span><span> try</span><span> p</span><span>.</span><span>reserveNode</span><span>()</span><span>;</span></span>
+<span></span>
+<span><span>    _ </span><span>=</span><span> p</span><span>.</span><span>eatToken</span><span>(</span><span>.</span><span>identifier)</span><span>;</span></span>
+<span><span>    const</span><span> params </span><span>=</span><span> try</span><span> p</span><span>.</span><span>parseParamDeclList</span><span>()</span><span>;</span></span>
+<span><span>    const</span><span> callconv_expr </span><span>=</span><span> try</span><span> p</span><span>.</span><span>parseCallconv</span><span>()</span><span>;</span></span>
+<span><span>    _ </span><span>=</span><span> p</span><span>.</span><span>eatToken</span><span>(</span><span>.</span><span>bang)</span><span>;</span></span>
+<span></span>
+<span><span>    const</span><span> return_type_expr </span><span>=</span><span> try</span><span> p</span><span>.</span><span>parseTypeExpr</span><span>()</span><span>;</span></span>
+<span><span>    if</span><span> (return_type_expr </span><span>==</span><span> 0</span><span>) {</span></span>
+<span><span>        try</span><span> p</span><span>.</span><span>warn</span><span>(</span><span>.</span><span>expected_return_type)</span><span>;</span></span>
+<span><span>    }</span></span>
+<span></span>
+<span><span>    return</span><span> p</span><span>.</span><span>setNode</span><span>(fn_proto_index</span><span>,</span><span> .</span><span>{</span></span>
+<span><span>        .</span><span>tag </span><span>=</span><span> .</span><span>fn_proto_one</span><span>,</span></span>
+<span><span>        .</span><span>main_token </span><span>=</span><span> fn_token</span><span>,</span></span>
+<span><span>        .</span><span>data </span><span>=</span><span> .</span><span>{</span></span>
+<span><span>            .</span><span>lhs </span><span>=</span><span> try</span><span> p</span><span>.</span><span>addExtra</span><span>(Node</span><span>.</span><span>FnProtoOne{</span></span>
+<span><span>                .</span><span>param </span><span>=</span><span> params</span><span>.</span><span>zero_or_one</span><span>,</span></span>
+<span><span>                .</span><span>callconv_expr </span><span>=</span><span> callconv_expr</span><span>,</span></span>
+<span><span>            })</span><span>,</span></span>
+<span><span>            .</span><span>rhs </span><span>=</span><span> return_type_expr</span><span>,</span></span>
+<span><span>         }</span><span>,</span></span>
+<span><span>    })</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>This is similar to parsing the variable declaration. There are a couple new patterns that emerge. First, you can see that if the return type isn’t set, a warning is stored rather than halting all of the parsing. Parsers often try to continue parsing in the face an error and this is one of those scenarios.</p>
+<p>Next, the <code>lhs</code> value for the <code>fn_proto_one</code> tag is an index to the <code>extra_data</code>. This shows how the extra data is written. The <code>addExtra</code> function takes a struct with all the values, and encodes it into <code>extra_data</code> in a type safe way, then returns the index to the starting index in extra data. As we showed earlier, consumers of this AST node will know exactly how many fields to expect for a <code>fn_proto_one</code> tag and they can read this information.</p>
+<h2 id="finalizing-the-ast">Finalizing the AST</h2>
+<p>Parsing continues recursively for the entire program, constructing an AST node. At the end of the parse, the parser returns an <code>Ast</code> struct which is structured as shown below:</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> const</span><span> Ast </span><span>=</span><span> struct</span><span> {</span></span>
+<span><span>    source</span><span>:</span><span> [</span><span>:</span><span>0</span><span>]</span><span>const</span><span> u8</span><span>,</span></span>
+<span><span>    tokens</span><span>:</span><span> TokenList</span><span>.</span><span>Slice</span><span>,</span></span>
+<span><span>    nodes</span><span>:</span><span> NodeList</span><span>.</span><span>Slice</span><span>,</span></span>
+<span><span>    extra_data</span><span>:</span><span> []Node</span><span>.</span><span>Index</span><span>,</span></span>
+<span><span>    errors</span><span>:</span><span> []</span><span>const</span><span> Error</span><span>,</span></span>
+<span><span>}</span><span>;</span></span></code></pre></div>
+<p>At this point, if you’ve read the tokenization page and fully understand the anatomy of a parser and an AST node, each of these fields should make sense. The AST has the full source as <code>source</code> (used to determine identifier strings, error messages, etc.), the list of tokens as <code>tokens</code>, the list of AST nodes in <code>nodes</code>, the extra data for the AST nodes in <code>extra_data</code>, and a potential list of accumulated errors in <code>errors</code>.</p>
+<p>Next is the <a href="https://mitchellh.com/zig/astgen">AstGen process</a>.</p></div></div>

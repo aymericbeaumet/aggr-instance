@@ -1,0 +1,350 @@
+<div id="readability-page-1" class="page"><div>
+<details open=""><summary>Table of Contents</summary><div><ul><li><a href="#what-does-zir-look-like">What Does ZIR Look Like?</a></li><li><a href="#why-is-zir-untyped">Why is ZIR Untyped?</a></li><li><a href="#anatomy-of-astgen">Anatomy of AstGen</a></li><li><a href="#anatomy-of-a-zir-instruction">Anatomy of a ZIR Instruction</a></li><li><a href="#static-values">Static Values</a></li><li><a href="#refs">Refs</a></li><li><a href="#tagged-refs">Tagged Refs</a></li><li><a href="#refs-to-instructions">Refs to Instructions</a></li><li><a href="#extra-data">Extra Data</a></li><li><a href="#more-data-types">More Data Types</a></li><li><a href="#components-of-astgen">Components of AstGen</a></li><li><a href="#scopes">Scopes</a></li><li><a href="#string-interning">String Interning</a></li><li><a href="#result-locations">Result Locations</a></li><li><a href="#generating-zir">Generating ZIR</a></li><li><a href="#integer-literals">Integer Literals</a></li><li><a href="#addition">Addition</a></li><li><a href="#assignment">Assignment</a></li><li><a href="#completing-the-astgen-process">Completing the AstGen Process</a></li></ul></div></details>
+<p>After building the abstract syntax tree (AST), the next step in many compilers is to generate an intermediate representation (IR). Whereas the AST is a tree, the IR usually begins creating a sequence of instructions for various blocks of a program (a file, a function, etc.). This sequence of instructions format can be more easily analyzed for optimization and conversion to executable machine code.</p>
+<p>The Zig compiler has multiple intermediate representations. The first IR form created is called the Zig Intermediate Representation (ZIR). The AST is converted directly to ZIR using a stage that is internally called “AstGen”. ZIR is an untyped IR form that is generated for each Zig file.</p>
+<h2 id="what-does-zir-look-like">What Does ZIR Look Like?</h2>
+<p>Before diving into the internal structure of ZIR and the process for creating it, let’s take a look at a quick example of what ZIR looks like. You’re not expected to understand any of this right now.</p>
+<p>Here is a very small Zig file:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> result </span><span>=</span><span> 42</span><span>;</span></span>
+<span></span>
+<span><span>export</span><span> fn</span><span> hello</span><span>() </span><span>u8</span><span> {</span></span>
+<span><span>    return</span><span> result</span><span>;</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>And the resulting ZIR for this file:</p>
+<div><pre tabindex="0"><code><span><span>%</span><span>0</span><span> =</span><span> extended</span><span>(</span><span>struct_decl</span><span>(parent</span><span>,</span><span> Auto</span><span>,</span><span> {</span></span>
+<span><span>  [</span><span>24</span><span>] result </span><span>line</span><span>(</span><span>0</span><span>) </span><span>hash</span><span>(</span><span>193c9ec04fd3f33e5e849a85f0c3b7fd</span><span>)</span><span>:</span><span> %</span><span>1</span><span> =</span><span> block_inline</span><span>({</span></span>
+<span><span>    %</span><span>2</span><span> =</span><span> int</span><span>(</span><span>42</span><span>)</span></span>
+<span><span>    %</span><span>3</span><span> =</span><span> break_inline</span><span>(</span><span>%</span><span>1</span><span>,</span><span> %</span><span>2</span><span>)</span></span>
+<span><span>  }) node_offset</span><span>:</span><span>1</span><span>:</span><span>1</span></span>
+<span><span>  [</span><span>32</span><span>] </span><span>export</span><span> hello </span><span>line</span><span>(</span><span>2</span><span>) </span><span>hash</span><span>(</span><span>322ad1340dd6faf97c80f152e26dfdd4</span><span>)</span><span>:</span><span> %</span><span>4</span><span> =</span><span> block_inline</span><span>({</span></span>
+<span><span>    %</span><span>11</span><span> =</span><span> func</span><span>(ret_ty</span><span>=</span><span>{</span></span>
+<span><span>      %</span><span>5</span><span> =</span><span> break_inline</span><span>(</span><span>%</span><span>11</span><span>,</span><span> @Ref</span><span>.</span><span>u8_type)</span></span>
+<span><span>    }</span><span>,</span><span> body</span><span>=</span><span>{</span></span>
+<span><span>      %</span><span>6</span><span> =</span><span> dbg_stmt</span><span>(</span><span>2</span><span>,</span><span> 5</span><span>)</span></span>
+<span><span>      %</span><span>7</span><span> =</span><span> extended</span><span>(</span><span>ret_type</span><span>()) node_offset</span><span>:</span><span>4</span><span>:</span><span>5</span></span>
+<span><span>      %</span><span>8</span><span> =</span><span> decl_val</span><span>(</span><span>"result"</span><span>) token_offset</span><span>:</span><span>4</span><span>:</span><span>12</span></span>
+<span><span>      %</span><span>9</span><span> =</span><span> as_node</span><span>(</span><span>%</span><span>7</span><span>,</span><span> %</span><span>8</span><span>) node_offset</span><span>:</span><span>4</span><span>:</span><span>12</span></span>
+<span><span>      %</span><span>10</span><span> =</span><span> ret_node</span><span>(</span><span>%</span><span>9</span><span>) node_offset</span><span>:</span><span>4</span><span>:</span><span>5</span></span>
+<span><span>    }) (lbrace</span><span>=</span><span>1</span><span>:</span><span>22</span><span>,</span><span>rbrace</span><span>=</span><span>3</span><span>:</span><span>1</span><span>) node_offset</span><span>:</span><span>3</span><span>:</span><span>8</span></span>
+<span><span>    %</span><span>12</span><span> =</span><span> break_inline</span><span>(</span><span>%</span><span>4</span><span>,</span><span> %</span><span>11</span><span>)</span></span>
+<span><span>  }) node_offset</span><span>:</span><span>3</span><span>:</span><span>8</span></span>
+<span><span>}</span><span>,</span><span> {}</span><span>,</span><span> {})</span></span></code></pre></div>
+<p>Note: ZIR isn’t necessarilly a stable format, so the output above may not match what the Zig compiler outputs today. Regardless, it will be close enough for the purpose of seeing ZIR for the first time.</p>
+<p>The main thing to notice with ZIR is that the actual logic of the program is starting to get broken down into finer grained <em>instructions</em>. ZIR instructions can be referenced by their index, shown in the output above after the <code>%</code> sigil. For example, instruction 9 is converting the <code>result</code> reference to the return type for the <code>hello</code> function.</p>
+<div><p><strong>Want to see more ZIR?</strong> If you compile Zig from source, you can use the <code>zig ast-check -t &lt;file&gt;</code> command to dump the ZIR for any Zig file. Writing simple Zig constructs and dumping the ZIR is a great way to learn about the AstGen step. The steps to compile Zig from source are not explained on this page.</p></div>
+<h2 id="why-is-zir-untyped">Why is ZIR Untyped?</h2>
+<p>ZIR is an untyped intermediate format. This doesn’t mean that ZIR is unaware of types, it means that types are not fully evaluated. A language-defining feature of Zig is that it uses types as first-class values and comptime-evaluation as a mechanism for generic typing. Therefore, its possible that the type is <em>still unknown</em> in the AST and in the ZIR format.</p>
+<p>This is easiest to see in example ZIR output. First, let’s look at a <em>mostly typed</em> form:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> result</span><span>:</span><span> u32</span><span> =</span><span> 42</span><span>;</span></span></code></pre></div>
+<div><pre tabindex="0"><code><span><span>%</span><span>0</span><span> =</span><span> extended</span><span>(</span><span>struct_decl</span><span>(parent</span><span>,</span><span> Auto</span><span>,</span><span> {</span></span>
+<span><span>  [</span><span>10</span><span>] a </span><span>line</span><span>(</span><span>0</span><span>) </span><span>hash</span><span>(</span><span>63c8310741c228c128abf6692d07292d</span><span>)</span><span>:</span><span> %</span><span>1</span><span> =</span><span> block_inline</span><span>({</span></span>
+<span><span>    %</span><span>2</span><span> =</span><span> int</span><span>(</span><span>42</span><span>)</span></span>
+<span><span>    %</span><span>3</span><span> =</span><span> as_node</span><span>(</span><span>@Ref</span><span>.</span><span>u32_type</span><span>,</span><span> %</span><span>2</span><span>) node_offset</span><span>:</span><span>1</span><span>:</span><span>16</span></span>
+<span><span>    %</span><span>4</span><span> =</span><span> break_inline</span><span>(</span><span>%</span><span>1</span><span>,</span><span> %</span><span>3</span><span>)</span></span>
+<span><span>  }) node_offset</span><span>:</span><span>1</span><span>:</span><span>1</span></span>
+<span><span>}</span><span>,</span><span> {}</span><span>,</span><span> {})</span></span></code></pre></div>
+<p>Instruction <code>%3</code> converts the untyped <code>42</code> value to a <code>u32</code>. In this small example, the ZIR seems fully typed, but there are still untyped instructions. Instruction <code>%2</code> is an “untyped” constant <code>42</code>. It is untyped because the constant <code>42</code> can still be coerced into a <code>u8</code>, <code>u16</code>, <code>u32</code>, etc. It isn’t until our code assigns the untyped constant to a typed constant that ZIR emits a type coercision instruction <code>as_node</code>.</p>
+<p>Next, let’s look at a <em>definitely untyped</em> form:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> t </span><span>=</span><span> bool</span><span>;</span></span>
+<span><span>const</span><span> result</span><span>:</span><span> t </span><span>=</span><span> 42</span><span>;</span></span></code></pre></div>
+<div><pre tabindex="0"><code><span><span>%</span><span>0</span><span> =</span><span> extended</span><span>(</span><span>struct_decl</span><span>(parent</span><span>,</span><span> Auto</span><span>,</span><span> {</span></span>
+<span><span>  [</span><span>16</span><span>] t </span><span>line</span><span>(</span><span>0</span><span>) </span><span>hash</span><span>(</span><span>243086356f9a6b0669ba4a7bb4a990e4</span><span>)</span><span>:</span><span> %</span><span>1</span><span> =</span><span> block_inline</span><span>({</span></span>
+<span><span>    %</span><span>2</span><span> =</span><span> break_inline</span><span>(</span><span>%</span><span>1</span><span>,</span><span> @Ref</span><span>.</span><span>bool_type)</span></span>
+<span><span>  }) node_offset</span><span>:</span><span>1</span><span>:</span><span>1</span></span>
+<span><span>  [</span><span>24</span><span>] result </span><span>line</span><span>(</span><span>1</span><span>) </span><span>hash</span><span>(</span><span>8c4cc7d2e9f1310630b3af7c4e9162bd</span><span>)</span><span>:</span><span> %</span><span>3</span><span> =</span><span> block_inline</span><span>({</span></span>
+<span><span>    %</span><span>4</span><span> =</span><span> decl_val</span><span>(</span><span>"t"</span><span>) token_offset</span><span>:</span><span>2</span><span>:</span><span>10</span></span>
+<span><span>    %</span><span>5</span><span> =</span><span> as_node</span><span>(</span><span>@Ref</span><span>.</span><span>type_type</span><span>,</span><span> %</span><span>4</span><span>) node_offset</span><span>:</span><span>2</span><span>:</span><span>10</span></span>
+<span><span>    %</span><span>6</span><span> =</span><span> int</span><span>(</span><span>42</span><span>)</span></span>
+<span><span>    %</span><span>7</span><span> =</span><span> as_node</span><span>(</span><span>%</span><span>5</span><span>,</span><span> %</span><span>6</span><span>) node_offset</span><span>:</span><span>2</span><span>:</span><span>14</span></span>
+<span><span>    %</span><span>8</span><span> =</span><span> break_inline</span><span>(</span><span>%</span><span>3</span><span>,</span><span> %</span><span>7</span><span>)</span></span>
+<span><span>  }) node_offset</span><span>:</span><span>2</span><span>:</span><span>1</span></span>
+<span><span>}</span><span>,</span><span> {}</span><span>,</span><span> {})</span></span></code></pre></div>
+<p>In this scenario, the type of <code>result</code> is the constant <code>t</code>. You could argue the constant <code>t</code> is trivially known in this case, but Zig allows the assignment of <code>t</code> to be <em>any comptime expression</em> (which is pretty much the entire language so long as all values are comptime-known). This is an extremely powerful feature of Zig.</p>
+<p>Given the dynamic possibilities, you can see that the ZIR for assignment to <code>result</code> is much more complicated. Instruction <code>%4</code> and <code>%5</code> load the value identified by <code>t</code> and coerce it into a <code>type</code> type (a type that represents a type instead of a value). Then instruction <code>%7</code> has the familiar <code>as_node</code> coercion, but this time the type operand references the result of a ZIR instruction <code>%5</code> rather than a static value.</p>
+<p>As a final, more extreme example:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> std </span><span>=</span><span> @import</span><span>(</span><span>"std"</span><span>)</span><span>;</span></span>
+<span><span>const</span><span> result</span><span>:</span><span> std</span><span>.</span><span>ArrayListUnmanaged</span><span>(</span><span>u8</span><span>) </span><span>=</span><span> .</span><span>{}</span><span>;</span></span></code></pre></div>
+<p>I will not show the ZIR for this, because it is massive. The type for <code>result</code> is the generic type generated via comptime evaluation of the function <code>ArrayListUnmanaged</code>. ZIR cannot point to a predefined type for <code>result</code> because it simply isn’t known until comptime evaluation.</p>
+<p>This is why ZIR is <em>untyped</em>. ZIR is the prepared intermediary form for comptime evaluation and further semantic analysis. After the comptime pass, all types will be known and a fully typed intermediate representation can be formed (this is known as AIR and is the result of the stage following AstGen).</p>
+<h2 id="anatomy-of-astgen">Anatomy of AstGen</h2>
+<p>“AstGen” is the stage that converts AST to ZIR. The source for AstGen is in <code>src/AstGen.zig</code>. AstGen is not a publicy exported struct and is the struct is only used to manage internal state of the ZIR generation process. External callers call the <code>generate</code> function which takes an AST tree and returns ZIR for the entire tree.</p>
+<p>The <code>AstGen</code> struct has many fields for internal state. We won’t go through all of them but some important ones are shown below. The fields of the structure below aren’t shown in the same order as they are in the source:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> Astgen </span><span>=</span><span> struct</span><span> {</span></span>
+<span><span>    gpa</span><span>:</span><span> Allocator</span><span>,</span></span>
+<span><span>    arena</span><span>:</span><span> Allocator</span><span>,</span></span>
+<span><span>    tree</span><span>:</span><span> *</span><span>const</span><span> Ast</span><span>,</span></span>
+<span></span>
+<span><span>    instructions</span><span>:</span><span> std</span><span>.</span><span>MultiArrayList</span><span>(Zir</span><span>.</span><span>Inst) </span><span>=</span><span> .</span><span>{}</span><span>,</span></span>
+<span><span>    extra</span><span>:</span><span> ArrayListUnmanaged</span><span>(</span><span>u32</span><span>) </span><span>=</span><span> .</span><span>{}</span><span>,</span></span>
+<span><span>    string_bytes</span><span>:</span><span> ArrayListUnmanaged</span><span>(</span><span>u8</span><span>) </span><span>=</span><span> .</span><span>{}</span><span>,</span></span>
+<span></span>
+<span><span>    // other fields, not covered...</span></span>
+<span><span>}</span><span>;</span></span></code></pre></div>
+<p>The first group <code>gpa</code>, <code>arena</code>, and <code>tree</code> are the inputs to the AstGen process. <code>gpa</code> is used to allocate data that lives beyond the generation process. <code>arena</code> is used to allocate temporary data used only during ZIR generation that is freed prior to returning the ZIR to the user. And <code>tree</code> is the AST that is being converted to ZIR.</p>
+<div><p><strong>Why is “arena” called “arena?”</strong> An “arena allocator” is a category of memory allocator that allocates and deallocates an entire region of memory all at once instead of tracking and deallocating individual items one at a time. It is often used for allocations that all share a common lifecycle since it is much easier and more performant to deallocate an entire chunk of memory instead of tracking individual items. For more basics on allocators and Zig, see the talk <a target="_blank" rel="noopener noreferrer" href="https://www.youtube.com/watch?v=vHWiDx_l4V0">“What’s a Memory Allocator Anyways?”</a></p></div>
+<p>The second group <code>instructions</code>, <code>extra</code>, and <code>string_bytes</code> are the outputs from the AstGen process. This group is very important since it is the core anatomy of the resulting ZIR:</p>
+<ul>
+<li><code>instructions</code> is a list of instructions. Each entry in this list corresponds to a single instruction. For example, looking at the ZIR output earlier in this page, the 9th entry in this list would be the <code>as_node(%7, %8)</code> instruction.</li>
+<li><code>extra</code> is extra data a ZIR instruction may need to store. This is the same pattern followed by AST nodes and their <code>extra_data</code> field. If you don’t understand AST <code>extra_data</code>, now would be a good time to review since that pattern is used everywhere during AstGen!</li>
+<li><code>string_bytes</code> is a <a target="_blank" rel="noopener noreferrer" href="https://en.wikipedia.org/wiki/String_interning">string interning pool</a> for identifiers, string literals, doc comments, etc. All static strings are interned as part of AstGen, and ZIR instructions refer to the offset in this list of string bytes rather than store copies of the strings themselves.</li>
+</ul>
+<h2 id="anatomy-of-a-zir-instruction">Anatomy of a ZIR Instruction</h2>
+<p>Before diving into the operation of turning the AST into ZIR, I’m going to spend a significant amount of page space describing the format of a single ZIR instruction. I recommending reading and understanding this section carefully because this is a fundamental building block to understanding the construction of ZIR.</p>
+<p>ZIR is effectively a list of instructions. The format of an instruction will have strong parallels to the patterns used with AST nodes so this page may gloss over some of the structural details. In those cases, I will make a point to call out the similarities.</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> const</span><span> Inst </span><span>=</span><span> struct</span><span> {</span></span>
+<span><span>    tag</span><span>:</span><span> Tag</span><span>,</span></span>
+<span><span>    data</span><span>:</span><span> Data</span><span>,</span></span>
+<span></span>
+<span><span>    pub</span><span> const</span><span> Tag </span><span>=</span><span> enum</span><span>(</span><span>u8</span><span>) {</span></span>
+<span><span>        add</span><span>,</span></span>
+<span><span>        addwrap</span><span>,</span></span>
+<span><span>        // many more...</span></span>
+<span><span>    }</span><span>;</span></span>
+<span></span>
+<span><span>    pub</span><span> const</span><span> Data </span><span>=</span><span> union</span><span> {</span></span>
+<span><span>        // various fields that can be set depending on tag</span></span>
+<span><span>    }</span><span>;</span></span>
+<span><span>}</span><span>;</span></span></code></pre></div>
+<p>This is <em>very</em> similar to AST nodes. The “tag” pattern is the same as AST nodes, but the tags are a completely different set. For example, the AST for an integer literal is <code>.integer_literal</code> regardless of the size of the integer. For ZIR, this translates to either <code>.int</code> or <code>.int_big</code> depending on if the integer fits into a <code>u64</code> or not.</p>
+<p>Each instruction has data associated with it. The active field in the data union depends on the <code>tag</code> value. Data can be stored directly within the data field (such as an integer literal value) or the data field may be a reference to information located somewhere else.</p>
+<p>Like AST nodes, ZIR has an <code>extra</code> field. This behaves more or less the same as the AST node <code>extra_data</code> field: some data entries may point to an entry in the <code>extra</code> field and some number of fields starting there will contain certain values relevant to the ZIR instruction. For more details, see the Zig Parser page in addition to the examples below.</p>
+<h2 id="static-values">Static Values</h2>
+<p>The simplest ZIR instructions are those that contain static values. Let’s look at the ZIR for a simple static integer value and the ZIR produced for this.</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> x </span><span>=</span><span> 42</span><span>;</span></span></code></pre></div>
+<div><pre tabindex="0"><code><span><span>%</span><span>0</span><span> =</span><span> extended</span><span>(</span><span>struct_decl</span><span>(parent</span><span>,</span><span> Auto</span><span>,</span><span> {</span></span>
+<span><span>  [</span><span>7</span><span>] x </span><span>line</span><span>(</span><span>0</span><span>) </span><span>hash</span><span>(</span><span>5b108956afe84d38689dcd3f2d652f04</span><span>)</span><span>:</span><span> %</span><span>1</span><span> =</span><span> block_inline</span><span>({</span></span>
+<span><span>    %</span><span>2</span><span> =</span><span> int</span><span>(</span><span>42</span><span>)</span></span>
+<span><span>    %</span><span>3</span><span> =</span><span> break_inline</span><span>(</span><span>%</span><span>1</span><span>,</span><span> %</span><span>2</span><span>)</span></span>
+<span><span>  }) node_offset</span><span>:</span><span>1</span><span>:</span><span>1</span></span>
+<span><span>}</span><span>,</span><span> {}</span><span>,</span><span> {})</span></span></code></pre></div>
+<p>The relevant instruction is <code>%2</code>: <code>int(42)</code>. As you can see, the static value <code>42</code> is encoded directly into the instruction itself. Internally, this is represented as shown below:</p>
+<div><pre tabindex="0"><code><span><span>Zir</span><span>.</span><span>Inst{</span></span>
+<span><span>		.</span><span>tag </span><span>=</span><span> .</span><span>int</span><span>,</span></span>
+<span><span>    .</span><span>data </span><span>=</span><span> .</span><span>{</span></span>
+<span><span>        .</span><span>int </span><span>=</span><span> 42</span><span>,</span></span>
+<span><span>    }</span><span>,</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>This is the simplest that a ZIR instruction can be: the data is embedded directly within the instruction. In this case, the active tag for the data is <code>.int</code> which embeds the static integer value.</p>
+<p>It is much more common that data is referenced or the tag contains more complicated information that doesn’t fit directly in the <code>Inst</code> structure. Examples of this are shown next.</p>
+<h2 id="refs">Refs</h2>
+<p>Many ZIR instructions contain references to values. For example, the unary <code>!</code> operator (boolean NOT) prefixes any expression such as a static value <code>!true</code>, a variable <code>!myVar</code>, a function call <code>!myFunc()</code>, etc. It’s very important to understand how ZIR encodes references since they are so common.</p>
+<p>ZIR references have a dedicacated type <code>Zir.Inst.Ref</code>. This is a <a target="_blank" rel="noopener noreferrer" href="https://ziglang.org/documentation/master/#Non-exhaustive-enum">non-exhaustive enum</a>. The defined tags are for values that are primitives or very common. Otherwise, the value is a reference to another ZIR instruction index.</p>
+<h3 id="tagged-refs">Tagged Refs</h3>
+<p>Let’s look at an example to see how this works:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> x </span><span>=</span><span> !</span><span>true</span><span>;</span></span></code></pre></div>
+<p>This results in the following ZIR:</p>
+<div><pre tabindex="0"><code><span><span>%</span><span>0</span><span> =</span><span> extended</span><span>(</span><span>struct_decl</span><span>(parent</span><span>,</span><span> Auto</span><span>,</span><span> {</span></span>
+<span><span>  [</span><span>7</span><span>] result </span><span>line</span><span>(</span><span>0</span><span>) </span><span>hash</span><span>(</span><span>0be0bb45d9cb29941abcc19d4176dde6</span><span>)</span><span>:</span><span> %</span><span>1</span><span> =</span><span> block_inline</span><span>({</span></span>
+<span><span>    %</span><span>2</span><span> =</span><span> bool_not</span><span>(</span><span>@Ref</span><span>.</span><span>bool_true) node_offset</span><span>:</span><span>1</span><span>:</span><span>16</span></span>
+<span><span>    %</span><span>3</span><span> =</span><span> break_inline</span><span>(</span><span>%</span><span>1</span><span>,</span><span> %</span><span>2</span><span>)</span></span>
+<span><span>  }) node_offset</span><span>:</span><span>1</span><span>:</span><span>1</span></span>
+<span><span>}</span><span>,</span><span> {}</span><span>,</span><span> {})</span></span></code></pre></div>
+<p>Look at instruction <code>%2</code>. It contains our <code>bool_not</code> instruction (the <code>!</code> operator) and the parameter is <code>@Ref.bool_true</code>. The <code>bool_not</code> instruction takes a single operand. Internally, this is a <code>Inst</code> with roughly the following structure (some fields purposely omitted that aren’t important for the example):</p>
+<div><pre tabindex="0"><code><span><span>Zir</span><span>.</span><span>Inst{</span></span>
+<span><span>    .</span><span>tag </span><span>=</span><span> .</span><span>bool_not</span><span>,</span></span>
+<span><span>    .</span><span>data </span><span>=</span><span> .</span><span>{</span></span>
+<span><span>        .</span><span>un_node </span><span>=</span><span> .</span><span>{ </span><span>.</span><span>operand </span><span>=</span><span> Ref</span><span>.</span><span>bool_true }</span><span>,</span></span>
+<span><span>    }</span><span>,</span></span>
+<span><span>}</span></span></code></pre></div>
+<p><code>Ref.bool_true</code> is one of the tags for the <code>Ref</code> enum that represents the static value <code>true</code>. There are many more. For example, there is one for every built-in type. While the following example is nonsensical, it does result in valid ZIR (the compiler would error about it later):</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> x </span><span>=</span><span> !</span><span>u8</span><span>;</span><span> // ZIR: bool_not(@Ref.u8_type)</span></span></code></pre></div>
+<p>For well known primitives and values, a tagged value for <code>Ref</code> is used.</p>
+<h3 id="refs-to-instructions">Refs to Instructions</h3>
+<p>For values that aren’t well-known, the <code>Ref</code> represents is the instruction index. Here is another example and the relevant ZIR that is produced.</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> input </span><span>=</span><span> true</span><span>;</span></span>
+<span><span>const</span><span> x </span><span>=</span><span> !</span><span>input</span><span>;</span></span></code></pre></div>
+<div><pre tabindex="0"><code><span><span>%</span><span>0</span><span> =</span><span> extended</span><span>(</span><span>struct_decl</span><span>(parent</span><span>,</span><span> Auto</span><span>,</span><span> {</span></span>
+<span><span>  [</span><span>13</span><span>] input </span><span>line</span><span>(</span><span>0</span><span>) </span><span>hash</span><span>(</span><span>1af5eb6ed7d8836d8d54ff390bb38c7d</span><span>)</span><span>:</span><span> %</span><span>1</span><span> =</span><span> block_inline</span><span>({</span></span>
+<span><span>    %</span><span>2</span><span> =</span><span> break_inline</span><span>(</span><span>%</span><span>1</span><span>,</span><span> @Ref</span><span>.</span><span>bool_true)</span></span>
+<span><span>  }) node_offset</span><span>:</span><span>1</span><span>:</span><span>1</span></span>
+<span><span>  [</span><span>21</span><span>] result </span><span>line</span><span>(</span><span>1</span><span>) </span><span>hash</span><span>(</span><span>4ba2a2df9e05a2d7963b6c1eb80fdcea</span><span>)</span><span>:</span><span> %</span><span>3</span><span> =</span><span> block_inline</span><span>({</span></span>
+<span><span>    %</span><span>4</span><span> =</span><span> decl_val</span><span>(</span><span>"input"</span><span>) token_offset</span><span>:</span><span>2</span><span>:</span><span>17</span></span>
+<span><span>    %</span><span>5</span><span> =</span><span> as_node</span><span>(</span><span>@Ref</span><span>.</span><span>bool_type</span><span>,</span><span> %</span><span>4</span><span>) node_offset</span><span>:</span><span>2</span><span>:</span><span>17</span></span>
+<span><span>    %</span><span>6</span><span> =</span><span> bool_not</span><span>(</span><span>%</span><span>5</span><span>) node_offset</span><span>:</span><span>2</span><span>:</span><span>16</span></span>
+<span><span>    %</span><span>7</span><span> =</span><span> break_inline</span><span>(</span><span>%</span><span>3</span><span>,</span><span> %</span><span>6</span><span>)</span></span>
+<span><span>  }) node_offset</span><span>:</span><span>2</span><span>:</span><span>1</span></span>
+<span><span>}</span><span>,</span><span> {}</span><span>,</span><span> {})</span></span></code></pre></div>
+<p>The key instruction for looking at the ref is <code>%6</code>. We can see the familiar <code>bool_not</code> instruction again, but this time the operand is a reference to another instruction: <code>%5</code>. If you keep following the instruction chain, you should be able to intuitively understand it is reading the value of <code>input</code> as a boolean.</p>
+<p>Internally, the instruction looks something like this:</p>
+<div><pre tabindex="0"><code><span><span>Zir</span><span>.</span><span>Inst{</span></span>
+<span><span>		.</span><span>tag </span><span>=</span><span> .</span><span>bool_not</span><span>,</span></span>
+<span><span>    .</span><span>data </span><span>=</span><span> .</span><span>{</span></span>
+<span><span>        .</span><span>un_node </span><span>=</span><span> .</span><span>{ </span><span>.</span><span>operand </span><span>=</span><span> Ref</span><span>.</span><span>typed_value_map</span><span>.</span><span>len </span><span>+</span><span> 5</span><span> }</span><span>,</span></span>
+<span><span>    }</span><span>,</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>Or, more simply: the total number of tagged values plus 5. Likewise, to determine if a <code>Ref</code> value is a tag or an index, we can check if the value is greater than the number of tags. If so, the value minus the tag length equals the instruction.</p>
+<p>This is so common that there are two public functions for doing this: <code>indexToRef</code> and <code>refToIndex</code>. In the example above, we’re setting the operand to <code>indexToRef(5)</code> and if you called <code>refToIndex(operand)</code> you’d get back <code>5</code>.</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> ref_start_index</span><span>:</span><span> u32</span><span> =</span><span> Inst</span><span>.</span><span>Ref</span><span>.</span><span>typed_value_map</span><span>.</span><span>len</span><span>;</span></span>
+<span></span>
+<span><span>pub</span><span> fn</span><span> indexToRef</span><span>(inst</span><span>:</span><span> Inst</span><span>.</span><span>Index) Inst</span><span>.</span><span>Ref {</span></span>
+<span><span>    return</span><span> @intToEnum</span><span>(Inst</span><span>.</span><span>Ref</span><span>,</span><span> ref_start_index </span><span>+</span><span> inst)</span><span>;</span></span>
+<span><span>}</span></span>
+<span></span>
+<span><span>pub</span><span> fn</span><span> refToIndex</span><span>(inst</span><span>:</span><span> Inst</span><span>.</span><span>Ref) </span><span>?</span><span>Inst</span><span>.</span><span>Index {</span></span>
+<span><span>    const</span><span> ref_int </span><span>=</span><span> @enumToInt</span><span>(inst)</span><span>;</span></span>
+<span><span>    if</span><span> (ref_int </span><span>&gt;=</span><span> ref_start_index) {</span></span>
+<span><span>        return</span><span> ref_int </span><span>-</span><span> ref_start_index</span><span>;</span></span>
+<span><span>    } </span><span>else</span><span> {</span></span>
+<span><span>        return</span><span> null</span><span>;</span></span>
+<span><span>    }</span></span>
+<span><span>}</span></span></code></pre></div>
+
+<p>Some ZIR instructions contain references to the <code>extra</code> field which is also sometimes called “trailing” data. This is very similar to the <code>extra_data</code> field in AST nodes, so the encoding/decoding won’t be covered in detail here. If you do not know of or understand the <code>extra_data</code> field in AST nodes well, I recommend reviewing that section.</p>
+<p>Let’s look at an example of extra data:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> x </span><span>=</span><span> 1</span><span> +</span><span> 2</span><span>;</span></span></code></pre></div>
+<div><pre tabindex="0"><code><span><span>%</span><span>0</span><span> =</span><span> extended</span><span>(</span><span>struct_decl</span><span>(parent</span><span>,</span><span> Auto</span><span>,</span><span> {</span></span>
+<span><span>  [</span><span>10</span><span>] x </span><span>line</span><span>(</span><span>0</span><span>) </span><span>hash</span><span>(</span><span>48fa081b63af0a1c7f2d11a7bf9fbbc3</span><span>)</span><span>:</span><span> %</span><span>1</span><span> =</span><span> block_inline</span><span>({</span></span>
+<span><span>    %</span><span>2</span><span> =</span><span> int</span><span>(</span><span>2</span><span>)</span></span>
+<span><span>    %</span><span>3</span><span> =</span><span> add</span><span>(</span><span>@Ref</span><span>.</span><span>one</span><span>,</span><span> %</span><span>2</span><span>) node_offset</span><span>:</span><span>1</span><span>:</span><span>13</span></span>
+<span><span>    %</span><span>4</span><span> =</span><span> break_inline</span><span>(</span><span>%</span><span>1</span><span>,</span><span> %</span><span>3</span><span>)</span></span>
+<span><span>  }) node_offset</span><span>:</span><span>1</span><span>:</span><span>1</span></span>
+<span><span>}</span><span>,</span><span> {}</span><span>,</span><span> {})</span></span></code></pre></div>
+<p>This output ZIR builds on everything we’ve already learned above! There is a static value (instruction <code>%2</code>), there is a tagged ref (<code>@Ref.one</code> in instruction <code>%3</code>), and there is a ref referencing another instruction (the <code>%2</code> operand in instruction <code>%3</code>).</p>
+<p>The binary addition operation uses <code>extra</code>. It isn’t immediately obvious in the ZIR text output because the ZIR renderer understand the <code>add</code> instruction and pretty-prints data from <code>extra</code> (instruction <code>%3</code>). Internally, it looks like this:</p>
+<div><pre tabindex="0"><code><span><span>// Instruction</span></span>
+<span><span>Zir</span><span>.</span><span>Inst{</span></span>
+<span><span>    .</span><span>tag </span><span>=</span><span> .</span><span>add</span><span>,</span></span>
+<span><span>    .</span><span>data </span><span>=</span><span> .</span><span>{</span></span>
+<span><span>        .</span><span>pl_node </span><span>=</span><span> .</span><span>{ </span><span>.</span><span>payload_index </span><span>=</span><span> 7</span><span> }</span><span>,</span></span>
+<span><span>    }</span><span>,</span></span>
+<span><span>}</span></span>
+<span></span>
+<span><span>// Exra data</span></span>
+<span><span>[ </span><span>...,</span><span> Ref</span><span>.</span><span>one</span><span>,</span><span> %</span><span>2</span><span>,</span><span> ...</span><span> ]</span></span></code></pre></div>
+<p>The instruction uses the <code>pl_node</code> (short for “payload node”) data tag. This contains a field <code>payload_index</code> that points to the starting field in the <code>extra</code> array where additional data can be found. By looking at the comments for the <code>.add</code> tag, the structure stored in the <code>extra</code> field is a <code>Zir.Inst.Bin</code> which has a <code>lhs</code> and <code>rhs</code>. In this case <code>lhs = Ref.one</code> and <code>rhs = %2</code>.</p>
+<p>Similar to AST nodes, the AstGen source contains a helper function <code>addExtra</code> that encodes structured extra data in a type-safe way. This pattern is described in more detail in the AST node section on the Zig Parser page.</p>
+<p>Extra data itself may contain static values, other <code>Zig.Inst.Ref</code> values, and more. You’ll have to look at the source code for each tag to understand what values it encodes.</p>
+<h2 id="more-data-types">More Data Types</h2>
+<p>There are many more data types, but I will not cover them all exhaustively. I felt the data types above were particularly important to understanding the broader patterns that are used to encode information about a ZIR instruction.</p>
+<h2 id="components-of-astgen">Components of AstGen</h2>
+<p>The AstGen process has a number of common, shared components that are used while building ZIR. These components represent common or shared logic and are critical to understanding the full behavior of AstGen. Most of these components are arguments to every function within AstGen.</p>
+<p>This isn’t an exhaustive list of every feature of AstGen, but highlights a few key items.</p>
+<h2 id="scopes">Scopes</h2>
+<p>AstGen introduces scope awareness, making it possible to reference identifiers in “parent” scopes, record an error when an undefined identifier is used, or detect identifier shadowing.</p>
+<p>Scopes are defined using the <code>Scope</code> struct found in <code>AstGen.zig</code>. A scope is polymorphic and can be one of many sub-types. This is implemented in Zig using a common pattern with <code>@fieldParentPtr</code>. Explaining this pattern is outside the scope of this page since it is a common pattern within Zig.</p>
+<p>There are seven scope “types” (at the time of writing this):</p>
+<ul>
+<li><code>Scope.Top</code> - The outermost scope that represents a file. This is always the parent-most scope and has no parent scope. This scope doesn’t track any additional data.</li>
+<li><code>GenZir</code> - This struct generally represents a “block” in Zig, but is used for a lot of additional state tracking across AST nodes. It tracks the current block label (if any), instruction list, whether we’re in a comptime location, etc.</li>
+<li><code>Scope.Namespace</code> - This scope contains an unordered set of declarations that can be referenced. “Unordered” is the key word here, this scope is usually a child scope within a block for structs, unions, etc. Example: a struct variable can reference variables defined later in the file, whereas a function body cannot. One is a <code>Namespace</code>, the other is not.</li>
+<li><code>Scope.LocalVal</code> and <code>Scope.LocalPtr</code> - A single identifier (such as a variable or constant) that has been defined. As identifiers are defined, a new child scope is created of this type so that it is now “in scope”. This is different than a <code>Namespace</code> because it represents exactly one declaration and it is not an unordered list.</li>
+<li><code>Scope.Defer</code> - The scope around a <code>defer</code> or <code>errdefer</code>. This is used to track that a defer exists so that the instructions can be generated at all the exit points.</li>
+</ul>
+<p>Scopes have a <code>parent</code> field that can be used to traverse upwards through the scopes. This is how identifier resolution works.</p>
+<h2 id="string-interning">String Interning</h2>
+<p>String values (an array of bytes) are not stored directly within ZIR instructions. Strings are interned and stored in a single continuous <code>string_bytes</code> array. The index to the beginning of a string value is stored within ZIR instructions. This means that shared strings are stored exactly once (such as identifiers).</p>
+<p>ZIR is the first structure in the pipeline so far that stores strings at all. AST nodes store token indexes and tokens store their start and end offset in the source code. This requires both the AST and the source remain available. After AstGen, the AST and source can be freed. This enables parsing extremely large Zig programs and storing only what we need in memory.</p>
+<h2 id="result-locations">Result Locations</h2>
+<p>The <code>ResultLoc</code> structure keeps track of where the final result of an expression tree should be written. As an AST is being traversed and ZIR is being generated, it is possible for the value of some write operation to be deeply nested, and AstGen needs to know where to write the final value to.</p>
+<p>Consider the following example:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> x </span><span>=</span><span> blk1</span><span>:</span><span> {</span></span>
+<span><span>  switch</span><span> (someUnion) {</span></span>
+<span><span>    .</span><span>someTag </span><span>=&gt;</span><span> break</span><span> :</span><span>blk1 </span><span>42</span><span>,</span></span>
+<span><span>    else</span><span> =&gt;</span><span> break</span><span> :</span><span>blk1 </span><span>0</span><span>,</span></span>
+<span><span>  }</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>At the outermost scope, we are writing to a constant <code>x</code>. If you visualize the AST tree, we then have to nest into a block, then a switch, then a switch case, and finally a labeled <code>break</code> statement. After recursing at least four functions, <code>ResultLoc</code> is how AstGen knows where to write the value of the labeled break.</p>
+<p><code>ResultLoc</code> is a tagged union with many possible result types. It is well commented so I recommend reading the source. A few of the example tags will be explained here:</p>
+<ul>
+<li><code>.discard</code> - It means the assignment is thrown away because it is the right-hand side of a discard identifier <code>_</code>. In this case, AstGen knows to not generate any storage instructions, we can just throw the value away.</li>
+<li><code>.ty</code> - The assignment is to some typed value. This generates an <code>as_node</code> to coerce a result value prior to returnign it.</li>
+<li><code>.ptr</code> - The assignment is being written to a memory location. This generates a <code>store</code> instruction so that results are written to that memory location.</li>
+</ul>
+<h2 id="generating-zir">Generating ZIR</h2>
+<p>Let’s now learn about how AstGen turns an AST into ZIR. Abstractly, the AST is turned into ZIR by traversing the tree and emiting instructions for each node. AstGen eagerly converts the entire AST into ZIR (it does not lazily evaulate — a pattern that will surface in later compiler stages).</p>
+<p>Importantly, AstGen introduces our first significant layer of <em>semantic validation</em>. For example, AstGen validates that identifiers are defined, do not shadow outer scopes, and knows how to traverse parent scopes. Recall previously that AST construction introduced <em>structural valiadation</em>: it ensured that token sequences such as <code>x pub == 7</code> raised syntax errors, but it didn’t validate that any identifier <code>x</code> was defined. And the tokenizer itself only enforced <em>per-token validation</em>: it validated <code>72</code> is a valid token but <code>72a</code> is not (identifiers cannot start with numbers).</p>
+<p>The easiest place to start learning about how ZIR is generated is looking at the <code>expr</code> function. This generates the ZIR for any valid expression in the Zig language. I find it easiest to start with the simplest components of a language and then build up from there, since IR generation is a deeply recursive process.</p>
+<h2 id="integer-literals">Integer Literals</h2>
+<p>Let’s start with a simple static integer value:</p>
+<div><pre tabindex="0"><code><span><span>42</span></span></code></pre></div>
+<p>This parses into the AST node tag <code>.integer_literal</code> which leads from <code>expr</code> to the <code>integerLiteral</code> function via the giant switch. The <code>integerLiteral</code> function is reproduced below:</p>
+<div><pre tabindex="0"><code><span><span>fn</span><span> integerLiteral</span><span>(gz</span><span>:</span><span> *</span><span>GenZir</span><span>,</span><span> rl</span><span>:</span><span> ResultLoc</span><span>,</span><span> node</span><span>:</span><span> Ast</span><span>.</span><span>Node</span><span>.</span><span>Index) InnerError</span><span>!</span><span>Zir</span><span>.</span><span>Inst</span><span>.</span><span>Ref {</span></span>
+<span><span>    const</span><span> tree </span><span>=</span><span> astgen</span><span>.</span><span>tree</span><span>;</span></span>
+<span><span>    const</span><span> main_tokens </span><span>=</span><span> tree</span><span>.</span><span>nodes</span><span>.</span><span>items</span><span>(</span><span>.</span><span>main_token)</span><span>;</span></span>
+<span><span>    const</span><span> int_token </span><span>=</span><span> main_tokens[node]</span><span>;</span></span>
+<span><span>    const</span><span> prefixed_bytes </span><span>=</span><span> tree</span><span>.</span><span>tokenSlice</span><span>(int_token)</span><span>;</span></span>
+<span><span>    if</span><span> (std</span><span>.</span><span>fmt</span><span>.</span><span>parseInt</span><span>(</span><span>u64</span><span>,</span><span> prefixed_bytes</span><span>,</span><span> 0</span><span>)) </span><span>|</span><span>small_int</span><span>|</span><span> {</span></span>
+<span><span>        const</span><span> result</span><span>:</span><span> Zir</span><span>.</span><span>Inst</span><span>.</span><span>Ref </span><span>=</span><span> switch</span><span> (small_int) {</span></span>
+<span><span>            0</span><span> =&gt;</span><span> .</span><span>zero</span><span>,</span></span>
+<span><span>            1</span><span> =&gt;</span><span> .</span><span>one</span><span>,</span></span>
+<span><span>            else</span><span> =&gt;</span><span> try</span><span> gz</span><span>.</span><span>addInt</span><span>(small_int)</span><span>,</span></span>
+<span><span>        }</span><span>;</span></span>
+<span></span>
+<span><span>        return</span><span> rvalue</span><span>(gz</span><span>,</span><span> rl</span><span>,</span><span> result</span><span>,</span><span> node)</span><span>;</span></span>
+<span><span>    } </span><span>else</span><span> |</span><span>err</span><span>|</span><span> switch</span><span> (err) {</span></span>
+<span><span>        error</span><span>.</span><span>InvalidCharacter </span><span>=&gt;</span><span> unreachable</span><span>,</span><span> // Caught by the parser.</span></span>
+<span><span>        error</span><span>.</span><span>Overflow </span><span>=&gt;</span><span> {}</span><span>,</span></span>
+<span><span>    }</span></span>
+<span></span>
+<span><span>    // ... other paths</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>There’s a lot here! This is why I start with the simplest possible thing. If I started with something like a function declaration, I’d get bogged down in so many details that it’d be overwhelming to learn. You may still be a bit overwhelmed looking at integer literals, but its the simplest it gets, so let’s dive in.</p>
+<p>First, we use the AST to look up the token for the integer literal. Then, we can use the token start location to get the bytes associated with the token using <code>tree.tokenSlice</code>. This results in the string <code>"42"</code> or more specifically: two bytes <code>4</code> and <code>2</code>.</p>
+<p>Next, we try to parse that character array as an unsigned 64-bit integer. If the number is too big, we fall through to the “other parts” comment which is complexity around storing “big ints” which we won’t explore here. For this example, we’ll assume all our integer constants are less than or equal to 18,446,744,073,709,551,615 (the max size of an unsigned 64-bit integer).</p>
+<div><p><strong>Unsigned? What about negative numbers?</strong> The prefix <code>-</code> in front of a negative number is stored as a separate AST node and generates a unary operation separately in the ZIR. Integer literals are always positive.</p></div>
+<p>Parsing the number in our example case will work, since <code>42</code> will parse as a valid <code>u64</code>. Next, we handle the special case that the value is <code>0</code> or <code>1</code> since those have a special tagged ref. Otherwise, we generate a <code>.int</code> ZIR instruction and store the instruction index in <code>result</code>.</p>
+<p>Finally, we call <code>rvalue</code> which applies <code>ResultLoc</code> (covered earlier) semantics to the value to determine if we need to return it as-is, convert it a known type, store it in a memory location, etc. In many cases this will be a no-op and will simply return the <code>.int</code> ZIR instruction.</p>
+<h2 id="addition">Addition</h2>
+<p>Let’s build up from a static integer value and do some addition:</p>
+<div><pre tabindex="0"><code><span><span>42</span><span> +</span><span> 1</span></span></code></pre></div>
+<p>This parses into the AST node tag <code>.add</code> which leads from <code>expr</code> to <code>simpleBinOp</code>.</p>
+<div><pre tabindex="0"><code><span><span>fn</span><span> simpleBinOp</span><span>(</span></span>
+<span><span>    gz</span><span>:</span><span> *</span><span>GenZir</span><span>,</span></span>
+<span><span>    scope</span><span>:</span><span> *</span><span>Scope</span><span>,</span></span>
+<span><span>    rl</span><span>:</span><span> ResultLoc</span><span>,</span></span>
+<span><span>    node</span><span>:</span><span> Ast</span><span>.</span><span>Node</span><span>.</span><span>Index</span><span>,</span></span>
+<span><span>    op_inst_tag</span><span>:</span><span> Zir</span><span>.</span><span>Inst</span><span>.</span><span>Tag</span><span>,</span></span>
+<span><span>) InnerError</span><span>!</span><span>Zir</span><span>.</span><span>Inst</span><span>.</span><span>Ref {</span></span>
+<span><span>    const</span><span> astgen </span><span>=</span><span> gz</span><span>.</span><span>astgen</span><span>;</span></span>
+<span><span>    const</span><span> tree </span><span>=</span><span> astgen</span><span>.</span><span>tree</span><span>;</span></span>
+<span><span>    const</span><span> node_datas </span><span>=</span><span> tree</span><span>.</span><span>nodes</span><span>.</span><span>items</span><span>(</span><span>.</span><span>data)</span><span>;</span></span>
+<span></span>
+<span><span>    const</span><span> result </span><span>=</span><span> try</span><span> gz</span><span>.</span><span>addPlNode</span><span>(op_inst_tag</span><span>,</span><span> node</span><span>,</span><span> Zir</span><span>.</span><span>Inst</span><span>.</span><span>Bin{</span></span>
+<span><span>        .</span><span>lhs </span><span>=</span><span> try</span><span> reachableExpr</span><span>(gz</span><span>,</span><span> scope</span><span>,</span><span> .</span><span>none</span><span>,</span><span> node_datas[node]</span><span>.</span><span>lhs</span><span>,</span><span> node)</span><span>,</span></span>
+<span><span>        .</span><span>rhs </span><span>=</span><span> try</span><span> reachableExpr</span><span>(gz</span><span>,</span><span> scope</span><span>,</span><span> .</span><span>none</span><span>,</span><span> node_datas[node]</span><span>.</span><span>rhs</span><span>,</span><span> node)</span><span>,</span></span>
+<span><span>    })</span><span>;</span></span>
+<span><span>    return</span><span> rvalue</span><span>(gz</span><span>,</span><span> rl</span><span>,</span><span> result</span><span>,</span><span> node)</span><span>;</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>This is our first case of recursion. This builds a <code>.add</code> ZIR instruction with the data <code>lhs</code> and <code>rhs</code> populated by recursively building the ZIR for the left and right expression, respectively. The left expression is <code>42</code> and the right expression is <code>1</code>. We know from exploring integer literals that this will turn into <code>.int</code> instructions.</p>
+<p>The resulting ZIR looks something like this:</p>
+<div><pre tabindex="0"><code><span><span>%</span><span>1</span><span> =</span><span> int</span><span>(</span><span>42</span><span>)</span></span>
+<span><span>%</span><span>2</span><span> =</span><span> add</span><span>(</span><span>%</span><span>1</span><span>,</span><span> @Ref</span><span>.</span><span>one)</span></span></code></pre></div>
+<h2 id="assignment">Assignment</h2>
+<p>Next, let’s assign our addition to an untyped constant:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> x </span><span>=</span><span> 42</span><span> +</span><span> 1</span><span>;</span></span></code></pre></div>
+<p>You won’t find a case for this in <code>expr</code> because this is not an expression, it is a statement. You won’t find a <code>statement</code> function either because in Zig variable assignment is only possible within containers (a struct) or blocks (i.e. a function body). You’ll find this in <code>containerMembers</code> or <code>blockExprStmts</code>. The former is used for struct bodies and the latter for function bodies. I think the easier one to look at first is <code>blockExprStmts</code> since <code>containerMembers</code> but both are valid next steps for educational purposes.</p>
+<p>Let’s look at <code>blockExprStmts</code>, which has a switch that leads to <code>varDecl</code> for variable declarations (including constants). <code>varDecl</code> is big! I won’t paste the full function below. I’ll paste the most common code path:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> type_node </span><span>=</span><span> var_decl</span><span>.</span><span>ast</span><span>.</span><span>type_node</span><span>;</span></span>
+<span><span>const</span><span> result_loc</span><span>:</span><span> ResultLoc </span><span>=</span><span> if</span><span> (type_node </span><span>!=</span><span> 0</span><span>) </span><span>.</span><span>{</span></span>
+<span><span>    .</span><span>ty </span><span>=</span><span> try</span><span> typeExpr</span><span>(gz</span><span>,</span><span> scope</span><span>,</span><span> type_node)</span><span>,</span></span>
+<span><span>} </span><span>else</span><span> .</span><span>none</span><span>;</span></span>
+<span><span>const</span><span> init_inst </span><span>=</span><span> try</span><span> reachableExpr</span><span>(gz</span><span>,</span><span> scope</span><span>,</span><span> result_loc</span><span>,</span><span> var_decl</span><span>.</span><span>ast</span><span>.</span><span>init_node</span><span>,</span><span> node)</span><span>;</span></span>
+<span></span>
+<span><span>const</span><span> sub_scope </span><span>=</span><span> try</span><span> block_arena</span><span>.</span><span>create</span><span>(Scope</span><span>.</span><span>LocalVal)</span><span>;</span></span>
+<span><span>sub_scope</span><span>.</span><span>*</span><span> =</span><span> .</span><span>{</span></span>
+<span><span>    .</span><span>parent </span><span>=</span><span> scope</span><span>,</span></span>
+<span><span>    .</span><span>gen_zir </span><span>=</span><span> gz</span><span>,</span></span>
+<span><span>    .</span><span>name </span><span>=</span><span> ident_name</span><span>,</span></span>
+<span><span>    .</span><span>inst </span><span>=</span><span> init_inst</span><span>,</span></span>
+<span><span>    .</span><span>token_src </span><span>=</span><span> name_token</span><span>,</span></span>
+<span><span>    .</span><span>id_cat </span><span>=</span><span> .</span><span>@"local constant"</span><span>,</span></span>
+<span><span>}</span><span>;</span></span>
+<span><span>return</span><span> &amp;</span><span>sub_scope</span><span>.</span><span>base</span><span>;</span></span></code></pre></div>
+<p>Let’s start with the top section. This section is just recursing and evaluating the type expression (if there is one) and the initialization expression. For a constant <code>const x: t = init</code>, <code>t</code> is the type expression and <code>init</code> is the initialization expression. For our example, we have no type expression, and our initialization expression is the <code>.add</code> instruction we know how to construct already.</p>
+<p>Next, we create a new <code>LocalVal</code> scope to represent this value. The scope has the identifier name <code>x</code>, the value instruction <code>init_inst</code> and points to the parent scope given to the <code>varDecl</code> function. The scope is the return value for this function and the caller <code>blockExprStmts</code> replaces the current scope from that statement forward to this new scope so that future statements and expressions can reference this assignment.</p>
+<p>Our previous examples returned ZIR instruction indexes and this one returned a scope. Notice that the named assignment to <code>x</code> does not generate a ZIR instruction. If you look at the generated ZIR, you won’t see <code>x</code> anywhere:</p>
+<div><pre tabindex="0"><code><span><span>%</span><span>2</span><span> =</span><span> int</span><span>(</span><span>42</span><span>)</span></span>
+<span><span>%</span><span>3</span><span> =</span><span> add</span><span>(</span><span>%</span><span>2</span><span>,</span><span> @Ref</span><span>.</span><span>one)</span></span></code></pre></div>
+<p><code>x</code> is in the <em>scope</em> and the scope is tracking the value instruction <code>inst</code>. If <code>x</code> is ever referenced, we’ll know that its value comes from that instruction and can reference it accordingly. For example, let’s look at the ZIR for the following in a function body:</p>
+<div><pre tabindex="0"><code><span><span>const</span><span> x </span><span>=</span><span> 42</span><span> +</span><span> 1</span><span>;</span></span>
+<span><span>const</span><span> y </span><span>=</span><span> x</span><span>;</span></span></code></pre></div>
+<div><pre tabindex="0"><code><span><span>%</span><span>2</span><span> =</span><span> int</span><span>(</span><span>42</span><span>)</span></span>
+<span><span>%</span><span>3</span><span> =</span><span> add</span><span>(</span><span>%</span><span>2</span><span>,</span><span> @Ref</span><span>.</span><span>one) </span><span>// x assignment</span></span>
+<span><span>%</span><span>4</span><span> =</span><span> ensure_result_non_error</span><span>(</span><span>%</span><span>3</span><span>) </span><span>// y assignment</span></span></code></pre></div>
+<p>Notice that the <code>y</code> assignment (instruction <code>%4</code>) comes directly from the instruction <code>%3</code>. We don’t need to do an explicit memory load/store in ZIR because we can reference instruction results exactly.</p>
+<p>Note that when eventually machine code is generated, backends may determine a load/store is required (depending on the computer architecture), but the intermediate representation doesn’t need to make this decision.</p>
+<p>As an exercise to the reader: as a next step, I would look at the statement <code>const y = x</code> and learn how identifier referencing works. This will explain how the ZIR above is generated and is a good stepping stone for future complexity.</p>
+<h2 id="completing-the-astgen-process">Completing the AstGen Process</h2>
+<p>The AstGen process is run once per file, and recursively builds the ZIR for the entire file. At the end of the function, the caller receives a <code>Zir</code> value.</p>
+<p>With the details of this page, you should be able to follow any Zig language construct and learn how the ZIR is generated. Remember, use the <code>zig ast-check</code> command frequently to review what the Zig compiler actually generates and use this as a guide for what functions to study.</p>
+<p>Next is the <a href="https://mitchellh.com/zig/sema">Sema process</a>.</p></div></div>

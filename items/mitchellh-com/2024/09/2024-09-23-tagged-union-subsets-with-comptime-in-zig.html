@@ -1,0 +1,334 @@
+<div id="readability-page-1" class="page"><div>
+<p>Zig supports tagged unions<sup><a href="#user-content-fn-1" id="user-content-fnref-1" data-footnote-ref="true" aria-describedby="footnote-label">1</a></sup> and the Zig compiler will error if you <code>switch</code>
+on a tagged union without handling all possible cases. This is a great feature
+because it helps you avoid bugs when new cases are added to the union. Many
+languages support similar functionality.</p>
+<p>However, sometimes you want to work with a subset of the tagged union.
+You don't want to lose compiler safety by using catch-all cases in your
+<code>switch</code> statement, but you also don't want to handle every case with a noop.</p>
+<p>In this post, I'll illustrate a real world example of this scenario and how
+Zig's comptime can be used to elegantly solve it. The real world example
+will come from <a href="https://mitchellh.com/ghostty">my terminal project</a>.</p>
+<h2 id="a-real-example-keybind-actions">A Real Example: Keybind Actions</h2>
+<p>The following is how keybind actions are represented in
+<a href="https://mitchellh.com/ghostty">Ghostty</a>. A keybind action is the action that a keyboard
+shortcut triggers. For example: <code>ctrl+n</code> might trigger the action to
+open a new window.</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> const</span><span> Action </span><span>=</span><span> union</span><span>(</span><span>enum</span><span>) {</span></span>
+<span><span>  quit</span><span>:</span><span> void</span><span>,</span></span>
+<span><span>  new_window</span><span>:</span><span> void</span><span>,</span></span>
+<span><span>  close_window</span><span>:</span><span> void</span><span>,</span></span>
+<span><span>  close_all_windows</span><span>:</span><span> void</span><span>,</span></span>
+<span><span>  open_config</span><span>:</span><span> void</span><span>,</span></span>
+<span><span>  reload_config</span><span>:</span><span> void</span><span>,</span></span>
+<span><span>  scroll_lines</span><span>:</span><span> i16</span><span>,</span></span>
+<span></span>
+<span><span>  // Many more in reality, but we'll use the above for this blog post.</span></span>
+<span><span>}</span><span>;</span></span></code></pre></div>
+<p>Most keybinding actions have no data associated with them (<code>void</code>) but
+some do. For example, the <code>scroll_lines</code> action has an <code>i16</code> associated
+with it to specify the number of lines up (negative) or down (positive)
+to scroll.</p>
+<p>This tagged union approach is nice because in the part of the code
+that executes keybind actions, I can <code>switch</code> on the <code>Action</code> union
+and the compiler will error if I don't handle all cases. This ensures that
+when I add a new keybind action, I also add the code to handle it.</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> fn</span><span> performAction</span><span>(action</span><span>:</span><span> Action) </span><span>void</span><span> {</span></span>
+<span><span>  switch</span><span> (action) {</span></span>
+<span><span>    .</span><span>quit </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>new_window </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>close_window </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>close_all_windows </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>open_config </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>reload_config </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>scroll_lines </span><span>=&gt;</span><span> |</span><span>amount</span><span>|</span><span> ...,</span></span>
+<span><span>  }</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>This is how Ghostty initially implemented keybind actions.</p>
+<h2 id="the-case-for-union-subsets">The Case for Union Subsets</h2>
+<p>Recently, I needed to add a new keybind action that was scoped not
+to a specific terminal but to the entire Ghostty application. As part of this,
+I wanted to refactor out <code>performAction</code> so that the terminal-specific
+actions were handled by the terminal structure and the application-wide
+actions were handled by the application structure.</p>
+<p>The problem is that the <code>Action</code> union contains both terminal-specific
+actions and application-wide actions. Initially, I did something like this:</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> fn</span><span> performAppAction</span><span>(action</span><span>:</span><span> Action) </span><span>void</span><span> {</span></span>
+<span><span>  switch</span><span> (action) {</span></span>
+<span><span>    .</span><span>quit </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>close_all_windows </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>open_config </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>reload_config </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    else</span><span> =&gt;</span><span> {}</span><span>,</span></span>
+<span><span>  }</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>This <em>works</em> but do you see the <code>else</code> there? That's a catch-all case
+and when there is a catch-all case, the compiler can't error if I add
+a new action to the <code>Action</code> union and forget to handle it in
+<code>performAppAction</code>.</p>
+<p>Next, I exhaustively listed out all the actions I didn't care about
+and did nothing:</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> fn</span><span> performAppAction</span><span>(action</span><span>:</span><span> Action) </span><span>void</span><span> {</span></span>
+<span><span>  switch</span><span> (action) {</span></span>
+<span><span>    .</span><span>quit </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>close_all_windows </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>open_config </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>reload_config </span><span>=&gt;</span><span> ...,</span></span>
+<span></span>
+<span><span>    // Do nothing for terminal-specific actions.</span></span>
+<span><span>    .</span><span>new_window</span><span>,</span></span>
+<span><span>    .</span><span>close_window</span><span>,</span></span>
+<span><span>    .</span><span>scroll_lines</span><span>,</span></span>
+<span><span>    =&gt;</span><span> {}</span><span>,</span></span>
+<span><span>  }</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>This <em>works</em> but I have a few issues with it:</p>
+<ol>
+<li>
+<p>It's verbose. I have to list out all the terminal-specific actions
+even though I don't care about them. The blog post example only shows
+a half dozen actions but in reality there are many, many more.</p>
+</li>
+<li>
+<p>From a types perspective, I don't like that <code>performAppAction</code>
+can accept terminal-specific actions. It'd be nicer if the type
+signature self-documented that it only accepts application-wide
+actions and what those were.</p>
+</li>
+<li>
+<p>This same issue is mirrored in the <code>performTerminalAction</code> function
+(which I didn't show here).</p>
+</li>
+</ol>
+<p>What I really want is something like the following:</p>
+<div><pre tabindex="0"><code><span><span>// NOT REAL ZIG CODE! THIS IS PSUEDO CODE!</span></span>
+<span><span>const</span><span> AppAction </span><span>=</span><span> union</span><span>(</span><span>enum</span><span>) {</span></span>
+<span><span>  quit</span><span>:</span><span> void</span><span>,</span></span>
+<span><span>  // ... other app actions ...</span></span>
+<span><span>}</span><span>;</span></span>
+<span></span>
+<span><span>const</span><span> TerminalAction </span><span>=</span><span> union</span><span>(</span><span>enum</span><span>) {</span></span>
+<span><span>  new_window</span><span>:</span><span> void</span><span>,</span></span>
+<span><span>  // ... other terminal actions ...</span></span>
+<span><span>}</span><span>;</span></span>
+<span></span>
+<span><span>// Union of both. </span><span>NOTE</span><span> THIS IS NOT REAL CODE. THIS IS CONCEPTUAL.</span></span>
+<span><span>const</span><span> Action </span><span>=</span><span> AppAction </span><span>|</span><span> TerminalAction</span><span>;</span></span></code></pre></div>
+<div><p>One might ask: "why not just have two separate unions?" The answer is
+because other parts of the codebase need to work with the single <code>Action</code>.
+For example, the configuration parser needs to be able to parse all actions
+for keybinds.</p></div>
+<h2 id="comptime-union-subsets">Comptime Union Subsets</h2>
+<p>We can use Zig comptime to create our subset types.</p>
+<div><p>We could've just as easily created our subset types and used
+comptime to create our full union type. As an exercise to the reader,
+I encourage you to try this. It works just as well, but has different
+edge cases and ergonomic tradeoffs.</p></div>
+<p>The first thing we need to know is what scope each action belongs to.
+To do this, we can introduce a new function to tell us:</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> const</span><span> Scope </span><span>=</span><span> enum</span><span> { app</span><span>,</span><span> terminal }</span><span>;</span></span>
+<span></span>
+<span><span>pub</span><span> fn</span><span> scope</span><span>(action</span><span>:</span><span> Action) Scope {</span></span>
+<span><span>  return</span><span> switch</span><span> (action) {</span></span>
+<span><span>    .</span><span>quit</span><span>,</span><span> .</span><span>close_all_windows</span><span>,</span><span> .</span><span>open_config</span><span>,</span><span> .</span><span>reload_config </span><span>=&gt;</span><span> .</span><span>app</span><span>,</span></span>
+<span><span>    .</span><span>new_window</span><span>,</span><span> .</span><span>close_window</span><span>,</span><span> .</span><span>scroll_lines </span><span>=&gt;</span><span> .</span><span>terminal</span><span>,</span></span>
+<span><span>  }</span><span>;</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>This is a very straightforward function. It is verbose since we need
+to include every case, but it is centralized in a single location and
+easy to maintain.</p>
+<p>Next, we can use this function and comptime to create our subset types:</p>
+<div><pre tabindex="0"><code><span><span>/// Returns a union type that only contains actions that are scoped to</span></span>
+<span><span>/// the given scope.</span></span>
+<span><span>pub</span><span> fn</span><span> ScopedAction</span><span>(</span><span>comptime</span><span> s</span><span>:</span><span> Scope) </span><span>type</span><span> {</span></span>
+<span><span>  const</span><span> all_fields </span><span>=</span><span> @typeInfo</span><span>(Action)</span><span>.</span><span>Union</span><span>.</span><span>fields</span><span>;</span></span>
+<span></span>
+<span><span>  // Find all fields that are scoped to s</span></span>
+<span><span>  var</span><span> i</span><span>:</span><span> usize</span><span> =</span><span> 0</span><span>;</span></span>
+<span><span>  var</span><span> fields</span><span>:</span><span> [all_fields</span><span>.</span><span>len]std</span><span>.</span><span>builtin</span><span>.</span><span>Type</span><span>.</span><span>UnionField </span><span>=</span><span> undefined</span><span>;</span></span>
+<span><span>  for</span><span> (all_fields) </span><span>|</span><span>field</span><span>|</span><span> {</span></span>
+<span><span>    const</span><span> action </span><span>=</span><span> @unionInit</span><span>(Action</span><span>,</span><span> field</span><span>.</span><span>name</span><span>,</span><span> undefined</span><span>)</span><span>;</span></span>
+<span><span>    if</span><span> (action</span><span>.</span><span>scope</span><span>() </span><span>==</span><span> s) {</span></span>
+<span><span>      fields[i] </span><span>=</span><span> field</span><span>;</span></span>
+<span><span>      i </span><span>+=</span><span> 1</span><span>;</span></span>
+<span><span>    }</span></span>
+<span><span>  }</span></span>
+<span></span>
+<span><span>  // Build our union</span></span>
+<span><span>  return</span><span> @Type</span><span>(</span><span>.</span><span>{ </span><span>.</span><span>Union </span><span>=</span><span> .</span><span>{</span></span>
+<span><span>    .</span><span>layout </span><span>=</span><span> .</span><span>auto</span><span>,</span></span>
+<span><span>    .</span><span>tag_type </span><span>=</span><span> null</span><span>,</span></span>
+<span><span>    .</span><span>fields </span><span>=</span><span> fields[</span><span>0</span><span>..</span><span>i]</span><span>,</span></span>
+<span><span>    .</span><span>decls </span><span>=</span><span> &amp;</span><span>.</span><span>{}</span><span>,</span></span>
+<span><span>  } })</span><span>;</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>I'm sorry, I know this is a "draw the rest of the fucking owl" moment<sup><a href="#user-content-fn-2" id="user-content-fnref-2" data-footnote-ref="true" aria-describedby="footnote-label">2</a></sup>.
+I'll walk through this step by step.</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> fn</span><span> ScopedAction</span><span>(</span><span>comptime</span><span> s</span><span>:</span><span> Scope) </span><span>type</span><span> {</span></span></code></pre></div>
+<p>First, capitalized identifiers in Zig are idiomatically types. The
+compiler doesn't enforce or require this, it's just idiomatic styling.
+When a function is capitalized, it signals to the caller that it will
+return a type.</p>
+<p>This is a function that returns a type. This is how Zig does generics.
+Since Zig has comptime code execution, and comptime code execution is
+<em>the full language</em>, we can use functions that take parameters at comptime
+and return things like... types.</p>
+<p>In this case, our function is taking a <code>Scope</code> and using that to generate
+a new action union that only contains actions that have that scope.</p>
+<div><pre tabindex="0"><code><span><span>  const</span><span> all_fields </span><span>=</span><span> @typeInfo</span><span>(Action)</span><span>.</span><span>Union</span><span>.</span><span>fields</span><span>;</span></span></code></pre></div>
+<p>The <code>@typeInfo</code> builtin function<sup><a href="#user-content-fn-3" id="user-content-fnref-3" data-footnote-ref="true" aria-describedby="footnote-label">3</a></sup> returns structured information
+about a type at comptime. We call it on <code>Action</code> to extract all the
+fields in the union.</p>
+<div><pre tabindex="0"><code><span><span>  // Find all fields that are scoped to s</span></span>
+<span><span>  var</span><span> i</span><span>:</span><span> usize</span><span> =</span><span> 0</span><span>;</span></span>
+<span><span>  var</span><span> fields</span><span>:</span><span> [all_fields</span><span>.</span><span>len]std</span><span>.</span><span>builtin</span><span>.</span><span>Type</span><span>.</span><span>UnionField </span><span>=</span><span> undefined</span><span>;</span></span>
+<span><span>  for</span><span> (all_fields) </span><span>|</span><span>field</span><span>|</span><span> {</span></span>
+<span><span>    const</span><span> action </span><span>=</span><span> @unionInit</span><span>(Action</span><span>,</span><span> field</span><span>.</span><span>name</span><span>,</span><span> undefined</span><span>)</span><span>;</span></span>
+<span><span>    if</span><span> (action</span><span>.</span><span>scope</span><span>() </span><span>==</span><span> s) {</span></span>
+<span><span>      fields[i] </span><span>=</span><span> field</span><span>;</span></span>
+<span><span>      i </span><span>+=</span><span> 1</span><span>;</span></span>
+<span><span>    }</span></span>
+<span><span>  }</span></span></code></pre></div>
+<p>We now iterate over all the fields in the <code>Action</code> union. For each field,
+we determine if it belongs to the scope we're interested in. If it does,
+we save it.</p>
+<p>The <code>@unionInit</code> function is a builtin that creates a union value with
+a comptime-known field name and value. The value we use is <code>undefined</code>
+(uninitialized memory) because we don't care about the value; our
+<code>scope()</code> function only looks at the tag. If we ever access undefined
+memory in comptime, we'll get a compiler error, so this is safe.</p>
+<p>We need to create a value with the given type so we can call <code>scope()</code>
+on it. Note that our <code>scope()</code> function above has no idea if it is
+being executed in comptime or runtime. It doesn't care. It's just a
+normal function. Comptime is fucking cool that way.</p>
+<div><pre tabindex="0"><code><span><span>  // Build our union</span></span>
+<span><span>  return</span><span> @Type</span><span>(</span><span>.</span><span>{ </span><span>.</span><span>Union </span><span>=</span><span> .</span><span>{</span></span>
+<span><span>    .</span><span>layout </span><span>=</span><span> .</span><span>auto</span><span>,</span></span>
+<span><span>    .</span><span>tag_type </span><span>=</span><span> null</span><span>,</span></span>
+<span><span>    .</span><span>fields </span><span>=</span><span> fields[</span><span>0</span><span>..</span><span>i]</span><span>,</span></span>
+<span><span>    .</span><span>decls </span><span>=</span><span> &amp;</span><span>.</span><span>{}</span><span>,</span></span>
+<span><span>  } })</span><span>;</span></span></code></pre></div>
+<p>The <code>@Type</code> builtin reifies a type (creates a new type). In this case,
+we're creating a union with the fields we accumulated; the fields that
+have the scope we're looking for.</p>
+
+<p><strong>Finally, at the end of all this,</strong> we have a new type that only
+contains a subset of our original union. It looks like this:</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> fn</span><span> performAppAction</span><span>(action</span><span>:</span><span> ScopedAction</span><span>(</span><span>.</span><span>app)) </span><span>void</span><span> {</span></span>
+<span><span>  switch</span><span> (action) {</span></span>
+<span><span>    .</span><span>quit </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>close_all_windows </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>open_config </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>    .</span><span>reload_config </span><span>=&gt;</span><span> ...,</span></span>
+<span><span>  }</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>Beautiful. We have a simple <code>switch</code> with compiler-enforced exhaustiveness
+and our function signature self-documents that it only accepts application-wide
+actions. When we add new actions to the <code>Action</code> union, we'll get a compiler
+error to update the <code>scope()</code> function and after that everything else will
+just work.</p>
+<p>Also, in case its not obvious: all of this logic happens <em>at compile time</em>.
+There is no runtime cost to doing any of this. Since we only execute this
+logic at compile time, it also doesn't generate any new runtime code.</p>
+<h2 id="converting-to-a-subset">Converting To A Subset</h2>
+<p>The final challenge: given a full <code>Action</code>, how do we convert it to a
+typed subset such as <code>ScopedAction(.app)</code>? The function below does
+just that:</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> fn</span><span> scoped</span><span>(self</span><span>:</span><span> Action</span><span>,</span><span> comptime</span><span> s</span><span>:</span><span> Scope) </span><span>?</span><span>ScopedAction</span><span>(s) {</span></span>
+<span><span>  switch</span><span> (self) {</span></span>
+<span><span>    inline</span><span> else</span><span> =&gt;</span><span> |</span><span>v</span><span>,</span><span> tag</span><span>|</span><span> {</span></span>
+<span><span>      // Use comptime to prune out invalid actions</span></span>
+<span><span>      if</span><span> (</span><span>comptime</span><span> @unionInit</span><span>(</span></span>
+<span><span>        Action</span><span>,</span></span>
+<span><span>        @tagName</span><span>(tag)</span><span>,</span></span>
+<span><span>        undefined</span><span>,</span></span>
+<span><span>      )</span><span>.</span><span>scope</span><span>() </span><span>!=</span><span> s) </span><span>return</span><span> null</span><span>;</span></span>
+<span></span>
+<span><span>      // Initialize our app action</span></span>
+<span><span>      return</span><span> @unionInit</span><span>(</span></span>
+<span><span>        ScopedAction</span><span>(s)</span><span>,</span></span>
+<span><span>        @tagName</span><span>(tag)</span><span>,</span></span>
+<span><span>        v</span><span>,</span></span>
+<span><span>      )</span><span>;</span></span>
+<span><span>    }</span><span>,</span></span>
+<span><span>  }</span></span>
+<span><span>}</span></span></code></pre></div>
+<p>Let's walk through this one as well.</p>
+<div><pre tabindex="0"><code><span><span>pub</span><span> fn</span><span> scoped</span><span>(self</span><span>:</span><span> Action</span><span>,</span><span> comptime</span><span> s</span><span>:</span><span> Scope) </span><span>?</span><span>ScopedAction</span><span>(s) {</span></span></code></pre></div>
+<p>A few neat things here. First, this function takes both runtime and
+comptime parameters. The compiler will enforce that the comptime parameters
+are known at compile time.</p>
+<p>The scope parameter must be comptime known because we use it to determine
+our return value. Notice we use <code>s</code> in the return type <code>?ScopedAction(s)</code>.
+If we didn't have the <code>comptime</code> prefix on <code>s</code>, the compiler would error
+because we can't use a runtime value to generate information that must
+be compile-time known (a type).</p>
+<p>The <code>?</code> in the return type notates an optional return value. This means
+that the return value may be null. For this function, we'll return null
+if the <code>self</code> action doesn't belong to the scope we're looking for.</p>
+<div><pre tabindex="0"><code><span><span>  switch</span><span> (self) {</span></span>
+<span><span>    inline</span><span> else</span><span> =&gt;</span><span> |</span><span>v</span><span>,</span><span> tag</span><span>|</span><span> {</span></span></code></pre></div>
+<p>The <code>inline else</code> is a special case in Zig. It is a catch-all case that
+generates runtime code for each case that wasn't explicitly handled. Because
+it is inline, the compiler will provide the <code>tag</code> as a compile-time known
+value. This is important because we need to use it to determine the scope
+of the action.</p>
+<div><p><code>inline else</code> can be hard to understand at first. I recommend trying to
+delete the <code>inline</code> keyword and see what the compiler tells you. Then
+think through what the compiler is trying to do and it should become
+more clear why <code>inline</code> is necessary.</p></div>
+<div><pre tabindex="0"><code><span><span>      // Use comptime to prune out invalid actions</span></span>
+<span><span>      if</span><span> (</span><span>comptime</span><span> @unionInit</span><span>(</span></span>
+<span><span>        Action</span><span>,</span></span>
+<span><span>        @tagName</span><span>(tag)</span><span>,</span></span>
+<span><span>        undefined</span><span>,</span></span>
+<span><span>      )</span><span>.</span><span>scope</span><span>() </span><span>!=</span><span> s) </span><span>return</span><span> null</span><span>;</span></span></code></pre></div>
+<p>Here we use <code>@unionInit</code> again to create a union value with the comptime-known
+tag. We then call <code>scope()</code> on it to determine if it belongs to the scope
+we're looking for. If it doesn't, we return null. Since this conditional
+is a comptime, this will conditionally compile out the rest of the block
+so we don't get a type error initializing a scoped action for an invalid
+tag.</p>
+
+<div><pre tabindex="0"><code><span><span>      // Initialize our app action</span></span>
+<span><span>      return</span><span> @unionInit</span><span>(</span></span>
+<span><span>        ScopedAction</span><span>(s)</span><span>,</span></span>
+<span><span>        @tagName</span><span>(tag)</span><span>,</span></span>
+<span><span>        v</span><span>,</span></span>
+<span><span>      )</span><span>;</span></span></code></pre></div>
+<p>Finally, we return the initialized scoped action.</p>
+<p>Compared to the previous section, this function does have <em>some</em> runtime cost.
+This function uses a runtime switch statement to filter out actions that
+don't belong to the scope we're looking for. I didn't bother disassemblying
+the code to see how this is lowered, but I suspect the compiler optimizes
+a lot of this away because the converted unions have the same memory layout.
+I did profile this function in a synthetic case where I infinite loop a
+cheap keyboard shortcut in Ghostty and it didn't show up in the profile, so
+I'm not worried about it.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Zig's comptime is a powerful feature that allows you to do some really
+amazing things. In this post, I combined multiple comptime features
+of Zig to solve a real-world problem: generating types at comptime,
+calling comptime-oblivious functions at comptime, <code>inline else</code>,
+<code>@unionInit</code>, and more.</p>
+<p>This post demonstrates an admittedly advanced use of Zig's comptime.
+For newcomers to Zig, the techniques and language features used here
+are likely to be overwhelming. It took me some time to get comfortable
+with these features, but they are incredibly powerful once you do.</p>
+<p>I'm a type pragmatist. I believe leaning on the type system to enforce
+correctness is a powerful tool. At the same time, I believe some languages
+take this too far and make the type system a burden. Zig strikes a nice
+balance for me and I believe this post demonstrates that.</p>
+<section data-footnotes="true"><h2 id="footnote-label">Footnotes</h2>
+<ol>
+<li id="user-content-fn-1">
+<p><a target="_blank" rel="noopener noreferrer" href="https://ziglang.org/documentation/0.13.0/#Tagged-union">https://ziglang.org/documentation/0.13.0/#Tagged-union</a> <a href="#user-content-fnref-1" data-footnote-backref="" aria-label="Back to reference 1">↩</a></p>
+</li>
+<li id="user-content-fn-2">
+<p><a target="_blank" rel="noopener noreferrer" href="https://knowyourmeme.com/memes/how-to-draw-an-owl">https://knowyourmeme.com/memes/how-to-draw-an-owl</a> <a href="#user-content-fnref-2" data-footnote-backref="" aria-label="Back to reference 2">↩</a></p>
+</li>
+<li id="user-content-fn-3">
+<p>Functions that start with <code>@</code> in Zig are builtin to the compiler. <a href="#user-content-fnref-3" data-footnote-backref="" aria-label="Back to reference 3">↩</a></p>
+</li>
+</ol>
+</section></div></div>
