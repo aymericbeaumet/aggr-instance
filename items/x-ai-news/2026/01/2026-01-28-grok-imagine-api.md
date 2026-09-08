@@ -3,7 +3,7 @@ title: Grok Imagine API
 link: https://x.ai/news/grok-imagine-api
 source: x-ai-news
 published: 2026-01-28T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: State-of-the-art video generation across quality, cost, and latency.
 content: extracted
 html: 2026-01-28-grok-imagine-api.html
@@ -58,10 +58,10 @@ images:
   color: '#677958'
 - source: https://x.ai/_next/image?url=https%3A%2F%2Fdata.x.ai%2Freleases%2Fimagine%2Favatar%2Fportrait-creator.jpeg&w=96&q=75
   original:
-    file: 2026-01-28-grok-imagine-api.image-ed15f1378e1b.webp
+    file: 2026-01-28-grok-imagine-api.image-35150e9ceee8.jpg
     width: 96
     height: 96
-  color: '#fbf7e7'
+  color: '#fcf5e7'
 - source: https://x.ai/_next/image?url=https%3A%2F%2Fdata.x.ai%2Freleases%2Fimagine%2Freplace-bird%2Freplace-bird-1.poster.webp&w=3840&q=75
   original:
     file: 2026-01-28-grok-imagine-api.image-1c7c3d86dfaf.jpg

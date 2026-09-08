@@ -4,7 +4,7 @@ link: https://simonwillison.net/2026/Sep/7/creepy-crawlies/
 source: simonwillison-net
 published: 2026-09-07T23:08:58Z
 updated: 2026-09-07T23:08:58Z
-first_seen: 2026-09-07T23:43:54.853367263Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - ai-ethics
 - crawling

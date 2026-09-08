@@ -3,7 +3,7 @@ title: Grok Bot for Enterprise
 link: https://x.ai/news/grok-bot-for-enterprise
 source: x-ai-news
 published: 2026-09-03T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok Bot is now available for enterprises. Grok and Cursor Enterprise customers have free usage for the next two weeks, and can invite their whole organization, including people without an existing seat.
 content: extracted
 html: 2026-09-03-grok-bot-for-enterprise.html

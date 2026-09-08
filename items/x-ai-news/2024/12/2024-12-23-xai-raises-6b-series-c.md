@@ -3,7 +3,7 @@ title: xAI raises $6B Series C
 link: https://x.ai/news/series-c
 source: x-ai-news
 published: 2024-12-23T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: We are partnering with A16Z, Blackrock, Fidelity Management & Research Company, Kingdom Holdings, Lightspeed, MGX, Morgan Stanley, OIA, QIA, Sequoia Capital, Valor Equity Partners and Vy Capital, amongst others.
 content: extracted
 html: 2024-12-23-xai-raises-6b-series-c.html

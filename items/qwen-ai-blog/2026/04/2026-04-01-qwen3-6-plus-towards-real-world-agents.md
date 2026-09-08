@@ -3,7 +3,7 @@ title: 'Qwen3.6-Plus: Towards Real World Agents'
 link: https://qwen.ai/blog?id=qwen3.6
 source: qwen-ai-blog
 published: 2026-04-01T20:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:
@@ -47,7 +47,7 @@ images:
   - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-f97efb40c45a.webp
     width: 1280
     height: 720
-  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-0bd7fa9a3523.webp
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-85f41248a410.webp
     width: 1600
     height: 900
   - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-d2ba09d8841c.webp
@@ -123,7 +123,7 @@ images:
   - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-aa9ff273cddd.webp
     width: 320
     height: 240
-  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-b13bd2f79315.webp
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-c6f451aee32d.webp
     width: 640
     height: 480
   - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a63771369d16.webp

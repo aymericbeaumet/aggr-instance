@@ -3,7 +3,7 @@ title: Grok Imagine Quality Mode API
 link: https://x.ai/news/grok-imagine-quality-mode
 source: x-ai-news
 published: 2026-05-06T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Higher realism. Stronger text rendering. Better creative control.
 content: extracted
 html: 2026-05-06-grok-imagine-quality-mode-api.html

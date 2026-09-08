@@ -3,7 +3,7 @@ title: Grok Build on web and mobile
 link: https://x.ai/news/grok-build-for-everyone
 source: x-ai-news
 published: 2026-08-19T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok Build is now available on every plan, on the web and on mobile.
 content: extracted
 html: 2026-08-19-grok-build-on-web-and-mobile.html

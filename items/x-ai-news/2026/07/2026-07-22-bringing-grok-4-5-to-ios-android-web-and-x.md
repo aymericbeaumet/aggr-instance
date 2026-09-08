@@ -3,21 +3,25 @@ title: Bringing Grok 4.5 to iOS, Android, Web, and X
 link: https://x.ai/news/grok-4-5-everywhere
 source: x-ai-news
 published: 2026-07-22T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok 4.5, our most intelligent model yet, is now on grok.com, X, iOS, and Android.
 content: extracted
 html: 2026-07-22-bringing-grok-4-5-to-ios-android-web-and-x.html
 preview:
-  file: 2026-07-22-bringing-grok-4-5-to-ios-android-web-and-x.preview-7cfd089cd4b0.webp
+  file: 2026-07-22-bringing-grok-4-5-to-ios-android-web-and-x.preview-cc794ac982d7.webp
   width: 256
   height: 134
   color: '#242529'
 images:
 - source: https://media.x.ai/v1/website/grok-4-5-everywhere-og-e052c7ec.png
   original:
-    file: 2026-07-22-bringing-grok-4-5-to-ios-android-web-and-x.image-246928676421.jpg
+    file: 2026-07-22-bringing-grok-4-5-to-ios-android-web-and-x.image-92b2a7552718.jpg
     width: 1024
     height: 537
+  variants:
+  - file: 2026-07-22-bringing-grok-4-5-to-ios-android-web-and-x.image-1de6fc669b37.webp
+    width: 48
+    height: 25
   color: '#121727'
 ---
 

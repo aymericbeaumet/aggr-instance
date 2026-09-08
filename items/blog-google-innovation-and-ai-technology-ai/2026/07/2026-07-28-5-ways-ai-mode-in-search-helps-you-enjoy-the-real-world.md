@@ -4,7 +4,7 @@ link: https://blog.google/products-and-platforms/products/search/ai-mode-real-wo
 source: blog-google-innovation-and-ai-technology-ai
 published: 2026-07-28T13:00:00Z
 updated: 2026-07-28T13:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - ai
 - search
@@ -26,7 +26,7 @@ images:
   - file: 2026-07-28-5-ways-ai-mode-in-search-helps-you-enjoy-the-real-world.image-b28472e418ae.webp
     width: 48
     height: 27
-  - file: 2026-07-28-5-ways-ai-mode-in-search-helps-you-enjoy-the-real-world.image-edbd2b69a10d.webp
+  - file: 2026-07-28-5-ways-ai-mode-in-search-helps-you-enjoy-the-real-world.image-16e90d6a60a6.webp
     width: 320
     height: 180
   - file: 2026-07-28-5-ways-ai-mode-in-search-helps-you-enjoy-the-real-world.image-89d324192368.webp

@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=AMzaRhpaqNU
 source: youtube-com-monsieurbidouille
 published: 2025-07-23T15:28:35Z
 updated: 2026-04-28T23:09:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Monsieur Bidouille
 summary: "Le 19eme siecle a vu la construction de ponts ferrés dans toute la France. 150 ans plus tard, cet héritage doit etre remplacé. Mais comment faire ?\n\nVidéo en partenariat avec SNCF Réseau.\n\n\n💕 Soutenir la chaîne sur Tipeee : https://fr.tipeee.com/monsieur-bidouille\n\n📸 Instagram : https://www.instagram.com/mrbidouille/ \n\n✍🏻 Bluesky : https://bsky.app/profile/monsieurbidouille.fr \n\nMa chaîne : https://www.youtube.com/user/monsieurbidouille\nMon instance Peertube : https://video.monsieurbidouille.fr\nFacebook : https://www.facebook.com/monsieurbidouille\nTwitter : https://twitter.com/MrBidouille\nMastodon : https://framapiaf.org/@MonsieurBidouille @MonsieurBidouille@framapiaf.org\nSite web : https://monsieurbidouille.fr \nDiscord : https://discord.gg/93BVEz6\nTwitch : https://www.twitch.tv/monsieur_bidouille \n\n\n#train #ponts #chantiers"

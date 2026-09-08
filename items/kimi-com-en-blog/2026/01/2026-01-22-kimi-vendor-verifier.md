@@ -3,7 +3,7 @@ title: Kimi Vendor Verifier
 link: https://www.kimi.com/en/blog/kimi-vendor-verifier
 source: kimi-com-en-blog
 published: 2026-01-22T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2026-01-22
 content: extracted
 html: 2026-01-22-kimi-vendor-verifier.html
@@ -86,4 +86,4 @@ We completed full evaluation workflow validation on Two NVIDIA H20 8-GPU servers
 
 **Weights are open. The knowledge to run them correctly must be too.**
 
-We are expanding vendor coverage and seeking lighter agentic tests. **Contact Us: [\[email protected\]](https://www.kimi.com/cdn-cgi/l/email-protection#89eae6e7fde8eafda4e2ffffc9e2e0e4e0a7eae6e4)**
+We are expanding vendor coverage and seeking lighter agentic tests. **Contact Us: [\[email protected\]](https://www.kimi.com/cdn-cgi/l/email-protection#2c4f4342584d4f5801475a5a6c47454145024f4341)**

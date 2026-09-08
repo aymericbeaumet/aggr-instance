@@ -3,7 +3,7 @@ title: Grok for PowerPoint
 link: https://x.ai/news/introducing-powerpoint-addin
 source: x-ai-news
 published: 2026-06-16T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok now works inside Microsoft PowerPoint — turn outlines into slides, expand the deck, and tighten the narrative without leaving the app.
 content: extracted
 html: 2026-06-16-grok-for-powerpoint.html

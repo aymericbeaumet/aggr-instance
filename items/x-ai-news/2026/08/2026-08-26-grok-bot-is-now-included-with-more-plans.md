@@ -3,7 +3,7 @@ title: Grok Bot is now included with more plans
 link: https://x.ai/news/grok-bot-more-plans
 source: x-ai-news
 published: 2026-08-26T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok Bot is now available for SuperGrok, Cursor Pro, and all Cursor Teams plans.
 content: extracted
 html: 2026-08-26-grok-bot-is-now-included-with-more-plans.html

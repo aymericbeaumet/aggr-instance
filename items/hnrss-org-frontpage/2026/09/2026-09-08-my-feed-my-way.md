@@ -4,10 +4,10 @@ link: https://www.pm.gov.au/media/my-feed-my-way
 source: hnrss-org-frontpage
 published: 2026-09-08T05:10:36Z
 updated: 2026-09-08T05:10:36Z
-first_seen: 2026-09-08T09:02:26.443710107Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - dotcoma
-summary: 'Article URL: https://www.pm.gov.au/media/my-feed-my-way Comments URL: https://news.ycombinator.com/item?id=49605782 Points: 105 # Comments: 70'
+summary: 'Article URL: https://www.pm.gov.au/media/my-feed-my-way Comments URL: https://news.ycombinator.com/item?id=49605782 Points: 122 # Comments: 91'
 content: extracted
 html: 2026-09-08-my-feed-my-way.html
 preview:

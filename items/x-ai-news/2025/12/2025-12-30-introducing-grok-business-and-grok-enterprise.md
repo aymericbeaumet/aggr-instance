@@ -3,7 +3,7 @@ title: Introducing Grok Business and Grok Enterprise
 link: https://x.ai/news/grok-business
 source: x-ai-news
 published: 2025-12-30T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: The best assistant in the world is now Enterprise ready.
 content: extracted
 html: 2025-12-30-introducing-grok-business-and-grok-enterprise.html

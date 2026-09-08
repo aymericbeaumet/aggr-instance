@@ -3,8 +3,8 @@ title: Flying a plane badly, on purpose.
 link: https://www.youtube.com/watch?v=YwxiF2Gqtww
 source: youtube-com-tomscottgo
 published: 2026-09-07T15:00:13Z
-updated: 2026-09-07T15:00:45Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+updated: 2026-09-08T10:11:30Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Tom Scott
 summary: |-

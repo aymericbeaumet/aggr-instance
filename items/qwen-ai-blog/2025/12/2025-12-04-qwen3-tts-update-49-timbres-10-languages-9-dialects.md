@@ -3,7 +3,7 @@ title: Qwen3-TTS Update! 49 Timbres + 10 Languages + 9 Dialects
 link: https://qwen.ai/blog?id=qwen3-tts-1128
 source: qwen-ai-blog
 published: 2025-12-04T16:00:04Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:
@@ -41,7 +41,7 @@ images:
   - file: 2025-12-04-qwen3-tts-update-49-timbres-10-languages-9-dialects.image-d4675df697b5.webp
     width: 640
     height: 196
-  - file: 2025-12-04-qwen3-tts-update-49-timbres-10-languages-9-dialects.image-aaad8bfd7e66.webp
+  - file: 2025-12-04-qwen3-tts-update-49-timbres-10-languages-9-dialects.image-825713478205.webp
     width: 960
     height: 293
   - file: 2025-12-04-qwen3-tts-update-49-timbres-10-languages-9-dialects.image-21ae0bca4fb1.webp

@@ -3,7 +3,7 @@ title: 'Qwen-RobotWorld: Boundless Worlds for Embodied Agents'
 link: https://qwen.ai/blog?id=qwen-robotworld
 source: qwen-ai-blog
 published: 2026-06-16T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:
@@ -125,7 +125,7 @@ images:
   - file: 2026-06-16-qwen-robotworld-boundless-worlds-for-embodied-agents.image-ed004ebac038.webp
     width: 960
     height: 475
-  - file: 2026-06-16-qwen-robotworld-boundless-worlds-for-embodied-agents.image-a5edc2a87127.webp
+  - file: 2026-06-16-qwen-robotworld-boundless-worlds-for-embodied-agents.image-08da6ba90a8a.webp
     width: 1280
     height: 634
   - file: 2026-06-16-qwen-robotworld-boundless-worlds-for-embodied-agents.image-9c615e01f742.webp

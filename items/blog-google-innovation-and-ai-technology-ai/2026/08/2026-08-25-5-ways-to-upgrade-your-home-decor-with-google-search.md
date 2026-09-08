@@ -4,7 +4,7 @@ link: https://blog.google/products-and-platforms/products/search/home-decor-tips
 source: blog-google-innovation-and-ai-technology-ai
 published: 2026-08-25T16:00:00Z
 updated: 2026-08-25T16:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - ai
 - search

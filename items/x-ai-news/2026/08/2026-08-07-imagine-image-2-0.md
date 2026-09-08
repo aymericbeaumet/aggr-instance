@@ -3,7 +3,7 @@ title: Imagine Image 2.0
 link: https://x.ai/news/grok-imagine-image-2
 source: x-ai-news
 published: 2026-08-07T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Precise image generation and editing, built for real creative work.
 content: extracted
 html: 2026-08-07-imagine-image-2-0.html

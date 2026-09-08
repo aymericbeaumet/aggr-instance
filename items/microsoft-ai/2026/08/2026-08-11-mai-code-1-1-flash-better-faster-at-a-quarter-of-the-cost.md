@@ -4,7 +4,7 @@ link: https://microsoft.ai/news/mai-code-1-1-flash-br-better-faster-at-a-quarter
 source: microsoft-ai
 published: 2026-08-11T17:00:00Z
 updated: 2026-08-11T17:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - kyleburgess@microsoft.com
 summary: 'The post MAI-Code-1.1-Flash: Better, faster, at a quarter of the cost appeared first on Microsoft AI.'

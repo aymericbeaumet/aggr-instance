@@ -3,7 +3,7 @@ title: Grok-1.5 Vision Preview
 link: https://x.ai/news/grok-1.5v
 source: x-ai-news
 published: 2024-04-12T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Connecting the digital and physical worlds with our first multimodal model.
 content: extracted
 html: 2024-04-12-grok-1-5-vision-preview.html

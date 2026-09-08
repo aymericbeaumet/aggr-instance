@@ -4,10 +4,10 @@ link: https://d2lang.com/blog/tala-is-open-source/
 source: hnrss-org-frontpage
 published: 2026-09-07T23:37:42Z
 updated: 2026-09-07T23:37:42Z
-first_seen: 2026-09-08T04:23:50.420238947Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - alixanderwang
-summary: 'Article URL: https://d2lang.com/blog/tala-is-open-source/ Comments URL: https://news.ycombinator.com/item?id=49604150 Points: 127 # Comments: 10'
+summary: 'Article URL: https://d2lang.com/blog/tala-is-open-source/ Comments URL: https://news.ycombinator.com/item?id=49604150 Points: 226 # Comments: 15'
 content: extracted
 html: 2026-09-07-tala-is-open-source.html
 preview:

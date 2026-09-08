@@ -4,10 +4,10 @@ link: https://weirdgloop.org/blog/google-jail
 source: hnrss-org-frontpage
 published: 2026-09-08T01:57:23Z
 updated: 2026-09-08T01:57:23Z
-first_seen: 2026-09-08T09:02:26.443710107Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - pizzaiolo
-summary: 'Article URL: https://weirdgloop.org/blog/google-jail Comments URL: https://news.ycombinator.com/item?id=49604870 Points: 106 # Comments: 40'
+summary: 'Article URL: https://weirdgloop.org/blog/google-jail Comments URL: https://news.ycombinator.com/item?id=49604870 Points: 152 # Comments: 51'
 content: extracted
 html: 2026-09-08-there-s-a-new-google-jail-for-independent-wikis.html
 preview:

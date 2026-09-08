@@ -3,7 +3,7 @@ title: Bringing real-time market sentiment to Tori, from eToro
 link: https://x.ai/news/grok-etoro
 source: x-ai-news
 published: 2026-06-10T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Tori, eToro’s AI agent, uses models from SpaceXAI to embed real-time market sentiment directly into Tori’s investing workflow.
 content: extracted
 html: 2026-06-10-bringing-real-time-market-sentiment-to-tori-from-etoro.html
@@ -15,7 +15,7 @@ preview:
 images:
 - source: https://media.x.ai/v1/website/etoro-spacexai-3fe41273.png
   original:
-    file: 2026-06-10-bringing-real-time-market-sentiment-to-tori-from-etoro.image-915249e40fe9.png
+    file: 2026-06-10-bringing-real-time-market-sentiment-to-tori-from-etoro.image-c5e0f1206f93.png
     width: 1200
     height: 630
   variants:

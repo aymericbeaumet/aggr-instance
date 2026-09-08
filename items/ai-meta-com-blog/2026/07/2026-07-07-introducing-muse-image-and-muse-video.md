@@ -3,7 +3,7 @@ title: Introducing Muse Image and Muse Video
 link: https://ai.meta.com/blog/introducing-muse-image-muse-video-msl/
 source: ai-meta-com-blog
 published: 2026-07-07T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 content: extracted
 html: 2026-07-07-introducing-muse-image-and-muse-video.html
 preview:
@@ -12,7 +12,7 @@ preview:
   height: 144
   color: '#5d5348'
 images:
-- source: https://scontent-sjc3-1.xx.fbcdn.net/v/t39.2365-6/740903239_1399413145578607_7846806312558871713_n.webp?_nc_cat=110&ccb=1-7&_nc_sid=e280be&_nc_ohc=EM0hSPCteXkQ7kNvwFnbBU2&_nc_oc=Adq6rSMUZFcSN6O6SZp3kReLqtKpdDEz2qBS399_ZmO2mM6wXkhxzCE6JvHcj1tzj0I&_nc_zt=14&_nc_ht=scontent-sjc3-1.xx&_nc_gid=jpLhW6UxrNaw-cjvDGmDWA&_nc_ss=7b20f&oh=00_AQJMqYpll0KmsHekZTInSOporeECLvIr7CsZGX2ijtjU_w&oe=6AB925E1
+- source: https://scontent-cdg4-3.xx.fbcdn.net/v/t39.2365-6/740903239_1399413145578607_7846806312558871713_n.webp?_nc_cat=110&ccb=1-7&_nc_sid=e280be&_nc_ohc=EM0hSPCteXkQ7kNvwF_sahz&_nc_oc=AdomiVSM4CqXmU7X4PYEcQus1vwDIKk8YDNP6SMNRnfwhHvEwrQz8XTvSa4AGj1yVXE&_nc_zt=14&_nc_ht=scontent-cdg4-3.xx&_nc_gid=sFn0LLusRXOHT2eaIYUsSQ&_nc_ss=7b20f&oh=00_AQJOnJtxSOY-seo1KapF0q5KYwHI5GWdQwk4PtAGZm8D7A&oe=6ABA06E1
   original:
     file: 2026-07-07-introducing-muse-image-and-muse-video.image-44d479782a05.webp
     width: 512

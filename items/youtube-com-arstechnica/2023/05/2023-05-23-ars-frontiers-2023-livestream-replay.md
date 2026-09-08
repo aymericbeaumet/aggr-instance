@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=smehSfvnymQ
 source: youtube-com-arstechnica
 published: 2023-05-23T13:53:58Z
 updated: 2026-05-05T03:22:26Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Ars Technica
 summary: Over the course of a day, our Ars Frontiers event will explore the modern interconnectedness of innovation in areas like machine learning & artificial intelligence, space exploration & climate change, and healthcare & epidemiology.  Learn more about our speakers and topics at https://frontiers.arstechnica.com.

@@ -3,7 +3,7 @@ title: Kimi-Researcher
 link: https://moonshotai.github.io/Kimi-Researcher/
 source: kimi-com-en-blog
 published: 2025-06-20T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2025-06-20
 content: extracted
 html: 2025-06-20-kimi-researcher.html

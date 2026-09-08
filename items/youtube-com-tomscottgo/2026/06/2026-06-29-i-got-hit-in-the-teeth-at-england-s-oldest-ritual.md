@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=hCZwH5CSlEY
 source: youtube-com-tomscottgo
 published: 2026-06-29T15:00:04Z
 updated: 2026-07-27T15:26:08Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Tom Scott
 summary: "In the village of Abbots Bromley in Staffordshire, I join the oldest village tradition in Britain: the Horn Dance. | AD: 🌍 Download Saily now, avoid expensive roaming charges later: https://saily.com/tomscott | 🗺️ England series map: https://www.tomscott.com/england/\n\n🟥 MORE FROM TOM: https://www.tomscott.com/\n(you can find contact details and social links there too)\n❓ LATERAL, free weekly podcast: https://lateralcast.com/ https://youtube.com/lateralcast/\n👥 THE TECHNICAL DIFFICULTIES: https://youtube.com/techdif\n\nWritten and presented by\nTom Scott\n\nProducers\nfor Penny4 https://penny4.co.uk/\nCambria Bailey-Jones\nGuy Larsen\n\nStudio Associate Producer\nHeloise Lowenthal\n\nStudio Director of Photography\nJamie MacLeod\n\nStudio Gaffer\nFrank Hammond\n\nHead of Post\nfor Breadbox Studios https://www.breadboxstudios.co.uk/\nMandy Celine\n\nAssociate Post Producer\nIsla McTear\n\nSenior Editor\nMyles Wheeler \n\nOnline Editor \nJamie MacLeod\n\nAssistant Editor\nDaniel Vamosi\n\nSound Supervisor\nDan Pugsley\n\nSound Assistant\nMaggy Apodaca\n\nSubtitles by So Speedy https://www.sospeedy.co.uk/\n\nWith thanks to the Historic County Borders Project https://www.county-borders.co.uk/\n\nSelect imagery/video supplied by Getty Images\n\nExecutive Producer\nTom Scott\n\n© Pad 26 Limited MMXXVI"

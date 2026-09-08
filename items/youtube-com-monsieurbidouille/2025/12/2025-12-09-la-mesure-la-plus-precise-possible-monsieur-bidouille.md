@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=UDIdE8n6FoM
 source: youtube-com-monsieurbidouille
 published: 2025-12-09T16:12:41Z
 updated: 2026-04-15T00:27:47Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Monsieur Bidouille
 summary: "Aujourd'hui on va parler de métrologie : une des choses les plus importantes qui sert de base à tout : science, commerce, industrie, etc. \n\nVidéo en partenariat avec le LNE à l’occasion des 150ans du mètre : https://www.lne.fr/fr \n\n\n💕 Soutenir la chaîne sur Tipeee : https://fr.tipeee.com/monsieur-bidouille\n\n📸 Instagram : https://www.instagram.com/mrbidouille/ \n\n✍🏻 Bluesky : https://bsky.app/profile/monsieurbidouille.fr \n\nMa chaîne : https://www.youtube.com/user/monsieurbidouille\nMon instance Peertube : https://video.monsieurbidouille.fr\nFacebook : https://www.facebook.com/monsieurbidouille\nTwitter : https://twitter.com/MrBidouille\nMastodon : https://framapiaf.org/@MonsieurBidouille @MonsieurBidouille@framapiaf.org\nSite web : https://monsieurbidouille.fr \nDiscord : https://discord.gg/93BVEz6\nTwitch : https://www.twitch.tv/monsieur_bidouille\n\n#métrologie #mètre #reportage"

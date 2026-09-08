@@ -3,7 +3,7 @@ title: 'Qwen DeepResearch: When Inspiration Becomes Its Own Reason'
 link: https://qwen.ai/blog?id=qwen-deepresearch
 source: qwen-ai-blog
 published: 2025-11-12T20:59:26Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:
@@ -87,7 +87,7 @@ images:
   - file: 2025-11-12-qwen-deepresearch-when-inspiration-becomes-its-own-reason.image-b7f85c806522.webp
     width: 1280
     height: 661
-  - file: 2025-11-12-qwen-deepresearch-when-inspiration-becomes-its-own-reason.image-9f221122b833.webp
+  - file: 2025-11-12-qwen-deepresearch-when-inspiration-becomes-its-own-reason.image-9a631926b475.webp
     width: 1600
     height: 826
   - file: 2025-11-12-qwen-deepresearch-when-inspiration-becomes-its-own-reason.image-e0ac3f5c5ab7.webp

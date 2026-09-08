@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=p5L5D0WY2aI
 source: youtube-com-hygienementale
 published: 2018-06-26T16:13:29Z
 updated: 2026-05-30T00:27:08Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Hygiène Mentale
 summary: "Björk (1988) -  dans l’émission islandaise \"The Sugarcubes\"\nUne touchante explication du fonctionnement de la télévision par Björk. \nIl y a de la poésie dans sa façon d'expliquer la démarche scientifique.\nNe laissez pas les vieux poètes aigris vous mentir."

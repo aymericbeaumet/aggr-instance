@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=GOu_05J_fdc
 source: youtube-com-theprimetimeagen
 published: 2026-09-01T18:14:38Z
 updated: 2026-09-05T04:26:05Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - The PrimeTime
 summary: "https://twitch.tv/ThePrimeagen - I Stream on Twitch\n\nhttps://twitter.com/terminaldotshop - Want to order coffee over SSH?\nssh terminal.shop\n\nBecome Backend Dev: https://boot.dev/prime\n(plus i make courses for them)\n\nThis is also the best way to support me is to support yourself becoming a better backend engineer.  \n\nGreat News?  Want me to research and create video????: https://www.reddit.com/r/ThePrimeagen\n\nKinesis Advantage 360: https://bit.ly/Prime-Kinesis"

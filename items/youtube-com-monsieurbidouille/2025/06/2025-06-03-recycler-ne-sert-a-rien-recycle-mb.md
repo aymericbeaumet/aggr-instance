@@ -3,8 +3,8 @@ title: Recycler ne sert à rien ?? ♻️ - MB
 link: https://www.youtube.com/watch?v=-leGbUY9DiQ
 source: youtube-com-monsieurbidouille
 published: 2025-06-03T15:00:02Z
-updated: 2026-05-19T21:27:59Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+updated: 2026-09-05T23:29:27Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Monsieur Bidouille
 summary: "Pour voir l’interview en entier : https://youtu.be/mIedSAQCAGc \nLes autres vidéos \n\n\n\n\n\n💕 Soutenir la chaîne sur Tipeee : https://fr.tipeee.com/monsieur-bidouille\n\n📸 Instagram : https://www.instagram.com/mrbidouille/ \n\n✍🏻 Bluesky : https://bsky.app/profile/monsieurbidouille.fr \n\nMa chaîne : https://www.youtube.com/user/monsieurbidouille\nMon instance Peertube : https://video.monsieurbidouille.fr\nFacebook : https://www.facebook.com/monsieurbidouille\nTwitter : https://twitter.com/MrBidouille\nMastodon : https://framapiaf.org/@MonsieurBidouille @MonsieurBidouille@framapiaf.org\nSite web : https://monsieurbidouille.fr \nDiscord : https://discord.gg/93BVEz6\nTwitch : https://www.twitch.tv/monsieur_bidouille\n\nSOURCES : \nRapport du Resource Panel de l’ONU : https://www.resourcepanel.org/sites/default/files/documents/document/media/gro24_spm_1mar_final_for_web.pdf \nFrançois Grosse : https://lapenseeecologique.com/une-strategie-quasi-circulaire-un-modele-deconomie-circulaire-des-matieres-premieres-non-renouvelables/\nRecycling of Critical Minerals – IEA : https://www.iea.org/reports/recycling-of-critical-minerals\n\nLe CEREGE : https://www.cerege.fr/fr/ \nl’IRD : https://www.ird.fr/ \n\n#recyclage #science #métaux"

@@ -3,7 +3,7 @@ title: Grok Bot now works with X
 link: https://x.ai/news/grok-bot-and-x
 source: x-ai-news
 published: 2026-08-29T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 content: extracted
 html: 2026-08-29-grok-bot-now-works-with-x.html
 preview:

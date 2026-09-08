@@ -3,7 +3,7 @@ title: Announcing Grok-1.5
 link: https://x.ai/news/grok-1.5
 source: x-ai-news
 published: 2024-03-28T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok-1.5 comes with improved reasoning capabilities and a context length of 128,000 tokens. Available on 𝕏 soon.
 content: extracted
 html: 2024-03-28-announcing-grok-1-5.html

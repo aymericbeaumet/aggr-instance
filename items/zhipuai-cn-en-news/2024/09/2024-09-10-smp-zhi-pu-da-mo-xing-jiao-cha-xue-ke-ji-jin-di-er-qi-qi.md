@@ -3,7 +3,7 @@ title: “SMP-智谱大模型交叉学科基金”第二期启动申报
 link: https://www.zhipuai.cn/en/news/63
 source: zhipuai-cn-en-news
 published: 2024-09-10T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/09/10
 content: extracted
 html: 2024-09-10-smp-zhi-pu-da-mo-xing-jiao-cha-xue-ke-ji-jin-di-er-qi-qi.html

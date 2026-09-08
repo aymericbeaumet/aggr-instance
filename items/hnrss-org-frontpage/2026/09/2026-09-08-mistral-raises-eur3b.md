@@ -4,10 +4,10 @@ link: https://mistral.ai/news/mistral-makes-sovereign-open-weight-ai-to-frontier
 source: hnrss-org-frontpage
 published: 2026-09-08T05:06:23Z
 updated: 2026-09-08T05:06:23Z
-first_seen: 2026-09-08T09:02:26.443710107Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - kuberwastaken
-summary: 'Article URL: https://mistral.ai/news/mistral-makes-sovereign-open-weight-ai-to-frontier/ Comments URL: https://news.ycombinator.com/item?id=49605767 Points: 389 # Comments: 247'
+summary: 'Article URL: https://mistral.ai/news/mistral-makes-sovereign-open-weight-ai-to-frontier/ Comments URL: https://news.ycombinator.com/item?id=49605767 Points: 465 # Comments: 324'
 content: extracted
 html: 2026-09-08-mistral-raises-eur3b.html
 preview:

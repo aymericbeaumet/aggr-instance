@@ -4,10 +4,10 @@ link: https://www.ox.ac.uk/news/2026-08-28-scientists-observe-einsteins-gravity-
 source: hnrss-org-frontpage
 published: 2026-09-04T20:28:52Z
 updated: 2026-09-04T20:28:52Z
-first_seen: 2026-09-08T04:23:50.420238947Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - mudil
-summary: 'https://www.youtube.com/watch?v=CfjnTJos_no Comments URL: https://news.ycombinator.com/item?id=49569838 Points: 171 # Comments: 42'
+summary: 'https://www.youtube.com/watch?v=CfjnTJos_no Comments URL: https://news.ycombinator.com/item?id=49569838 Points: 222 # Comments: 59'
 content: feed
 html: 2026-09-04-scientists-observe-einstein-s-gravity-in-the-quantum-world.html
 ---
@@ -18,6 +18,6 @@ html: 2026-09-04-scientists-observe-einstein-s-gravity-in-the-quantum-world.html
 
 Comments URL: [https://news.ycombinator.com/item?id=49569838](https://news.ycombinator.com/item?id=49569838)
 
-Points: 171
+Points: 222
 
-\# Comments: 42
+\# Comments: 59

@@ -3,7 +3,7 @@ title: 智谱携基座大模型 GLM-4-Plus 亮相 KDD，清言全新升级视频
 link: https://www.zhipuai.cn/en/news/69
 source: zhipuai-cn-en-news
 published: 2024-09-12T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/09/12
 content: extracted
 html: 2024-09-12-zhi-pu-xi-ji-zuo-da-mo-xing-glm-4-plus-liang-xiang-kdd-qing.html

@@ -4,7 +4,7 @@ link: https://blog.google/innovation-and-ai/technology/ai/google-ai-updates-july
 source: blog-google-innovation-and-ai-technology-ai
 published: 2026-08-04T13:00:00Z
 updated: 2026-08-04T13:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - ai
 - android

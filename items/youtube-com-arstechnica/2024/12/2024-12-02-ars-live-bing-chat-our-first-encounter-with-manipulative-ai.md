@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=j14HqsrOZVA
 source: youtube-com-arstechnica
 published: 2024-12-02T19:44:34Z
 updated: 2026-08-29T09:10:30Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Ars Technica
 summary: In February 2023, Microsoft launched Bing Chat, a tempermental chatbot that gave the world a preview of an unhinged version of OpenAI’s GPT-4 prior to its official release. Its “emotional” nature (including use of emojis) set off alarm bells in the AI alignment community, and the bot tusseled with journalists. With AI researcher Simon Willison, Benj will explore the impact and fallout of the 2023 fiasco.

@@ -3,7 +3,7 @@ title: xAI Raises $20B Series E
 link: https://x.ai/news/series-e
 source: x-ai-news
 published: 2026-01-06T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: xAI is rapidly accelerating its progress in building advanced AI.
 content: extracted
 html: 2026-01-06-xai-raises-20b-series-e.html

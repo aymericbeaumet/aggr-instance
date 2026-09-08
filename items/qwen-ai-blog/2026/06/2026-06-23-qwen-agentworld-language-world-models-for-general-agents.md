@@ -3,7 +3,7 @@ title: 'Qwen-AgentWorld: Language World Models for General Agents'
 link: https://qwen.ai/blog?id=qwen-agentworld
 source: qwen-ai-blog
 published: 2026-06-23T03:30:30Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:
@@ -156,7 +156,7 @@ images:
   - file: 2026-06-23-qwen-agentworld-language-world-models-for-general-agents.image-c22b33ffad30.webp
     width: 960
     height: 333
-  - file: 2026-06-23-qwen-agentworld-language-world-models-for-general-agents.image-90a2e40bad02.webp
+  - file: 2026-06-23-qwen-agentworld-language-world-models-for-general-agents.image-68e3a780473e.webp
     width: 1280
     height: 443
   - file: 2026-06-23-qwen-agentworld-language-world-models-for-general-agents.image-d8bbd3206293.webp

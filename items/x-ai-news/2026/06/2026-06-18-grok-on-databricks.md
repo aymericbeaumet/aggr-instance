@@ -3,7 +3,7 @@ title: Grok on Databricks
 link: https://x.ai/news/grok-databricks
 source: x-ai-news
 published: 2026-06-18T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok models are now available on Databricks Agent Bricks.
 content: extracted
 html: 2026-06-18-grok-on-databricks.html

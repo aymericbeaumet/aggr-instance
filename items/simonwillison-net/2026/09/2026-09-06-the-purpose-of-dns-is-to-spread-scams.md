@@ -4,7 +4,7 @@ link: https://simonwillison.net/2026/Sep/6/the-purpose-of-dns-is-to-spread-scams
 source: simonwillison-net
 published: 2026-09-06T14:40:07Z
 updated: 2026-09-06T14:40:07Z
-first_seen: 2026-09-06T16:09:29.651365037Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - dns
 - scams

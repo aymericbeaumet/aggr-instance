@@ -3,7 +3,7 @@ title: 智谱GLM端侧大模型获得信通院可信AI端侧大模型评估最�
 link: https://www.zhipuai.cn/en/news/134
 source: zhipuai-cn-en-news
 published: 2024-09-10T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/09/10
 content: extracted
 html: 2024-09-10-zhi-pu-glmduan-ce-da-mo-xing-huo-de-xin-tong-yuan-ke-xin.html

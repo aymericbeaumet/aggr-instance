@@ -3,7 +3,7 @@ title: Qwen3-Omni-Flash-2025-12-01：Hear You. See You. Follow Smarter!
 link: https://qwen.ai/blog?id=qwen3-omni-flash-20251201
 source: qwen-ai-blog
 published: 2025-12-08T21:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:

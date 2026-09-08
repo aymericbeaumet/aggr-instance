@@ -4,7 +4,7 @@ link: https://simonwillison.net/2026/Sep/7/jakub-pachocki/
 source: simonwillison-net
 published: 2026-09-07T22:26:25Z
 updated: 2026-09-07T22:26:25Z
-first_seen: 2026-09-07T22:34:46.032173704Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - ai
 - ai-ethics

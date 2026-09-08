@@ -3,7 +3,7 @@ title: Connectors in web, iOS, and Android
 link: https://x.ai/news/grok-connectors
 source: x-ai-news
 published: 2026-05-06T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Deep integrations that bring the apps you use every day directly into Grok.
 content: extracted
 html: 2026-05-06-connectors-in-web-ios-and-android.html

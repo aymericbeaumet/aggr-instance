@@ -3,7 +3,7 @@ title: 智谱荣耀AI大模型技术联合实验室揭牌
 link: https://www.zhipuai.cn/en/news/138
 source: zhipuai-cn-en-news
 published: 2024-09-12T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/09/12
 content: extracted
 html: 2024-09-12-zhi-pu-rong-yao-aida-mo-xing-ji-shu-lian-he-shi-yan-shi-jie.html

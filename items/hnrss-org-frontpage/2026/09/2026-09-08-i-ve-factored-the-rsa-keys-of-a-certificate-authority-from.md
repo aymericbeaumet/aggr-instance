@@ -4,10 +4,10 @@ link: https://mcpherrin.ca/2026/09/07/rsa.html
 source: hnrss-org-frontpage
 published: 2026-09-08T01:16:59Z
 updated: 2026-09-08T01:16:59Z
-first_seen: 2026-09-08T04:23:50.420238947Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - ahlCVA
-summary: 'Article URL: https://mcpherrin.ca/2026/09/07/rsa.html Comments URL: https://news.ycombinator.com/item?id=49604637 Points: 159 # Comments: 29'
+summary: 'Article URL: https://mcpherrin.ca/2026/09/07/rsa.html Comments URL: https://news.ycombinator.com/item?id=49604637 Points: 336 # Comments: 58'
 content: extracted
 html: 2026-09-08-i-ve-factored-the-rsa-keys-of-a-certificate-authority-from.html
 preview:

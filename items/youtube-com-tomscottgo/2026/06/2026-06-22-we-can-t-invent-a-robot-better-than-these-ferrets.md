@@ -3,8 +3,8 @@ title: We can't invent a robot better than these ferrets
 link: https://www.youtube.com/watch?v=Mi_fYfpycT0
 source: youtube-com-tomscottgo
 published: 2026-06-22T15:00:17Z
-updated: 2026-07-27T15:26:09Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+updated: 2026-09-01T03:40:15Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Tom Scott
 summary: "In Derbyshire, at the National Ferret School, I say \"hello\" to some smelly thieves, and go on a surprisingly Biblical tangent.\n\nThe National Ferret School: https://www.ferret-school.co.uk/\n\n🟥 MORE FROM TOM: https://www.tomscott.com/\n(you can find contact details and social links there too)\n❓ LATERAL, free weekly podcast: https://lateralcast.com/ https://youtube.com/lateralcast/\n👥 THE TECHNICAL DIFFICULTIES: https://youtube.com/techdif\n\nWritten and presented by\nTom Scott\n\nProducers\nfor Penny4 https://penny4.co.uk/\nCambria Bailey-Jones\nGuy Larsen\n\nStudio Associate Producer\nHeloise Lowenthal\n\nStudio Director of Photography\nJamie MacLeod\n\nStudio Gaffer\nFrank Hammond\n\nHead of Post\nfor Breadbox Studios https://www.breadboxstudios.co.uk/\nMandy Celine\n\nAssociate Post Producer\nIsla McTear\n\nSenior Editor\nMyles Wheeler \n\nOnline Editor \nJamie MacLeod\n\nAssistant Editor\nBethan Leadley\n\nSound Supervisor\nDan Pugsley\n\nSound Assistant\nMaggy Apodaca\n\nSubtitles by So Speedy https://www.sospeedy.co.uk/\n\nSelect imagery/video supplied by Getty Images\n\nWith thanks to the Historic County Borders Project https://www.county-borders.co.uk/\n\nExecutive Producer\nTom Scott\n\n© Pad 26 Limited MMXXVI"

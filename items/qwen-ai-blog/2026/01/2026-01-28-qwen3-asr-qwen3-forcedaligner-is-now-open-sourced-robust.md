@@ -3,7 +3,7 @@ title: 'Qwen3-ASR & Qwen3-ForcedAligner is Now Open Sourced: Robust, Streaming a
 link: https://qwen.ai/blog?id=qwen3asr
 source: qwen-ai-blog
 published: 2026-01-28T16:00:04Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:

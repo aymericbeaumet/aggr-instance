@@ -3,7 +3,7 @@ title: Open Release of Grok-1
 link: https://x.ai/news/grok-os
 source: x-ai-news
 published: 2024-03-17T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: We are releasing the weights and architecture of our 314 billion parameter Mixture-of-Experts model Grok-1.
 content: extracted
 html: 2024-03-17-open-release-of-grok-1.html

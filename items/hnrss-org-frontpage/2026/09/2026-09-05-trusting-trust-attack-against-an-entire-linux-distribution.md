@@ -4,10 +4,10 @@ link: https://arxiv.org/abs/2607.24888
 source: hnrss-org-frontpage
 published: 2026-09-05T11:25:18Z
 updated: 2026-09-05T11:25:18Z
-first_seen: 2026-09-08T04:23:50.420238947Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - signa11
-summary: 'Article URL: https://arxiv.org/abs/2607.24888 Comments URL: https://news.ycombinator.com/item?id=49575515 Points: 175 # Comments: 37'
+summary: 'Article URL: https://arxiv.org/abs/2607.24888 Comments URL: https://news.ycombinator.com/item?id=49575515 Points: 208 # Comments: 44'
 content: extracted
 html: 2026-09-05-trusting-trust-attack-against-an-entire-linux-distribution.html
 preview:

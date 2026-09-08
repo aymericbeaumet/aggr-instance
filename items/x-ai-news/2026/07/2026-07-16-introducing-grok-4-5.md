@@ -3,7 +3,7 @@ title: Introducing Grok 4.5
 link: https://x.ai/news/grok-4-5
 source: x-ai-news
 published: 2026-07-16T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok 4.5 is SpaceXAI's smartest model built for coding, agentic tasks, and knowledge work.
 content: extracted
 html: 2026-07-16-introducing-grok-4-5.html

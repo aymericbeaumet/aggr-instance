@@ -3,7 +3,7 @@ title: Imagine Video 1.5 with References
 link: https://x.ai/news/grok-imagine-video-1-5-references
 source: x-ai-news
 published: 2026-07-31T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Our best video model, now with text, image, and voice references — generating up to 1080p.
 content: extracted
 html: 2026-07-31-imagine-video-1-5-with-references.html

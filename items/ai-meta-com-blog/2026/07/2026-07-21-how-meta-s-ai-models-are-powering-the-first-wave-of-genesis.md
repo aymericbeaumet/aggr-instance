@@ -3,7 +3,7 @@ title: How Meta’s AI Models Are Powering the First Wave of Genesis Mission Pro
 link: https://ai.meta.com/blog/genesis-mission-lawrence-berkeley-national-laboratory-segment-anything-dino/
 source: ai-meta-com-blog
 published: 2026-07-21T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 content: extracted
 html: 2026-07-21-how-meta-s-ai-models-are-powering-the-first-wave-of-genesis.html
 preview:
@@ -12,7 +12,7 @@ preview:
   height: 144
   color: '#2c4c59'
 images:
-- source: https://scontent-sjc3-1.xx.fbcdn.net/v/t39.2365-6/752631850_918439901272497_2117962010845605116_n.png?_nc_cat=103&ccb=1-7&_nc_sid=e280be&_nc_ohc=VIonh25JfqgQ7kNvwFIgdis&_nc_oc=AdrCZSVcb8M_HR69oqZuzzBYN-ERAyv1jbv6cOp4mrNdW3LjMqe10MDswFn5IP4lcZ8&_nc_zt=14&_nc_ht=scontent-sjc3-1.xx&_nc_gid=cFlEqjoD0LlLCuWpKUWbHA&_nc_ss=7b20f&oh=00_AQJFBi7x8VPZdi03Bjti60XlOOJSVsyiNlbw11bDJzFRFg&oe=6AB9383E
+- source: https://scontent-cdg6-1.xx.fbcdn.net/v/t39.2365-6/752631850_918439901272497_2117962010845605116_n.png?_nc_cat=103&ccb=1-7&_nc_sid=e280be&_nc_ohc=VIonh25JfqgQ7kNvwHIOJ_5&_nc_oc=AdoueeAgEZvIYGJzdugEkTkt3zF2urN0B2DLVvWAjiKD_tkf9RxrmwSzvA4BH44PKxg&_nc_zt=14&_nc_ht=scontent-cdg6-1.xx&_nc_gid=qPm3pDtUcHm0YCHtdneVDw&_nc_ss=7b20f&oh=00_AQLQ8M87ZU8M8FaGlplgWdsb0aq9WqQsNJkGTrSi5sZRBQ&oe=6ABA193E
   original:
     file: 2026-07-21-how-meta-s-ai-models-are-powering-the-first-wave-of-genesis.image-2bf4ccbeb7b1.png
     width: 1920
@@ -40,7 +40,7 @@ images:
     width: 1920
     height: 1080
   color: '#030d15'
-- source: https://scontent-sjc3-1.xx.fbcdn.net/v/t39.2365-6/752648857_903078942844172_5326165404058647623_n.png?_nc_cat=103&ccb=1-7&_nc_sid=e280be&_nc_ohc=Ig318ZPJHzcQ7kNvwFDR3m-&_nc_oc=AdocI8dfPHYkIpDVS8azRXBQBpWY40eTVpmaymCVKk6G3x0SeKO9N3uMOp60puEzvew&_nc_zt=14&_nc_ht=scontent-sjc3-1.xx&_nc_gid=cFlEqjoD0LlLCuWpKUWbHA&_nc_ss=7b20f&oh=00_AQLHBOH5OSe1jgSFcDz_0UmKTnBXo3IMRM3VsuhEuObtlA&oe=6AB91979
+- source: https://scontent-cdg6-1.xx.fbcdn.net/v/t39.2365-6/752648857_903078942844172_5326165404058647623_n.png?_nc_cat=103&ccb=1-7&_nc_sid=e280be&_nc_ohc=Ig318ZPJHzcQ7kNvwEGv-pW&_nc_oc=Adrkyucog45pmfPQ9M3SAId8o1XcaVjbnZ-ssKR6MAoXfwq0iZhnlh9yCci-FAE2JY4&_nc_zt=14&_nc_ht=scontent-cdg6-1.xx&_nc_gid=qPm3pDtUcHm0YCHtdneVDw&_nc_ss=7b20f&oh=00_AQKezW9oEEtb58TuGFDwbPCKeGjFGL1QjNBad_nbefuO_w&oe=6ABA32B9
   original:
     file: 2026-07-21-how-meta-s-ai-models-are-powering-the-first-wave-of-genesis.image-eb1dc5644d42.jpg
     width: 406
@@ -70,7 +70,7 @@ Together, the two models form a complementary pipeline: SAM delivers precise, pi
 
 The SYNAPS-I team demonstrated this pipeline on a pressing agricultural challenge — understanding how grapevines respond to drought at the cellular level. Using micro-CT scans collected at the Advanced Light Source, the pipeline reconstructs 3D volumes of vine stems and automatically identifies xylem vessels — the microscopic tubes responsible for water transport within the plant. By tracking how these vessels change as drought progresses, researchers gain insights that could inform the development of drought-resilient crops, and provide solutions for agricultural resilience into the future.
 
-![](https://scontent-sjc3-1.xx.fbcdn.net/v/t39.2365-6/752648857_903078942844172_5326165404058647623_n.png?_nc_cat=103&ccb=1-7&_nc_sid=e280be&_nc_ohc=Ig318ZPJHzcQ7kNvwFDR3m-&_nc_oc=AdocI8dfPHYkIpDVS8azRXBQBpWY40eTVpmaymCVKk6G3x0SeKO9N3uMOp60puEzvew&_nc_zt=14&_nc_ht=scontent-sjc3-1.xx&_nc_gid=cFlEqjoD0LlLCuWpKUWbHA&_nc_ss=7b20f&oh=00_AQLHBOH5OSe1jgSFcDz_0UmKTnBXo3IMRM3VsuhEuObtlA&oe=6AB91979)
+![](https://scontent-cdg6-1.xx.fbcdn.net/v/t39.2365-6/752648857_903078942844172_5326165404058647623_n.png?_nc_cat=103&ccb=1-7&_nc_sid=e280be&_nc_ohc=Ig318ZPJHzcQ7kNvwEGv-pW&_nc_oc=Adrkyucog45pmfPQ9M3SAId8o1XcaVjbnZ-ssKR6MAoXfwq0iZhnlh9yCci-FAE2JY4&_nc_zt=14&_nc_ht=scontent-cdg6-1.xx&_nc_gid=qPm3pDtUcHm0YCHtdneVDw&_nc_ss=7b20f&oh=00_AQKezW9oEEtb58TuGFDwbPCKeGjFGL1QjNBad_nbefuO_w&oe=6ABA32B9)
 
 Micro-CT scan of a grapevine stem, segmented by SYNAPS-I. Cyan: hydrated xylem vessels; dark purple: dry.
 

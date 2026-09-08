@@ -3,7 +3,7 @@ title: 受邀参加了智谱AI Z Demo Day，让我再一次相信 AGI ！
 link: https://www.zhipuai.cn/en/news/135
 source: zhipuai-cn-en-news
 published: 2024-09-10T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/09/10
 content: extracted
 html: 2024-09-10-shou-yao-can-jia-liao-zhi-pu-ai-z-demo-day-rang-wo-zai-yi.html

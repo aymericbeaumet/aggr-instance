@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=07JuOGP_2hI
 source: youtube-com-monsieurbidouille
 published: 2026-03-31T15:00:00Z
 updated: 2026-05-04T22:36:53Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Monsieur Bidouille
 summary: "➡️ Participez au débat public : https://www.debatpublic.fr/projets-nucleaires-aube-indre-et-loire \n\nDans cette vidéo nous avons l’occasion de voir un projet de réacteur 4eme génération à neutrons rapides. Technologie prometteuse sur le papier, dont Newcleo promet de résoudre les incertitudes (notamment sur la corrosion). \n\nVidéo en partenariat avec la CNDP dans le cadre du débat public sur l’éventuelle construction du réacteur LFR-AS-30\n\n\n💕 Soutenir la chaîne sur Tipeee : https://fr.tipeee.com/monsieur-bidouille\n\n📸 Instagram : https://www.instagram.com/mrbidouille/ \n\n✍🏻 Bluesky : https://bsky.app/profile/monsieurbidouille.fr \n\nPour me contacter, via le formulaire de mon site web : https://monsieurbidouille.fr\n\nMa chaîne : https://www.youtube.com/user/monsieurbidouille\nMon instance Peertube : https://video.monsieurbidouille.fr\nFacebook : https://www.facebook.com/monsieurbidouille\nTwitter : https://twitter.com/MrBidouille\nMastodon : https://framapiaf.org/@MonsieurBidouille @MonsieurBidouille@framapiaf.org\n\nTwitch : https://www.twitch.tv/monsieur_bidouille \n\nSources : \n- Techniques de l’ingénieur « Typologie des réacteurs nucléaires » \n- DMO du projet Newcleo (disponible sur le site du débat public)\n- La Centrale de Creys-Malville – Nersa - 1985\n\n\n#nucléaire #RNR #reportage"

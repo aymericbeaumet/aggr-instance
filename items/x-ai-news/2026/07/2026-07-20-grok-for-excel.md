@@ -3,7 +3,7 @@ title: Grok for Excel
 link: https://x.ai/news/introducing-excel-addin
 source: x-ai-news
 published: 2026-07-20T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Use the Grok add-in for Microsoft Excel to ask questions in plain English, write formulas, and run scenarios without leaving the workbook.
 content: extracted
 html: 2026-07-20-grok-for-excel.html

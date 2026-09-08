@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=uw6LFc34CEg
 source: youtube-com-arstechnica
 published: 2025-06-10T16:27:07Z
 updated: 2026-05-24T04:12:16Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Ars Technica
 summary: |-

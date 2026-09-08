@@ -3,7 +3,7 @@ title: xAI joins SpaceX
 link: https://x.ai/news/xai-joins-spacex
 source: x-ai-news
 published: 2026-02-02T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: SpaceX announced today that it has acquired xAI.
 content: extracted
 html: 2026-02-02-xai-joins-spacex.html

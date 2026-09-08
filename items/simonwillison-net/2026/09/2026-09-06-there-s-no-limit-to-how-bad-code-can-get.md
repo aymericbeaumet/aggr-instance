@@ -4,7 +4,7 @@ link: https://simonwillison.net/2026/Sep/6/theres-no-limit-to-how-bad-code-can-g
 source: simonwillison-net
 published: 2026-09-06T09:08:06Z
 updated: 2026-09-06T09:08:06Z
-first_seen: 2026-09-07T00:52:04.633143633Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - migrations
 - technical-debt

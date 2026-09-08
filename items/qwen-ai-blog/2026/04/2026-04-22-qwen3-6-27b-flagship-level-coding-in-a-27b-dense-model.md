@@ -3,7 +3,7 @@ title: 'Qwen3.6-27B: Flagship-Level Coding in a 27B Dense Model'
 link: https://qwen.ai/blog?id=qwen3.6-27b
 source: qwen-ai-blog
 published: 2026-04-22T02:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:

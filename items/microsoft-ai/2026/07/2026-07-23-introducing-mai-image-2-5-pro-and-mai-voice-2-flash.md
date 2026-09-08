@@ -4,7 +4,7 @@ link: https://microsoft.ai/news/introducing-mai-image-2-5-pro-and-mai-voice-2-fl
 source: microsoft-ai
 published: 2026-07-23T16:30:00Z
 updated: 2026-07-23T16:30:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - alenabu@microsoft.com
 summary: The post Introducing MAI-Image-2.5-Pro and MAI-Voice-2-Flash appeared first on Microsoft AI.

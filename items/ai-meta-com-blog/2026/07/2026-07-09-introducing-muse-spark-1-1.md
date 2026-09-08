@@ -3,7 +3,7 @@ title: Introducing Muse Spark 1.1
 link: https://ai.meta.com/blog/introducing-muse-spark-meta-model-api/
 source: ai-meta-com-blog
 published: 2026-07-09T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 content: extracted
 html: 2026-07-09-introducing-muse-spark-1-1.html
 preview:
@@ -12,7 +12,7 @@ preview:
   height: 144
   color: '#101315'
 images:
-- source: https://scontent-sjc6-1.xx.fbcdn.net/v/t39.2365-6/741906678_873652302465180_7764547737953411008_n.png?_nc_cat=104&ccb=1-7&_nc_sid=e280be&_nc_ohc=euBwfLS0s58Q7kNvwG7o9pR&_nc_oc=AdplL85tPxeem2dHg_hMQC72Y4DQEgi_tQrA1QT1v9F7gbpHMeZj297AvA4FXKpOHC0&_nc_zt=14&_nc_ht=scontent-sjc6-1.xx&_nc_gid=WhDKYAic5DLnsdMzkO55jQ&_nc_ss=7b20f&oh=00_AQJ-DJH7EAjrhw0lPZhH0jAYiM3O5zjga4eJxATEHRkN6A&oe=6AB938E6
+- source: https://scontent-cdg4-1.xx.fbcdn.net/v/t39.2365-6/741906678_873652302465180_7764547737953411008_n.png?_nc_cat=104&ccb=1-7&_nc_sid=e280be&_nc_ohc=euBwfLS0s58Q7kNvwFev4O0&_nc_oc=AdrINvT0ruRqB10qWAW39Igme0u5glM4xh5vGddM61Ua5ECQegIohoTgbhMNTuHFVSg&_nc_zt=14&_nc_ht=scontent-cdg4-1.xx&_nc_gid=nba79XwpqOZSIUFrFIDdQQ&_nc_ss=7b20f&oh=00_AQL_wH8b8vYc9i58iQhArhRUgU0bNfhz1T4ewdUfOne6XA&oe=6ABA19E6
   original:
     file: 2026-07-09-introducing-muse-spark-1-1.image-0bc74deaae87.png
     width: 2880
@@ -33,7 +33,7 @@ images:
   - file: 2026-07-09-introducing-muse-spark-1-1.image-e8a9482548aa.webp
     width: 1280
     height: 720
-  - file: 2026-07-09-introducing-muse-spark-1-1.image-3eca3fd467eb.webp
+  - file: 2026-07-09-introducing-muse-spark-1-1.image-ff333ca07e40.webp
     width: 1600
     height: 900
   - file: 2026-07-09-introducing-muse-spark-1-1.image-f10dfd698a4b.webp

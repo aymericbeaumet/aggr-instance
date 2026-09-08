@@ -3,7 +3,7 @@ title: 'Qwen-Image-2512: Finer Details, Greater Realism'
 link: https://qwen.ai/blog?id=qwen-image-2512
 source: qwen-ai-blog
 published: 2025-12-31T05:08:30Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:

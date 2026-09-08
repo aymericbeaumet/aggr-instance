@@ -3,7 +3,7 @@ title: 'FlashQLA: CP-/Bwd-Friendly Fused Linear Attention Kernels for GDN'
 link: https://qwen.ai/blog?id=flashqla
 source: qwen-ai-blog
 published: 2026-04-28T02:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:
@@ -44,7 +44,7 @@ images:
   - file: 2026-04-28-flashqla-cp-bwd-friendly-fused-linear-attention-kernels-for.image-47ca2eb4893f.webp
     width: 960
     height: 640
-  - file: 2026-04-28-flashqla-cp-bwd-friendly-fused-linear-attention-kernels-for.image-71b3dfd8f9c5.webp
+  - file: 2026-04-28-flashqla-cp-bwd-friendly-fused-linear-attention-kernels-for.image-2c553ad806cc.webp
     width: 1280
     height: 853
   - file: 2026-04-28-flashqla-cp-bwd-friendly-fused-linear-attention-kernels-for.image-f50a9676a2af.webp

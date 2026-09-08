@@ -3,7 +3,7 @@ title: Use Grok in OpenClaw
 link: https://x.ai/news/grok-openclaw
 source: x-ai-news
 published: 2026-05-19T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Use your SuperGrok or X Premium subscription inside OpenClaw, an open-source, local-first agent and personal assistant.
 content: extracted
 html: 2026-05-19-use-grok-in-openclaw.html
@@ -15,7 +15,7 @@ preview:
 images:
 - source: https://media.x.ai/v1/website/grok-openclaw-7dc35468.png
   original:
-    file: 2026-05-19-use-grok-in-openclaw.image-3bae90cf6557.png
+    file: 2026-05-19-use-grok-in-openclaw.image-1d48bbbb2f7e.png
     width: 1024
     height: 576
   color: '#000000'

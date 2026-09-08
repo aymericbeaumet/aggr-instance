@@ -3,8 +3,8 @@ title: I have a weird conspiracy theory about this bridge
 link: https://www.youtube.com/watch?v=jUa2x_xpFuM
 source: youtube-com-tomscottgo
 published: 2026-07-20T15:00:10Z
-updated: 2026-07-31T08:40:25Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+updated: 2026-08-31T23:16:48Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Tom Scott
 summary: "In Shropshire, at the Iron Bridge in Ironbridge, I have a corkboard, pins, string, and a frankly-unhinged conspiracy theory. | Watch the next episode on Nebula right now: https://nebula.tv/videos/tomscott-i-get-excited-about-an-ampersand | England series map: https://www.tomscott.com/england/\n\n🟥 MORE FROM TOM: https://www.tomscott.com/\n(you can find contact details and social links there too)\n❓ LATERAL, free weekly podcast: https://lateralcast.com/ https://youtube.com/lateralcast/\n👥 THE TECHNICAL DIFFICULTIES: https://youtube.com/techdif\n\nWritten and presented by\nTom Scott\n\nProducers\nfor Penny4 https://penny4.co.uk/\nCambria Bailey-Jones\nGuy Larsen\n\nStudio Associate Producer\nHeloise Lowenthal\n\nStudio Director of Photography\nJamie MacLeod\n\nStudio Gaffer\nFrank Hammond\n\nHead of Post\nfor Breadbox Studios https://www.breadboxstudios.co.uk/\nMandy Celine\n\nAssociate Post Producer\nIsla McTear\n\nSenior Editor\nMyles Wheeler \n\nOnline Editor \nJamie MacLeod\n\nSound Supervisor\nDan Pugsley\n\nSound Assistant\nMaggy Apodaca\n\nSubtitles by So Speedy https://www.sospeedy.co.uk/\n\nWith thanks to the Historic County Borders Project https://www.county-borders.co.uk/\n\nExecutive Producer\nTom Scott\n\n© Pad 26 Limited MMXXVI"

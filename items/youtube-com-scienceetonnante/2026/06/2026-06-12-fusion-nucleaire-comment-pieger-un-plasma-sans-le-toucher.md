@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=ltLAZsJELng
 source: youtube-com-scienceetonnante
 published: 2026-06-12T15:00:36Z
 updated: 2026-06-21T10:18:07Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - ScienceEtonnante
 summary: |-

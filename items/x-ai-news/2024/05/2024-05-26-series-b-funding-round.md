@@ -3,7 +3,7 @@ title: Series B funding round
 link: https://x.ai/news/series-b
 source: x-ai-news
 published: 2024-05-26T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: xAI is pleased to announce our series B funding round of $6 billion.
 content: extracted
 html: 2024-05-26-series-b-funding-round.html

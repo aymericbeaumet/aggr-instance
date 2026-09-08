@@ -3,7 +3,7 @@ title: Announcing Grok
 link: https://x.ai/news/grok
 source: x-ai-news
 published: 2023-11-03T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok is an AI modeled after the Hitchhiker’s Guide to the Galaxy. It is intended to answer almost anything and, far harder, even suggest what questions to ask!
 content: extracted
 html: 2023-11-03-announcing-grok.html

@@ -3,7 +3,7 @@ title: Grok goes Global with KSA
 link: https://x.ai/news/grok-goes-global
 source: x-ai-news
 published: 2025-11-19T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Announcing Our Landmark Partnership with Saudi Arabia and HUMAIN
 content: extracted
 html: 2025-11-19-grok-goes-global-with-ksa.html

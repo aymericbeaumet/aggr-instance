@@ -3,7 +3,7 @@ title: 'Qwen-Image-Edit-2511: Improve Consistency'
 link: https://qwen.ai/blog?id=qwen-image-edit-2511
 source: qwen-ai-blog
 published: 2025-12-23T05:08:30Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:

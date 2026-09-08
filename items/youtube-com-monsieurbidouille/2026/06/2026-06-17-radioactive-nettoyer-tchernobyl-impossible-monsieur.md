@@ -3,8 +3,8 @@ title: ☢️ Nettoyer Tchernobyl, impossible ? - Monsieur Bidouille
 link: https://www.youtube.com/watch?v=wEA_EQDDRnk
 source: youtube-com-monsieurbidouille
 published: 2026-06-17T14:18:52Z
-updated: 2026-06-24T20:13:15Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+updated: 2026-09-05T09:30:31Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Monsieur Bidouille
 summary: |-

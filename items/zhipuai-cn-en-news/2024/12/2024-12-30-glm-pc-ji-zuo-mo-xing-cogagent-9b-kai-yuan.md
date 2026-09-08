@@ -3,7 +3,7 @@ title: GLM-PC 基座模型，CogAgent-9B 开源
 link: https://www.zhipuai.cn/en/news/76
 source: zhipuai-cn-en-news
 published: 2024-12-30T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/12/30
 content: extracted
 html: 2024-12-30-glm-pc-ji-zuo-mo-xing-cogagent-9b-kai-yuan.html

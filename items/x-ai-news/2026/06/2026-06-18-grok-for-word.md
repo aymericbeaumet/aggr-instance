@@ -3,7 +3,7 @@ title: Grok for Word
 link: https://x.ai/news/introducing-word-addin
 source: x-ai-news
 published: 2026-06-18T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Use the Grok add-in for Microsoft Word to turn notes into documents, style and format your work, or bring research from the web into Word.
 content: extracted
 html: 2026-06-18-grok-for-word.html

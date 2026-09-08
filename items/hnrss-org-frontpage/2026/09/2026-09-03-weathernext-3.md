@@ -4,10 +4,10 @@ link: https://deepmind.google/science/weathernext/
 source: hnrss-org-frontpage
 published: 2026-09-03T16:06:08Z
 updated: 2026-09-03T16:06:08Z
-first_seen: 2026-09-07T21:27:27.912715898Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - matthieu_bl
-summary: 'Paper [pdf]: https://storage.googleapis.com/deepmind-media/papers/weather... Comments URL: https://news.ycombinator.com/item?id=49552299 Points: 122 # Comments: 18'
+summary: 'Paper [pdf]: https://storage.googleapis.com/deepmind-media/papers/weather... Comments URL: https://news.ycombinator.com/item?id=49552299 Points: 326 # Comments: 78'
 content: extracted
 html: 2026-09-03-weathernext-3.html
 preview:

@@ -3,7 +3,7 @@ title: Grok Imagine Video 1.5
 link: https://x.ai/news/grok-imagine-video-1-5
 source: x-ai-news
 published: 2026-06-16T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Improved quality at even faster speeds.
 content: extracted
 html: 2026-06-16-grok-imagine-video-1-5.html

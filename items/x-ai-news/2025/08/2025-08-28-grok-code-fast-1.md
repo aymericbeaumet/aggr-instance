@@ -3,7 +3,7 @@ title: Grok Code Fast 1
 link: https://x.ai/news/grok-code-fast-1
 source: x-ai-news
 published: 2025-08-28T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: We're thrilled to introduce grok-code-fast-1, a speedy and economical reasoning model that excels at agentic coding.
 content: extracted
 html: 2025-08-28-grok-code-fast-1.html
@@ -25,7 +25,7 @@ images:
   - file: 2025-08-28-grok-code-fast-1.image-d320c0f7b7b5.webp
     width: 320
     height: 180
-  - file: 2025-08-28-grok-code-fast-1.image-c99015c95ced.webp
+  - file: 2025-08-28-grok-code-fast-1.image-283e535b8d29.webp
     width: 640
     height: 360
   color: '#05090c'

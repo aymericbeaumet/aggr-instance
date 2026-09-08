@@ -4,7 +4,7 @@ link: https://simonwillison.net/2026/Sep/2/llm-anthropic/
 source: simonwillison-net
 published: 2026-09-02T17:59:32Z
 updated: 2026-09-02T17:59:32Z
-first_seen: 2026-09-08T04:23:50.420238947Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - anthropic
 - claude

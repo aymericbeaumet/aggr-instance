@@ -3,7 +3,7 @@ title: 'Qwen3.6-Max-Preview: Smarter, Sharper, Still Evolving'
 link: https://qwen.ai/blog?id=qwen3.6-max-preview
 source: qwen-ai-blog
 published: 2026-04-18T02:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:

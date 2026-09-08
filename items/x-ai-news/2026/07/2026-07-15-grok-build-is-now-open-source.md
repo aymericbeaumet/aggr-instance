@@ -3,7 +3,7 @@ title: Grok Build is Now Open Source
 link: https://x.ai/news/grok-build-open-source
 source: x-ai-news
 published: 2026-07-15T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Explore the harness behind our coding agent and TUI.
 content: extracted
 html: 2026-07-15-grok-build-is-now-open-source.html
@@ -15,25 +15,13 @@ preview:
 images:
 - source: https://media.x.ai/v1/website/open-source-cover-930d1067.png
   original:
-    file: 2026-07-15-grok-build-is-now-open-source.image-1dc9c0d5c2d9.png
+    file: 2026-07-15-grok-build-is-now-open-source.image-d220de1b673b.png
     width: 1200
     height: 630
   variants:
   - file: 2026-07-15-grok-build-is-now-open-source.image-9fd22060542d.webp
     width: 48
     height: 25
-  - file: 2026-07-15-grok-build-is-now-open-source.image-269af5cbcd75.webp
-    width: 320
-    height: 168
-  - file: 2026-07-15-grok-build-is-now-open-source.image-b74b27e0f301.webp
-    width: 640
-    height: 336
-  - file: 2026-07-15-grok-build-is-now-open-source.image-c05cd7d2bc85.webp
-    width: 960
-    height: 504
-  - file: 2026-07-15-grok-build-is-now-open-source.image-748bb26bbd46.webp
-    width: 1200
-    height: 630
   color: '#070707'
 ---
 

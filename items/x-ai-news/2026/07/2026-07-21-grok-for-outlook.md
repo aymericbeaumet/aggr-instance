@@ -3,22 +3,26 @@ title: Grok for Outlook
 link: https://x.ai/news/introducing-outlook-addin
 source: x-ai-news
 published: 2026-07-21T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Use the Grok add-in for Microsoft Outlook to summarize long email threads, draft replies in your voice, and keep your inbox organized.
 content: extracted
 html: 2026-07-21-grok-for-outlook.html
 preview:
-  file: 2026-07-21-grok-for-outlook.preview-60ee99afc243.webp
+  file: 2026-07-21-grok-for-outlook.preview-8e0a5dafe808.webp
   width: 256
   height: 134
   color: '#1c3a7b'
 images:
 - source: https://media.x.ai/v1/website/introducing-outlook-addin-og-44242ed8.jpg
   original:
-    file: 2026-07-21-grok-for-outlook.image-48557d050d35.jpg
+    file: 2026-07-21-grok-for-outlook.image-b419f09f3fe4.jpg
     width: 1024
     height: 537
-  color: '#193677'
+  variants:
+  - file: 2026-07-21-grok-for-outlook.image-e83c77daff55.webp
+    width: 48
+    height: 25
+  color: '#1a3677'
 ---
 
 **Today we're bringing Grok into Microsoft Outlook.** The add-in puts an agent beside your inbox: it summarizes long threads, drafts replies in your voice, and keeps your mailbox organized.

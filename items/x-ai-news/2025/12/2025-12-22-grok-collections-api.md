@@ -3,7 +3,7 @@ title: Grok Collections API
 link: https://x.ai/news/grok-collections-api
 source: x-ai-news
 published: 2025-12-22T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: State-of-the-art RAG system built directly into our API.
 content: extracted
 html: 2025-12-22-grok-collections-api.html

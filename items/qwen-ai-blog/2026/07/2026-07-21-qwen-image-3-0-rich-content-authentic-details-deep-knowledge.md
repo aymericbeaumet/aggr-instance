@@ -3,7 +3,7 @@ title: 'Qwen-Image-3.0: Rich Content, Authentic Details, Deep Knowledge'
 link: https://qwen.ai/blog?id=qwen-image-3.0
 source: qwen-ai-blog
 published: 2026-07-21T06:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:

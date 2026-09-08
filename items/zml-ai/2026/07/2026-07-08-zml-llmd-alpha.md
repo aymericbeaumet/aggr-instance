@@ -4,7 +4,7 @@ link: https://zml.ai/posts/llmd/
 source: zml-ai
 published: 2026-07-08T07:00:00Z
 updated: 2026-07-08T07:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 'Today we’re releasing ZML/LLMD. It’s a self-contained inference server that runs LLaMa, Gemma, Qwen and Mistral LLMs transparently on 5 architectures: NVIDIA CUDA, AMD ROCm, Google TPU, Intel oneAPI and Apple Metal. Modern serving features ZML/LLMD supports modern serving features: continuous batching, paged attention, tensor parallel sharding, prefix caching, tool calling and does so on all platforms. Metrics are also exposed in the Prometheus format via the /metrics endpoint.'
 content: extracted
 html: 2026-07-08-zml-llmd-alpha.html

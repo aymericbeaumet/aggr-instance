@@ -3,7 +3,7 @@ title: 'MoBA: Mixture of Block Attention for Long-Context LLMs'
 link: https://github.com/MoonshotAI/MoBA
 source: kimi-com-en-blog
 published: 2025-02-18T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2025-02-18
 content: extracted
 html: 2025-02-18-moba-mixture-of-block-attention-for-long-context-llms.html

@@ -3,7 +3,7 @@ title: 智谱支持“清华大学人工智能教育赋能项目”捐赠仪式�
 link: https://www.zhipuai.cn/en/news/67
 source: zhipuai-cn-en-news
 published: 2024-09-10T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/09/10
 content: extracted
 html: 2024-09-10-zhi-pu-zhi-chi-qing-hua-da-xue-ren-gong-zhi-neng-jiao-yu-fu.html

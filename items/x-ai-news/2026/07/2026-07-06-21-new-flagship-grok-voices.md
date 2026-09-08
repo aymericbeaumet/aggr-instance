@@ -3,7 +3,7 @@ title: 21 New Flagship Grok Voices
 link: https://x.ai/news/new-flagship-voices
 source: x-ai-news
 published: 2026-07-06T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: New multilingual voices for Grok Voice, plus improved naturalness for the original five.
 content: extracted
 html: 2026-07-06-21-new-flagship-grok-voices.html

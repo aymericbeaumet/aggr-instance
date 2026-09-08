@@ -3,7 +3,7 @@ title: Announcing PromptIDE
 link: https://x.ai/news/prompt-ide
 source: x-ai-news
 published: 2023-11-06T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Integrated development environment for prompt engineering and interpretability research.
 content: extracted
 html: 2023-11-06-announcing-promptide.html

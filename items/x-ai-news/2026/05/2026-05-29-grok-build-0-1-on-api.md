@@ -3,7 +3,7 @@ title: Grok Build 0.1 on API
 link: https://x.ai/news/grok-build-0-1
 source: x-ai-news
 published: 2026-05-29T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok Build 0.1, our fastest coding model, is now available via the xAI API in public beta.
 content: extracted
 html: 2026-05-29-grok-build-0-1-on-api.html

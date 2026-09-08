@@ -3,7 +3,7 @@ title: Announcing xAI for Government
 link: https://x.ai/news/government
 source: x-ai-news
 published: 2025-07-14T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: We are excited to announce xAI For Government – a suite of frontier AI products available first to United States Government customers.
 content: extracted
 html: 2025-07-14-announcing-xai-for-government.html

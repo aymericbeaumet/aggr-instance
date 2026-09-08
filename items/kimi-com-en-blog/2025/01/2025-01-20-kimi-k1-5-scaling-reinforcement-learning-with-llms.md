@@ -3,7 +3,7 @@ title: 'Kimi K1.5: Scaling Reinforcement Learning with LLMs'
 link: https://github.com/MoonshotAI/Kimi-k1.5
 source: kimi-com-en-blog
 published: 2025-01-20T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2025-01-20
 content: extracted
 html: 2025-01-20-kimi-k1-5-scaling-reinforcement-learning-with-llms.html

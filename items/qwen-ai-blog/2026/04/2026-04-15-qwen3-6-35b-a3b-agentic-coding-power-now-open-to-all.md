@@ -3,7 +3,7 @@ title: 'Qwen3.6-35B-A3B: Agentic Coding Power, Now Open to All'
 link: https://qwen.ai/blog?id=qwen3.6-35b-a3b
 source: qwen-ai-blog
 published: 2026-04-15T02:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:
@@ -47,7 +47,7 @@ images:
   - file: 2026-04-15-qwen3-6-35b-a3b-agentic-coding-power-now-open-to-all.image-81bc971c109d.webp
     width: 1280
     height: 720
-  - file: 2026-04-15-qwen3-6-35b-a3b-agentic-coding-power-now-open-to-all.image-bc0a00108768.webp
+  - file: 2026-04-15-qwen3-6-35b-a3b-agentic-coding-power-now-open-to-all.image-1e7e174e021e.webp
     width: 1600
     height: 900
   - file: 2026-04-15-qwen3-6-35b-a3b-agentic-coding-power-now-open-to-all.image-92cfdf07a54d.webp

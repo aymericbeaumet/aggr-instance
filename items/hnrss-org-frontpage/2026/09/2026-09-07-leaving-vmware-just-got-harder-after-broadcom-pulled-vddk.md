@@ -4,10 +4,10 @@ link: https://www.virtualizationhowto.com/2026/09/leaving-vmware-just-got-harder
 source: hnrss-org-frontpage
 published: 2026-09-07T20:32:55Z
 updated: 2026-09-07T20:32:55Z
-first_seen: 2026-09-08T04:23:50.420238947Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - josephcsible
-summary: 'Article URL: https://www.virtualizationhowto.com/2026/09/leaving-vmware-just-got-harder-after-broadcom-pulled-vddk-downloads/ Comments URL: https://news.ycombinator.com/item?id=49602699 Points: 133 # Comments: 55'
+summary: 'Article URL: https://www.virtualizationhowto.com/2026/09/leaving-vmware-just-got-harder-after-broadcom-pulled-vddk-downloads/ Comments URL: https://news.ycombinator.com/item?id=49602699 Points: 200 # Comments: 82'
 content: extracted
 html: 2026-09-07-leaving-vmware-just-got-harder-after-broadcom-pulled-vddk.html
 preview:

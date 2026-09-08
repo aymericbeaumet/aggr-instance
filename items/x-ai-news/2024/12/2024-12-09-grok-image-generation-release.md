@@ -3,7 +3,7 @@ title: Grok Image Generation Release
 link: https://x.ai/news/grok-image-generation-release
 source: x-ai-news
 published: 2024-12-09T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: We are updating Grok's capabilities with a new autoregressive image generation model, code-named Aurora, available on the 𝕏 platform.
 content: extracted
 html: 2024-12-09-grok-image-generation-release.html

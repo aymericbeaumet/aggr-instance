@@ -3,7 +3,7 @@ title: Grok Speech to Text and Text to Speech APIs
 link: https://x.ai/news/grok-stt-and-tts-apis
 source: x-ai-news
 published: 2026-04-17T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Fast and accurate. Natural, expressive voices. Simple pricing. Multilingual support.
 content: extracted
 html: 2026-04-17-grok-speech-to-text-and-text-to-speech-apis.html

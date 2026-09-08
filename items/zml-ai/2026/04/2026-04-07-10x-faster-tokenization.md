@@ -4,7 +4,7 @@ link: https://zml.ai/posts/iree-tokenizer/
 source: zml-ai
 published: 2026-04-07T08:00:00Z
 updated: 2026-04-07T08:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 'Today we merged a pretty nice performance improvement to ZML. PR #416 switches zml.tokenizer.Tokenizer from using the Hugging Face tokenizers crate to using the IREE project tokenizer when using Hugging Face tokenizer.json files. The (upcoming) problem Tokenizers performance is often overlooked, but it can have a significant impact on the overall latency of LLM inference. In some cases, it can even become the bottleneck of the entire system. This is particularly important as context are becoming bigger and bigger. For code generation, a 1M context window is regular. But a 1M context means 4MB of data (u32).'
 content: extracted
 html: 2026-04-07-10x-faster-tokenization.html

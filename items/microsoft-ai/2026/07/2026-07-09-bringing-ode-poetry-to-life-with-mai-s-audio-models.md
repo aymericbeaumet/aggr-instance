@@ -4,7 +4,7 @@ link: https://microsoft.ai/news/ode-poetry-mai/
 source: microsoft-ai
 published: 2026-07-09T07:50:31Z
 updated: 2026-07-09T07:50:31Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Daniel Victor
 summary: The post Bringing Ode Poetry to life with MAI’s audio models appeared first on Microsoft AI.

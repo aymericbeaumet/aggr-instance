@@ -3,7 +3,7 @@ title: Designing Grok Bot for a world of persistent agents
 link: https://x.ai/news/designing-grok-bot
 source: x-ai-news
 published: 2026-09-03T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 content: extracted
 html: 2026-09-03-designing-grok-bot-for-a-world-of-persistent-agents.html
 preview:

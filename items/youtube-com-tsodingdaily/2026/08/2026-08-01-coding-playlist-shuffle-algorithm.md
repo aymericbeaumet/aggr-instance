@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=SWNqgv7w_cY
 source: youtube-com-tsodingdaily
 published: 2026-08-01T16:43:53Z
 updated: 2026-08-01T16:48:48Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Tsoding Daily
 summary: |-

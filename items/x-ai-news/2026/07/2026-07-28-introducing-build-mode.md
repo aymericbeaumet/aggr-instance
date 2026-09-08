@@ -3,21 +3,25 @@ title: Introducing Build Mode
 link: https://x.ai/news/grok-build-mode
 source: x-ai-news
 published: 2026-07-28T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Create and share websites, apps, games, and interactive dashboards. Now in Early Beta for SuperGrok Heavy subscribers on grok.com, iOS, and Android.
 content: extracted
 html: 2026-07-28-introducing-build-mode.html
 preview:
-  file: 2026-07-28-introducing-build-mode.preview-37c06e8c9ae4.webp
+  file: 2026-07-28-introducing-build-mode.preview-c34ea6639a8a.webp
   width: 256
   height: 134
   color: '#36343e'
 images:
 - source: https://media.x.ai/v1/website/grok-build-mode-og-1454d1ce.png
   original:
-    file: 2026-07-28-introducing-build-mode.image-4ea22e3f656b.jpg
+    file: 2026-07-28-introducing-build-mode.image-91b51f59beda.jpg
     width: 1200
     height: 630
+  variants:
+  - file: 2026-07-28-introducing-build-mode.image-a046d0f1c68a.webp
+    width: 48
+    height: 25
   color: '#1a1628'
 ---
 

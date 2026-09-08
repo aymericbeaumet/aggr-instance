@@ -4,7 +4,7 @@ link: https://microsoft.ai/news/mai-image-2-6-launches-at-no-2-on-arena-ahead-of
 source: microsoft-ai
 published: 2026-08-10T22:35:28Z
 updated: 2026-08-10T22:35:28Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - kyleburgess@microsoft.com
 summary: The post MAI-Image-2.6 launches at No. 2 on Arena ahead of Google, Meta and xAI appeared first on Microsoft AI.

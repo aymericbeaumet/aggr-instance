@@ -3,7 +3,7 @@ title: Explore the markets with Interactive Brokers and Grok
 link: https://x.ai/news/grok-interactive-brokers
 source: x-ai-news
 published: 2026-06-25T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Interactive Brokers now integrates with Grok, bringing powerful AI directly into your trading experience — portfolio analysis, scenario modeling, research, and order instructions.
 content: extracted
 html: 2026-06-25-explore-the-markets-with-interactive-brokers-and-grok.html

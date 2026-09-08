@@ -3,7 +3,7 @@ title: Powering Gopuff's Go agent
 link: https://x.ai/news/grok-gopuff
 source: x-ai-news
 published: 2026-06-09T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Gopuff and SpaceXAI launched Go, an AI-powered shopping assistant built into the Gopuff app and powered by Grok text, audio, and image models.
 content: extracted
 html: 2026-06-09-powering-gopuff-s-go-agent.html

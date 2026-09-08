@@ -3,7 +3,7 @@ title: Agent 新进展：跨 app、跨设备、更多玩法｜智谱 Agent OpenD
 link: https://www.zhipuai.cn/en/news/68
 source: zhipuai-cn-en-news
 published: 2024-11-28T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/11/28
 content: extracted
 html: 2024-11-28-agent-xin-jin-zhan-kua-app-kua-she-bei-geng-duo-wan-fa-zhi.html

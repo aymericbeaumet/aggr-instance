@@ -3,7 +3,7 @@ title: Introducing Grok Bot
 link: https://x.ai/news/introducing-grok-bot
 source: x-ai-news
 published: 2026-08-11T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok Bot is your team of always-on agents. They have their own computer, work inside tools and apps like you do, and keep working 24/7.
 content: extracted
 html: 2026-08-11-introducing-grok-bot.html

@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=MZkmz24Nwbs
 source: youtube-com-monsieurbidouille
 published: 2025-12-17T15:56:24Z
 updated: 2026-06-17T16:31:49Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Monsieur Bidouille
 summary: "L’industrie nucléaire a besoin de faire des tests, des essais et produire des éléments particuliers. Dans cette vidéo, on va visiter le chantier d’un réacteur nucléaire… qui ne produit pas d’énergie. \n\nVidéo en partenariat avec le CEA\n\nPlus d’infos sur le réacteur JULES HOROWITZ : https://jhrreactor.com/ \n\n\n💕 Soutenir la chaîne sur Tipeee : https://fr.tipeee.com/monsieur-bidouille\n\n📸 Instagram : https://www.instagram.com/mrbidouille/ \n\n✍🏻 Bluesky : https://bsky.app/profile/monsieurbidouille.fr \n\nMa chaîne : https://www.youtube.com/user/monsieurbidouille\nMon instance Peertube : https://video.monsieurbidouille.fr\nFacebook : https://www.facebook.com/monsieurbidouille\nTwitter : https://twitter.com/MrBidouille\nMastodon : https://framapiaf.org/@MonsieurBidouille @MonsieurBidouille@framapiaf.org\nSite web : https://monsieurbidouille.fr \nDiscord : https://discord.gg/93BVEz6\nTwitch : https://www.twitch.tv/monsieur_bidouille\n\n#réacteur #nucléaire #reportage"

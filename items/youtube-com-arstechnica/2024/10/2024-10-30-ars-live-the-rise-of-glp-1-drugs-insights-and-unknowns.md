@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=eLI6dYmtmGo
 source: youtube-com-arstechnica
 published: 2024-10-30T14:54:22Z
 updated: 2026-05-21T02:30:19Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Ars Technica
 summary: Ars Technica Senior Health Reporter Dr. Beth Mole is joined by Dr. Daniel J Drucker, MD, FRCPC from the Lunenfeld Tanenbaum Research Institute for a discussion on the implications, insights, and unknowns around the proliferation and rapid adoption of GLP-1 drugs.

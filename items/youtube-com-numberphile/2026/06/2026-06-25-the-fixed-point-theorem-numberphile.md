@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=6PmuWFWVKDE
 source: youtube-com-numberphile
 published: 2026-06-25T15:01:39Z
 updated: 2026-07-06T02:36:28Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Numberphile
 summary: |-

@@ -3,7 +3,7 @@ title: Biosecurity at the frontier
 link: https://x.ai/news/biosafety-at-the-frontier
 source: x-ai-news
 published: 2026-09-01T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 content: extracted
 html: 2026-09-01-biosecurity-at-the-frontier.html
 preview:

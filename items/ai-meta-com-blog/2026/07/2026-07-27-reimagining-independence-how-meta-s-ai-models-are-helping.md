@@ -3,7 +3,7 @@ title: 'Reimagining Independence: How Meta’s AI Models Are Helping the Univers
 link: https://ai.meta.com/blog/assistive-robotics-university-of-pittsburgh-sam-dino/
 source: ai-meta-com-blog
 published: 2026-07-27T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 content: extracted
 html: 2026-07-27-reimagining-independence-how-meta-s-ai-models-are-helping.html
 preview:
@@ -12,7 +12,7 @@ preview:
   height: 144
   color: '#1e262a'
 images:
-- source: https://scontent-sjc3-1.xx.fbcdn.net/v/t39.2365-6/753694960_2219191542190533_6830137062160879015_n.png?_nc_cat=105&ccb=1-7&_nc_sid=e280be&_nc_ohc=zxdx0_TvfiwQ7kNvwEzvVVj&_nc_oc=Adq1ddiMzARbvXCMdo0fECjBYIM_8Kt1z9kXXkKcT-blNceaSOzGRE8LGyrgUoNhcuE&_nc_zt=14&_nc_ht=scontent-sjc3-1.xx&_nc_gid=xahcN2bF7gyDGymTBggqMA&_nc_ss=7b20f&oh=00_AQIUXihr744_NrRRPjAepAO2-2SrotRSM9hWmPGhK7ifKg&oe=6AB94A20
+- source: https://scontent-cdg6-1.xx.fbcdn.net/v/t39.2365-6/753694960_2219191542190533_6830137062160879015_n.png?_nc_cat=105&ccb=1-7&_nc_sid=e280be&_nc_ohc=5U6MueMoJiEQ7kNvwGxDBs1&_nc_oc=AdqUPyBysDncyphpisZBotDfK_rU71QwYHcQS989_m1FykukNjEfD5Q2BtZT9W2mUXY&_nc_zt=14&_nc_ht=scontent-cdg6-1.xx&_nc_gid=xF1z7kCcmtnwNclj-Doiow&_nc_ss=7b20f&oh=00_AQKPIVAiMD9WcRQBSn00M7vk3pZvj6VOprZzuS2PF3d6-A&oe=6ABA2B20
   original:
     file: 2026-07-27-reimagining-independence-how-meta-s-ai-models-are-helping.image-8cab7cb2de0e.png
     width: 3840

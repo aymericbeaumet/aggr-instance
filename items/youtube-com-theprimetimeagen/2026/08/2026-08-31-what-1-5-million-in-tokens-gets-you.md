@@ -3,8 +3,8 @@ title: What 1.5 Million in Tokens Gets You
 link: https://www.youtube.com/watch?v=NuktXEikxU8
 source: youtube-com-theprimetimeagen
 published: 2026-08-31T12:41:56Z
-updated: 2026-09-01T19:58:59Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+updated: 2026-09-08T07:05:56Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - The PrimeTime
 summary: |-

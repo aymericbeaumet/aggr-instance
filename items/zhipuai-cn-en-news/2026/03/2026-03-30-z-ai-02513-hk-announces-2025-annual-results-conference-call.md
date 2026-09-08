@@ -3,7 +3,7 @@ title: Z.ai (02513.HK) Announces 2025 Annual Results Conference Call Arrangement
 link: https://www.zhipuai.cn/en/news/151
 source: zhipuai-cn-en-news
 published: 2026-03-30T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2026/03/30
 content: extracted
 html: 2026-03-30-z-ai-02513-hk-announces-2025-annual-results-conference-call.html

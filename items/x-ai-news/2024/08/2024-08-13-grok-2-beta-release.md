@@ -3,7 +3,7 @@ title: Grok-2 Beta Release
 link: https://x.ai/news/grok-2
 source: x-ai-news
 published: 2024-08-13T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: We announce our new Grok-2 and Grok-2 mini models.
 content: extracted
 html: 2024-08-13-grok-2-beta-release.html
@@ -25,7 +25,7 @@ images:
   - file: 2024-08-13-grok-2-beta-release.image-177da41e8e40.webp
     width: 320
     height: 180
-  - file: 2024-08-13-grok-2-beta-release.image-0c0cb85ac062.webp
+  - file: 2024-08-13-grok-2-beta-release.image-0ec579ac9a09.webp
     width: 640
     height: 360
   color: '#190607'

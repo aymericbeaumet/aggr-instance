@@ -4,7 +4,7 @@ link: https://microsoft.ai/news/optimizing-the-frontier-performance-curve/
 source: microsoft-ai
 published: 2026-07-29T22:30:23Z
 updated: 2026-07-29T22:30:23Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - kyleburgess@microsoft.com
 summary: The post Optimizing the frontier performance curve appeared first on Microsoft AI.

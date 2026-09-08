@@ -3,7 +3,7 @@ title: 智谱携手英特尔，加速开启未来座舱时代，共同探索AI C
 link: https://www.zhipuai.cn/en/news/96
 source: zhipuai-cn-en-news
 published: 2024-09-10T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/09/10
 content: extracted
 html: 2024-09-10-zhi-pu-xi-shou-ying-te-er-jia-su-kai-qi-wei-lai-zuo-cang.html

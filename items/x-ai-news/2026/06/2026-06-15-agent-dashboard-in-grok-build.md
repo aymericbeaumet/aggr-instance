@@ -3,23 +3,23 @@ title: Agent Dashboard in Grok Build
 link: https://x.ai/news/agent-dashboard
 source: x-ai-news
 published: 2026-06-15T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Manage many coding sessions at once. See what each is doing, reply to the ones that need you, and dispatch new work.
 content: extracted
 html: 2026-06-15-agent-dashboard-in-grok-build.html
 preview:
-  file: 2026-06-15-agent-dashboard-in-grok-build.preview-cd151c1aeeb2.webp
+  file: 2026-06-15-agent-dashboard-in-grok-build.preview-e6f9601844e3.webp
   width: 256
   height: 134
-  color: '#626f45'
+  color: '#626f46'
 images:
 - source: https://media.x.ai/v1/website/agent-dashboard-og-22afca7c.jpg
   original:
-    file: 2026-06-15-agent-dashboard-in-grok-build.image-63fc075172ad.jpg
+    file: 2026-06-15-agent-dashboard-in-grok-build.image-3b917217bfa7.jpg
     width: 2400
     height: 1260
   variants:
-  - file: 2026-06-15-agent-dashboard-in-grok-build.image-ad74fdbd1a0c.webp
+  - file: 2026-06-15-agent-dashboard-in-grok-build.image-93a1fbab94b8.webp
     width: 48
     height: 25
   color: '#62714a'

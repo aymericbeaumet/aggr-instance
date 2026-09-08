@@ -3,7 +3,7 @@ title: 'Qwen3.5: Towards Native Multimodal Agents'
 link: https://qwen.ai/blog?id=qwen3.5
 source: qwen-ai-blog
 published: 2026-02-15T20:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:
@@ -47,7 +47,7 @@ images:
   - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-e31d16138ea9.webp
     width: 1280
     height: 720
-  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-da3f38f5e60c.webp
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-d6111385e8eb.webp
     width: 1600
     height: 900
   - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-65b8fe4399f4.webp

@@ -4,10 +4,10 @@ link: https://www.youtube.com/watch?v=6IFVTcM28KA
 source: hnrss-org-frontpage
 published: 2026-09-07T00:22:04Z
 updated: 2026-09-07T00:22:04Z
-first_seen: 2026-09-07T21:27:27.912715898Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - treve
-summary: 'https://www.notebookcheck.net/LG-smart-TVs-caught-logging-au... Comments URL: https://news.ycombinator.com/item?id=49592375 Points: 320 # Comments: 623'
+summary: 'https://www.notebookcheck.net/LG-smart-TVs-caught-logging-au... Comments URL: https://news.ycombinator.com/item?id=49592375 Points: 767 # Comments: 914'
 content: extracted
 html: 2026-09-07-216m-spy-tvs-the-lg-smart-tv-problem-video.html
 preview:
@@ -35,6 +35,6 @@ images:
 
 Comments URL: [https://news.ycombinator.com/item?id=49592375](https://news.ycombinator.com/item?id=49592375)
 
-Points: 320
+Points: 767
 
-\# Comments: 623
+\# Comments: 914

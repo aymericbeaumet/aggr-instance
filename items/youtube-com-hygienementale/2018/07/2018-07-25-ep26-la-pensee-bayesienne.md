@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=x-2uVNze56s
 source: youtube-com-hygienementale
 published: 2018-07-25T11:26:04Z
 updated: 2026-05-24T03:46:51Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Hygiène Mentale
 summary: |-

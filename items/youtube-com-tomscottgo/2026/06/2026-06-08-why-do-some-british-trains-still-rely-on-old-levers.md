@@ -3,8 +3,8 @@ title: Why do some British trains still rely on old levers?
 link: https://www.youtube.com/watch?v=omYfLDlt-MA
 source: youtube-com-tomscottgo
 published: 2026-06-08T15:00:05Z
-updated: 2026-07-27T15:26:10Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+updated: 2026-08-31T20:06:07Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Tom Scott
 summary: |-

@@ -4,7 +4,7 @@ link: https://blog.google/products-and-platforms/products/search/connected-apps/
 source: blog-google-innovation-and-ai-technology-ai
 published: 2026-07-16T16:00:00Z
 updated: 2026-07-16T16:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - ai
 - search
@@ -26,7 +26,7 @@ images:
   - file: 2026-07-16-connect-more-of-your-apps-to-search.image-acaa17093091.webp
     width: 48
     height: 27
-  - file: 2026-07-16-connect-more-of-your-apps-to-search.image-bfcf9e3949e9.webp
+  - file: 2026-07-16-connect-more-of-your-apps-to-search.image-dd11680f3e17.webp
     width: 320
     height: 180
   - file: 2026-07-16-connect-more-of-your-apps-to-search.image-e43d08f4f902.webp

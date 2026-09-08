@@ -3,12 +3,12 @@ title: xAI and El Salvador Pioneer the World's First Nationwide AI Education Pro
 link: https://x.ai/news/el-salvador-partnership
 source: x-ai-news
 published: 2025-12-11T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Announcing Our Transformative Partnership with the Government of El Salvador.
 content: extracted
 html: 2025-12-11-xai-and-el-salvador-pioneer-the-world-s-first-nationwide-ai.html
 preview:
-  file: 2025-12-11-xai-and-el-salvador-pioneer-the-world-s-first-nationwide-ai.preview-3e45fde212f4.webp
+  file: 2025-12-11-xai-and-el-salvador-pioneer-the-world-s-first-nationwide-ai.preview-8eac3eaf1a1a.webp
   width: 256
   height: 144
   color: '#0b48d0'

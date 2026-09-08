@@ -3,7 +3,7 @@ title: Connect Grok to Hermes Agent
 link: https://x.ai/news/grok-hermes
 source: x-ai-news
 published: 2026-05-15T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Use your Grok account and subscription inside Nous Research’s open-source, self-improving Hermes agent.
 content: extracted
 html: 2026-05-15-connect-grok-to-hermes-agent.html

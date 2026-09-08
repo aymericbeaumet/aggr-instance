@@ -3,7 +3,7 @@ title: Grok 4.5 in GitHub Copilot
 link: https://x.ai/news/grok-github-copilot
 source: x-ai-news
 published: 2026-07-28T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok 4.5, our smartest coding model, is now available in GitHub Copilot.
 content: extracted
 html: 2026-07-28-grok-4-5-in-github-copilot.html

@@ -3,7 +3,7 @@ title: 'Qwen3.7: The Agent Frontier'
 link: https://qwen.ai/blog?id=qwen3.7
 source: qwen-ai-blog
 published: 2026-05-20T02:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:
@@ -44,7 +44,7 @@ images:
   - file: 2026-05-20-qwen3-7-the-agent-frontier.image-dce5e1fb040e.webp
     width: 960
     height: 540
-  - file: 2026-05-20-qwen3-7-the-agent-frontier.image-5687b9a3662a.webp
+  - file: 2026-05-20-qwen3-7-the-agent-frontier.image-b3443d7eda28.webp
     width: 1280
     height: 720
   - file: 2026-05-20-qwen3-7-the-agent-frontier.image-628e4bb7d85c.webp

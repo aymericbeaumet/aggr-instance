@@ -3,23 +3,23 @@ title: Automations in Grok
 link: https://x.ai/news/grok-automations
 source: x-ai-news
 published: 2026-07-16T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Describe a job once and Grok runs it on a schedule or when an email arrives, then reports back.
 content: extracted
 html: 2026-07-16-automations-in-grok.html
 preview:
-  file: 2026-07-16-automations-in-grok.preview-0f6003da05cf.webp
+  file: 2026-07-16-automations-in-grok.preview-7fbb874d8c6e.webp
   width: 256
   height: 134
   color: '#555d2d'
 images:
 - source: https://media.x.ai/v1/website/grok-automations-og-93199cf4.jpg
   original:
-    file: 2026-07-16-automations-in-grok.image-85b65a70d334.jpg
+    file: 2026-07-16-automations-in-grok.image-61f02958e95c.jpg
     width: 2400
     height: 1260
   variants:
-  - file: 2026-07-16-automations-in-grok.image-6ce0ae43caac.webp
+  - file: 2026-07-16-automations-in-grok.image-901b8ea74aee.webp
     width: 48
     height: 25
   color: '#475427'

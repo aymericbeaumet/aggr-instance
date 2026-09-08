@@ -3,7 +3,7 @@ title: 中关村自主大模型产业联盟第一次会员大会 结果公示
 link: https://www.zhipuai.cn/en/news/97
 source: zhipuai-cn-en-news
 published: 2025-08-25T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2025/08/25
 content: extracted
 html: 2025-08-25-zhong-guan-cun-zi-zhu-da-mo-xing-chan-ye-lian-meng-di-yi-ci.html

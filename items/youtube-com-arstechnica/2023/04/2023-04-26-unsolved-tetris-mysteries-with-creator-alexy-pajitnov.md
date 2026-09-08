@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=6YhkkyXydNI
 source: youtube-com-arstechnica
 published: 2023-04-26T16:00:08Z
 updated: 2026-04-14T21:42:46Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Ars Technica
 summary: "Today Ars Technica welcomes Tetris creator Alexey Pajitnov and Managing Director of The Tetris Company Henk Rogers to answer some burning questions about the origins of the iconic puzzle game and its deceptive complexity. What programming language was the first-ever version of the game written in? How did they create the iconic Tetris music? What’s the _real_ best strategy? Get answers to these questions and more directly from the minds behind the game.\r\n\r\n\r\nTetris is available to stream exclusively on Apple TV+.\r\n\r\nDirector: Lisandro Perez-Rey\r\nDirector of Photography: Brad Wickham\r\nEditor: Shandor Garrison\r\nTalent: Alexy Pajitnov, Henk Rogers\r\n\r\nLine Producer: Joe Buscemi\r\nAssociate Producer: Paul Gulyas\r\nAssociate Producer: Samantha Vélez\r\nProduction Manager: Eric Martinez\r\nProduction Coordinator: Fernando Davila\r\n\r\nCamera Operator: Brittany Berger\r\nAudio:Gabe Quiroga\r\nProduction Assistant: Ryan Coppola\r\n\r\nPost Production Supervisor: Alexa Deutsch\r\nPost Production Coordinator: Ian Bryant\r\nSupervising Editor: Doug Larsen\r\nAssistant Editor: Andy Morell\n\nConnect with Ars Technica:\r\nVisit ArsTechnica.com: http://arstechnica.com\r\nFollow Ars Technica on Facebook: https://www.facebook.com/arstechnica\r\nFollow Ars Technica on Google+: https://plus.google.com/+ArsTechnica/videos\r\nFollow Ars Technica on Twitter: https://twitter.com/arstechnica"

@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=AL0aSxGP_q4
 source: youtube-com-arstechnica
 published: 2022-11-15T17:00:11Z
 updated: 2026-04-28T20:46:36Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Ars Technica
 summary: "Ars Technica brings you back to Striking Distance Studios with Dead Space creator Glen Schofield and his team as they work on designing the dynamic, immersive, and precisely timed audio components of their upcoming release 'The Callisto Protocol.'\n\nConnect with Ars Technica:\r\nVisit ArsTechnica.com: http://arstechnica.com\r\nFollow Ars Technica on Facebook: https://www.facebook.com/arstechnica\r\nFollow Ars Technica on Google+: https://plus.google.com/+ArsTechnica/videos\r\nFollow Ars Technica on Twitter: https://twitter.com/arstechnica"

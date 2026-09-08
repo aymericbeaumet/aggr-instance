@@ -3,7 +3,7 @@ title: Expanding xAI for Government with GSA OneGov
 link: https://x.ai/news/onegov
 source: x-ai-news
 published: 2025-09-25T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Expanding ‘xAI For Government’ with more accessible AI tools for the Federal Government
 content: extracted
 html: 2025-09-25-expanding-xai-for-government-with-gsa-onegov.html

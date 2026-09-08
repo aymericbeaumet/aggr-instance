@@ -3,7 +3,7 @@ title: Grok 4.6 on Gemini Enterprise Agent Platform
 link: https://x.ai/news/grok-4-6-vertex-ai
 source: x-ai-news
 published: 2026-08-21T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok 4.6 is now available via Gemini Enterprise Agent Platform.
 content: extracted
 html: 2026-08-21-grok-4-6-on-gemini-enterprise-agent-platform.html

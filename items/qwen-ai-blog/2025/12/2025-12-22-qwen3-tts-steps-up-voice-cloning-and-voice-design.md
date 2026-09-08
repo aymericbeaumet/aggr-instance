@@ -3,7 +3,7 @@ title: 'Qwen3-TTS Steps Up: Voice Cloning and Voice Design!'
 link: https://qwen.ai/blog?id=qwen3-tts-vc-voicedesign
 source: qwen-ai-blog
 published: 2025-12-22T16:00:45Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:

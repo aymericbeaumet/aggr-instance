@@ -3,7 +3,7 @@ title: Workflows in Grok Build
 link: https://x.ai/news/workflows
 source: x-ai-news
 published: 2026-07-23T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 'Grok Build can now write and run workflows: orchestration scripts that fan a task out across hundreds of parallel agents, verify the results, and report back in one background run.'
 content: extracted
 html: 2026-07-23-workflows-in-grok-build.html
@@ -15,7 +15,7 @@ preview:
 images:
 - source: https://media.x.ai/v1/website/workflows-og-de52eecb.png
   original:
-    file: 2026-07-23-workflows-in-grok-build.image-f62cff90ec51.png
+    file: 2026-07-23-workflows-in-grok-build.image-6632c2797090.png
     width: 1024
     height: 537
   color: '#2561e4'

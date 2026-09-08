@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=v8e-tYey7ts
 source: youtube-com-numberphile
 published: 2026-05-27T14:00:26Z
 updated: 2026-08-10T07:16:20Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Numberphile
 summary: "Featuring Neil Sloane - more details below. Gear Train (episode sponsor) is at https://www.metmo.co.uk/collections/gear-train with discount code NUMBERPHILE10OFF -- More links & stuff in full description below ↓↓↓\n\nMore Neil Sloane videos at: https://www.youtube.com/playlist?list=PLt5AfwLFPxWJXQqPe_llzWmTHMPb9QvV2\n\nNeil Sloane is the founder of the OEIS: https://oeis.org/\n\nLollipop Numbers: https://oeis.org/A389624\n\nPatreon: http://www.patreon.com/numberphile\n\nNumberphile is supported by Jane Street. Learn more about them (and exciting career opportunities) at: https://bit.ly/numberphile-janestreet\n\nWe are also grateful for support from the Ben Delo Foundation - https://delo.org/\n\nNUMBERPHILE\nWebsite: http://www.numberphile.com/\n\nVideo by Brady Haran and Pete McPartlan\nThanks also to Jonas Karlsson \nExtra checking by the Numberphile Society - special mention to Debbie and Felipe \n\nNumberphile T-Shirts and Merch: https://teespring.com/stores/numberphile\n\nBrady's videos subreddit: http://www.reddit.com/r/BradyHaran/\n\nBrady's latest videos across all channels: http://www.bradyharanblog.com/\n\nSign up for (occasional) emails: http://eepurl.com/YdjL9"

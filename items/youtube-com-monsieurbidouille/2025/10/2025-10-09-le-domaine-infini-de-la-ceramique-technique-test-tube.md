@@ -3,8 +3,8 @@ title: Le domaine infini de la céramique technique 🧪 – Monsieur Bidouille
 link: https://www.youtube.com/watch?v=CTLA_KhQJUc
 source: youtube-com-monsieurbidouille
 published: 2025-10-09T14:50:59Z
-updated: 2026-05-05T04:41:22Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+updated: 2026-09-06T05:57:53Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Monsieur Bidouille
 summary: "Lien vers la formation Céramique Industrielle proposée par l’Ensil-Ensci :\nhttps://www.ensil-ensci.unilim.fr/formations/cycle-ingenieur/ceram-ceramique-industrielle/\n\nLien vers le cycle intégré proposé par l’Ensil-Ensci :\nhttps://www.ensil-ensci.unilim.fr/formations/cycle-preparatoire-integre-fimi/\n\nLien vers l’école d’ingénieur Ensil-Ensci :\nhttps://www.ensil-ensci.unilim.fr/\n\nLien vers l’Institut de Recherche sur les CÉRamique (IRCER) :\nhttps://www.ircer.fr/\n\nLien vers l’université de Limoges :\nhttps://www.unilim.fr/\n\n\n💕 Soutenir la chaîne sur Tipeee : https://fr.tipeee.com/monsieur-bidouille\n\n📸 Instagram : https://www.instagram.com/mrbidouille/ \n\n✍🏻 Bluesky : https://bsky.app/profile/monsieurbidouille.fr \n\nMa chaîne : https://www.youtube.com/user/monsieurbidouille\nMon instance Peertube : https://video.monsieurbidouille.fr\nFacebook : https://www.facebook.com/monsieurbidouille\nTwitter : https://twitter.com/MrBidouille\nMastodon : https://framapiaf.org/@MonsieurBidouille @MonsieurBidouille@framapiaf.org\nSite web : https://monsieurbidouille.fr \nDiscord : https://discord.gg/93BVEz6\nTwitch : https://www.twitch.tv/monsieur_bidouille\n\n#ceramique #reportage"

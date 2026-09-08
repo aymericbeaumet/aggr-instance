@@ -3,7 +3,7 @@ title: Introducing Grok 4.6
 link: https://x.ai/news/grok-4-6
 source: x-ai-news
 published: 2026-08-12T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok 4.6 builds on Grok 4.5 with a particular focus on long-running agents and more ambitious interactive and visual work.
 content: extracted
 html: 2026-08-12-introducing-grok-4-6.html

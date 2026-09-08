@@ -3,7 +3,7 @@ title: Skills in web, iOS, and Android
 link: https://x.ai/news/grok-skills
 source: x-ai-news
 published: 2026-05-18T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Persistent expertise for Grok. Generate documents, decks, and spreadsheets. Automate workflows. Build and share your own skills.
 content: extracted
 html: 2026-05-18-skills-in-web-ios-and-android.html

@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=rOXOoGw5uSE
 source: youtube-com-monsieurbidouille
 published: 2026-01-22T16:32:02Z
 updated: 2026-04-22T22:10:27Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Monsieur Bidouille
 summary: "Découvrez HOLY® ici https://fr.weareholy.com/Bidouille/Youtube\nAvec le code Bidouille5 : 5 € de réduction sur toutes les premières commandes dès 14,99€ d’achat \nAvec le code Bidouille : 10% de réduction sur toutes les commandes des clients récurrents \nSans sucre, arômes et colorants naturels !\n\n\n💕 Soutenir la chaîne sur Tipeee : https://fr.tipeee.com/monsieur-bidouille\n\n📸 Instagram : https://www.instagram.com/mrbidouille/ \n\n✍🏻 Bluesky : https://bsky.app/profile/monsieurbidouille.fr \n\nMa chaîne : https://www.youtube.com/user/monsieurbidouille\nMon instance Peertube : https://video.monsieurbidouille.fr\nFacebook : https://www.facebook.com/monsieurbidouille\nTwitter : https://twitter.com/MrBidouille\nMastodon : https://framapiaf.org/@MonsieurBidouille @MonsieurBidouille@framapiaf.org\nSite web : https://monsieurbidouille.fr \nDiscord : https://discord.gg/93BVEz6\nTwitch : https://www.twitch.tv/monsieur_bidouille \n\n\n#barrages #énergie #autonomie"

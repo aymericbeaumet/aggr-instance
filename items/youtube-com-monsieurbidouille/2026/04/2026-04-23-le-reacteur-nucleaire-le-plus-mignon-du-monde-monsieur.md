@@ -3,8 +3,8 @@ title: Le réacteur nucléaire le plus mignon du monde – Monsieur Bidouille
 link: https://www.youtube.com/watch?v=gUb_b4OCeXA
 source: youtube-com-monsieurbidouille
 published: 2026-04-23T15:17:22Z
-updated: 2026-05-16T08:45:56Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+updated: 2026-09-06T05:22:43Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Monsieur Bidouille
 summary: "💤 Améliorez votre sommeil grâce aux matelas et accessoires Emma !\nJusqu'à -50% sur le site pendant les Promos de Printemps - French Days jusqu’au 8 mai. Profitez de 10% de réduction supplémentaire avec le code ➡️ BIDOUILLE ⬅️ ou en cliquant directement sur ce lien : http://emma.fr/?utm_source=youtube&utm_medium=influencer&utm_campaign=MonsieurBidouille&utm_code=BIDOUILLE\n\nCode valable sur les produits en promotion uniquement, jusqu’au 23 juin\nPour plus d'informations, consultez les CGV : https://www.emma.fr/cgv/\n\n\nLe lien vers la campagne pour la maquette LEGO Ideas : https://beta.ideas.lego.com/product-ideas/e235fbd0-8ab8-4575-bd1c-37a25625f118\n\n\n💕 Soutenir la chaîne sur Tipeee : https://fr.tipeee.com/monsieur-bidouille\n\n📸 Instagram : https://www.instagram.com/mrbidouille/ \n\n✍🏻 Bluesky : https://bsky.app/profile/monsieurbidouille.fr \n\nMa chaîne : https://www.youtube.com/user/monsieurbidouille\nMon instance Peertube : https://video.monsieurbidouille.fr\nFacebook : https://www.facebook.com/monsieurbidouille\nTwitter : https://twitter.com/MrBidouille\nMastodon : https://framapiaf.org/@MonsieurBidouille @MonsieurBidouille@framapiaf.org\nSite web : https://monsieurbidouille.fr \nTwitch : https://www.twitch.tv/monsieur_bidouille \n\n\n#nucléaire #reportage #énergie"

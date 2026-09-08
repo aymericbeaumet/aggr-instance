@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=rjk5F4TiNlU
 source: youtube-com-arstechnica
 published: 2022-11-22T17:00:14Z
 updated: 2026-05-21T00:03:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Ars Technica
 summary: "Ars Technica returns to the headquarters of Striking Distance Studios to join Dead Space creator Glen Schofield and his team as they detail the intricate lighting effects and innovative artwork on display in their upcoming release 'The Callisto Protocol.'\n\nConnect with Ars Technica:\r\nVisit ArsTechnica.com: http://arstechnica.com\r\nFollow Ars Technica on Facebook: https://www.facebook.com/arstechnica\r\nFollow Ars Technica on Google+: https://plus.google.com/+ArsTechnica/videos\r\nFollow Ars Technica on Twitter: https://twitter.com/arstechnica"

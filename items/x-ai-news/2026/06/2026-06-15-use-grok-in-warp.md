@@ -3,7 +3,7 @@ title: Use Grok in Warp
 link: https://x.ai/news/grok-warp
 source: x-ai-news
 published: 2026-06-15T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Use your Grok and X Premium subscription inside Warp.
 content: extracted
 html: 2026-06-15-use-grok-in-warp.html

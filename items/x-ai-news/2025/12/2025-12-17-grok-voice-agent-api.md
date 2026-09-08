@@ -3,7 +3,7 @@ title: Grok Voice Agent API
 link: https://x.ai/news/grok-voice-agent-api
 source: x-ai-news
 published: 2025-12-17T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Bringing the power of Grok Voice to all developers.
 content: extracted
 html: 2025-12-17-grok-voice-agent-api.html

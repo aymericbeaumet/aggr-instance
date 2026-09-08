@@ -4,7 +4,7 @@ link: https://zml.ai/posts/zml-smi/
 source: zml-ai
 published: 2026-03-30T15:00:00Z
 updated: 2026-03-30T15:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: zml-smi is a universal diagnostic and monitoring tool for GPUs, TPUs and NPUs. It provides real-time insights into the performance and health of your hardware. It is a mix between nvidia-smi and nvtop. It transparently supports all the platforms ZML supports. That is NVIDIA, AMD, Google TPU and AWS Trainium devices. It will be extended to support more platforms in the future as ZML continues to expand its hardware support.
 content: extracted
 html: 2026-03-30-introducing-zml-smi.html

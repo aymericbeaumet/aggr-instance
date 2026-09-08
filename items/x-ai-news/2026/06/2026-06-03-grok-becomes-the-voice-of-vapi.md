@@ -3,7 +3,7 @@ title: Grok Becomes the Voice of Vapi
 link: https://x.ai/news/grok-vapi
 source: x-ai-news
 published: 2026-06-03T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Bringing frontier voice quality to millions of Vapi agents.
 content: extracted
 html: 2026-06-03-grok-becomes-the-voice-of-vapi.html

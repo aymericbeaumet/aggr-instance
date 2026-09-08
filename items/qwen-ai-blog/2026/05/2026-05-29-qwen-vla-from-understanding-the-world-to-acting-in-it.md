@@ -3,7 +3,7 @@ title: 'Qwen-VLA: From Understanding the World to Acting in It'
 link: https://qwen.ai/blog?id=qwenvla
 source: qwen-ai-blog
 published: 2026-05-29T09:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:

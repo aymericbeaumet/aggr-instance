@@ -3,7 +3,7 @@ title: 清言向你发起一个视频通话请求…
 link: https://www.zhipuai.cn/en/news/21
 source: zhipuai-cn-en-news
 published: 2024-09-12T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/09/12
 content: extracted
 html: 2024-09-12-qing-yan-xiang-ni-fa-qi-yi-ge-shi-pin-tong-hua-qing-qiu.html

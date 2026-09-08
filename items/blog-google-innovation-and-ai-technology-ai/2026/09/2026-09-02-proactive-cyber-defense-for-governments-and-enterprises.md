@@ -4,7 +4,7 @@ link: https://blog.google/innovation-and-ai/technology/safety-security/fairwind-
 source: blog-google-innovation-and-ai-technology-ai
 published: 2026-09-02T15:40:00Z
 updated: 2026-09-02T15:40:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - ai
 - gemini models

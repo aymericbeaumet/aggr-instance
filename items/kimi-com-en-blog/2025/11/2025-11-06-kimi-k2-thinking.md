@@ -3,7 +3,7 @@ title: Kimi K2 Thinking
 link: https://www.kimi.com/en/blog/kimi-k2-thinking
 source: kimi-com-en-blog
 published: 2025-11-06T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2025-11-06
 content: extracted
 html: 2025-11-06-kimi-k2-thinking.html

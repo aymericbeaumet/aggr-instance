@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=cyJEFjTktPA
 source: youtube-com-arstechnica
 published: 2026-07-06T16:18:49Z
 updated: 2026-07-27T22:36:26Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Ars Technica
 summary: "Caleb Henry, Director of Research\nQuilty Space\n\nand \n\nAnthony Colangelo, Host\nMain Engine Cut Off Podcast\n\nwith\nEric Berger, Senior Space Editor\nArs Technica"

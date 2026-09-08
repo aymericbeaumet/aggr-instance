@@ -3,7 +3,7 @@ title: Grok 4.6 on Microsoft Foundry
 link: https://x.ai/news/grok-4-6-microsoft-foundry
 source: x-ai-news
 published: 2026-08-26T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok 4.6 is now available via Microsoft Foundry.
 content: extracted
 html: 2026-08-26-grok-4-6-on-microsoft-foundry.html

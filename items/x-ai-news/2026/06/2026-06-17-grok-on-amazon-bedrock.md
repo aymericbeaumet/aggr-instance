@@ -3,7 +3,7 @@ title: Grok on Amazon Bedrock
 link: https://x.ai/news/grok-amazon-bedrock
 source: x-ai-news
 published: 2026-06-17T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok models are now available via Amazon Bedrock.
 content: extracted
 html: 2026-06-17-grok-on-amazon-bedrock.html

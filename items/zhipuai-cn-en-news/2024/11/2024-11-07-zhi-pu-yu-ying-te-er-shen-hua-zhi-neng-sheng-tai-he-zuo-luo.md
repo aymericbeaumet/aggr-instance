@@ -3,7 +3,7 @@ title: 智谱与英特尔深化智能生态合作，落地端侧智谱清言和C
 link: https://www.zhipuai.cn/en/news/20
 source: zhipuai-cn-en-news
 published: 2024-11-07T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/11/07
 content: extracted
 html: 2024-11-07-zhi-pu-yu-ying-te-er-shen-hua-zhi-neng-sheng-tai-he-zuo-luo.html

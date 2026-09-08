@@ -3,7 +3,7 @@ title: Introducing Grok Voice Think Fast 2.0
 link: https://x.ai/news/grok-voice-think-fast-2
 source: x-ai-news
 published: 2026-07-29T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Introducing our most capable speech-to-speech voice model.
 content: extracted
 html: 2026-07-29-introducing-grok-voice-think-fast-2-0.html

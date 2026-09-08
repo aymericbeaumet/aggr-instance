@@ -3,7 +3,7 @@ title: API Public Beta
 link: https://x.ai/news/api
 source: x-ai-news
 published: 2024-11-04T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Starting today, developers can build on our Grok foundation models using our newly released API. We will run a public beta program until the end of 2024 during which everyone will get $25 of free API credits per month.
 content: extracted
 html: 2024-11-04-api-public-beta.html

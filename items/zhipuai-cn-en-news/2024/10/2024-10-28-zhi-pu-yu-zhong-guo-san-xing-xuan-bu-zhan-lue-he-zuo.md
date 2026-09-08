@@ -3,7 +3,7 @@ title: 智谱与中国三星宣布战略合作
 link: https://www.zhipuai.cn/en/news/4
 source: zhipuai-cn-en-news
 published: 2024-10-28T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024/10/28
 content: extracted
 html: 2024-10-28-zhi-pu-yu-zhong-guo-san-xing-xuan-bu-zhan-lue-he-zuo.html

@@ -3,7 +3,7 @@ title: New Compute Partnership with Anthropic
 link: https://x.ai/news/anthropic-compute-partnership
 source: x-ai-news
 published: 2026-05-06T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: SpaceXAI has signed an agreement with Anthropic to provide access to Colossus 1.
 content: extracted
 html: 2026-05-06-new-compute-partnership-with-anthropic.html

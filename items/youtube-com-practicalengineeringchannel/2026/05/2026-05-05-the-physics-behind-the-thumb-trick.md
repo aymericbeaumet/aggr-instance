@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=fKuIJ_z2Y6A
 source: youtube-com-practicalengineeringchannel
 published: 2026-05-05T13:01:16Z
 updated: 2026-09-01T06:22:26Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Practical Engineering
 summary: |-

@@ -3,7 +3,7 @@ title: 'Qwen3.8-Flash-Next: A New Architecture, Towards Ultimate Cost-Efficiency
 link: https://qwen.ai/blog?id=qwen3.8-flash-next
 source: qwen-ai-blog
 published: 2026-08-26T12:30:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:
@@ -75,7 +75,7 @@ images:
   - file: 2026-08-26-qwen3-8-flash-next-a-new-architecture-towards-ultimate-cost.image-a75ab717270f.webp
     width: 640
     height: 334
-  - file: 2026-08-26-qwen3-8-flash-next-a-new-architecture-towards-ultimate-cost.image-0d0813588a60.webp
+  - file: 2026-08-26-qwen3-8-flash-next-a-new-architecture-towards-ultimate-cost.image-983bb2766486.webp
     width: 960
     height: 501
   - file: 2026-08-26-qwen3-8-flash-next-a-new-architecture-towards-ultimate-cost.image-1e6ac6edc6e9.webp

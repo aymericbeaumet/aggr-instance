@@ -4,10 +4,10 @@ link: https://lambdaland.org/posts/2026-09-06-bedrock-v2/
 source: hnrss-org-frontpage
 published: 2026-09-07T20:12:12Z
 updated: 2026-09-07T20:12:12Z
-first_seen: 2026-09-08T09:02:26.443710107Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - ashton314
-summary: 'Article URL: https://lambdaland.org/posts/2026-09-06-bedrock-v2/ Comments URL: https://news.ycombinator.com/item?id=49602490 Points: 109 # Comments: 13'
+summary: 'Article URL: https://lambdaland.org/posts/2026-09-06-bedrock-v2/ Comments URL: https://news.ycombinator.com/item?id=49602490 Points: 120 # Comments: 27'
 content: extracted
 html: 2026-09-07-emacs-bedrock-2-0.html
 ---

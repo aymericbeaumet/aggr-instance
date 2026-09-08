@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=QybbBmrRvcY
 source: youtube-com-arstechnica
 published: 2024-06-18T17:57:53Z
 updated: 2026-05-29T10:36:52Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Ars Technica
 summary: How profitable is Starlink, and what does its future hold? Senior Space Reporter Eric Berger is joined in conversation by Caleb Henry of Quilty Space.

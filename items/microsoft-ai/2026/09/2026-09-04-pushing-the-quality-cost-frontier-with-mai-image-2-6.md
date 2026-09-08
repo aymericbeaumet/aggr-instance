@@ -4,7 +4,7 @@ link: https://microsoft.ai/news/pushing-the-quality-cost-frontier-with-mai-image
 source: microsoft-ai
 published: 2026-09-04T16:02:05Z
 updated: 2026-09-04T16:02:05Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - kyleburgess@microsoft.com
 summary: The post Pushing the quality-cost frontier with MAI-Image-2.6 appeared first on Microsoft AI.

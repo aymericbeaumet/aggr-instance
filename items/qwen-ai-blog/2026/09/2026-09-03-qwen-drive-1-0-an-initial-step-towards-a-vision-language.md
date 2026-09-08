@@ -3,7 +3,7 @@ title: 'Qwen-Drive-1.0: An Initial Step towards a Vision-Language Foundation Mod
 link: https://qwen.ai/blog?id=qwen-drive-1.0
 source: qwen-ai-blog
 published: 2026-09-03T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:
@@ -54,7 +54,7 @@ images:
   - file: 2026-09-03-qwen-drive-1-0-an-initial-step-towards-a-vision-language.image-a050b9350a3c.webp
     width: 960
     height: 524
-  - file: 2026-09-03-qwen-drive-1-0-an-initial-step-towards-a-vision-language.image-99f206e9359c.webp
+  - file: 2026-09-03-qwen-drive-1-0-an-initial-step-towards-a-vision-language.image-4a03c8a5605a.webp
     width: 1280
     height: 699
   - file: 2026-09-03-qwen-drive-1-0-an-initial-step-towards-a-vision-language.image-a08edd085eb9.webp

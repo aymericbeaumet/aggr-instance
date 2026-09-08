@@ -3,7 +3,7 @@ title: 'Qwen3-VL-Embedding and Qwen3-VL-Reranker: For the Next Generation of Mul
 link: https://qwen.ai/blog?id=qwen3-vl-embedding
 source: qwen-ai-blog
 published: 2026-01-07T20:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:

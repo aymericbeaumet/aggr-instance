@@ -3,7 +3,7 @@ title: 'Qwen-Robot Suite: A Foundation Model Suite for Physical World Intelligen
 link: https://qwen.ai/blog?id=qwen-robotsuite
 source: qwen-ai-blog
 published: 2026-06-16T02:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - QwenTeam
 labels:

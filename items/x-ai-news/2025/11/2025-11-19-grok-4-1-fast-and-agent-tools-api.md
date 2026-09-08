@@ -3,7 +3,7 @@ title: Grok 4.1 Fast and Agent Tools API
 link: https://x.ai/news/grok-4-1-fast
 source: x-ai-news
 published: 2025-11-19T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Bringing the next generation of tool-calling agents to the xAI API
 content: extracted
 html: 2025-11-19-grok-4-1-fast-and-agent-tools-api.html

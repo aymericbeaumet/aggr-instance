@@ -4,7 +4,7 @@ link: https://zml.ai/posts/zml-v2/
 source: zml-ai
 published: 2026-03-24T15:00:00Z
 updated: 2026-03-24T15:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 'ZML is an inference stack built close to the hardware. It lowers models directly onto NVIDIA, AMD, TPU, and Trainium targets from a single codebase, without depending on and suffering from the Python-heavy runtime layers that most of the ecosystem is built around. The guiding idea behind zml/v1 was simplicity: give ZML a model and its weights, and the system would take care of compilation, placement, and execution for you. That made the first version approachable and effective for standard deployments, but it also baked too much behavior into implicit global state. As the project pushed into partial compilation, custom passes, sharding, quantization, and more backend-specific execution paths, those implicit shortcuts became constraints. ZML/v2 is the rewrite that makes those concepts explicit: platform ownership, compilation, memory, IO, and placement are now first-class, so advanced use cases can be expressed directly instead of forced through workarounds.'
 content: extracted
 html: 2026-03-24-introducing-zml-v2.html

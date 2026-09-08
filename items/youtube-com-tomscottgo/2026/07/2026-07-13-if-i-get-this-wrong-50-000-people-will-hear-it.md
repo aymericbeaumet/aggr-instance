@@ -3,8 +3,8 @@ title: If I get this wrong, 50,000 people will hear it.
 link: https://www.youtube.com/watch?v=WGia1R3xacM
 source: youtube-com-tomscottgo
 published: 2026-07-13T15:00:04Z
-updated: 2026-07-27T15:26:07Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+updated: 2026-08-31T16:11:11Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Tom Scott
 summary: |-

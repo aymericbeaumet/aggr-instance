@@ -3,7 +3,7 @@ title: Use Grok in OpenCode
 link: https://x.ai/news/grok-opencode
 source: x-ai-news
 published: 2026-05-21T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Use your SuperGrok or X Premium subscription inside OpenCode.
 content: extracted
 html: 2026-05-21-use-grok-in-opencode.html
@@ -15,7 +15,7 @@ preview:
 images:
 - source: https://media.x.ai/v1/website/grok-opencode-a31e9eed.png
   original:
-    file: 2026-05-21-use-grok-in-opencode.image-9d172b1be1c9.png
+    file: 2026-05-21-use-grok-in-opencode.image-ab0f00ed2d5d.png
     width: 1200
     height: 630
   variants:

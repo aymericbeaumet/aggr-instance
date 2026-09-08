@@ -4,10 +4,10 @@ link: https://jyn.dev/a-year-to-fix-security/
 source: hnrss-org-frontpage
 published: 2026-09-08T04:48:10Z
 updated: 2026-09-08T04:48:10Z
-first_seen: 2026-09-08T09:02:26.443710107Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - saikatsg
-summary: 'Article URL: https://jyn.dev/a-year-to-fix-security/ Comments URL: https://news.ycombinator.com/item?id=49605691 Points: 201 # Comments: 162'
+summary: 'Article URL: https://jyn.dev/a-year-to-fix-security/ Comments URL: https://news.ycombinator.com/item?id=49605691 Points: 229 # Comments: 192'
 content: extracted
 html: 2026-09-08-we-have-a-year-to-fix-security-everywhere.html
 preview:

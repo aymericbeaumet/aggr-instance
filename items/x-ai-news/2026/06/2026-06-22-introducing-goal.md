@@ -3,7 +3,7 @@ title: Introducing /goal
 link: https://x.ai/news/introducing-goal
 source: x-ai-news
 published: 2026-06-22T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Use /goal for long-running autonomous task execution in Grok Build.
 content: extracted
 html: 2026-06-22-introducing-goal.html

@@ -3,7 +3,7 @@ title: Use Grok in Kilo Code
 link: https://x.ai/news/grok-kilocode
 source: x-ai-news
 published: 2026-05-27T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Use your SuperGrok or X Premium+ subscription inside Kilo Code, the open-source agentic coding platform.
 content: extracted
 html: 2026-05-27-use-grok-in-kilo-code.html

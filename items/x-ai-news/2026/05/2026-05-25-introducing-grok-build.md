@@ -3,7 +3,7 @@ title: Introducing Grok Build
 link: https://x.ai/news/grok-build-cli
 source: x-ai-news
 published: 2026-05-25T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Now in early beta for all SuperGrok and X Premium Plus subscribers — Grok Build is a new coding agent that runs right from your terminal.
 content: extracted
 html: 2026-05-25-introducing-grok-build.html

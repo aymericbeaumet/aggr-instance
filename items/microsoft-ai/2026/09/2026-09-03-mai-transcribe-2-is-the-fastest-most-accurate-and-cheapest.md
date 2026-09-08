@@ -4,7 +4,7 @@ link: https://microsoft.ai/news/mai-transcribe-2-is-the-fastest-most-accurate-an
 source: microsoft-ai
 published: 2026-09-03T14:00:00Z
 updated: 2026-09-03T14:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - kyleburgess@microsoft.com
 summary: The post MAI-Transcribe-2 is the fastest, most accurate and cheapest speech recognition model in the world appeared first on Microsoft AI.

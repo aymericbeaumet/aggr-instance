@@ -3,7 +3,7 @@ title: Custom Voices
 link: https://x.ai/news/grok-custom-voices
 source: x-ai-news
 published: 2026-04-30T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Your voice. Your brand. Clone a voice from a short recording and use it across Grok Text to Speech and Voice Agent APIs.
 content: extracted
 html: 2026-04-30-custom-voices.html

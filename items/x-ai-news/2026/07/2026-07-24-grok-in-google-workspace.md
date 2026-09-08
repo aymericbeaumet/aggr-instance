@@ -3,7 +3,7 @@ title: Grok in Google Workspace
 link: https://x.ai/news/introducing-google-workspace-addon
 source: x-ai-news
 published: 2026-07-24T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Use the Grok add-on for Google Workspace to work directly in Sheets, Slides, and Docs.
 content: extracted
 html: 2026-07-24-grok-in-google-workspace.html

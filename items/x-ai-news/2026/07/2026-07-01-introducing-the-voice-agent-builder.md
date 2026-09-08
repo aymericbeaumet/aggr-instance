@@ -3,7 +3,7 @@ title: Introducing the Voice Agent Builder
 link: https://x.ai/news/grok-voice-agent-builder
 source: x-ai-news
 published: 2026-07-01T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Create a personalized voice agent in under 2 minutes without a single line of code.
 content: extracted
 html: 2026-07-01-introducing-the-voice-agent-builder.html

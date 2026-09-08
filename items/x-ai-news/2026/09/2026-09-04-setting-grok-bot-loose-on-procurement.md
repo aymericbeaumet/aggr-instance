@@ -3,7 +3,7 @@ title: Setting Grok Bot loose on procurement
 link: https://x.ai/news/grok-bot-procurement
 source: x-ai-news
 published: 2026-09-04T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 content: extracted
 html: 2026-09-04-setting-grok-bot-loose-on-procurement.html
 preview:

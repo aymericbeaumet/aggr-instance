@@ -3,7 +3,7 @@ title: Kimi-Audio
 link: https://github.com/MoonshotAI/Kimi-Audio
 source: kimi-com-en-blog
 published: 2025-04-26T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2025-04-26
 content: extracted
 html: 2025-04-26-kimi-audio.html

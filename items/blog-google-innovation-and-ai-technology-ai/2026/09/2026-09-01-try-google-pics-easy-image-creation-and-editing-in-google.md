@@ -4,7 +4,7 @@ link: https://blog.google/products-and-platforms/products/workspace/google-pics/
 source: blog-google-innovation-and-ai-technology-ai
 published: 2026-09-01T16:00:00Z
 updated: 2026-09-01T16:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - ai
 - google one
@@ -33,7 +33,7 @@ images:
   - file: 2026-09-01-try-google-pics-easy-image-creation-and-editing-in-google.image-74c5dc9f9ab1.webp
     width: 640
     height: 360
-  - file: 2026-09-01-try-google-pics-easy-image-creation-and-editing-in-google.image-295ba02c4d44.webp
+  - file: 2026-09-01-try-google-pics-easy-image-creation-and-editing-in-google.image-70234971870a.webp
     width: 960
     height: 540
   - file: 2026-09-01-try-google-pics-easy-image-creation-and-editing-in-google.image-1c5df6e8056e.webp

@@ -4,7 +4,7 @@ link: https://microsoft.ai/news/hill-climbing-mai-models-for-github-copilot-and-
 source: microsoft-ai
 published: 2026-07-23T16:30:00Z
 updated: 2026-07-23T16:30:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - alenabu@microsoft.com
 summary: The post Hill-climbing MAI models for GitHub Copilot and Excel appeared first on Microsoft AI.
@@ -28,7 +28,7 @@ images:
   - file: 2026-07-23-hill-climbing-mai-models-for-github-copilot-and-excel.image-2fba961dd7ef.webp
     width: 320
     height: 238
-  - file: 2026-07-23-hill-climbing-mai-models-for-github-copilot-and-excel.image-bcfe8c390ef3.webp
+  - file: 2026-07-23-hill-climbing-mai-models-for-github-copilot-and-excel.image-ffb73de3d978.webp
     width: 640
     height: 476
   - file: 2026-07-23-hill-climbing-mai-models-for-github-copilot-and-excel.image-ef8bd3412b49.webp

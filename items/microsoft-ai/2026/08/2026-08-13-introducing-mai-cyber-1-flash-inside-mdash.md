@@ -4,7 +4,7 @@ link: https://microsoft.ai/news/introducing-mai-cyber-1-flash-inside-mdash/
 source: microsoft-ai
 published: 2026-08-13T19:52:02Z
 updated: 2026-08-13T19:52:02Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - kyleburgess@microsoft.com
 summary: The post Introducing MAI-Cyber-1-Flash inside MDASH appeared first on Microsoft AI.

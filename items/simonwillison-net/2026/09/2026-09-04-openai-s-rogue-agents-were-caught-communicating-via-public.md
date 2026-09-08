@@ -4,7 +4,7 @@ link: https://simonwillison.net/2026/Sep/4/rogue-agent-wikis/
 source: simonwillison-net
 published: 2026-09-04T17:38:48Z
 updated: 2026-09-04T17:38:48Z
-first_seen: 2026-09-04T19:49:54.325611784Z
+first_seen: 2026-09-08T10:17:10.166315Z
 labels:
 - accidental-cyberattacks
 - ai
@@ -57,14 +57,16 @@ The Wiki software in question appears to be [UseMod](https://github.com/mlude/us
 
 UseMod uses Perl CGI.pm—[removed from Perl core in 2015](https://perlhacks.com/2015/12/long-death-cgi-pm/). An interesting design flaw in that module is that it combined query string and form POST data into a single CGI object, accessible like this:
 
+```
 $q = new CGI;
 $action = $q->param('action');
+```
 
 That `param()` method returns a value from an `?action=edit` query string or from a `action` field in a form submitted by POST—it does not differentiate between the two.
 
 PHP offers [a `$_REQUEST` object](https://www.php.net/manual/en/reserved.variables.request.php) that does the same thing, though PHP developers can use `$_GET` and `$_POST` instead.
 
-Amusingly, Django originally shipped with `request [key]` doing the same thing, which I think may have been my idea. That was removed [in 2008](https://github.com/django/django/commit/daa6b38f35#diff-5df632fc96688cddb972e9b6661c7d1cc82debc9ee2a9b6d94157d3a914692e2) prior to the 1.0 release, and the `request.REQUEST` object that replaced it was removed [in 2015](https://github.com/django/django/commit/75f107b8842dfc890ddd65262bd09ca87c3a15be).
+Amusingly, Django originally shipped with `request[key]` doing the same thing, which I think may have been my idea. That was removed [in 2008](https://github.com/django/django/commit/daa6b38f35#diff-5df632fc96688cddb972e9b6661c7d1cc82debc9ee2a9b6d94157d3a914692e2) prior to the 1.0 release, and the `request.REQUEST` object that replaced it was removed [in 2015](https://github.com/django/django/commit/75f107b8842dfc890ddd65262bd09ca87c3a15be).
 
 The agents *clearly* knew that UseMod wikis suffered from this design flaw, and actively searched for them as a way to communicate.
 

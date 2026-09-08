@@ -4,7 +4,7 @@ link: https://www.youtube.com/watch?v=8IsbKH-EsAY
 source: youtube-com-tomscottgo
 published: 2026-07-27T15:00:32Z
 updated: 2026-07-28T10:32:56Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 authors:
 - Tom Scott
 summary: |-

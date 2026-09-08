@@ -3,7 +3,7 @@ title: Supporting the DOW's mission with AI
 link: https://x.ai/news/us-gov-dept-of-war
 source: x-ai-news
 published: 2025-12-22T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: xAI is proud to be selected by the US Department of War to deliver Frontier AI
 content: extracted
 html: 2025-12-22-supporting-the-dow-s-mission-with-ai.html

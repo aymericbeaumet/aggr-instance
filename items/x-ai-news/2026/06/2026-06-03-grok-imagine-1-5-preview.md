@@ -3,7 +3,7 @@ title: Grok Imagine 1.5 Preview
 link: https://x.ai/news/grok-imagine-1-5
 source: x-ai-news
 published: 2026-06-03T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: grok-imagine-video-1.5-preview, our latest image-to-video model, is now available via the xAI API in preview.
 content: extracted
 html: 2026-06-03-grok-imagine-1-5-preview.html

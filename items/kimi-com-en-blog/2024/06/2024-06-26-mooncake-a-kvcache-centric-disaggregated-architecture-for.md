@@ -3,7 +3,7 @@ title: 'Mooncake: A KVCache-centric Disaggregated Architecture for LLM Serving'
 link: https://github.com/kvcache-ai/Mooncake/
 source: kimi-com-en-blog
 published: 2024-06-26T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2024-06-26
 content: extracted
 html: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.html

@@ -3,7 +3,7 @@ title: PerceptionBench
 link: https://www.kimi.com/en/blog/perception-bench
 source: kimi-com-en-blog
 published: 2026-07-16T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: 2026-07-16
 content: extracted
 html: 2026-07-16-perceptionbench.html

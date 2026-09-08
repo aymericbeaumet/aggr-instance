@@ -3,7 +3,7 @@ title: Bringing Grok to Everyone
 link: https://x.ai/news/grok-1212
 source: x-ai-news
 published: 2024-12-12T00:00:00Z
-first_seen: 2026-09-07T17:03:44.343711062Z
+first_seen: 2026-09-08T10:17:10.166315Z
 summary: Grok is now faster, sharper, and has improved multilingual support. It is available to everyone on the 𝕏 platform.
 content: extracted
 html: 2024-12-12-bringing-grok-to-everyone.html
@@ -25,7 +25,7 @@ images:
   - file: 2024-12-12-bringing-grok-to-everyone.image-177da41e8e40.webp
     width: 320
     height: 180
-  - file: 2024-12-12-bringing-grok-to-everyone.image-0c0cb85ac062.webp
+  - file: 2024-12-12-bringing-grok-to-everyone.image-0ec579ac9a09.webp
     width: 640
     height: 360
   color: '#190607'
