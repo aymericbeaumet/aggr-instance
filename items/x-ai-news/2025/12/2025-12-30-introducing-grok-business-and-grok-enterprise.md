@@ -29,6 +29,68 @@ images:
     width: 640
     height: 359
   color: '#070c15'
+- source: https://x.ai/_next/static/media/step-1.3fmqs9zvn140q.svg?dpl=a2d6b77a75dae8f07c881cf892692231d4dce27a
+  original:
+    file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-1ae3eaff18d2.png
+    width: 292
+    height: 267
+  variants:
+  - file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-27d3cee3cef5.webp
+    width: 292
+    height: 267
+  color: '#262626'
+- source: https://x.ai/_next/static/media/step-2.3uo3zy8ii8ijq.svg?dpl=a2d6b77a75dae8f07c881cf892692231d4dce27a
+  original:
+    file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-498556f86a2e.png
+    width: 292
+    height: 267
+  variants:
+  - file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-7356e57ace4d.webp
+    width: 292
+    height: 267
+  color: '#272727'
+- source: https://x.ai/_next/static/media/step-3.1vk546ugi2-83.svg?dpl=a2d6b77a75dae8f07c881cf892692231d4dce27a
+  original:
+    file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-e0179cc94e5d.png
+    width: 292
+    height: 267
+  variants:
+  - file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-b51f21d9ec3b.webp
+    width: 292
+    height: 267
+  color: '#230e01'
+- source: https://x.ai/_next/static/media/grok-for-business.3h73p32m8pt05.svg?dpl=a2d6b77a75dae8f07c881cf892692231d4dce27a
+  original:
+    file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-a81db70ed24b.png
+    width: 1114
+    height: 256
+  variants:
+  - file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-dc6f5ed95cd2.webp
+    width: 320
+    height: 74
+  - file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-db67bf23847f.webp
+    width: 640
+    height: 147
+  - file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-9f27dd9acb61.webp
+    width: 1114
+    height: 256
+  color: '#777777'
+- source: https://x.ai/_next/static/media/grok-for-enterprise.0dg5uggbu-ldv.svg?dpl=a2d6b77a75dae8f07c881cf892692231d4dce27a
+  original:
+    file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-e22c7e156621.png
+    width: 1198
+    height: 256
+  variants:
+  - file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-b7e13858f195.webp
+    width: 320
+    height: 68
+  - file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-8d85ce68a967.webp
+    width: 640
+    height: 137
+  - file: 2025-12-30-introducing-grok-business-and-grok-enterprise.image-153907087a6c.webp
+    width: 1198
+    height: 256
+  color: '#666666'
 ---
 
 ![Grok Business Landing Page](https://x.ai/news/f=auto/v1/website/grok_business_landing_page-b400fc23.webp)

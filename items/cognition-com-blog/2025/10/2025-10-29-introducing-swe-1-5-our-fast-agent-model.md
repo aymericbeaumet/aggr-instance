@@ -6,6 +6,73 @@ published: 2025-10-29T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3c6cbbecc2021a9593e9ba19d11a5acaf785f06c-2550x1500.png?w=1600&fit=max
+  original:
+    file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-bcf4a3b98370.png
+    width: 1600
+    height: 941
+  variants:
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-0a6f85630c05.webp
+    width: 320
+    height: 188
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-adb98ac9cb09.webp
+    width: 640
+    height: 376
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-087e96b4e9cb.webp
+    width: 960
+    height: 565
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-f200bf52e698.webp
+    width: 1280
+    height: 753
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-0c26bc7b19d8.webp
+    width: 1600
+    height: 941
+  color: '#f3f4fb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/065263aa9933f9196d9fca336d42a975d199c94e-2550x1500.png?w=1600&fit=max
+  original:
+    file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-54847d18693c.png
+    width: 1600
+    height: 941
+  variants:
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-e7be93079fbd.webp
+    width: 320
+    height: 188
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-ae73f534759f.webp
+    width: 640
+    height: 376
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-b01c0e93c3b6.webp
+    width: 960
+    height: 565
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-719fe90f01c9.webp
+    width: 1280
+    height: 753
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-2d3203b0c4fe.webp
+    width: 1600
+    height: 941
+  color: '#f3f4fb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/10cfe0272309c0dd5ec071dff481140ad7445d97-1700x1000.png?w=1600&fit=max
+  original:
+    file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-497c3c7d15be.png
+    width: 1600
+    height: 941
+  variants:
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-e4dc4897d505.webp
+    width: 320
+    height: 188
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-1b37919afdc0.webp
+    width: 640
+    height: 376
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-29d622956249.webp
+    width: 960
+    height: 565
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-18563393a5d3.webp
+    width: 1280
+    height: 753
+  - file: 2025-10-29-introducing-swe-1-5-our-fast-agent-model.image-4ee73d26a298.webp
+    width: 1600
+    height: 941
+  color: '#f2f4f9'
 ---
 
 Today we’re releasing SWE-1.5, the latest in our family of models optimized for software engineering. It is a frontier-size model with hundreds of billions of parameters that achieves near-SOTA coding performance. It also sets a new standard for speed: we partnered with Cerebras to serve it at up to 950 tok/s – 6x faster than Haiku 4.5 and 13x faster than Sonnet 4.5. **SWE-1.5 is now available in [Windsurf](https://windsurf.com/download)!**

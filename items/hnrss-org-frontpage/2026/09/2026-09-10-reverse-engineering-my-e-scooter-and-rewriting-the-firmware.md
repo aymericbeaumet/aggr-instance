@@ -220,6 +220,230 @@ images:
     width: 48
     height: 36
   color: '#fcfcfc'
+- source: https://bensimms.moe/images/11.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-489a096fe1e3.png
+    width: 2048
+    height: 1365
+  color: '#131414'
+- source: https://bensimms.moe/images/13.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-8da2bf1e8da0.png
+    width: 2048
+    height: 1742
+  variants:
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-bbc613cafdb3.webp
+    width: 320
+    height: 272
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-fbc361f557bf.webp
+    width: 640
+    height: 544
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-d6fa6addc801.webp
+    width: 960
+    height: 817
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-131a62c4b48f.webp
+    width: 1280
+    height: 1089
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-7ee40fe1d803.webp
+    width: 1600
+    height: 1361
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-dee0c06461f1.webp
+    width: 2048
+    height: 1742
+  color: '#fcfcfc'
+- source: https://bensimms.moe/images/14.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-528f936ba3e9.png
+    width: 2048
+    height: 1742
+  variants:
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-7785addfac2c.webp
+    width: 320
+    height: 272
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-c36e0ce3696c.webp
+    width: 640
+    height: 544
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-4f8ee3a55223.webp
+    width: 960
+    height: 817
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-79386bb9e932.webp
+    width: 1280
+    height: 1089
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-55e62e60a4c5.webp
+    width: 1600
+    height: 1361
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-99e9e2b0cbe8.webp
+    width: 2048
+    height: 1742
+  color: '#fcfcfc'
+- source: https://bensimms.moe/images/15.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-7b42ab014f10.png
+    width: 2048
+    height: 1742
+  variants:
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-cde0c02bc68c.webp
+    width: 320
+    height: 272
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-5bbb6b882409.webp
+    width: 640
+    height: 544
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-f1b76d3c9545.webp
+    width: 960
+    height: 817
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-50b6e794a9de.webp
+    width: 1280
+    height: 1089
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-46c156bafb58.webp
+    width: 1600
+    height: 1361
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-e846fd970958.webp
+    width: 2048
+    height: 1742
+  color: '#fcfcfc'
+- source: https://bensimms.moe/images/16.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-c01cf0c99708.png
+    width: 2048
+    height: 1742
+  variants:
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-553b1deab863.webp
+    width: 320
+    height: 272
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-ccbcea4fde84.webp
+    width: 640
+    height: 544
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-40107312945f.webp
+    width: 960
+    height: 817
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-4a13a0583546.webp
+    width: 1280
+    height: 1089
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-75cce22acc1a.webp
+    width: 1600
+    height: 1361
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-d6238cc16844.webp
+    width: 2048
+    height: 1742
+  color: '#fcfcfd'
+- source: https://bensimms.moe/images/17.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-378bf8cd7796.png
+    width: 2048
+    height: 1742
+  variants:
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-79cfdbaa8c6c.webp
+    width: 320
+    height: 272
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-496c6c68793b.webp
+    width: 640
+    height: 544
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-5e24a4280f2c.webp
+    width: 960
+    height: 817
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-500d47a74eb8.webp
+    width: 1280
+    height: 1089
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-d5a794f5a6dd.webp
+    width: 1600
+    height: 1361
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-7417a1ea2a7d.webp
+    width: 2048
+    height: 1742
+  color: '#fbfbfc'
+- source: https://bensimms.moe/images/18.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-dda2948f306d.png
+    width: 2048
+    height: 1260
+  variants:
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-52e1e3a4798c.webp
+    width: 320
+    height: 197
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-0e2bfb4b97cf.webp
+    width: 640
+    height: 394
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-fae7f26fe34d.webp
+    width: 960
+    height: 591
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-04e89025036b.webp
+    width: 1280
+    height: 788
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-84ff2859fb5c.webp
+    width: 1600
+    height: 984
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-e6033c537f2f.webp
+    width: 2048
+    height: 1260
+  color: '#fbfbfb'
+- source: https://bensimms.moe/images/19.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-4181af05f271.png
+    width: 2048
+    height: 1394
+  variants:
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-d3cdd5ca063c.webp
+    width: 320
+    height: 218
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-fc41127fcf1b.webp
+    width: 640
+    height: 436
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-b9c9203561f7.webp
+    width: 960
+    height: 653
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-9cf0a4df2a47.webp
+    width: 1280
+    height: 871
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-7aa35c8b94d0.webp
+    width: 1600
+    height: 1089
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-4a5a711a03ed.webp
+    width: 2048
+    height: 1394
+  color: '#fbfbfc'
+- source: https://bensimms.moe/images/20.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-ddc70a8db093.png
+    width: 2048
+    height: 1472
+  variants:
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-67645829d31a.webp
+    width: 320
+    height: 230
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-c381b35aa8e8.webp
+    width: 640
+    height: 460
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-cc126ae8c72c.webp
+    width: 960
+    height: 690
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-d3515ae0c173.webp
+    width: 1280
+    height: 920
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-64969855d831.webp
+    width: 1600
+    height: 1150
+  - file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-ece6f4fb49f7.webp
+    width: 2048
+    height: 1472
+  color: '#fafafb'
+- source: https://bensimms.moe/images/21.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-eef44e5c5548.png
+    width: 2048
+    height: 1365
+  color: '#050505'
+- source: https://bensimms.moe/images/22.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-a1b324e1eeef.png
+    width: 1280
+    height: 1904
+  color: '#fef5fe'
+- source: https://bensimms.moe/images/23.png
+  original:
+    file: 2026-09-10-reverse-engineering-my-e-scooter-and-rewriting-the-firmware.image-008a77366aff.png
+    width: 1288
+    height: 1904
+  color: '#f6f6fe'
 html_truncated: true
 ---
 

@@ -17,6 +17,13 @@ labels:
 summary: 'Qwen3.8-Flash-Next Another open weights model from Qwen. This one is "a multimodal MoE model that also serves as an early preview of the architecture used in Qwen4". It''s pretty big: 125B parameters but only 6B active which means it gets a significant performance boost. I''ve been trying it out on a DGX Spark using these Unsloth quantized models. I''m still exploring the model - so far I''ve tried the 72.5GB UD-IQ1_S one (producing these pelicans) and the 78.9GB UD-Q2_K_XL (producing these). My favorite so far was this xhigh reasoning effort one from UD-Q2_K_XL: Via Hacker News Tags: ai, generative-ai, llms, qwen, pelican-riding-a-bicycle, llm-release, ai-in-china, nvidia-spark'
 content: extracted
 html: 2026-08-26-qwen3-8-flash-next.html
+images:
+- source: https://static.simonwillison.net/static/2026-08-27/IMG_7667.png
+  original:
+    file: 2026-08-26-qwen3-8-flash-next.image-3b15cc5c8a7f.png
+    width: 786
+    height: 590
+  color: '#a7daf2'
 ---
 
 **[Qwen3.8-Flash-Next](https://qwen.ai/blog?id=qwen3.8-flash-next)** ([via](https://news.ycombinator.com/item?id=49448210 "Hacker News")) Another open weights model from Qwen. This one is "a multimodal MoE model that also serves as an early preview of the architecture used in Qwen4".

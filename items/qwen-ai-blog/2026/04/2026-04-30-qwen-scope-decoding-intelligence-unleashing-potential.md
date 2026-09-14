@@ -154,6 +154,12 @@ images:
     width: 48
     height: 34
   color: '#fbfafb'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwen-scope/Figures/overview.png
+  original:
+    file: 2026-04-30-qwen-scope-decoding-intelligence-unleashing-potential.image-7c441525b2b8.jpg
+    width: 15197
+    height: 8488
+  color: '#fcfcfd'
 ---
 
 ![Qwen-Scope main image](https://qianwen-res.oss-accelerate.aliyuncs.com/qwen-scope/Figures/overview.png)

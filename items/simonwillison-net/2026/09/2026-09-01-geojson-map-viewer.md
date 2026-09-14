@@ -13,6 +13,17 @@ labels:
 summary: 'Tool: GeoJSON Map Viewer I was helping Natalie gather some maps of local political boundaries (for the Granada Community Services District and the Midcoast Community Council) and found a need to display some GeoJSON files on a map and export that as a PNG. I asked GPT-5.6-Sol for suggestions of tools and it proactively built one. After some iterations using Claude Code for web and Fable 5.1 we got to this finished tool. As for the GeoJSON.. it turns out if you ask ChatGPT Work to provide boundaries for almost anything it will churn away extracting and combining files from different Government data sources and build exactly what you need. I got this polygon from: I want a polygon that represents the exact boundary of the El Granada GCSD And this one from: Get me a GeoJSON file for the boundary (or boundaries if that makes sense) for the MCC - Midcoast Community Council - that operates near Half Moon Bay CA Here''s a link that displays both of them at the same time on the new GeoJSON map viewing tool. Tags: geospatial, tools, geojson, chatgpt'
 content: extracted
 html: 2026-09-01-geojson-map-viewer.html
+images:
+- source: https://static.simonwillison.net/static/2026/geojson-tool.webp
+  original:
+    file: 2026-09-01-geojson-map-viewer.image-997b02486082.webp
+    width: 2702
+    height: 1794
+  variants:
+  - file: 2026-09-01-geojson-map-viewer.image-35827a18bd29.webp
+    width: 320
+    height: 212
+  color: '#a9d2dc'
 ---
 
 [Tool](https://simonwillison.net/elsewhere/tool/) [GeoJSON Map Viewer](https://tools.simonwillison.net/geojson) — View and visualize GeoJSON data on an interactive OpenStreetMap with customizable styling options. Paste GeoJSON objects (Feature, FeatureCollection, or Geometry) into the editor, adjust fill color and opacity, and render the features directly on the map.

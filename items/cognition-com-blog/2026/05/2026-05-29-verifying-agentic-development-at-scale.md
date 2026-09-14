@@ -6,6 +6,25 @@ published: 2026-05-29T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-05-29-verifying-agentic-development-at-scale.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/bce7331151f350f56068f63ccb2e0f3feb28da02-1288x638.gif?w=1600&fit=max
+  original:
+    file: 2026-05-29-verifying-agentic-development-at-scale.image-36523beb7679.gif
+    width: 1288
+    height: 638
+  color: '#fefefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/4efc7844468a652ffb17cfc4747d36921a26ca4e-1288x480.gif?w=1600&fit=max
+  original:
+    file: 2026-05-29-verifying-agentic-development-at-scale.image-f6cc08224ddf.gif
+    width: 1288
+    height: 480
+  color: '#f5f8f6'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/74841bcfef80687c389386f466fbdc1f125e8d72-1288x642.gif?w=1600&fit=max
+  original:
+    file: 2026-05-29-verifying-agentic-development-at-scale.image-95f1f9f4e921.gif
+    width: 1288
+    height: 642
+  color: '#f8f6f4'
 ---
 
 3 months ago, I joined Cognition to help build the future of software engineering. Devin has come a long way since launching as the first AI software engineer, and I’ve been blown away watching the team behind it actually use Devin every day.

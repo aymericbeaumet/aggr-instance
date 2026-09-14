@@ -26,6 +26,54 @@ images:
     width: 48
     height: 29
   color: '#000000'
+- source: https://mceglowski.substack.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc02c4291-2187-486e-a3be-e2864c6a26d9_1100x684.jpeg
+  original:
+    file: 2026-09-06-icy-moons-are-ocean-worlds.image-9a6dd21f7018.jpg
+    width: 1100
+    height: 684
+  color: '#010101'
+- source: https://mceglowski.substack.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F82a5c46b-5438-4779-8724-ccb328ad6f20_2500x1406.jpeg
+  original:
+    file: 2026-09-06-icy-moons-are-ocean-worlds.image-95a6f0de94f8.jpg
+    width: 2500
+    height: 1406
+  color: '#000000'
+- source: https://mceglowski.substack.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F80a91663-d14a-4436-8d09-2b3229328bf5_1100x619.jpeg
+  original:
+    file: 2026-09-06-icy-moons-are-ocean-worlds.image-5970b50a7c55.jpg
+    width: 1100
+    height: 619
+  color: '#000000'
+- source: https://mceglowski.substack.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0ff0da94-941d-4191-ad4e-ac8e65ee7364_1100x1389.jpeg
+  original:
+    file: 2026-09-06-icy-moons-are-ocean-worlds.image-1f802dafa8e1.jpg
+    width: 1100
+    height: 1389
+  color: '#000000'
+- source: https://mceglowski.substack.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F1c5bcbed-c204-4f92-bf9b-e34cba687910_1100x867.jpeg
+  original:
+    file: 2026-09-06-icy-moons-are-ocean-worlds.image-3f1c301e2dcc.jpg
+    width: 1100
+    height: 867
+  color: '#010301'
+- source: https://mceglowski.substack.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc611a4d2-09d5-4651-97e2-e86204b4ea9c_1100x639.jpeg
+  original:
+    file: 2026-09-06-icy-moons-are-ocean-worlds.image-001154905a6e.jpg
+    width: 1100
+    height: 639
+  color: '#010101'
+- source: https://mceglowski.substack.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F6156a051-9bfd-40e8-a962-754304bd5614_1100x546.jpeg
+  original:
+    file: 2026-09-06-icy-moons-are-ocean-worlds.image-214b4c79381e.jpg
+    width: 1100
+    height: 546
+  color: '#fdfdfd'
+- source: https://mceglowski.substack.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fdf40782e-77b8-4e5d-a8e4-64cf69a52c34_1100x659.jpeg
+  original:
+    file: 2026-09-06-icy-moons-are-ocean-worlds.image-999270741c29.jpg
+    width: 1100
+    height: 659
+  color: '#fdfdfd'
 ---
 
 If you’ve ever spent time with an 11-year-old during their dinosaur phase, you know the feeling of having everything you thought you knew upturned by a pitiless pedant. Science moves on and leaves whatever we learned in school hopelessly out of date. The dinosaurs I grew up with were slow thinking and cold-blooded monsters. They came in muted shades of ugly brown and green, like Subarus. I was taught that the brontosaurus was so chunky it had to spend its life submerged in marshes to help buoy its weight, while the T-rex staggered around on its back feet like Godzilla, waving its little arms.

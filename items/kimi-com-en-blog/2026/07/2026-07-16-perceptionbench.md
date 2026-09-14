@@ -56,6 +56,22 @@ images:
     width: 640
     height: 621
   color: '#fafafa'
+- source: https://www.kimi.com/landing-ui/assets/blog-assets/perception-bench/openbench_jaccard.svg
+  original:
+    file: 2026-07-16-perceptionbench.image-d24530fb6615.png
+    width: 901
+    height: 415
+  variants:
+  - file: 2026-07-16-perceptionbench.image-f53d879cfa98.webp
+    width: 320
+    height: 147
+  - file: 2026-07-16-perceptionbench.image-c461e14b09f7.webp
+    width: 640
+    height: 295
+  - file: 2026-07-16-perceptionbench.image-10d1bfbff2ec.webp
+    width: 901
+    height: 415
+  color: '#f9e9da'
 ---
 
 1. [Research](https://www.kimi.com/en/blog/)

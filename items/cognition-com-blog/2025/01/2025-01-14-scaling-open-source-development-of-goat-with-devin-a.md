@@ -6,6 +6,51 @@ published: 2025-01-14T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/162d563ae1294f7cdcf144f04af58f2454c7e70c-2880x1690.png?w=1600&fit=max
+  original:
+    file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-a97ee0f30154.png
+    width: 1600
+    height: 939
+  variants:
+  - file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-cab52b9d25d6.webp
+    width: 320
+    height: 188
+  - file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-096675114c70.webp
+    width: 640
+    height: 376
+  - file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-bed55bea2e45.webp
+    width: 960
+    height: 563
+  - file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-baf992de99d4.webp
+    width: 1280
+    height: 751
+  - file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-a3b70d6cacd4.webp
+    width: 1600
+    height: 939
+  color: '#2c2c2c'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/cfd41bbef4dad09382d83ebaba7618f9a092ed3f-2878x1682.png?w=1600&fit=max
+  original:
+    file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-5072b7fe9597.png
+    width: 1600
+    height: 935
+  variants:
+  - file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-fc243bc0fce1.webp
+    width: 320
+    height: 187
+  - file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-25c413f9daba.webp
+    width: 640
+    height: 374
+  - file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-ad341d7017d0.webp
+    width: 960
+    height: 561
+  - file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-fef221ae4e1a.webp
+    width: 1280
+    height: 748
+  - file: 2025-01-14-scaling-open-source-development-of-goat-with-devin-a.image-e7ce38f82ea7.webp
+    width: 1600
+    height: 935
+  color: '#292929'
 ---
 
 By The Crossmint Team01.14.25

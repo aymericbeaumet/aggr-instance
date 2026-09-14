@@ -139,6 +139,38 @@ images:
     width: 2340
     height: 1440
   color: '#fcfcfc'
+- source: https://github.com/MoonshotAI/MoBA/raw/master/figures/logo.png
+  original:
+    file: 2025-02-18-moba-mixture-of-block-attention-for-long-context-llms.image-87e6f690e521.png
+    width: 320
+    height: 320
+  variants:
+  - file: 2025-02-18-moba-mixture-of-block-attention-for-long-context-llms.image-78d371758afa.webp
+    width: 320
+    height: 320
+  color: '#000000'
+- source: https://github.com/MoonshotAI/MoBA/raw/master/figures/needle-in-a-haystack.png
+  original:
+    file: 2025-02-18-moba-mixture-of-block-attention-for-long-context-llms.image-32b6a5430d95.png
+    width: 9852
+    height: 4968
+  variants:
+  - file: 2025-02-18-moba-mixture-of-block-attention-for-long-context-llms.image-cbb39b850512.webp
+    width: 320
+    height: 161
+  - file: 2025-02-18-moba-mixture-of-block-attention-for-long-context-llms.image-f9da5ac22419.webp
+    width: 640
+    height: 323
+  - file: 2025-02-18-moba-mixture-of-block-attention-for-long-context-llms.image-1d5c3d96523e.webp
+    width: 960
+    height: 484
+  - file: 2025-02-18-moba-mixture-of-block-attention-for-long-context-llms.image-4490f88ee087.webp
+    width: 1280
+    height: 645
+  - file: 2025-02-18-moba-mixture-of-block-attention-for-long-context-llms.image-0a75e907d0b2.webp
+    width: 1600
+    height: 807
+  color: '#35c859'
 ---
 
 [![](https://github.com/MoonshotAI/MoBA/raw/master/figures/banner.png)](https://arxiv.org/abs/2502.13189)

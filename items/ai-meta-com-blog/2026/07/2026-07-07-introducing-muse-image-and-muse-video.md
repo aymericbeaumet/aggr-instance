@@ -137,6 +137,89 @@ images:
     width: 1920
     height: 1280
   color: '#150b06'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=2811407102591921&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-75471278744d.webp
+    width: 1280
+    height: 1920
+  color: '#070606'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=3315109218694153&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-5329edb97489.webp
+    width: 2736
+    height: 912
+  color: '#fcfcfc'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=996742523227072&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-f699a4f8e322.webp
+    width: 1920
+    height: 1280
+  color: '#999692'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=1561261712375095&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-2f126e59e14b.webp
+    width: 1920
+    height: 1280
+  color: '#151717'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=2510049522741124&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-7a42b8e278d4.webp
+    width: 1280
+    height: 1920
+  color: '#151717'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=1041312411770257&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-64cec246c481.webp
+    width: 2048
+    height: 1152
+  variants:
+  - file: 2026-07-07-introducing-muse-image-and-muse-video.image-ed2597ddfb3f.webp
+    width: 320
+    height: 180
+  color: '#151718'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=1330703112600334&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-bfacb475edfb.webp
+    width: 1920
+    height: 1280
+  variants:
+  - file: 2026-07-07-introducing-muse-image-and-muse-video.image-a8d8e0e2123b.webp
+    width: 320
+    height: 213
+  - file: 2026-07-07-introducing-muse-image-and-muse-video.image-dbf2a5bb5920.webp
+    width: 640
+    height: 427
+  color: '#373737'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=1500373454711814&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-91a6940119ca.webp
+    width: 1920
+    height: 1280
+  color: '#191815'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=1661874731778824&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-b14fdd62ace3.webp
+    width: 1920
+    height: 1280
+  color: '#363639'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=1539507954301171&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-2cc9da5a342f.webp
+    width: 1920
+    height: 1280
+  color: '#545a28'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=2525997914511953&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-890cae7bd018.webp
+    width: 1920
+    height: 1280
+  color: '#756959'
+- source: https://lookaside.fbsbx.com/elementpath/media/?media_id=1018569877833951&version=1783727678
+  original:
+    file: 2026-07-07-introducing-muse-image-and-muse-video.image-de5ed2b330e5.webp
+    width: 1920
+    height: 1280
+  color: '#c9b6a7'
 ---
 
 We’re excited to launch Muse Image and preview Muse Video, the first media generation models developed by Meta Superintelligence Labs.

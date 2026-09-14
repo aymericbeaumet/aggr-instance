@@ -145,6 +145,12 @@ images:
     width: 48
     height: 50
   color: '#fefefe'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/suite/singleworld.png
+  original:
+    file: 2026-06-16-qwen-robotworld-boundless-worlds-for-embodied-agents.image-7f4b840e7578.jpg
+    width: 8000
+    height: 4500
+  color: '#f9f9f9'
 ---
 
 [Paper](https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/papers/Qwen_RobotWorld.pdf)

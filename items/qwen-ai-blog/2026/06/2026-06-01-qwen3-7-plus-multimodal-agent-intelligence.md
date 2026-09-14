@@ -56,6 +56,53 @@ images:
     width: 48
     height: 34
   color: '#1b2226'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.7/Figures/qwen3.7-plus-banner.png
+  original:
+    file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-b088ef311775.png
+    width: 5504
+    height: 3072
+  variants:
+  - file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-c51695baffa6.webp
+    width: 320
+    height: 179
+  - file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-fb47b8b53dec.webp
+    width: 640
+    height: 357
+  - file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-7b0590241dfd.webp
+    width: 960
+    height: 536
+  - file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-9ad6947a9a7f.webp
+    width: 1280
+    height: 714
+  - file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-859b582bd177.webp
+    width: 1600
+    height: 893
+  - file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-7c6f90fc3d2d.webp
+    width: 5504
+    height: 3072
+  color: '#fcfcfc'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.7/Figures/Qwen3.7-Plus-Score.png
+  original:
+    file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-f7b2e68fe52d.png
+    width: 17277
+    height: 10123
+  variants:
+  - file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-58d6ce75378c.webp
+    width: 320
+    height: 187
+  - file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-44b98efba96e.webp
+    width: 640
+    height: 375
+  - file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-ed8f831ad585.webp
+    width: 960
+    height: 562
+  - file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-36f0a70bd2b9.webp
+    width: 1280
+    height: 750
+  - file: 2026-06-01-qwen3-7-plus-multimodal-agent-intelligence.image-301ab62b607a.webp
+    width: 1600
+    height: 937
+  color: '#fbfbfb'
 ---
 
 ![Qwen3.7 Main Image](https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.7/Figures/qwen3.7-plus-banner.png)

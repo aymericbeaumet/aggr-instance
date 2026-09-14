@@ -6,6 +6,144 @@ published: 2024-12-23T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2024-12-23-devin-december-24-product-update-part-2.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/df30fe00f2155248bd19f93257eeefcd18c9cb1c-706x286.png?w=1600&fit=max
+  original:
+    file: 2024-12-23-devin-december-24-product-update-part-2.image-d6666700cdf2.png
+    width: 706
+    height: 286
+  variants:
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-593fd7c7e416.webp
+    width: 320
+    height: 130
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-a6c90791a87f.webp
+    width: 706
+    height: 286
+  color: '#2c2c2c'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/9756ba25db4d7d88176019772e4343df3ef3e30f-580x406.png?w=1600&fit=max
+  original:
+    file: 2024-12-23-devin-december-24-product-update-part-2.image-303f8f2e5291.png
+    width: 580
+    height: 406
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/737df820c826df69cf7d9ddfca0a167c02c2880c-1822x586.png?w=1600&fit=max
+  original:
+    file: 2024-12-23-devin-december-24-product-update-part-2.image-db31d89bca87.png
+    width: 1600
+    height: 515
+  variants:
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-c448d98c09c1.webp
+    width: 320
+    height: 103
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-7b45b661cc80.webp
+    width: 640
+    height: 206
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-6c4f7e06f334.webp
+    width: 960
+    height: 309
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-f9bb5af1fab9.webp
+    width: 1280
+    height: 412
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-78fec6554c49.webp
+    width: 1600
+    height: 515
+  color: '#2e2e2e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3a84a7a2f18e993b463c2dcc7c002afbf9ce790c-1254x569.png?w=1600&fit=max
+  original:
+    file: 2024-12-23-devin-december-24-product-update-part-2.image-1d6886d40e89.png
+    width: 1254
+    height: 569
+  variants:
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-641932ddda31.webp
+    width: 320
+    height: 145
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-6b3069813895.webp
+    width: 640
+    height: 290
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-0addbbc95447.webp
+    width: 1254
+    height: 569
+  color: '#2e2e2e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/11e6534423b2842c8f8584fcea965c14ab7e4c09-1443x186.png?w=1600&fit=max
+  original:
+    file: 2024-12-23-devin-december-24-product-update-part-2.image-bf6129ee3ea3.png
+    width: 1443
+    height: 186
+  variants:
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-aab6775223bd.webp
+    width: 320
+    height: 41
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-a9159fb086f8.webp
+    width: 640
+    height: 82
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-1faec8ca772c.webp
+    width: 960
+    height: 124
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-c26f8c528e82.webp
+    width: 1280
+    height: 165
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-4c4d6553d66f.webp
+    width: 1443
+    height: 186
+  color: '#2e2e2e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/657867153e66dd01ea69c961b74671227252463c-522x198.png?w=1600&fit=max
+  original:
+    file: 2024-12-23-devin-december-24-product-update-part-2.image-4e97f249231f.png
+    width: 522
+    height: 198
+  variants:
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-8d80958f4d5e.webp
+    width: 320
+    height: 121
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-c2af272fffd8.webp
+    width: 522
+    height: 198
+  color: '#484848'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/53058e990831a4ed2af0a6138545ec278259ba1d-791x238.png?w=1600&fit=max
+  original:
+    file: 2024-12-23-devin-december-24-product-update-part-2.image-fabba8fdcb42.png
+    width: 791
+    height: 238
+  variants:
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-5fc628a2d2a2.webp
+    width: 320
+    height: 96
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-d084e88ec18f.webp
+    width: 791
+    height: 238
+  color: '#2e2e2e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/0840160693ba179ba80d9f7f34f14dea7e631f68-886x738.png?w=1600&fit=max
+  original:
+    file: 2024-12-23-devin-december-24-product-update-part-2.image-78da34a454d0.png
+    width: 886
+    height: 738
+  variants:
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-bbdd5f7d1500.webp
+    width: 320
+    height: 267
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-d5b28f86c493.webp
+    width: 640
+    height: 533
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-8f1f4c85933b.webp
+    width: 886
+    height: 738
+  color: '#2e2e2e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/ae5afda8d606480b59a665522a713eb8330803dc-842x670.png?w=1600&fit=max
+  original:
+    file: 2024-12-23-devin-december-24-product-update-part-2.image-b6cc16c50650.png
+    width: 842
+    height: 670
+  variants:
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-bb6ee1e91fdb.webp
+    width: 320
+    height: 255
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-9bb62da33ed9.webp
+    width: 640
+    height: 509
+  - file: 2024-12-23-devin-december-24-product-update-part-2.image-15efbf3151cd.webp
+    width: 842
+    height: 670
+  color: '#2c2c2c'
 ---
 
 By The Cognition Team12.23.24

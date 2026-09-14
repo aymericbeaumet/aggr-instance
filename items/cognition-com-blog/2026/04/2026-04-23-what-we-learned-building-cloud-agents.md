@@ -6,6 +6,51 @@ published: 2026-04-23T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-04-23-what-we-learned-building-cloud-agents.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/b453f6fb2146063f42137230abe555e9727e006e-1691x1000.png?w=1600&fit=max
+  original:
+    file: 2026-04-23-what-we-learned-building-cloud-agents.image-16c7cf6b27cc.png
+    width: 1600
+    height: 946
+  variants:
+  - file: 2026-04-23-what-we-learned-building-cloud-agents.image-ae6afcbf249b.webp
+    width: 320
+    height: 189
+  - file: 2026-04-23-what-we-learned-building-cloud-agents.image-34bab9920b2a.webp
+    width: 640
+    height: 378
+  - file: 2026-04-23-what-we-learned-building-cloud-agents.image-f2fb13ac8ff2.webp
+    width: 960
+    height: 568
+  - file: 2026-04-23-what-we-learned-building-cloud-agents.image-0b5bdb644424.webp
+    width: 1280
+    height: 757
+  - file: 2026-04-23-what-we-learned-building-cloud-agents.image-124d77e3d7e1.webp
+    width: 1600
+    height: 946
+  color: '#f7f7f7'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/124905d593c97bfa5c9a95ca38623ec164fa7910-1687x1025.png?w=1600&fit=max
+  original:
+    file: 2026-04-23-what-we-learned-building-cloud-agents.image-5ab10c8c57f1.png
+    width: 1600
+    height: 972
+  variants:
+  - file: 2026-04-23-what-we-learned-building-cloud-agents.image-9bfd9f08a306.webp
+    width: 320
+    height: 194
+  - file: 2026-04-23-what-we-learned-building-cloud-agents.image-df0dd7b361d3.webp
+    width: 640
+    height: 389
+  - file: 2026-04-23-what-we-learned-building-cloud-agents.image-e0f1a6248a1f.webp
+    width: 960
+    height: 583
+  - file: 2026-04-23-what-we-learned-building-cloud-agents.image-e13c2c60c18d.webp
+    width: 1280
+    height: 778
+  - file: 2026-04-23-what-we-learned-building-cloud-agents.image-f00799e633f5.webp
+    width: 1600
+    height: 972
+  color: '#f7f7f7'
 ---
 
 Enterprises are converging on cloud agents as the future of software engineering — and many are concluding they should build their own. Posts like Stripe's, detailing how they built a [homegrown cloud agent](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents), make the path look achievable.

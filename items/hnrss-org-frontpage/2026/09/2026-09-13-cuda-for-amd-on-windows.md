@@ -39,6 +39,36 @@ images:
     width: 1200
     height: 600
   color: '#fefefe'
+- source: https://camo.githubusercontent.com/bda49ca2aab63a7a686fd37e900fe66c7f12aac63dcf0b1347edd859524172a9/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f706c6174666f726d2d57696e646f77732532307836342d353535353535
+  original:
+    file: 2026-09-13-cuda-for-amd-on-windows.image-df3b78e7490f.png
+    width: 140
+    height: 20
+  variants:
+  - file: 2026-09-13-cuda-for-amd-on-windows.image-ec96aa5ddc51.webp
+    width: 140
+    height: 20
+  color: '#5a5a5a'
+- source: https://camo.githubusercontent.com/9254941c8b7da2ae955349f1ac71864ac36a96cbc9736d0b18b24a743108b539/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4750552d414d44253230526164656f6e2d353535353535
+  original:
+    file: 2026-09-13-cuda-for-amd-on-windows.image-568d71d6a38c.png
+    width: 114
+    height: 20
+  variants:
+  - file: 2026-09-13-cuda-for-amd-on-windows.image-1b912b1ed809.webp
+    width: 114
+    height: 20
+  color: '#5a5a5a'
+- source: https://github.com/Speedstu/CUDA-for-AMD-Windows/actions/workflows/verify.yml/badge.svg
+  original:
+    file: 2026-09-13-cuda-for-amd-on-windows.image-243c1864334f.png
+    width: 108
+    height: 20
+  variants:
+  - file: 2026-09-13-cuda-for-amd-on-windows.image-a81d50fd8e51.webp
+    width: 108
+    height: 20
+  color: '#32c855'
 ---
 
 **WORKING REPRODUCIBLE STACK IS NOW UPLOADED.**

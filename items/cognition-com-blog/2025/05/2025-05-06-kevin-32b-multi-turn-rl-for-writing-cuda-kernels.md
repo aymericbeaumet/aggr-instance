@@ -6,6 +6,487 @@ published: 2025-05-06T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/1a5f0cc2ae90659e7a862bf0bbf1e27a13375c0f-4096x1638.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-05d99b70f289.png
+    width: 1600
+    height: 640
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-173ae0108daa.webp
+    width: 320
+    height: 128
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-6602cee9321c.webp
+    width: 640
+    height: 256
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-c5d71010fe5e.webp
+    width: 960
+    height: 384
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-d077f5c0d32f.webp
+    width: 1280
+    height: 512
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-5a2a374e3f2c.webp
+    width: 1600
+    height: 640
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/0ec36526d97ed100edc20d8fd7021172aead0d2e-1916x1002.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-1555b75f57b2.png
+    width: 1600
+    height: 837
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-0b839879d645.webp
+    width: 320
+    height: 167
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-9dde6da37b9b.webp
+    width: 640
+    height: 335
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-22b0cfe5f11a.webp
+    width: 960
+    height: 502
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-da1bf802edad.webp
+    width: 1280
+    height: 670
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-8d739895fe2a.webp
+    width: 1600
+    height: 837
+  color: '#fefefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/57fdfaa07456086eb157d40def0cb9fb44747686-1882x1000.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-3a1ca3c06a62.png
+    width: 1600
+    height: 850
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-8ce6e232447d.webp
+    width: 320
+    height: 170
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-f255b2327fc7.webp
+    width: 640
+    height: 340
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-e72e4ce4da1d.webp
+    width: 960
+    height: 510
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-ff7ccd2cce2b.webp
+    width: 1280
+    height: 680
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-903d50ad86fd.webp
+    width: 1600
+    height: 850
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/0702d9ff633bd0c47ce878455dd758f119d478bc-1802x974.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-60fa40701909.png
+    width: 1600
+    height: 865
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-33de6e828087.webp
+    width: 320
+    height: 173
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-c1c3210f1e33.webp
+    width: 640
+    height: 346
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-8f48847a3337.webp
+    width: 960
+    height: 519
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-342d2b31297e.webp
+    width: 1280
+    height: 692
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-fbea4fc359de.webp
+    width: 1600
+    height: 865
+  color: '#fefefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/936f69abff9f110a0fd2bcb85f1b76476ea9a7a6-4096x1743.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-92b281f3634f.png
+    width: 1600
+    height: 681
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-90b2800b763a.webp
+    width: 320
+    height: 136
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-009ad8f0fc1d.webp
+    width: 640
+    height: 272
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-e0391282cd6f.webp
+    width: 960
+    height: 409
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-1dff5b4f7e12.webp
+    width: 1280
+    height: 545
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-9dd765e1a477.webp
+    width: 1600
+    height: 681
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/35be1e0d4443eafa2fb9bae5a031b68fdcb03b21-7120x6327.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-52bd02286607.png
+    width: 1600
+    height: 1422
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-ba163734c839.webp
+    width: 320
+    height: 284
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-38ecb462abec.webp
+    width: 640
+    height: 569
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-cc340a910784.webp
+    width: 960
+    height: 853
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-bb4759114397.webp
+    width: 1280
+    height: 1138
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-962e6afdfd04.webp
+    width: 1600
+    height: 1422
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f8563936fb9cee7f8a8e549cd4092c4176b4a072-4670x2613.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-52470941e157.png
+    width: 1600
+    height: 895
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-e40e04674f75.webp
+    width: 320
+    height: 179
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-62c9ac71d182.webp
+    width: 640
+    height: 358
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-7cfa87e5f701.webp
+    width: 960
+    height: 537
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-a1ca0285080b.webp
+    width: 1280
+    height: 716
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-42c7a1c993ed.webp
+    width: 1600
+    height: 895
+  color: '#fefefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f269a3cfcd20ae735ae4a0ca2cafaf559f59f2fc-3443x1271.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-6dba38591afc.png
+    width: 1600
+    height: 590
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-68beca8cca92.webp
+    width: 320
+    height: 118
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-6d2680bebc24.webp
+    width: 640
+    height: 236
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-24876b169ce9.webp
+    width: 960
+    height: 354
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-e3f97bd4a3fe.webp
+    width: 1280
+    height: 472
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-9f054e4c130e.webp
+    width: 1600
+    height: 590
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/afb191e279a8828f69f0403ccf369d496c514c0c-4500x2100.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-26ac4bc2bc77.png
+    width: 1600
+    height: 746
+  color: '#fcfcfc'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/b01ff2de149e67f866c3a503e34d7591adfdeeff-2228x506.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-49404d22b005.png
+    width: 1600
+    height: 363
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-fd6558ddc121.webp
+    width: 320
+    height: 73
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-47b406c548ed.webp
+    width: 640
+    height: 145
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-f6bb6f95f483.webp
+    width: 960
+    height: 218
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-3ae1d5b917ca.webp
+    width: 1280
+    height: 290
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-ad9e7ad69262.webp
+    width: 1600
+    height: 363
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/9c7de03dc5e05d2a89b47da5ec528693d0ea5fef-1458x722.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-4a80c065cedb.png
+    width: 1458
+    height: 722
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-525d04817796.webp
+    width: 320
+    height: 158
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-cb78af83bfdb.webp
+    width: 640
+    height: 317
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-de0482399b33.webp
+    width: 960
+    height: 475
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-ae26140b7486.webp
+    width: 1280
+    height: 634
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-7db7c5d39637.webp
+    width: 1458
+    height: 722
+  color: '#f6f6f8'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/2cbb449e7aaf59d51848907b7e7c9f7e87c4c84a-1938x847.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-647b26705ff7.png
+    width: 1600
+    height: 699
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-9415ab0eca1a.webp
+    width: 320
+    height: 140
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-a51115de108a.webp
+    width: 640
+    height: 280
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-3b816e1b9c98.webp
+    width: 960
+    height: 419
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-71d754221973.webp
+    width: 1280
+    height: 559
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-298142883068.webp
+    width: 1600
+    height: 699
+  color: '#fdfefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/04d95138027c2b75bfc6d348f858382a130d369a-2750x1026.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-05aa97456224.png
+    width: 1600
+    height: 597
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-3b51b748d466.webp
+    width: 320
+    height: 119
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-3821e4ec319a.webp
+    width: 640
+    height: 239
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-10b0116b662f.webp
+    width: 960
+    height: 358
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-e2e22646c7d7.webp
+    width: 1280
+    height: 478
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-39b5d2c4a276.webp
+    width: 1600
+    height: 597
+  color: '#fcfcfc'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/4fbde07b304a3519b6fdce1eb9a1b8efae0f247b-6220x2832.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-1b43e42ceb3d.png
+    width: 1600
+    height: 729
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-831815546093.webp
+    width: 320
+    height: 146
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-e759ef1edba0.webp
+    width: 640
+    height: 292
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-c3cfe614e40c.webp
+    width: 960
+    height: 437
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-36efb3f78ecd.webp
+    width: 1280
+    height: 583
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-4d5211c15eff.webp
+    width: 1600
+    height: 729
+  color: '#fbfbfb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/473f78b22de115ccc2fc228b78a8c65490e0906c-6228x2831.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-a0cbd0b4c38c.png
+    width: 1600
+    height: 727
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-665863db3121.webp
+    width: 320
+    height: 145
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-2bfab3769b4a.webp
+    width: 640
+    height: 291
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-38e091a5880c.webp
+    width: 960
+    height: 436
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-87e5e917adbe.webp
+    width: 1280
+    height: 582
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-1a4f3b9c3d9b.webp
+    width: 1600
+    height: 727
+  color: '#fcfcfc'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/9f9342a194fe8f665b161c521e6dc69bf67de0cc-2100x182.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-5e0065e34abc.png
+    width: 1600
+    height: 138
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-75b7bc25771f.webp
+    width: 320
+    height: 28
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-11fbae2666ca.webp
+    width: 640
+    height: 55
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-1fadb0824873.webp
+    width: 960
+    height: 83
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-71a57af228fb.webp
+    width: 1280
+    height: 110
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-c8d3b3e2632c.webp
+    width: 1600
+    height: 138
+  color: '#fefefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/921a4eb2bc50d416b259cfe6b76e812e3a8bce9a-4500x2700.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-5673b85e8563.png
+    width: 1600
+    height: 960
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-805b84f2f6d7.webp
+    width: 320
+    height: 192
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-3f525aa64ba6.webp
+    width: 640
+    height: 384
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-9bbe791d99e1.webp
+    width: 960
+    height: 576
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-31409d2a6546.webp
+    width: 1280
+    height: 768
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-0f31885e5624.webp
+    width: 1600
+    height: 960
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/15b9ca855de3761b7aebffd2670e705f56d0d12a-4050x2700.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-56b98e8900ae.png
+    width: 1600
+    height: 1066
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-fe6c312b0ce8.webp
+    width: 320
+    height: 213
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-b5dc77053f12.webp
+    width: 640
+    height: 426
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-05d011f39796.webp
+    width: 960
+    height: 640
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-49df27eee68f.webp
+    width: 1280
+    height: 853
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-466a83365885.webp
+    width: 1600
+    height: 1066
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/a673f130f27da1d46741e1b6a1095eb259bee0db-1908x308.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-02f62059aa8c.png
+    width: 1600
+    height: 258
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-d4fa8fdb54c0.webp
+    width: 320
+    height: 52
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-ae397bbc16cd.webp
+    width: 640
+    height: 103
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-880289671a11.webp
+    width: 960
+    height: 155
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-3bd567e58da1.webp
+    width: 1280
+    height: 206
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-5103dfcba9bb.webp
+    width: 1600
+    height: 258
+  color: '#fefefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/d8cc0c2030782023e9f04604c0b29c6bb48b5ef2-6228x2831.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-776db6934a73.png
+    width: 1600
+    height: 727
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-ed88b8ed5576.webp
+    width: 320
+    height: 145
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-02076b4872d4.webp
+    width: 640
+    height: 291
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-3b152873bcfe.webp
+    width: 960
+    height: 436
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-e800795d6c42.webp
+    width: 1280
+    height: 582
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-3b89f5d34556.webp
+    width: 1600
+    height: 727
+  color: '#fcfcfc'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/90626361d458b18496a9efcfd972fd5c04708b89-2031x960.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-00c3211457a7.png
+    width: 1600
+    height: 756
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-963a9f8938b6.webp
+    width: 320
+    height: 151
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-26951046d4e4.webp
+    width: 640
+    height: 302
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-5f43b7d3bc26.webp
+    width: 960
+    height: 454
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-6598e0790928.webp
+    width: 1280
+    height: 605
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-95d4c670d069.webp
+    width: 1600
+    height: 756
+  color: '#fcfcfc'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f972d85ded1edfb0764c252bbb0ada9438ed73bb-3600x2100.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-3e6978cd38f0.png
+    width: 1600
+    height: 934
+  color: '#fefdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/ee43b61259ce3f718a52e30e48ff8c61e70361c9-3600x2100.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-89b6a7cc3e30.png
+    width: 1600
+    height: 934
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/9772736cd684ac37896bf082d7151285ef9675dc-2000x1018.png?w=1600&fit=max
+  original:
+    file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-4bba64813fc3.png
+    width: 1600
+    height: 814
+  variants:
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-13760c6cc5a0.webp
+    width: 320
+    height: 163
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-66eef56d98a0.webp
+    width: 640
+    height: 326
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-851ccc27f06b.webp
+    width: 960
+    height: 488
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-85643d9c68a1.webp
+    width: 1280
+    height: 651
+  - file: 2025-05-06-kevin-32b-multi-turn-rl-for-writing-cuda-kernels.image-5a8e382e6711.webp
+    width: 1600
+    height: 814
+  color: '#fdfdfd'
 ---
 
 Carlo Baronio\*, Pietro Marsella\*, Ben Pan\*, Silas Alberti

@@ -127,6 +127,65 @@ images:
     width: 48
     height: 41
   color: '#a0bbca'
+- source: https://static.files.bbci.co.uk/core/website/assets/static/news/incident-types/light-mode/bbc-verify.71bca62fc4.svg
+  original:
+    file: 2026-09-11-houthis-take-control-of-key-island-in-global-shipping-route.image-af4549d01930.png
+    width: 154
+    height: 33
+  variants:
+  - file: 2026-09-11-houthis-take-control-of-key-island-in-global-shipping-route.image-f2e9df45af89.webp
+    width: 154
+    height: 33
+  color: '#2200cc'
+- source: https://static.files.bbci.co.uk/core/website/assets/static/news/incident-types/light-mode/analysis.77b314ef10.svg
+  original:
+    file: 2026-09-11-houthis-take-control-of-key-island-in-global-shipping-route.image-d0c49432bc22.png
+    width: 678
+    height: 173
+  variants:
+  - file: 2026-09-11-houthis-take-control-of-key-island-in-global-shipping-route.image-0c0194878224.webp
+    width: 320
+    height: 82
+  - file: 2026-09-11-houthis-take-control-of-key-island-in-global-shipping-route.image-18c5c96f670c.webp
+    width: 678
+    height: 173
+  color: '#b91a1a'
+- source: https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/vivo/live/images/2026/9/11/0009e250-5249-4775-8baf-280691b960d4.jpg.webp
+  original:
+    file: 2026-09-11-houthis-take-control-of-key-island-in-global-shipping-route.image-1a139c560f93.webp
+    width: 800
+    height: 450
+  color: '#8c8378'
+- source: https://ichef.bbci.co.uk/ace/standard/128/cpsprodpb//vivo/live/images/2026/4/27/e7a03c37-dc10-4390-acd5-a94f6d5e9e30.jpg.webp
+  original:
+    file: 2026-09-11-houthis-take-control-of-key-island-in-global-shipping-route.image-0422a18cec3f.webp
+    width: 128
+    height: 128
+  color: '#44371b'
+- source: https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/vivo/live/images/2026/9/11/2ad4d9e3-d33d-49bf-b39b-b171676b2a12.png.webp
+  original:
+    file: 2026-09-11-houthis-take-control-of-key-island-in-global-shipping-route.image-66691ebb49fe.webp
+    width: 800
+    height: 650
+  color: '#d2d2d2'
+- source: https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/vivo/live/images/2026/9/11/6ffa9219-78e1-4972-91f8-42e719f09c7b.jpg.webp
+  original:
+    file: 2026-09-11-houthis-take-control-of-key-island-in-global-shipping-route.image-17e48f5dad75.webp
+    width: 800
+    height: 677
+  color: '#fafafa'
+- source: https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/vivo/live/images/2026/9/11/093c93e6-0b36-403d-b68a-c673bb180dcb.jpg.webp
+  original:
+    file: 2026-09-11-houthis-take-control-of-key-island-in-global-shipping-route.image-b8c3699437bb.webp
+    width: 800
+    height: 420
+  color: '#b9c7d7'
+- source: https://ichef.bbci.co.uk/ace/standard/595/cpsprodpb/vivo/live/images/2026/9/11/b0704631-2167-40fb-97be-1722a9bc0562.png.webp
+  original:
+    file: 2026-09-11-houthis-take-control-of-key-island-in-global-shipping-route.image-55ab52603dc6.webp
+    width: 595
+    height: 568
+  color: '#4c444a'
 ---
 
 1.  ### Houthis reportedly take control of island on key shipping routes published at 18:17 BST

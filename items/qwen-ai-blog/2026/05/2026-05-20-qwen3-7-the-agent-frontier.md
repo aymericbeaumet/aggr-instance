@@ -120,6 +120,28 @@ images:
     width: 48
     height: 35
   color: '#fbfcfc'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3.7/Figures/Qwen3.7-Max-Score.png
+  original:
+    file: 2026-05-20-qwen3-7-the-agent-frontier.image-67a584f5bdf0.png
+    width: 17277
+    height: 9669
+  variants:
+  - file: 2026-05-20-qwen3-7-the-agent-frontier.image-bae26f216cde.webp
+    width: 320
+    height: 179
+  - file: 2026-05-20-qwen3-7-the-agent-frontier.image-0c32d48e6fa9.webp
+    width: 640
+    height: 358
+  - file: 2026-05-20-qwen3-7-the-agent-frontier.image-3ab91a7677d9.webp
+    width: 960
+    height: 537
+  - file: 2026-05-20-qwen3-7-the-agent-frontier.image-81aaa4478eff.webp
+    width: 1280
+    height: 716
+  - file: 2026-05-20-qwen3-7-the-agent-frontier.image-cb2760c78190.webp
+    width: 1600
+    height: 895
+  color: '#fbfafb'
 ---
 
 ![Qwen3.7 Main Image](https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3.7/Figures/qwen3.7-max-banner.png)

@@ -6,6 +6,41 @@ published: 2024-09-12T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2024-09-12-a-review-of-openai-s-o1-and-how-we-evaluate-coding-agents.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/af90acf737d652594185fdc30b8e7ffe0c80a0a1-1600x1061.png?w=1600&fit=max
+  original:
+    file: 2024-09-12-a-review-of-openai-s-o1-and-how-we-evaluate-coding-agents.image-2df6a0c1e11e.png
+    width: 1600
+    height: 1061
+  variants:
+  - file: 2024-09-12-a-review-of-openai-s-o1-and-how-we-evaluate-coding-agents.image-e953aad05ea5.webp
+    width: 320
+    height: 212
+  - file: 2024-09-12-a-review-of-openai-s-o1-and-how-we-evaluate-coding-agents.image-031a714e8a98.webp
+    width: 640
+    height: 424
+  - file: 2024-09-12-a-review-of-openai-s-o1-and-how-we-evaluate-coding-agents.image-5f2958deaeff.webp
+    width: 960
+    height: 637
+  - file: 2024-09-12-a-review-of-openai-s-o1-and-how-we-evaluate-coding-agents.image-d6c8344444c0.webp
+    width: 1280
+    height: 849
+  - file: 2024-09-12-a-review-of-openai-s-o1-and-how-we-evaluate-coding-agents.image-7ad36cf56957.webp
+    width: 1600
+    height: 1061
+  color: '#2f2f2f'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/bda9d8f8a16033afb184a76cb88e24ed58f46026-1140x720.gif?w=1600&fit=max
+  original:
+    file: 2024-09-12-a-review-of-openai-s-o1-and-how-we-evaluate-coding-agents.image-eb2959b9adc3.gif
+    width: 1140
+    height: 720
+  color: '#2a2a2a'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/bad31f5971e2b85c76f0ce23f45bcf9d1fc603ad-1600x979.png?w=1600&fit=max
+  original:
+    file: 2024-09-12-a-review-of-openai-s-o1-and-how-we-evaluate-coding-agents.image-90e366db6551.png
+    width: 1600
+    height: 979
+  color: '#181a1e'
 ---
 
 [Devin](https://devin.ai/) is an AI software engineering agent that autonomously completes coding tasks. We’ve been testing OpenAI’s new o1-mini and o1-preview models with Devin for the past several weeks and are excited to share some early results. To contextualize these results we will also discuss our evaluation methodology and our technical approach to building reliable coding agents.

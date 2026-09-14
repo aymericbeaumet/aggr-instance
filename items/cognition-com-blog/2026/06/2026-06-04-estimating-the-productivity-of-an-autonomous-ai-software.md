@@ -6,6 +6,88 @@ published: 2026-06-04T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/ece724048769a06de8edc0f2f0d6d450cffd25b1-321x405.svg?w=1600&fit=max
+  original:
+    file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-915425bf0b0b.png
+    width: 429
+    height: 541
+  variants:
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-a7b173dc07cf.webp
+    width: 320
+    height: 404
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-049fccabb0d9.webp
+    width: 429
+    height: 541
+  color: '#010101'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/62dcf097fe86800089156c0d62298b6e7a49e461-321x239.svg?w=1600&fit=max
+  original:
+    file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-bdcf2d54a15f.png
+    width: 429
+    height: 319
+  variants:
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-843c403dd5b1.webp
+    width: 320
+    height: 238
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-c969ae234dff.webp
+    width: 429
+    height: 319
+  color: '#000000'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/4614fe0dba9104666f87ebe8e06c66d03ad32e9d-321x211.svg?w=1600&fit=max
+  original:
+    file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-44842174f183.png
+    width: 429
+    height: 281
+  variants:
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-15c4508e9268.webp
+    width: 320
+    height: 210
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-df10aa9e7731.webp
+    width: 429
+    height: 281
+  color: '#5ba3d0'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/63032c3e37c01abfe0ca657580c0299aa436bb71-291x323.svg?w=1600&fit=max
+  original:
+    file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-679707975866.png
+    width: 388
+    height: 431
+  variants:
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-99a97385e358.webp
+    width: 388
+    height: 431
+  color: '#f9f9f9'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3a453c1422305f789ef0a1b1ad43345ad828b39b-321x168.svg?w=1600&fit=max
+  original:
+    file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-2bcc14a5863f.png
+    width: 428
+    height: 225
+  variants:
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-3d5be9ac3442.webp
+    width: 428
+    height: 225
+  color: '#000101'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3dcbf349062bffe29769b80408e563d7f3cad2b2-2120x640.png?w=1600&fit=max
+  original:
+    file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-974ad3f19b0a.png
+    width: 1600
+    height: 483
+  variants:
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-98cdbd11989f.webp
+    width: 320
+    height: 97
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-f3b77f01e48a.webp
+    width: 640
+    height: 193
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-9cd60de7aa17.webp
+    width: 960
+    height: 290
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-1a14c22dad71.webp
+    width: 1280
+    height: 386
+  - file: 2026-06-04-estimating-the-productivity-of-an-autonomous-ai-software.image-63588e46934f.webp
+    width: 1600
+    height: 483
+  color: '#050505'
 ---
 
 Six months ago, every CTO was concerned their team wasn't using enough tokens. That trend has reversed as token usage and AI spend have skyrocketed. Engineering leaders are now trying to figure out how to measure actual output, because not every token delivers real value. Some save engineering hours and accelerate projects; others are wasted on useless sessions and bad prompting.

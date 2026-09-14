@@ -6,6 +6,241 @@ published: 2024-03-15T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2024-03-15-swe-bench-technical-report.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/73a35aaa9d9ab3f0cd1469ff5cf0e83146c354f7-1600x376.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-e6ccacbb9df8.png
+    width: 1600
+    height: 376
+  variants:
+  - file: 2024-03-15-swe-bench-technical-report.image-65b0578be58b.webp
+    width: 320
+    height: 75
+  - file: 2024-03-15-swe-bench-technical-report.image-788220029360.webp
+    width: 640
+    height: 150
+  - file: 2024-03-15-swe-bench-technical-report.image-95cc20b29132.webp
+    width: 960
+    height: 226
+  - file: 2024-03-15-swe-bench-technical-report.image-bcd378d28bad.webp
+    width: 1280
+    height: 301
+  - file: 2024-03-15-swe-bench-technical-report.image-11159966db29.webp
+    width: 1600
+    height: 376
+  color: '#f7f8f9'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/2604c49c0ca7be615027add485ae9f132afccb28-1600x883.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-238a9522ee1a.png
+    width: 1600
+    height: 883
+  variants:
+  - file: 2024-03-15-swe-bench-technical-report.image-808751d69d85.webp
+    width: 320
+    height: 177
+  - file: 2024-03-15-swe-bench-technical-report.image-55c88f50d08b.webp
+    width: 640
+    height: 353
+  - file: 2024-03-15-swe-bench-technical-report.image-9daaa06f7bfd.webp
+    width: 960
+    height: 530
+  - file: 2024-03-15-swe-bench-technical-report.image-a351732d3586.webp
+    width: 1280
+    height: 706
+  - file: 2024-03-15-swe-bench-technical-report.image-dde7db19ca93.webp
+    width: 1600
+    height: 883
+  color: '#181818'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/db0e6e76b039ed477533effc754bb8ea12a85808-800x600.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-4efc9ebf037d.png
+    width: 800
+    height: 600
+  variants:
+  - file: 2024-03-15-swe-bench-technical-report.image-dc9ab4656c46.webp
+    width: 320
+    height: 240
+  - file: 2024-03-15-swe-bench-technical-report.image-51cec08e6dcd.webp
+    width: 640
+    height: 480
+  - file: 2024-03-15-swe-bench-technical-report.image-414d30c1778a.webp
+    width: 800
+    height: 600
+  color: '#fefefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/ac0d59216d45f5efb79f63deeea717b5191dc62e-1600x1343.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-a11a22abc570.png
+    width: 1600
+    height: 1343
+  color: '#0e1116'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/b3e3d90a90fbe3046ace5e55e0b88c6281dca5fc-1600x761.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-7029869c6ba7.png
+    width: 1600
+    height: 761
+  variants:
+  - file: 2024-03-15-swe-bench-technical-report.image-5f084550d49f.webp
+    width: 320
+    height: 152
+  - file: 2024-03-15-swe-bench-technical-report.image-8348c96fb293.webp
+    width: 640
+    height: 304
+  - file: 2024-03-15-swe-bench-technical-report.image-f06981e246c1.webp
+    width: 960
+    height: 457
+  - file: 2024-03-15-swe-bench-technical-report.image-6084946c912b.webp
+    width: 1280
+    height: 609
+  - file: 2024-03-15-swe-bench-technical-report.image-8ff48511aa50.webp
+    width: 1600
+    height: 761
+  color: '#1e1e1e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/61565cbf12acfefa577f8ef48d739e3f4eabe1ff-1600x557.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-d88a9ddc11c4.png
+    width: 1600
+    height: 557
+  variants:
+  - file: 2024-03-15-swe-bench-technical-report.image-c1da99ebbdbb.webp
+    width: 320
+    height: 111
+  - file: 2024-03-15-swe-bench-technical-report.image-180d4eb94247.webp
+    width: 640
+    height: 223
+  - file: 2024-03-15-swe-bench-technical-report.image-13c0c5bf2e2c.webp
+    width: 960
+    height: 334
+  - file: 2024-03-15-swe-bench-technical-report.image-e0e15f327ac2.webp
+    width: 1280
+    height: 446
+  - file: 2024-03-15-swe-bench-technical-report.image-962de9909824.webp
+    width: 1600
+    height: 557
+  color: '#272726'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/cbe9dcd92c9ac9b5bbacde2269de0c61459da762-1600x148.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-953704849e42.png
+    width: 1600
+    height: 148
+  variants:
+  - file: 2024-03-15-swe-bench-technical-report.image-4c77e0016f7d.webp
+    width: 320
+    height: 30
+  - file: 2024-03-15-swe-bench-technical-report.image-a61feff2b26a.webp
+    width: 640
+    height: 59
+  - file: 2024-03-15-swe-bench-technical-report.image-bac9234a4978.webp
+    width: 960
+    height: 89
+  - file: 2024-03-15-swe-bench-technical-report.image-3e7c87c7f3ac.webp
+    width: 1280
+    height: 118
+  - file: 2024-03-15-swe-bench-technical-report.image-e4c6e99a26dc.webp
+    width: 1600
+    height: 148
+  color: '#1e1e1e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/c084bcb71355d9f286327dcfcc8960e55a2f611a-1600x1098.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-24f135877f9b.png
+    width: 1600
+    height: 1098
+  color: '#252525'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/6ab26ddf8b9fca90d9377ddb07cbfa95f1c86840-1600x1075.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-070be24c2b07.png
+    width: 1600
+    height: 1075
+  color: '#f3fef6'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f499353dd139557c562f399654a4c0356b5aff0e-1600x1106.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-3c7c45a1213d.png
+    width: 1600
+    height: 1106
+  color: '#262626'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/e735fc060bd0fd1ebb72d12d5496b1a04a304f58-1600x520.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-f5fc87788c5f.png
+    width: 1600
+    height: 520
+  variants:
+  - file: 2024-03-15-swe-bench-technical-report.image-7ed1843f91b5.webp
+    width: 320
+    height: 104
+  - file: 2024-03-15-swe-bench-technical-report.image-97087a38e383.webp
+    width: 640
+    height: 208
+  - file: 2024-03-15-swe-bench-technical-report.image-41b53bfecd01.webp
+    width: 960
+    height: 312
+  - file: 2024-03-15-swe-bench-technical-report.image-69123569836a.webp
+    width: 1280
+    height: 416
+  - file: 2024-03-15-swe-bench-technical-report.image-153e6d00bd36.webp
+    width: 1600
+    height: 520
+  color: '#0e1116'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/cf74e3e39e80119a8db6aede8578702da97ba021-1600x794.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-c630d15a1544.png
+    width: 1600
+    height: 794
+  color: '#191919'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/bd73215d40a7bcd7807527f6f96804e935c52a7d-1600x753.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-8b87ae56f2ac.png
+    width: 1600
+    height: 753
+  color: '#262423'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f264f7afcdd440d5d960c27928daad1721c8aaef-1600x213.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-eb0e4325cd8f.png
+    width: 1600
+    height: 213
+  color: '#242524'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/31ade22b6357758be3643a803e50abe551bed3a9-1600x346.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-3aa5c8c48543.png
+    width: 1600
+    height: 346
+  variants:
+  - file: 2024-03-15-swe-bench-technical-report.image-56c06be196af.webp
+    width: 320
+    height: 69
+  - file: 2024-03-15-swe-bench-technical-report.image-04b4f6a71a7a.webp
+    width: 640
+    height: 138
+  - file: 2024-03-15-swe-bench-technical-report.image-03340db93301.webp
+    width: 960
+    height: 208
+  - file: 2024-03-15-swe-bench-technical-report.image-885087e52c39.webp
+    width: 1280
+    height: 277
+  - file: 2024-03-15-swe-bench-technical-report.image-e0938d009ce5.webp
+    width: 1600
+    height: 346
+  color: '#262626'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/b67e121b22fa28eba1e71ca4718285043cb1faa4-1600x307.png?w=1600&fit=max
+  original:
+    file: 2024-03-15-swe-bench-technical-report.image-a918d19774f8.png
+    width: 1600
+    height: 307
+  variants:
+  - file: 2024-03-15-swe-bench-technical-report.image-379bfacf9755.webp
+    width: 320
+    height: 61
+  - file: 2024-03-15-swe-bench-technical-report.image-a3137d88a6f0.webp
+    width: 640
+    height: 123
+  - file: 2024-03-15-swe-bench-technical-report.image-1b860d49d4a5.webp
+    width: 960
+    height: 184
+  - file: 2024-03-15-swe-bench-technical-report.image-699112dbfcc1.webp
+    width: 1280
+    height: 246
+  - file: 2024-03-15-swe-bench-technical-report.image-cc131069e6f4.webp
+    width: 1600
+    height: 307
+  color: '#262625'
 ---
 
 To evaluate Devin, we turn to [SWE-bench](https://www.swebench.com), an automated benchmark for software engineering systems consisting of GitHub issues and pull requests. We believe SWE-bench is a great choice because it deterministically evaluates (via unit tests) a system’s ability to solve issues in real world codebases, unlike benchmarks like [HumanEval](https://github.com/openai/human-eval) which are limited to standalone functions.

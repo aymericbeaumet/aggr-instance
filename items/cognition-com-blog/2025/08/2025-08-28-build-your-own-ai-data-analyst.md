@@ -6,6 +6,61 @@ published: 2025-08-28T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-08-28-build-your-own-ai-data-analyst.html
+images:
+- source: https://cognition.com/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2F2mc9cv2v%2Fproduction%2F8527b7c1b2b03f309d7ba9189296ac76a1c7b650-1920x1080.jpg%3Fw%3D640%26h%3D360%26fit%3Dcrop&w=1920&q=75
+  original:
+    file: 2025-08-28-build-your-own-ai-data-analyst.image-3b7b5c37a3fe.jpg
+    width: 640
+    height: 360
+  color: '#e8e8e9'
+- source: https://cognition.com/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2F2mc9cv2v%2Fproduction%2Fd378ef146ec6070438bfaeab4d9e47e8b886e55d-1920x1080.jpg%3Fw%3D640%26h%3D360%26fit%3Dcrop&w=1920&q=75
+  original:
+    file: 2025-08-28-build-your-own-ai-data-analyst.image-e33be2344ab6.jpg
+    width: 640
+    height: 360
+  color: '#c5c5c5'
+- source: https://cognition.com/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2F2mc9cv2v%2Fproduction%2F5841a7932386c05dc112f92fda8ff519b38d4f9a-1920x1080.jpg%3Fw%3D640%26h%3D360%26fit%3Dcrop&w=1920&q=75
+  original:
+    file: 2025-08-28-build-your-own-ai-data-analyst.image-4c0c8c9b78dd.jpg
+    width: 640
+    height: 360
+  color: '#e9e9e7'
+- source: https://cognition.com/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2F2mc9cv2v%2Fproduction%2F58309361c06f31fa49f8c36e307963f21bd3f22b-1382x777.jpg%3Frect%3D1%2C0%2C1381%2C777%26w%3D640%26h%3D360%26fit%3Dcrop&w=1920&q=75
+  original:
+    file: 2025-08-28-build-your-own-ai-data-analyst.image-23ac1070ca6e.jpg
+    width: 640
+    height: 360
+  color: '#b8b7b5'
+- source: https://cognition.com/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2F2mc9cv2v%2Fproduction%2F89fcacf48d33b51277268808596d123237018950-1920x1080.jpg%3Fw%3D640%26h%3D360%26fit%3Dcrop&w=1920&q=75
+  original:
+    file: 2025-08-28-build-your-own-ai-data-analyst.image-c0d8c38070c0.jpg
+    width: 640
+    height: 360
+  color: '#c9c9c4'
+- source: https://cognition.com/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2F2mc9cv2v%2Fproduction%2F6ce843c49d6a38e1c0045e43891aca89fccd8981-1500x844.jpg%3Fw%3D640%26h%3D360%26fit%3Dcrop&w=1920&q=75
+  original:
+    file: 2025-08-28-build-your-own-ai-data-analyst.image-adbf4d18dead.jpg
+    width: 640
+    height: 360
+  color: '#c9c5c2'
+- source: https://cognition.com/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2F2mc9cv2v%2Fproduction%2Fc1e05d959a8c25c8df5e86198a4213e4fd634b61-1500x844.jpg%3Fw%3D640%26h%3D360%26fit%3Dcrop&w=1920&q=75
+  original:
+    file: 2025-08-28-build-your-own-ai-data-analyst.image-5ce810991425.jpg
+    width: 640
+    height: 360
+  color: '#c8c6c3'
+- source: https://cognition.com/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2F2mc9cv2v%2Fproduction%2F164f27869605d7c326a68e511efcf1a4077fc2b7-1920x1080.jpg%3Fw%3D640%26h%3D360%26fit%3Dcrop&w=1920&q=75
+  original:
+    file: 2025-08-28-build-your-own-ai-data-analyst.image-613b96e7ab22.jpg
+    width: 640
+    height: 360
+  color: '#898985'
+- source: https://cognition.com/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2F2mc9cv2v%2Fproduction%2F5638cfd0a8a65ad3074019b69c3aa05e112577b7-1920x1080.jpg%3Fw%3D640%26h%3D360%26fit%3Dcrop&w=1920&q=75
+  original:
+    file: 2025-08-28-build-your-own-ai-data-analyst.image-a21e0a12b145.jpg
+    width: 640
+    height: 360
+  color: '#a8a9a4'
 ---
 
 [![Estimating the Productivity of an Autonomous AI Software Engineer](https://cognition.com/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2F2mc9cv2v%2Fproduction%2F8527b7c1b2b03f309d7ba9189296ac76a1c7b650-1920x1080.jpg%3Fw%3D640%26h%3D360%26fit%3Dcrop&w=1920&q=75)

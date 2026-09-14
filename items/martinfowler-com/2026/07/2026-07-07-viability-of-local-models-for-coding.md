@@ -9,6 +9,13 @@ authors:
 - Martin Fowler
 content: extracted
 html: 2026-07-07-viability-of-local-models-for-coding.html
+images:
+- source: https://martinfowler.com/articles/exploring-gen-ai/local-models_lmstudio-view.png
+  original:
+    file: 2026-07-07-viability-of-local-models-for-coding.image-46edaed9d70e.png
+    width: 2374
+    height: 1280
+  color: '#f4f4f4'
 ---
 
 Until recently I hadn't tried running models locally for quite a while, the disappointment had just always been too high when I did it. About a month ago though, I dove back in - there were just too many claims out there to ignore, about how far they have come, how it's now much more feasible to run them, and how some of them have become really good at coding. So this is my personal experience with using them, on and off, over the past 4 weeks or so.

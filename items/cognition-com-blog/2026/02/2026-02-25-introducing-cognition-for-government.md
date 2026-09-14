@@ -6,6 +6,13 @@ published: 2026-02-25T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-02-25-introducing-cognition-for-government.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/164f27869605d7c326a68e511efcf1a4077fc2b7-1920x1080.jpg?w=1600&fit=max
+  original:
+    file: 2026-02-25-introducing-cognition-for-government.image-bfdf8ca1da8e.jpg
+    width: 1600
+    height: 900
+  color: '#898985'
 ---
 
 By The Cognition Team02.25.26

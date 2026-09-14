@@ -128,6 +128,12 @@ images:
     width: 48
     height: 43
   color: '#fefefe'
+- source: https://www.apple.com/v/iphone-duo/a/images/overview/contrast/iphone_18_pro_camera__52c61km6lpem_large.png
+  original:
+    file: 2026-09-09-iphone-duo.image-a9f963565373.png
+    width: 40
+    height: 56
+  color: '#000000'
 ---
 
 ## Foldable design

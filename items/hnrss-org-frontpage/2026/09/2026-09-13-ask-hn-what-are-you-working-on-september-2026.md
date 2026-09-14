@@ -10,6 +10,23 @@ authors:
 summary: 'What are you working on? What have you been curious about lately? Comments URL: https://news.ycombinator.com/item?id=49686380 Points: 135 # Comments: 393'
 content: extracted
 html: 2026-09-13-ask-hn-what-are-you-working-on-september-2026.html
+images:
+- source: https://news.ycombinator.com/s.gif
+  original:
+    file: 2026-09-13-ask-hn-what-are-you-working-on-september-2026.image-56d45f8a17f5.gif
+    width: 1
+    height: 1
+  variants:
+  - file: 2026-09-13-ask-hn-what-are-you-working-on-september-2026.image-341355a3f873.webp
+    width: 1
+    height: 1
+  color: '#000000'
+- source: https://i.ytimg.com/vi/50oQQThXWnc/hqdefault.jpg
+  original:
+    file: 2026-09-13-ask-hn-what-are-you-working-on-september-2026.image-07e5051de3ea.jpg
+    width: 480
+    height: 360
+  color: '#010101'
 html_truncated: true
 ---
 

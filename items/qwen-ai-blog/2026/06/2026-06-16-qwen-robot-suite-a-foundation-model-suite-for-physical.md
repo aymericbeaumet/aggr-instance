@@ -142,6 +142,34 @@ images:
     width: 48
     height: 33
   color: '#fbfafa'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/suite/images/Qwen-RobotSuite.jpg
+  original:
+    file: 2026-06-16-qwen-robot-suite-a-foundation-model-suite-for-physical.image-ef179afc2d04.jpg
+    width: 8000
+    height: 4500
+  variants:
+  - file: 2026-06-16-qwen-robot-suite-a-foundation-model-suite-for-physical.image-8e2e9d2d4b51.webp
+    width: 320
+    height: 180
+  - file: 2026-06-16-qwen-robot-suite-a-foundation-model-suite-for-physical.image-9355c2a1c356.webp
+    width: 640
+    height: 360
+  - file: 2026-06-16-qwen-robot-suite-a-foundation-model-suite-for-physical.image-254e3d1f8256.webp
+    width: 960
+    height: 540
+  - file: 2026-06-16-qwen-robot-suite-a-foundation-model-suite-for-physical.image-e7020fac84e3.webp
+    width: 1280
+    height: 720
+  - file: 2026-06-16-qwen-robot-suite-a-foundation-model-suite-for-physical.image-44b8026c9d4a.webp
+    width: 1600
+    height: 900
+  color: '#f9f9f9'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/robotnav/fig_teaser.png
+  original:
+    file: 2026-06-16-qwen-robot-suite-a-foundation-model-suite-for-physical.image-28e31ce5ef23.png
+    width: 6666
+    height: 3027
+  color: '#f8f8f9'
 ---
 
 The Qwen family of foundation models already gives strong perception and reasoning about the physical world. But **seeing is not acting**: the gap between vision and language understanding and physical control remains the central bottleneck for embodied intelligence. The **Qwen-Robot Suite** bridges this gap with three foundation models — **Qwen-RobotNav**, **Qwen-RobotManip**, and **Qwen-RobotWorld**. Nav unifies five navigation task families through a controllable observation protocol. Manip turns heterogeneous robot data into a coherent canonical space, enabling cross-embodiment training at scale. World co-trains 20+ embodiments via a natural-language action interface under one world model. Together, they enable an agentic system where general intelligence translates directly into physical action.

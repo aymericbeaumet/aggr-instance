@@ -11,6 +11,73 @@ labels:
 - skip-home-page
 content: extracted
 html: 2026-05-20-three-more-static-code-analysis-sensors.html
+images:
+- source: https://martinfowler.com/articles/sensors-for-coding-agents/sensors-example-application.png
+  original:
+    file: 2026-05-20-three-more-static-code-analysis-sensors.image-30a46f832db3.png
+    width: 1734
+    height: 980
+  color: '#fafbfb'
+- source: https://martinfowler.com/articles/sensors-for-coding-agents/sensors-example-overview.png
+  original:
+    file: 2026-05-20-three-more-static-code-analysis-sensors.image-1e51551c0477.png
+    width: 2466
+    height: 1254
+  color: '#fcfcfc'
+- source: https://martinfowler.com/articles/sensors-for-coding-agents/sensors-structure-chativity.png
+  original:
+    file: 2026-05-20-three-more-static-code-analysis-sensors.image-65a411ac469f.png
+    width: 1834
+    height: 370
+  color: '#f7f8f7'
+- source: https://martinfowler.com/articles/sensors-for-coding-agents/sensors-coupling-dashboards.png
+  original:
+    file: 2026-05-20-three-more-static-code-analysis-sensors.image-cbbbaea66295.png
+    width: 2172
+    height: 1208
+  color: '#fafafa'
+- source: https://martinfowler.com/articles/sensors-for-coding-agents/sensors-mutation-example.png
+  original:
+    file: 2026-05-20-three-more-static-code-analysis-sensors.image-3c6de77dcb24.png
+    width: 1782
+    height: 1374
+  color: '#fbfbfb'
+- source: https://martinfowler.com/articles/sensors-for-coding-agents/sensors-sidecar-setup.png
+  original:
+    file: 2026-05-20-three-more-static-code-analysis-sensors.image-20334e5d9f41.png
+    width: 2618
+    height: 1386
+  color: '#fdfdfd'
+- source: https://martinfowler.com/articles/sensors-for-coding-agents/sidecar-human-view.png
+  original:
+    file: 2026-05-20-three-more-static-code-analysis-sensors.image-f08fcb38a71d.png
+    width: 1634
+    height: 516
+  color: '#292c33'
+- source: https://martinfowler.com/articles/sensors-for-coding-agents/sidecar-check-result.png
+  original:
+    file: 2026-05-20-three-more-static-code-analysis-sensors.image-66984371e814.png
+    width: 1270
+    height: 960
+  color: '#292c33'
+- source: https://martinfowler.com/articles/sensors-for-coding-agents/sidecar-extension-pi.png
+  original:
+    file: 2026-05-20-three-more-static-code-analysis-sensors.image-fbd9f2a28c19.png
+    width: 1526
+    height: 487
+  color: '#292c33'
+- source: https://martinfowler.com/articles/sensors-for-coding-agents/sidecar-parsers.png
+  original:
+    file: 2026-05-20-three-more-static-code-analysis-sensors.image-066ea7ef1f60.png
+    width: 2230
+    height: 1170
+  color: '#fafafa'
+- source: https://martinfowler.com/articles/sensors-for-coding-agents/sensors-history-example.png
+  original:
+    file: 2026-05-20-three-more-static-code-analysis-sensors.image-1b3d85ac4f26.png
+    width: 2712
+    height: 1592
+  color: '#232834'
 ---
 
 There are multiple dimensions we usually want to achieve and monitor in our codebases: Functional correctness (works as intended), [architectural fitness](https://www.thoughtworks.com/insights/decoder/f/fitness-functions) (is fast/secure/usable enough), and maintainability. I define maintainability here as making it easy and low risk to change the codebase over time - [also known as “internal quality”](https://martinfowler.com/articles/is-quality-worth-cost.html). So I don't only want to be able to make changes quickly today, but also in the future. And I don't want to worry about introducing bugs or degradation of fitness every time I make a change - or have AI make a change. I usually see the first signs of cracks in the maintainability of an AI-generated codebase when the number of files changed for a small adjustment increases. Or when changes start breaking things that used to work.

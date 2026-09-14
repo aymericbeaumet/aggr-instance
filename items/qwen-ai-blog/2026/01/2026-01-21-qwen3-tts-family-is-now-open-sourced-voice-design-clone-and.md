@@ -54,6 +54,72 @@ images:
     width: 4624
     height: 3212
   color: '#fdfdfd'
+- source: http://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3-TTS-0115/table1.png
+  original:
+    file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-6297cdd7d3f6.png
+    width: 16385
+    height: 6648
+  variants:
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-a49356d03593.webp
+    width: 320
+    height: 130
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-928727d1758c.webp
+    width: 640
+    height: 260
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-c20a9d1dcb62.webp
+    width: 960
+    height: 390
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-c8f68a0e2fa3.webp
+    width: 1280
+    height: 519
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-d387fda3942e.webp
+    width: 1600
+    height: 649
+  color: '#040404'
+- source: http://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3-TTS-0115/table2.png
+  original:
+    file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-076f1094b775.png
+    width: 16385
+    height: 4786
+  variants:
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-b83147a19c75.webp
+    width: 320
+    height: 93
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-423f3bd727b7.webp
+    width: 640
+    height: 187
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-4b70c8dc1f2b.webp
+    width: 960
+    height: 280
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-62b57342ae63.webp
+    width: 1280
+    height: 374
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-c2823f9df6f6.webp
+    width: 1600
+    height: 467
+  color: '#040404'
+- source: http://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3-TTS-0115/table3.png
+  original:
+    file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-625f4845c179.png
+    width: 16385
+    height: 4207
+  variants:
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-1b6edddde084.webp
+    width: 320
+    height: 82
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-c1fa74de2826.webp
+    width: 640
+    height: 164
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-c1937b9927cd.webp
+    width: 960
+    height: 246
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-782c608058dc.webp
+    width: 1280
+    height: 329
+  - file: 2026-01-21-qwen3-tts-family-is-now-open-sourced-voice-design-clone-and.image-43c96fc0e277.webp
+    width: 1600
+    height: 411
+  color: '#030303'
 ---
 
 [Github](https://github.com/QwenLM/Qwen3-TTS) [HuggingFace](https://huggingface.co/collections/Qwen/qwen3-tts) [Huggingface Demo](https://huggingface.co/spaces/Qwen/Qwen3-TTS) [ModelScope Demo](https://modelscope.cn/studios/Qwen/Qwen3-TTS) [Paper](https://github.com/QwenLM/Qwen3-TTS/blob/main/assets/Qwen3_TTS.pdf)

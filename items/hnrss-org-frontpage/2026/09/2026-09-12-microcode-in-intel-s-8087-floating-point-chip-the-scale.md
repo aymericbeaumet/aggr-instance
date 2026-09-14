@@ -136,6 +136,12 @@ images:
     width: 48
     height: 63
   color: '#fbfbfb'
+- source: https://static.righto.com/images/8087-fscale/control-flow-w450.jpg
+  original:
+    file: 2026-09-12-microcode-in-intel-s-8087-floating-point-chip-the-scale.image-c9b6723202fd.jpg
+    width: 900
+    height: 1468
+  color: '#fcfcfc'
 ---
 
 In the 1970s, floating-point arithmetic was a mess. Computer manufacturers had a dozen incompatible arithmetic standards. Moreover, floating-point systems were designed around hardware simplicity rather than mathematical rigor, leading to problems with numerical stability. This changed when Intel introduced the 8087 floating-point coprocessor chip in 1980, designed to be as accurate as possible, even in the corner cases. The 8087 became popular because it could be installed in the IBM PC, making floating-point operations up to 100 times faster in applications ranging from spreadsheets to CAD. But more importantly, the 8087 became the floating-point standard used by most computers today.

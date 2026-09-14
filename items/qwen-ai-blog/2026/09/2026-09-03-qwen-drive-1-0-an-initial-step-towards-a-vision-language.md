@@ -64,6 +64,28 @@ images:
     width: 3204
     height: 1749
   color: '#fcfcfc'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Drive/qwendrive_overview.png
+  original:
+    file: 2026-09-03-qwen-drive-1-0-an-initial-step-towards-a-vision-language.image-b4969197cb5d.png
+    width: 10381
+    height: 5000
+  variants:
+  - file: 2026-09-03-qwen-drive-1-0-an-initial-step-towards-a-vision-language.image-0bb6db1d61ab.webp
+    width: 320
+    height: 154
+  - file: 2026-09-03-qwen-drive-1-0-an-initial-step-towards-a-vision-language.image-b5f4c743ec71.webp
+    width: 640
+    height: 308
+  - file: 2026-09-03-qwen-drive-1-0-an-initial-step-towards-a-vision-language.image-7aa2e20f46de.webp
+    width: 960
+    height: 462
+  - file: 2026-09-03-qwen-drive-1-0-an-initial-step-towards-a-vision-language.image-b92beb8dc9c6.webp
+    width: 1280
+    height: 617
+  - file: 2026-09-03-qwen-drive-1-0-an-initial-step-towards-a-vision-language.image-6dfb69b58aea.webp
+    width: 1600
+    height: 771
+  color: '#fbfbfc'
 ---
 
 ![Qwen-Drive-1.0 banner](https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Drive/blog_banner.png)

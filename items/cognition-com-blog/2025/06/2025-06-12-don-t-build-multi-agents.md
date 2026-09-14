@@ -6,6 +6,102 @@ published: 2025-06-12T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-06-12-don-t-build-multi-agents.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/721e44474051c62156e15b5ffb1a249c996f0607-1404x1228.png?w=1600&fit=max
+  original:
+    file: 2025-06-12-don-t-build-multi-agents.image-4097e7c65074.png
+    width: 1404
+    height: 1228
+  variants:
+  - file: 2025-06-12-don-t-build-multi-agents.image-49008ffd078b.webp
+    width: 320
+    height: 280
+  - file: 2025-06-12-don-t-build-multi-agents.image-00f2ad32084c.webp
+    width: 640
+    height: 560
+  - file: 2025-06-12-don-t-build-multi-agents.image-2c1826c96c25.webp
+    width: 960
+    height: 840
+  - file: 2025-06-12-don-t-build-multi-agents.image-a9a05c002042.webp
+    width: 1280
+    height: 1120
+  - file: 2025-06-12-don-t-build-multi-agents.image-5c382862a3b1.webp
+    width: 1404
+    height: 1228
+  color: '#f8f9fa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/e3bdf57c10a9b6c4531b93a10fb79a712464c712-1408x1232.png?w=1600&fit=max
+  original:
+    file: 2025-06-12-don-t-build-multi-agents.image-60d9a8cd4bc4.png
+    width: 1408
+    height: 1232
+  variants:
+  - file: 2025-06-12-don-t-build-multi-agents.image-00a031673c21.webp
+    width: 320
+    height: 280
+  - file: 2025-06-12-don-t-build-multi-agents.image-59ad3239159f.webp
+    width: 640
+    height: 560
+  - file: 2025-06-12-don-t-build-multi-agents.image-b8468d0063fe.webp
+    width: 960
+    height: 840
+  - file: 2025-06-12-don-t-build-multi-agents.image-d49b520b89f4.webp
+    width: 1408
+    height: 1232
+  color: '#f8f9fa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/06f64ae3557594588f702b2608d43564edc98c3d-1404x1230.png?w=1600&fit=max
+  original:
+    file: 2025-06-12-don-t-build-multi-agents.image-f8f80fa0648a.png
+    width: 1404
+    height: 1230
+  variants:
+  - file: 2025-06-12-don-t-build-multi-agents.image-a3588dbbb609.webp
+    width: 320
+    height: 280
+  - file: 2025-06-12-don-t-build-multi-agents.image-117171dd7eec.webp
+    width: 640
+    height: 561
+  - file: 2025-06-12-don-t-build-multi-agents.image-be4365a5863a.webp
+    width: 960
+    height: 841
+  - file: 2025-06-12-don-t-build-multi-agents.image-702f21f9d586.webp
+    width: 1404
+    height: 1230
+  color: '#f8f9fa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/4a36b048810fb2cba4ee4055ed2d3c80f188befc-1394x1218.png?w=1600&fit=max
+  original:
+    file: 2025-06-12-don-t-build-multi-agents.image-dd4db7f5bb69.png
+    width: 1394
+    height: 1218
+  variants:
+  - file: 2025-06-12-don-t-build-multi-agents.image-21ffc4725b53.webp
+    width: 320
+    height: 280
+  - file: 2025-06-12-don-t-build-multi-agents.image-f64c49c3d427.webp
+    width: 640
+    height: 559
+  - file: 2025-06-12-don-t-build-multi-agents.image-1de13138e119.webp
+    width: 960
+    height: 839
+  - file: 2025-06-12-don-t-build-multi-agents.image-8ce3ce7e44b2.webp
+    width: 1394
+    height: 1218
+  color: '#f8f9fa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/836a7407ddf3dfacc0715c0502b4f3ffc7388829-1406x1230.png?w=1600&fit=max
+  original:
+    file: 2025-06-12-don-t-build-multi-agents.image-29c42188a800.png
+    width: 1406
+    height: 1230
+  variants:
+  - file: 2025-06-12-don-t-build-multi-agents.image-9ba8c3824435.webp
+    width: 320
+    height: 280
+  - file: 2025-06-12-don-t-build-multi-agents.image-a991a3f253a5.webp
+    width: 640
+    height: 560
+  - file: 2025-06-12-don-t-build-multi-agents.image-599fb560a332.webp
+    width: 1406
+    height: 1230
+  color: '#f8f9fa'
 ---
 
 ## **Principles of Context Engineering**

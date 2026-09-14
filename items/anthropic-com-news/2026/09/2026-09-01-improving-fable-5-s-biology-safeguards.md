@@ -7,6 +7,20 @@ first_seen: 2026-09-04T12:14:41.802665207Z
 summary: Our most advanced models for coding and knowledge work. Their research capabilities also offer an early glimpse of how AI models will contribute to scientific progress.
 content: extracted
 html: 2026-09-01-improving-fable-5-s-biology-safeguards.html
+images:
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fe6d3c7b32cc8a0798c0ad58a2340f846b3c8af42-3840x1855.png&w=3840&q=75
+  original:
+    file: 2026-09-01-improving-fable-5-s-biology-safeguards.image-432f3251a56f.webp
+    width: 3840
+    height: 1855
+  variants:
+  - file: 2026-09-01-improving-fable-5-s-biology-safeguards.image-01d362afdd73.webp
+    width: 320
+    height: 155
+  - file: 2026-09-01-improving-fable-5-s-biology-safeguards.image-d06c7b050dd9.webp
+    width: 640
+    height: 309
+  color: '#fdfefd'
 ---
 
 We’re making updates to Claude Fable 5’s biology safeguards in a way that substantially reduces false positives. Fable 5 users will now experience many fewer “fallbacks”—where the system switches to a less capable model after they make a biology-related query. In our testing, this update reduced *biology-related* fallbacks by about 85% across our product surfaces.1

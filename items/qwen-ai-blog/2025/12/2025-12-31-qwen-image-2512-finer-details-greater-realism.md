@@ -116,6 +116,256 @@ images:
     width: 1920
     height: 1080
   color: '#fdfbfe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/image2512/%E5%B9%BB%E7%81%AF%E7%89%873.JPG
+  original:
+    file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-d677d2a6a95f.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-d839ec5d5b99.webp
+    width: 320
+    height: 180
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-f8493ebe3dc4.webp
+    width: 640
+    height: 360
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-0f0eedf1acfd.webp
+    width: 960
+    height: 540
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-95f0840e6fa3.webp
+    width: 1280
+    height: 720
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-704c64aedd96.webp
+    width: 1600
+    height: 900
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-0628011a9eca.webp
+    width: 1920
+    height: 1080
+  color: '#fcfbfe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/image2512/%E5%B9%BB%E7%81%AF%E7%89%874.JPG
+  original:
+    file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-f9c0b9debffd.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-0a066826981a.webp
+    width: 320
+    height: 180
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-88eca7554623.webp
+    width: 640
+    height: 360
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-70e7d370f02f.webp
+    width: 960
+    height: 540
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-5554b87e66bf.webp
+    width: 1280
+    height: 720
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-f2984ba7c488.webp
+    width: 1600
+    height: 900
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-79a51d9e0361.webp
+    width: 1920
+    height: 1080
+  color: '#fdfbfe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/image2512/%E5%B9%BB%E7%81%AF%E7%89%875.JPG
+  original:
+    file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-c76483cca262.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-2e851ea808ad.webp
+    width: 320
+    height: 180
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-c109fd2a9d08.webp
+    width: 640
+    height: 360
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-4990e47b9cf8.webp
+    width: 960
+    height: 540
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-616f95774c55.webp
+    width: 1280
+    height: 720
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-e2ef4143a1bd.webp
+    width: 1600
+    height: 900
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-235a919f2f5f.webp
+    width: 1920
+    height: 1080
+  color: '#fdfbfe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/image2512/%E5%B9%BB%E7%81%AF%E7%89%876.JPG
+  original:
+    file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-05036c74b534.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-a4ebefbe85ff.webp
+    width: 320
+    height: 180
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-01b98d45a3bb.webp
+    width: 640
+    height: 360
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-53d9bbee6638.webp
+    width: 960
+    height: 540
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-cbc845f9c3d3.webp
+    width: 1280
+    height: 720
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-ee8b3aee9598.webp
+    width: 1600
+    height: 900
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-4dd26fbddae8.webp
+    width: 1920
+    height: 1080
+  color: '#fdfbfe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/image2512/%E5%B9%BB%E7%81%AF%E7%89%877.JPG
+  original:
+    file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-0b84e0b26de1.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-3c1d7258a1b9.webp
+    width: 320
+    height: 180
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-e387ad472bc3.webp
+    width: 640
+    height: 360
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-58c6db1c8e5e.webp
+    width: 960
+    height: 540
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-b565c44a88c7.webp
+    width: 1280
+    height: 720
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-3c8e771493c5.webp
+    width: 1600
+    height: 900
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-b1de1318182f.webp
+    width: 1920
+    height: 1080
+  color: '#fdfbfe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/image2512/%E5%B9%BB%E7%81%AF%E7%89%878.JPG
+  original:
+    file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-e4e8841c1437.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-ea84522e7cd0.webp
+    width: 320
+    height: 180
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-8436702d4943.webp
+    width: 640
+    height: 360
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-69639304f505.webp
+    width: 960
+    height: 540
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-9ec864fa5092.webp
+    width: 1280
+    height: 720
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-ca9769cc1ddb.webp
+    width: 1600
+    height: 900
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-f0a47c461dfc.webp
+    width: 1920
+    height: 1080
+  color: '#fdfbfe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/image2512/%E5%B9%BB%E7%81%AF%E7%89%879.JPG
+  original:
+    file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-939d40dbc135.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-5ee736cdaf3e.webp
+    width: 320
+    height: 180
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-ebda9e572aa8.webp
+    width: 640
+    height: 360
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-dbdb5b22c75b.webp
+    width: 960
+    height: 540
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-65251d2fef70.webp
+    width: 1280
+    height: 720
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-04117a6c2cf3.webp
+    width: 1600
+    height: 900
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-d9a53bd0226d.webp
+    width: 1920
+    height: 1080
+  color: '#fdfcfe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/image2512/%E5%B9%BB%E7%81%AF%E7%89%8710.JPG
+  original:
+    file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-bf61da51d36d.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-436ee0a251ae.webp
+    width: 320
+    height: 180
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-83a5b44ab955.webp
+    width: 640
+    height: 360
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-12739d7725b8.webp
+    width: 960
+    height: 540
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-44a23a1ffb2b.webp
+    width: 1280
+    height: 720
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-c2bfbfe7523a.webp
+    width: 1600
+    height: 900
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-599bf9cfcb90.webp
+    width: 1920
+    height: 1080
+  color: '#fdfcfe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/image2512/%E5%B9%BB%E7%81%AF%E7%89%8711.JPG
+  original:
+    file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-ee230618fe89.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-58669149a1a4.webp
+    width: 320
+    height: 180
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-3cf927d62201.webp
+    width: 640
+    height: 360
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-fed7505bfbc7.webp
+    width: 960
+    height: 540
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-9f62dc84aa2b.webp
+    width: 1280
+    height: 720
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-a51c86afc728.webp
+    width: 1600
+    height: 900
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-457e4c02902b.webp
+    width: 1920
+    height: 1080
+  color: '#fdfcfe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/image2512/%E5%B9%BB%E7%81%AF%E7%89%8712.JPG
+  original:
+    file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-e2fb630f8da3.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-d9e5d83420de.webp
+    width: 320
+    height: 180
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-a513e35dc27a.webp
+    width: 640
+    height: 360
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-b445aea26ef8.webp
+    width: 960
+    height: 540
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-cdfee4dd9851.webp
+    width: 1280
+    height: 720
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-658d309fae86.webp
+    width: 1600
+    height: 900
+  - file: 2025-12-31-qwen-image-2512-finer-details-greater-realism.image-465b842f0b4c.webp
+    width: 1920
+    height: 1080
+  color: '#fdfcfe'
 ---
 
 ![](https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2512/image2512big.png#center)

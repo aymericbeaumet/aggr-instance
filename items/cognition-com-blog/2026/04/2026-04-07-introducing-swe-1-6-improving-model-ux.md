@@ -6,6 +6,68 @@ published: 2026-04-07T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-04-07-introducing-swe-1-6-improving-model-ux.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f511f28a1a0e1313b07a1bfa365c595a2eaeb36c-900x448.png?w=1600&fit=max
+  original:
+    file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-a8576e8424d2.png
+    width: 900
+    height: 448
+  variants:
+  - file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-d8f741b7b8ae.webp
+    width: 320
+    height: 159
+  - file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-6ea75e661494.webp
+    width: 900
+    height: 448
+  color: '#f2f4fa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/cd85a19a6892ddd1ac1c18df4ff96d4d627cfc9b-900x563.png?w=1600&fit=max
+  original:
+    file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-ecee7a11f4de.png
+    width: 900
+    height: 563
+  variants:
+  - file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-c78775d280a7.webp
+    width: 320
+    height: 200
+  - file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-4bfd0adc45b0.webp
+    width: 900
+    height: 563
+  color: '#f2f4fa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/ea4df71340c4c95c680993dae5158aca58ef7891-2118x906.png?w=1600&fit=max
+  original:
+    file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-8b9e433f283e.png
+    width: 1600
+    height: 685
+  variants:
+  - file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-9b22575534a5.webp
+    width: 320
+    height: 137
+  - file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-f3db7179de72.webp
+    width: 640
+    height: 274
+  - file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-40b88f032269.webp
+    width: 960
+    height: 411
+  - file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-913b1ca5cac9.webp
+    width: 1280
+    height: 548
+  - file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-b31751823b27.webp
+    width: 1600
+    height: 685
+  color: '#f3f4fb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/1e96b3389a582a48c94475af383d1b8e32512c86-900x467.png?w=1600&fit=max
+  original:
+    file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-facabfe59175.png
+    width: 900
+    height: 467
+  variants:
+  - file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-99cbf1e9f731.webp
+    width: 320
+    height: 166
+  - file: 2026-04-07-introducing-swe-1-6-improving-model-ux.image-875e11724ff0.webp
+    width: 900
+    height: 467
+  color: '#f2f4fa'
 ---
 
 By Rohan Choudhury, Carlo Baronio, Ben Pan, Sam Lee, Eric Lu, Steven Cao, Joe Li, Andrew Wang, Adam Zweiger, Ray Wang, Gary Chang, Silas Alberti04.07.26

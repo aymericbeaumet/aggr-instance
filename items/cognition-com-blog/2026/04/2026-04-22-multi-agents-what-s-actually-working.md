@@ -6,6 +6,71 @@ published: 2026-04-22T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-04-22-multi-agents-what-s-actually-working.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/6218b9f39716fb7fec829b5af605144c4bad6fc1-1872x1244.png?w=1600&fit=max
+  original:
+    file: 2026-04-22-multi-agents-what-s-actually-working.image-91d9d74a6b77.png
+    width: 1600
+    height: 1063
+  variants:
+  - file: 2026-04-22-multi-agents-what-s-actually-working.image-0020d16c6549.webp
+    width: 320
+    height: 213
+  - file: 2026-04-22-multi-agents-what-s-actually-working.image-ef3f466c8add.webp
+    width: 640
+    height: 425
+  - file: 2026-04-22-multi-agents-what-s-actually-working.image-9bf121aca07d.webp
+    width: 960
+    height: 638
+  - file: 2026-04-22-multi-agents-what-s-actually-working.image-5daf83b7f529.webp
+    width: 1280
+    height: 850
+  - file: 2026-04-22-multi-agents-what-s-actually-working.image-a8351af3d139.webp
+    width: 1600
+    height: 1063
+  color: '#fefefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/139c3cd1b93e3d9e0c69cf07c8a474c7ff0c1031-768x593.png?w=1600&fit=max
+  original:
+    file: 2026-04-22-multi-agents-what-s-actually-working.image-061a864e840e.png
+    width: 768
+    height: 593
+  variants:
+  - file: 2026-04-22-multi-agents-what-s-actually-working.image-0bcc0f3fd613.webp
+    width: 320
+    height: 247
+  - file: 2026-04-22-multi-agents-what-s-actually-working.image-9e48bb584712.webp
+    width: 768
+    height: 593
+  color: '#f7f7f7'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/a5aca8a5be3a14d34d3738c8959127f8bf1081bf-1060x872.png?w=1600&fit=max
+  original:
+    file: 2026-04-22-multi-agents-what-s-actually-working.image-204780318167.png
+    width: 1060
+    height: 872
+  color: '#171716'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/08623ea8d965772252db8d6202fa06de1caf6d23-222x107.png?w=1600&fit=max
+  original:
+    file: 2026-04-22-multi-agents-what-s-actually-working.image-8ace99c36fc3.png
+    width: 222
+    height: 107
+  variants:
+  - file: 2026-04-22-multi-agents-what-s-actually-working.image-56520fea7f15.webp
+    width: 222
+    height: 107
+  color: '#353738'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/a66797313ee5d6f858c3b7908d49d6f649a22779-686x564.png?w=1600&fit=max
+  original:
+    file: 2026-04-22-multi-agents-what-s-actually-working.image-39e161018042.png
+    width: 686
+    height: 564
+  variants:
+  - file: 2026-04-22-multi-agents-what-s-actually-working.image-a01074a6c3f6.webp
+    width: 320
+    height: 263
+  - file: 2026-04-22-multi-agents-what-s-actually-working.image-280de3223ef3.webp
+    width: 686
+    height: 564
+  color: '#f7f7f7'
 ---
 
 10 months ago, I wrote [Don't Build Multi-Agents](https://cognition.ai/blog/dont-build-multi-agents), arguing that most people shouldn't try to build multi-agent systems \[1\]. Parallel agents make implicit choices about style, edge cases, and code patterns. At the time, these decisions often conflicted with each other, leading to fragile products. A lot has changed since then.

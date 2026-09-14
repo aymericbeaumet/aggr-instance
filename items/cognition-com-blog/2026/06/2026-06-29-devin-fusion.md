@@ -6,6 +6,13 @@ published: 2026-06-29T18:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-06-29-devin-fusion.html
+images:
+- source: https://cognition.com/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fsidekick-diagram.153unbtaywtzg.png&w=3840&q=75&dpl=dpl_Eh1kkjXK88zwkS8H6sv7kT1Q2Yrm
+  original:
+    file: 2026-06-29-devin-fusion.image-fafc3cc03023.png
+    width: 2304
+    height: 1614
+  color: '#f6f5f4'
 ---
 
 ## Devin Fusion: Frontier Performance at 60% Lower Cost†

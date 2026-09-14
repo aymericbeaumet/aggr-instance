@@ -136,6 +136,42 @@ images:
     width: 48
     height: 27
   color: '#fefefe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit2511/%E5%B9%BB%E7%81%AF%E7%89%8711.JPG
+  original:
+    file: 2025-12-23-qwen-image-edit-2511-improve-consistency.image-11768bbe40d6.jpg
+    width: 2560
+    height: 1440
+  color: '#fdfefe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit2511/%E5%B9%BB%E7%81%AF%E7%89%8712.JPG
+  original:
+    file: 2025-12-23-qwen-image-edit-2511-improve-consistency.image-7d36a091e596.jpg
+    width: 2560
+    height: 1440
+  color: '#fefefe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit2511/%E5%B9%BB%E7%81%AF%E7%89%8713.JPG
+  original:
+    file: 2025-12-23-qwen-image-edit-2511-improve-consistency.image-5fd37f294b24.jpg
+    width: 2560
+    height: 1440
+  color: '#fdfdfd'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit2511/%E5%B9%BB%E7%81%AF%E7%89%8714.JPG
+  original:
+    file: 2025-12-23-qwen-image-edit-2511-improve-consistency.image-a770d88a6330.jpg
+    width: 2560
+    height: 1440
+  color: '#fefefe'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit2511/%E5%B9%BB%E7%81%AF%E7%89%8715.JPG
+  original:
+    file: 2025-12-23-qwen-image-edit-2511-improve-consistency.image-7db7f979be15.jpg
+    width: 2560
+    height: 1440
+  color: '#fdfdfd'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-Image/edit2511/%E5%B9%BB%E7%81%AF%E7%89%8716.JPG
+  original:
+    file: 2025-12-23-qwen-image-edit-2511-improve-consistency.image-20fab0ea4f10.jpg
+    width: 2560
+    height: 1440
+  color: '#fefefe'
 ---
 
 ![](https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/edit2511/edit2511big.JPG#center)

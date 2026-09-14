@@ -6,6 +6,86 @@ published: 2025-01-21T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/fad118ce1ebfd75f00ca05b792f9d4f009b2fe29-2352x1638.png?w=1600&fit=max
+  original:
+    file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-1ffb59bfabd1.png
+    width: 1600
+    height: 1114
+  variants:
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-c63dab256a5a.webp
+    width: 320
+    height: 223
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-887e8648f347.webp
+    width: 640
+    height: 446
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-f9281d728c6e.webp
+    width: 960
+    height: 668
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-59de27facd87.webp
+    width: 1280
+    height: 891
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-d402a3bab288.webp
+    width: 1600
+    height: 1114
+  color: '#0d1116'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/49cea68a2598519f2a3fb525e12e31531ed8345d-2630x1332.png?w=1600&fit=max
+  original:
+    file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-e8daf3a887e9.png
+    width: 1600
+    height: 810
+  variants:
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-80e888eecb4b.webp
+    width: 320
+    height: 162
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-416a5bdcd82f.webp
+    width: 640
+    height: 324
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-e13c1a15d1dc.webp
+    width: 960
+    height: 486
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-75c3f9b83e59.webp
+    width: 1280
+    height: 648
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-629119ad15e5.webp
+    width: 1600
+    height: 810
+  color: '#2a2a2a'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/93778603510baaa7cfbbc2c13b39a39e2e89e811-2148x1314.png?w=1600&fit=max
+  original:
+    file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-cc143b21baf6.png
+    width: 1600
+    height: 978
+  variants:
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-5b83bb6001ee.webp
+    width: 320
+    height: 196
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-625232035dd6.webp
+    width: 640
+    height: 391
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-0815e29671ad.webp
+    width: 960
+    height: 587
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-7df14a4e63f1.webp
+    width: 1280
+    height: 782
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-a40485bba459.webp
+    width: 1600
+    height: 978
+  color: '#0d1116'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/260c91c559b1352babe2a21d7f4566b350e73f53-452x324.png?w=1600&fit=max
+  original:
+    file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-39f48996cd53.png
+    width: 452
+    height: 324
+  variants:
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-3e848215fd3d.webp
+    width: 320
+    height: 229
+  - file: 2025-01-21-devin-101-automatic-pr-reviews-with-the-devin-api.image-5a88d6f95f77.webp
+    width: 452
+    height: 324
+  color: '#242424'
 ---
 
 **Update**: We recommend Devin Review ([https://app.devin.ai/review](https://app.devin.ai/review)) as our new and improved code review experience. Learn more: [https://docs.devin.ai/work-with-devin/devin-review](https://docs.devin.ai/work-with-devin/devin-review).

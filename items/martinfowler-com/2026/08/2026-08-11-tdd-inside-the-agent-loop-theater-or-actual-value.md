@@ -9,6 +9,29 @@ authors:
 - Martin Fowler
 content: extracted
 html: 2026-08-11-tdd-inside-the-agent-loop-theater-or-actual-value.html
+images:
+- source: https://martinfowler.com/articles/exploring-gen-ai/tdd_comparison_overview.svg
+  original:
+    file: 2026-08-11-tdd-inside-the-agent-loop-theater-or-actual-value.image-ddd103228e87.png
+    width: 900
+    height: 430
+  variants:
+  - file: 2026-08-11-tdd-inside-the-agent-loop-theater-or-actual-value.image-c28a5359332f.webp
+    width: 320
+    height: 153
+  - file: 2026-08-11-tdd-inside-the-agent-loop-theater-or-actual-value.image-e924ad268322.webp
+    width: 640
+    height: 306
+  - file: 2026-08-11-tdd-inside-the-agent-loop-theater-or-actual-value.image-23ea6930ba50.webp
+    width: 900
+    height: 430
+  color: '#000000'
+- source: https://martinfowler.com/articles/exploring-gen-ai/tdd_by_agents_costs_benefits.png
+  original:
+    file: 2026-08-11-tdd-inside-the-agent-loop-theater-or-actual-value.image-f1f96bd71ff5.png
+    width: 1930
+    height: 1054
+  color: '#f8f9f9'
 ---
 
 The TDD (test-driven development) workflow can be used with AI-augmented coding in multiple ways:

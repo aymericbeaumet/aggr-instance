@@ -9,6 +9,31 @@ authors:
 - Martin Fowler
 content: extracted
 html: 2026-07-08-experiences-with-local-models-for-coding.html
+images:
+- source: https://martinfowler.com/articles/exploring-gen-ai/task-posters-bar-chart.png
+  original:
+    file: 2026-07-08-experiences-with-local-models-for-coding.image-ee63fc9a0ad3.png
+    width: 1268
+    height: 1088
+  color: '#f9f9fa'
+- source: https://martinfowler.com/articles/exploring-gen-ai/task-bar-chart-doom.png
+  original:
+    file: 2026-07-08-experiences-with-local-models-for-coding.image-e63eccad7e9f.png
+    width: 1902
+    height: 1948
+  color: '#292929'
+- source: https://martinfowler.com/articles/exploring-gen-ai/task-countries-bar-chart.png
+  original:
+    file: 2026-07-08-experiences-with-local-models-for-coding.image-ba39e6f097b5.png
+    width: 1056
+    height: 766
+  color: '#fdfefe'
+- source: https://martinfowler.com/articles/exploring-gen-ai/local-models_comparison.png
+  original:
+    file: 2026-07-08-experiences-with-local-models-for-coding.image-6aec86501148.png
+    width: 2070
+    height: 1304
+  color: '#fbfcfd'
 ---
 
 This is the second memo where I describe my recent experiences on running small models locally on my developer machine for agentic coding. [In the first memo,](https://martinfowler.com/articles/exploring-gen-ai/local-models-for-coding-factors.html) I covered the many factors that can influence the viability of that setup — hardware, model choice, runtime, harness. Here I focus on the concrete experiences, the tasks I gave the models, what happened, and my final conclusions.

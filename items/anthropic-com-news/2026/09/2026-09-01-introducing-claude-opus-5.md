@@ -7,6 +7,277 @@ first_seen: 2026-09-04T12:14:41.802665207Z
 summary: Our most advanced models for coding and knowledge work. Their research capabilities also offer an early glimpse of how AI models will contribute to scientific progress.
 content: extracted
 html: 2026-09-01-introducing-claude-opus-5.html
+images:
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fa8fb4f77a9fe240e6f27f3bdc47a137f3c74a29d-2600x2578.png&w=3840&q=75
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-739236833766.webp
+    width: 2600
+    height: 2578
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-081129c0f2bd.webp
+    width: 320
+    height: 317
+  - file: 2026-09-01-introducing-claude-opus-5.image-3a6c939e2c36.webp
+    width: 640
+    height: 635
+  color: '#fdfdfc'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/ad249bca4e8e195e08764efc43ecbc586ca37482-143x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-60555bca8f6e.png
+    width: 143
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-16081087b47b.webp
+    width: 143
+    height: 64
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/f084c88e65466636019709c40cc477aadce2f718-151x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-730bc42fb6cd.png
+    width: 151
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-47fac258cef5.webp
+    width: 151
+    height: 64
+  color: '#24241d'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/f343481e6a953bc7b5390e6d9f61cf387c2ceb11-103x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-66036eb9e6b6.png
+    width: 103
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-6bd1fdee1315.webp
+    width: 103
+    height: 64
+  color: '#201515'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/efde24e5691e04ed84cb9c3fb91c1033a2e65af0-145x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-566277e5819b.png
+    width: 145
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-bb2b4228bea2.webp
+    width: 145
+    height: 64
+  color: '#181818'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/40a2a6a28afd8ac8fbf0e764b6bbf4ebf06a1977-133x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-38c4a60bb2a4.png
+    width: 133
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-768e6523b0bc.webp
+    width: 133
+    height: 64
+  color: '#161619'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/e0731da5f669896ec6823e665df2c360ea03115d-140x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-9da4511ba5ec.png
+    width: 140
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-c57e4cf91f67.webp
+    width: 140
+    height: 64
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/7fbed01e869d6a4faf97317a1fc4b74f7997c66e-78x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-091db693678a.png
+    width: 78
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-5ff2232aeac3.webp
+    width: 78
+    height: 64
+  color: '#473982'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/e360f8a29093a6b4fccdc006315035583e89f9ac-146x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-67a9bedb8ba3.png
+    width: 146
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-6f16b505a014.webp
+    width: 146
+    height: 64
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/bf162513ba017e72d4e07b0cd7683b86c4c5bc88-60x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-19090ccd71e4.png
+    width: 60
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-b72364e3ea89.webp
+    width: 60
+    height: 64
+  color: '#0071f6'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/d514853a44cf69f069306c98b558f214112c4ef3-91x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-c72f3e68980b.png
+    width: 91
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-c26acd782e5b.webp
+    width: 91
+    height: 64
+  color: '#533afc'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F04865ae02e70e9d8ca5a79fb49ae9263d58a7022-528x256.png&w=256&q=75
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-95ad102d87e7.webp
+    width: 256
+    height: 124
+  color: '#4a174b'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F867075586d7f5ee37ee1c8c7b4bf0dadb34a54e2-666x192.png&w=256&q=75
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-0c3bf06fc0f4.webp
+    width: 256
+    height: 74
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/cc80b0a6f9534a34252756b93dd5a9bc26dd58f1-222x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-4330a77d7883.png
+    width: 222
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-9271164b4a6e.webp
+    width: 222
+    height: 64
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/6dfc3bd55cc5f9d5ebdd8d5437505ae4b8560412-120x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-85cad2e634b8.png
+    width: 120
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-c19cf2dab846.webp
+    width: 120
+    height: 64
+  color: '#0c0b0b'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/beb4f74e935e111be9a63875ae7743aaea2cb0a2-88x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-b6aceb72bd8e.png
+    width: 88
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-770a94c029dc.webp
+    width: 88
+    height: 64
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/18f900625532e1baaa3302bdf9539f73592bdf60-164x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-4702df414a8b.png
+    width: 164
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-15bdb1850c6c.webp
+    width: 164
+    height: 64
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/f69ebaa2d39165a909def91e572e7d9ec0088a9a-154x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-44bda6ebd93e.png
+    width: 154
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-26ae8504d610.webp
+    width: 154
+    height: 64
+  color: '#012445'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/a0935a9396e8ec29b273be438cac14583c5999a6-130x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-05dc1e81d63c.png
+    width: 130
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-afddc10c9ba7.webp
+    width: 130
+    height: 64
+  color: '#120d05'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/428460e52876e1ec0159ee37b5f5df71eee6472f-106x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-3cf1fe39a612.png
+    width: 106
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-fe1b0e043477.webp
+    width: 106
+    height: 64
+  color: '#5b39f2'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/f0dacc0d330bc402df7423a025a963b2a5e969d2-191x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-99b499ab0a9c.png
+    width: 191
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-2a795847b1e9.webp
+    width: 191
+    height: 64
+  color: '#000000'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F921e6c04971bb083186c710c631b21946f39a96d-1280x275.webp&w=256&q=75
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-d7dc8dffb92c.png
+    width: 256
+    height: 55
+  color: '#030404'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/fbd45dbecde0ed6e7c3bf8551df0525d87efd4de-127x64.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-2d81383da0fe.png
+    width: 127
+    height: 64
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-55f76904a3c4.webp
+    width: 127
+    height: 64
+  color: '#01122a'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/c40e0aa477d2cf411c9f13ffd51f4549938ba0aa-106x32.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-c90bdb0ac70c.png
+    width: 106
+    height: 32
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-d1f9bd11ef50.webp
+    width: 106
+    height: 32
+  color: '#bd0000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/198c9eb920db5dc4581daefd3dc19d9fb51f6637-125x32.svg
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-c843b4cc0959.png
+    width: 125
+    height: 32
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-5677fc04ec5e.webp
+    width: 125
+    height: 32
+  color: '#060606'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F76d4af96516ffca2aceb4c1d0b0a83e2720d874b-3840x2160.png&w=3840&q=75
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-e5d3660e210b.webp
+    width: 3840
+    height: 2160
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-5585a2382895.webp
+    width: 320
+    height: 180
+  - file: 2026-09-01-introducing-claude-opus-5.image-89d0f7e9c195.webp
+    width: 640
+    height: 360
+  - file: 2026-09-01-introducing-claude-opus-5.image-02dad0c4d359.webp
+    width: 960
+    height: 540
+  color: '#fefefe'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fb22d18a4d2003401f96f866effd9a40b5518c4c5-3840x2160.png&w=3840&q=75
+  original:
+    file: 2026-09-01-introducing-claude-opus-5.image-5b4404e710db.webp
+    width: 3840
+    height: 2160
+  variants:
+  - file: 2026-09-01-introducing-claude-opus-5.image-70cfbad2f251.webp
+    width: 320
+    height: 180
+  - file: 2026-09-01-introducing-claude-opus-5.image-4eb1251c8910.webp
+    width: 640
+    height: 360
+  color: '#fdfdfd'
 ---
 
 Claude Opus 5 is available today. It’s a thoughtful and proactive model that comes close to the frontier intelligence of Claude Fable 5 at half the price.

@@ -220,6 +220,153 @@ images:
     width: 3601
     height: 1352
   color: '#fdfdfd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/banner/banner-manip.png
+  original:
+    file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-2ad0368bba7f.png
+    width: 8000
+    height: 4500
+  variants:
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-5c33600e3ebe.webp
+    width: 320
+    height: 180
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-4b05b22a9bf8.webp
+    width: 640
+    height: 360
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-2f7624f8047b.webp
+    width: 960
+    height: 540
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-9bc405d0b118.webp
+    width: 1280
+    height: 720
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-feb67b5c3f65.webp
+    width: 1600
+    height: 900
+  color: '#f9f9f9'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/robotmanip/images/eval_setting_overall.png
+  original:
+    file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-d816ad8ece6a.png
+    width: 5338
+    height: 2809
+  variants:
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-1ff09c7d034b.webp
+    width: 320
+    height: 168
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-40e268af08ed.webp
+    width: 640
+    height: 337
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-02e7c3ff87b2.webp
+    width: 960
+    height: 505
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-0d1ab3c1016d.webp
+    width: 1280
+    height: 674
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-9cf4e092304b.webp
+    width: 1600
+    height: 842
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-dc06b6fd2af8.webp
+    width: 5338
+    height: 2809
+  color: '#f8f7fb'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/robotmanip/images/arx_evaluation_setup.png
+  original:
+    file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-4e8ef8a58c71.png
+    width: 5820
+    height: 3886
+  variants:
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-d4ddad3bda5a.webp
+    width: 320
+    height: 214
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-eddc7dffbf3c.webp
+    width: 640
+    height: 427
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-0a92e10de375.webp
+    width: 960
+    height: 641
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-87c49e8b951e.webp
+    width: 1280
+    height: 855
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-1a213267dbd9.webp
+    width: 1600
+    height: 1068
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-e364501c9204.webp
+    width: 5820
+    height: 3886
+  color: '#fdfbfd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/robotmanip/images/challenge_rc.png
+  original:
+    file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-c288de9ed0ce.png
+    width: 3375
+    height: 1959
+  variants:
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-f60888ea50d5.webp
+    width: 320
+    height: 186
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-15d3420ab335.webp
+    width: 640
+    height: 371
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-6be2ca889ba8.webp
+    width: 960
+    height: 557
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-46f3950acb6b.webp
+    width: 1280
+    height: 743
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-ad64c750a242.webp
+    width: 1600
+    height: 929
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-50f3e8edfd6b.webp
+    width: 3375
+    height: 1959
+  color: '#d6d7d7'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/robotmanip/images/case_study-bimanual.png
+  original:
+    file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-e8edb5c949ff.png
+    width: 3991
+    height: 1725
+  variants:
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-b8c683dc5945.webp
+    width: 320
+    height: 138
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-274214f7287a.webp
+    width: 640
+    height: 277
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-1d9f6faaf5f2.webp
+    width: 960
+    height: 415
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-8776b4ba9d8a.webp
+    width: 1280
+    height: 553
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-17710f275a97.webp
+    width: 1600
+    height: 692
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-60d9094b9903.webp
+    width: 3991
+    height: 1725
+  color: '#fbfbfc'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/robotmanip/images/case_study-retry.png
+  original:
+    file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-32fc97acf6c9.png
+    width: 3931
+    height: 1749
+  variants:
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-3d5130c7bb90.webp
+    width: 320
+    height: 142
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-c8e82f0f24c1.webp
+    width: 640
+    height: 285
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-27bc827a1cbd.webp
+    width: 960
+    height: 427
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-1467de26dad6.webp
+    width: 1280
+    height: 570
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-9cc0f4ea4b03.webp
+    width: 1600
+    height: 712
+  - file: 2026-06-16-qwen-robotmanip-alignment-unlocks-scale-for-robotic.image-aaf1e72bf203.webp
+    width: 3931
+    height: 1749
+  color: '#fbfbfb'
 ---
 
 [GitHub](https://github.com/QwenLM/Qwen-RobotManip) [Paper](https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/papers/Qwen_RobotManip.pdf)

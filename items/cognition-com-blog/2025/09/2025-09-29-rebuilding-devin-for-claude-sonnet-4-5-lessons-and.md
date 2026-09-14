@@ -6,6 +6,29 @@ published: 2025-09-29T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-09-29-rebuilding-devin-for-claude-sonnet-4-5-lessons-and.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/307b567295a50c82cb3fea942dd578f576beb5f0-2926x2074.png?w=1600&fit=max
+  original:
+    file: 2025-09-29-rebuilding-devin-for-claude-sonnet-4-5-lessons-and.image-690db6c45573.png
+    width: 1600
+    height: 1134
+  variants:
+  - file: 2025-09-29-rebuilding-devin-for-claude-sonnet-4-5-lessons-and.image-7246d331c7a7.webp
+    width: 320
+    height: 227
+  - file: 2025-09-29-rebuilding-devin-for-claude-sonnet-4-5-lessons-and.image-e9952b8bab75.webp
+    width: 640
+    height: 454
+  - file: 2025-09-29-rebuilding-devin-for-claude-sonnet-4-5-lessons-and.image-740ec9603281.webp
+    width: 960
+    height: 680
+  - file: 2025-09-29-rebuilding-devin-for-claude-sonnet-4-5-lessons-and.image-44f72a07f49b.webp
+    width: 1280
+    height: 907
+  - file: 2025-09-29-rebuilding-devin-for-claude-sonnet-4-5-lessons-and.image-db87f9e5e4d4.webp
+    width: 1600
+    height: 1134
+  color: '#fefefe'
 ---
 
 **We rebuilt Devin for Claude Sonnet 4.5.**

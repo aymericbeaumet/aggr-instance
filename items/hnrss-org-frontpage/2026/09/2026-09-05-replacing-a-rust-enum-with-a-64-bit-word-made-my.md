@@ -41,6 +41,67 @@ images:
     width: 2400
     height: 1260
   color: '#0b0e14'
+- source: https://pointersgonewild.com/2026-08-25-replacing-a-rust-enum-with-a-64-bit-word/value-repr.svg
+  original:
+    file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-d8b7d5abb579.png
+    width: 772
+    height: 353
+  variants:
+  - file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-8728b25bd13c.webp
+    width: 320
+    height: 146
+  - file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-7c423ffd5c3c.webp
+    width: 772
+    height: 353
+  color: '#fdfdfd'
+- source: https://pointersgonewild.com/2026-08-25-replacing-a-rust-enum-with-a-64-bit-word/flonum.svg
+  original:
+    file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-9657abb00a84.png
+    width: 772
+    height: 374
+  variants:
+  - file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-d077ddaa3efd.webp
+    width: 320
+    height: 155
+  - file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-a66fc2d9178b.webp
+    width: 640
+    height: 310
+  - file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-fb5f46654dc8.webp
+    width: 772
+    height: 374
+  color: '#fbfbfc'
+- source: https://pointersgonewild.com/2026-08-25-replacing-a-rust-enum-with-a-64-bit-word/memory.svg
+  original:
+    file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-f2f82d323d5f.png
+    width: 772
+    height: 462
+  variants:
+  - file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-c5b2a12a9401.webp
+    width: 320
+    height: 192
+  - file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-91b739e6d74f.webp
+    width: 640
+    height: 383
+  - file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-78b92edbe853.webp
+    width: 772
+    height: 462
+  color: '#fdfdfd'
+- source: https://pointersgonewild.com/2026-08-25-replacing-a-rust-enum-with-a-64-bit-word/speedup.svg
+  original:
+    file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-3f9c2e46f7a1.png
+    width: 772
+    height: 441
+  variants:
+  - file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-37ec89ff37cb.webp
+    width: 320
+    height: 183
+  - file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-7441d27256fc.webp
+    width: 640
+    height: 366
+  - file: 2026-09-05-replacing-a-rust-enum-with-a-64-bit-word-made-my.image-3bb2d914197d.webp
+    width: 772
+    height: 441
+  color: '#fefefe'
 ---
 
 August 25th, 2026

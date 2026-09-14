@@ -6,6 +6,73 @@ published: 2026-04-08T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f0dfedc3a452726ebeec6de0b423e449f8986dfa-3840x2880.png?w=1600&fit=max
+  original:
+    file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-715afc922923.png
+    width: 1600
+    height: 1200
+  variants:
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-9922e196bef9.webp
+    width: 320
+    height: 240
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-3b28a28fcdbb.webp
+    width: 640
+    height: 480
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-307e7b90dc92.webp
+    width: 960
+    height: 720
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-372efeefe059.webp
+    width: 1280
+    height: 960
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-bc89b01f36d0.webp
+    width: 1600
+    height: 1200
+  color: '#f9f7f5'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3b37fe4408d8a95177866bfc57e9bdc16e1df63f-5760x4320.png?w=1600&fit=max
+  original:
+    file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-9d50c4ce96dc.png
+    width: 1600
+    height: 1200
+  variants:
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-4029240b3b8a.webp
+    width: 320
+    height: 240
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-2b92195d78da.webp
+    width: 640
+    height: 480
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-ce095bcdd713.webp
+    width: 960
+    height: 720
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-7ee4f703fa3e.webp
+    width: 1280
+    height: 960
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-c314cfb10988.webp
+    width: 1600
+    height: 1200
+  color: '#151515'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f09ef1be455481ffadbb092a1b58718157f686d2-5760x4320.png?w=1600&fit=max
+  original:
+    file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-c6960e01d8aa.png
+    width: 1600
+    height: 1200
+  variants:
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-bb715a6bcf2c.webp
+    width: 320
+    height: 240
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-3382e9c6a8f6.webp
+    width: 640
+    height: 480
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-997f897e5acd.webp
+    width: 960
+    height: 720
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-7b8c897990e3.webp
+    width: 1280
+    height: 960
+  - file: 2026-04-08-how-devin-is-modernizing-cobol-at-fortune-500-companies.image-3fd8398a2c6a.webp
+    width: 1600
+    height: 1200
+  color: '#181818'
 ---
 
 The pressure to modernize COBOL has never been greater. [Forty-seven percent](https://softwaremodernizationservices.com/mainframe-modernization/) of organizations cannot fill their COBOL roles and [92%](https://softwaremodernizationservices.com/mainframe-modernization/) of COBOL developers plan on retiring by 2030. As a result, over the past eight months, several Fortune 500 companies have staffed Devin on COBOL project — documenting millions of lines of code, migrating a customs workflow from COBOL to AWS Lambda, and refactoring tax ID logic across hundreds of programs.

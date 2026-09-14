@@ -6,6 +6,230 @@ published: 2025-10-16T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/fd5e1ffd36c37ce5a58c1f403abb9e312cce9ff7-1882x855.png?w=1600&fit=max
+  original:
+    file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-b9e69e946dd0.png
+    width: 1600
+    height: 727
+  variants:
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-ecfb575f9558.webp
+    width: 320
+    height: 145
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-4c41c43b296e.webp
+    width: 640
+    height: 291
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-b4ffeb760403.webp
+    width: 960
+    height: 436
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-9a3e751d7ad5.webp
+    width: 1280
+    height: 582
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-4a5c30e9b108.webp
+    width: 1600
+    height: 727
+  color: '#f3f4fb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f001338632e43e2092247b396569b1ce932ffdf2-3590x1968.png?w=1600&fit=max
+  original:
+    file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-20760da262d7.png
+    width: 1600
+    height: 877
+  variants:
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-448a36ce29ba.webp
+    width: 320
+    height: 175
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-ea6d5132fcb3.webp
+    width: 640
+    height: 351
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-e6adb704b2c6.webp
+    width: 960
+    height: 526
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-e961bb2ac48c.webp
+    width: 1280
+    height: 702
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-1bab76d07c80.webp
+    width: 1600
+    height: 877
+  color: '#2a2a2a'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/eee6739b16732947d6e9da3b17b656000af031ae-4700x3510.gif?w=1600&fit=max
+  original:
+    file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-02ee56231570.gif
+    width: 1600
+    height: 1195
+  color: '#f3f4fb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/e3a948f21fd3c924a866e8579aeba93cb3e75e86-16828x6118.png?w=1600&fit=max
+  original:
+    file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-3bb3a149185c.png
+    width: 1600
+    height: 582
+  variants:
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-884018915053.webp
+    width: 320
+    height: 116
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-ee43e41db732.webp
+    width: 640
+    height: 233
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-aa7bd6bdf366.webp
+    width: 960
+    height: 349
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-8e7d66688e12.webp
+    width: 1280
+    height: 466
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-be3d51834c65.webp
+    width: 1600
+    height: 582
+  color: '#f2f3fc'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/503be6859ba1f0dd772776fa76b866026a79f46c-2582x346.png?w=1600&fit=max
+  original:
+    file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-b878f9d65f52.png
+    width: 1600
+    height: 214
+  variants:
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-750af5bb8a75.webp
+    width: 320
+    height: 43
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-80a28bb20db0.webp
+    width: 640
+    height: 86
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-169e3ccddb82.webp
+    width: 960
+    height: 128
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-f49a78d0eb04.webp
+    width: 1280
+    height: 171
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-21f07a5722dd.webp
+    width: 1600
+    height: 214
+  color: '#f3f4fd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/db1d2fbbc63e886e90904fd3c97df6400961d8cf-2428x264.png?w=1600&fit=max
+  original:
+    file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-823c920ebb11.png
+    width: 1600
+    height: 174
+  variants:
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-e799a0187ee2.webp
+    width: 320
+    height: 35
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-4132eebe29d3.webp
+    width: 640
+    height: 70
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-ba793dcbeb9b.webp
+    width: 960
+    height: 104
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-63cba81bb826.webp
+    width: 1280
+    height: 139
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-e0babc02ef61.webp
+    width: 1600
+    height: 174
+  color: '#f3f4fb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/99e38d35218a96fa3d8e922979e3326ddc4e309a-2026x220.png?w=1600&fit=max
+  original:
+    file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-d0c89376cb9a.png
+    width: 1600
+    height: 174
+  variants:
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-4a708a8ae690.webp
+    width: 320
+    height: 35
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-0af72fb10072.webp
+    width: 640
+    height: 70
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-7b40e310eddd.webp
+    width: 960
+    height: 104
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-a4787722a8d4.webp
+    width: 1280
+    height: 139
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-ac4ab06d34fb.webp
+    width: 1600
+    height: 174
+  color: '#f3f4fd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/0669704135323f614fd0149646d55e882126f87d-1902x1284.png?w=1600&fit=max
+  original:
+    file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-f22f4526cfa2.png
+    width: 1600
+    height: 1080
+  variants:
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-bef2211c688a.webp
+    width: 320
+    height: 216
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-af587f1dd055.webp
+    width: 640
+    height: 432
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-fe169bf2a085.webp
+    width: 960
+    height: 648
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-228bbab4d733.webp
+    width: 1280
+    height: 864
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-e7c5ece3128f.webp
+    width: 1600
+    height: 1080
+  color: '#f3f4fa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/121b6a145454f73c99d51fd50a855ff2c56ce4f4-1414x354.png?w=1600&fit=max
+  original:
+    file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-defea4744ecc.png
+    width: 1414
+    height: 354
+  variants:
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-d0609038debb.webp
+    width: 320
+    height: 80
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-b692dcacc1c3.webp
+    width: 640
+    height: 160
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-a322e1dd7579.webp
+    width: 960
+    height: 240
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-ed92e7bb94db.webp
+    width: 1414
+    height: 354
+  color: '#f3f4fa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/0bab316459ce2cc611ac0f1d56fcf1aa7677e6d5-2072x1632.png?w=1600&fit=max
+  original:
+    file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-a9ceab5254cf.png
+    width: 1600
+    height: 1260
+  variants:
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-0cb3c565ccd9.webp
+    width: 320
+    height: 252
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-a6cc909fcf18.webp
+    width: 640
+    height: 504
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-e5bf5b4f4059.webp
+    width: 960
+    height: 756
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-4e563c4bf21e.webp
+    width: 1280
+    height: 1008
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-283a4c0be7e9.webp
+    width: 1600
+    height: 1260
+  color: '#f3f4fd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/a6e3d6c7846969e2a87835210c532ba7b1bad617-2198x1600.png?w=1600&fit=max
+  original:
+    file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-6f0de3f94117.png
+    width: 1600
+    height: 1165
+  variants:
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-ae92b3d5d01a.webp
+    width: 320
+    height: 233
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-a15e9cb99ec2.webp
+    width: 640
+    height: 466
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-4f3a71002708.webp
+    width: 960
+    height: 699
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-b1c2224cf07a.webp
+    width: 1280
+    height: 932
+  - file: 2025-10-16-introducing-swe-grep-and-swe-grep-mini-rl-for-multi-turn.image-fd6d7d6fa646.webp
+    width: 1600
+    height: 1165
+  color: '#f3f4fd'
 ---
 
 **TL;DR: We trained SWE-grep and SWE-grep-mini, fast agentic models specialized in highly parallel context retrieval. They match the retrieval capabilities of frontier coding models, while taking an order of magnitude less time. Available now in Windsurf’s new Fast Context subagent!**

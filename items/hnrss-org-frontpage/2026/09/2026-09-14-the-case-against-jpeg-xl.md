@@ -10,6 +10,87 @@ authors:
 summary: 'Article URL: https://giannirosato.com/blog/post/case-against-jxl/ Comments URL: https://news.ycombinator.com/item?id=49690554 Points: 107 # Comments: 135'
 content: extracted
 html: 2026-09-14-the-case-against-jpeg-xl.html
+images:
+- source: https://giannirosato.com/static/img/libjxl_cvvdp.svg
+  original:
+    file: 2026-09-14-the-case-against-jpeg-xl.image-7ceeb5287388.png
+    width: 798
+    height: 494
+  variants:
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-d3baa1d71ece.webp
+    width: 320
+    height: 198
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-a15750fd9cfb.webp
+    width: 640
+    height: 396
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-28b05bfbe7c2.webp
+    width: 798
+    height: 494
+  color: '#010101'
+- source: https://giannirosato.com/static/img/libjxl_ms_ssim.svg
+  original:
+    file: 2026-09-14-the-case-against-jpeg-xl.image-aebc7b7bd703.png
+    width: 798
+    height: 494
+  variants:
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-146acc49758f.webp
+    width: 320
+    height: 198
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-2e0e5e8bd21b.webp
+    width: 640
+    height: 396
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-0864f09abf45.webp
+    width: 798
+    height: 494
+  color: '#010101'
+- source: https://giannirosato.com/static/img/libjxl_ssimu2.svg
+  original:
+    file: 2026-09-14-the-case-against-jpeg-xl.image-aa0c8f28dd4c.png
+    width: 798
+    height: 494
+  variants:
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-bc78fc9195e8.webp
+    width: 320
+    height: 198
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-fff7a555344e.webp
+    width: 640
+    height: 396
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-602af85f7b8c.webp
+    width: 798
+    height: 494
+  color: '#010101'
+- source: https://giannirosato.com/static/img/dec_time.svg
+  original:
+    file: 2026-09-14-the-case-against-jpeg-xl.image-87c1223a41bd.png
+    width: 800
+    height: 494
+  variants:
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-11a67caefab8.webp
+    width: 320
+    height: 198
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-1ff8fd58f447.webp
+    width: 640
+    height: 395
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-89edcd716b1f.webp
+    width: 800
+    height: 494
+  color: '#010101'
+- source: https://giannirosato.com/static/img/jxl_subset1.svg
+  original:
+    file: 2026-09-14-the-case-against-jpeg-xl.image-a8b5c6d3322a.png
+    width: 800
+    height: 494
+  variants:
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-1fef3cd0af90.webp
+    width: 320
+    height: 198
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-14b1e8b1019f.webp
+    width: 640
+    height: 395
+  - file: 2026-09-14-the-case-against-jpeg-xl.image-3e024d0951d9.webp
+    width: 800
+    height: 494
+  color: '#010101'
 ---
 
 Investigating JPEG XL's place as a Web image codec.

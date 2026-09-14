@@ -6,6 +6,174 @@ published: 2025-11-04T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/d1d8909494354ce8236620e1e57781ed2782a594-2232x1230.png?w=1600&fit=max
+  original:
+    file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-a22b4b2b6ff1.png
+    width: 1600
+    height: 882
+  variants:
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-3adaf48642d4.webp
+    width: 320
+    height: 176
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-419390de08e2.webp
+    width: 640
+    height: 353
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-b6f5c02215ee.webp
+    width: 960
+    height: 529
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-ee6196027f7c.webp
+    width: 1280
+    height: 706
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-ad14b847a379.webp
+    width: 1600
+    height: 882
+  color: '#191b21'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f42fe4e1b15164d41b0b64e0d684e31e2eb330dd-1556x905.png?w=1600&fit=max
+  original:
+    file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-6d8a87e44362.png
+    width: 1556
+    height: 905
+  variants:
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-11779d62f134.webp
+    width: 320
+    height: 186
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-a0b063fe6fd2.webp
+    width: 640
+    height: 372
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-8aa7243c08f4.webp
+    width: 960
+    height: 558
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-426c6e126c78.webp
+    width: 1556
+    height: 905
+  color: '#f2f4f9'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/8cbebdcf68b3099afbd2c9ea0196fcfc37ed339a-1080x510.png?w=1600&fit=max
+  original:
+    file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-50056e3eb6ea.png
+    width: 1080
+    height: 510
+  variants:
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-e7da2e393ad9.webp
+    width: 320
+    height: 151
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-a0364f221bfe.webp
+    width: 640
+    height: 302
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-167fa3615ef9.webp
+    width: 1080
+    height: 510
+  color: '#f8f8f8'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/75fc9a872fa2d10db4df00f37904d9efbc1d3235-3820x3002.png?w=1600&fit=max
+  original:
+    file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-1d53711747a8.png
+    width: 1600
+    height: 1258
+  variants:
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-21b152ef61ec.webp
+    width: 320
+    height: 252
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-8cbfbdef197a.webp
+    width: 640
+    height: 503
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-2d0890046d76.webp
+    width: 960
+    height: 755
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-67c0c5af97fe.webp
+    width: 1280
+    height: 1006
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-25b13efed405.webp
+    width: 1600
+    height: 1258
+  color: '#e6e6e6'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/a10c9f829feb0566341b024f1bf6d26c4825a6b5-2848x2046.png?w=1600&fit=max
+  original:
+    file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-9c1b92dd13a1.png
+    width: 1600
+    height: 1150
+  variants:
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-e60b49fe35d5.webp
+    width: 320
+    height: 230
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-c352e192f9fc.webp
+    width: 640
+    height: 460
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-8ea32473ec97.webp
+    width: 960
+    height: 690
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-b7917daaa00b.webp
+    width: 1280
+    height: 920
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-25fe21298f87.webp
+    width: 1600
+    height: 1150
+  color: '#f7f7f7'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/57fa1bc99ab9afd5ac160c59576261c6217b1097-2536x1560.png?w=1600&fit=max
+  original:
+    file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-5b5c998b1bdf.png
+    width: 1600
+    height: 984
+  variants:
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-fe8e7b915e7a.webp
+    width: 320
+    height: 197
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-a8e52c17f3d0.webp
+    width: 640
+    height: 394
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-5a7ed6aeef70.webp
+    width: 960
+    height: 590
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-73cd8da22407.webp
+    width: 1280
+    height: 787
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-d9494900e811.webp
+    width: 1600
+    height: 984
+  color: '#f6f6f6'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/e9f17f9fbd86b23ca3fa7fd1be9c4dab2d0c9d91-2583x1501.png?w=1600&fit=max
+  original:
+    file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-d0ae55036e6c.png
+    width: 1600
+    height: 930
+  variants:
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-22a2cfb8040b.webp
+    width: 320
+    height: 186
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-59bc689e9f5d.webp
+    width: 640
+    height: 372
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-7d4663043488.webp
+    width: 960
+    height: 558
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-84d127df4cf6.webp
+    width: 1280
+    height: 744
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-a4f239d844da.webp
+    width: 1600
+    height: 930
+  color: '#f6f6f6'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/a0bfa8a930936a0bdadd1c771d46b4ec7df099db-1712x634.png?w=1600&fit=max
+  original:
+    file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-78a6f1dd64fb.png
+    width: 1600
+    height: 593
+  variants:
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-5d0b19486526.webp
+    width: 320
+    height: 119
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-997eee10f571.webp
+    width: 640
+    height: 237
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-8924eecd9226.webp
+    width: 960
+    height: 356
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-82651553765d.webp
+    width: 1280
+    height: 474
+  - file: 2025-11-04-windsurf-codemaps-understand-code-before-you-vibe-it.image-831c9e336236.webp
+    width: 1600
+    height: 593
+  color: '#fefefe'
 ---
 
 > *“Your code is your understanding of the problem you’re exploring. So it’s **only when you have your code in your head** that you really understand the problem.”* — [Paul Graham](https://paulgraham.com/head.html)

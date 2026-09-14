@@ -35,6 +35,16 @@ images:
     width: 64
     height: 64
   color: '#fefefe'
+- source: https://x.ai/_next/static/media/copilot.3zc6mafl6ew3f.svg?dpl=a2d6b77a75dae8f07c881cf892692231d4dce27a
+  original:
+    file: 2025-08-28-grok-code-fast-1.image-96f873cb04e6.png
+    width: 36
+    height: 37
+  variants:
+  - file: 2025-08-28-grok-code-fast-1.image-a6397212c3f7.webp
+    width: 36
+    height: 37
+  color: '#000000'
 ---
 
 ![Abstract digital cheetah](https://x.ai/news/f=auto/v1/website/grok-code-fast-32a61c44.webp)

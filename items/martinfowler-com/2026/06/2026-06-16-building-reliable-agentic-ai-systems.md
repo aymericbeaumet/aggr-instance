@@ -9,6 +9,82 @@ authors:
 - Martin Fowler
 content: extracted
 html: 2026-06-16-building-reliable-agentic-ai-systems.html
+images:
+- source: https://martinfowler.com/articles/reliable-llm-bayer/system-container-view.png
+  original:
+    file: 2026-06-16-building-reliable-agentic-ai-systems.image-c1b00a38818e.png
+    width: 3976
+    height: 1648
+  variants:
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-0b3f30735a3d.webp
+    width: 320
+    height: 133
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-1a541592233d.webp
+    width: 640
+    height: 265
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-ecd6b22d595f.webp
+    width: 960
+    height: 398
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-71dd5edfb4ef.webp
+    width: 1280
+    height: 531
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-586293f3e975.webp
+    width: 1600
+    height: 663
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-02f191eae53b.webp
+    width: 3976
+    height: 1648
+  color: '#e1f4fd'
+- source: https://martinfowler.com/articles/reliable-llm-bayer/new-research-workflow.png
+  original:
+    file: 2026-06-16-building-reliable-agentic-ai-systems.image-4aaa5d1fea68.png
+    width: 6644
+    height: 1764
+  variants:
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-f2864aff3001.webp
+    width: 320
+    height: 85
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-aea1d466a39c.webp
+    width: 640
+    height: 170
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-9b334ac8cdaf.webp
+    width: 960
+    height: 255
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-e286c5c85dda.webp
+    width: 1280
+    height: 340
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-aa2c1619ba77.webp
+    width: 1600
+    height: 425
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-5d07f9ef0356.webp
+    width: 6644
+    height: 1764
+  color: '#f4f4f4'
+- source: https://martinfowler.com/articles/reliable-llm-bayer/text-to-sql.png
+  original:
+    file: 2026-06-16-building-reliable-agentic-ai-systems.image-660d74c21308.png
+    width: 3964
+    height: 1484
+  variants:
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-946fe82a2c3d.webp
+    width: 320
+    height: 120
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-47a0f1d3b1ce.webp
+    width: 640
+    height: 240
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-f073f2285ab5.webp
+    width: 960
+    height: 359
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-c8c7084a687c.webp
+    width: 1280
+    height: 479
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-dd8670b9fd72.webp
+    width: 1600
+    height: 599
+  - file: 2026-06-16-building-reliable-agentic-ai-systems.image-c39bf498e0ca.webp
+    width: 3964
+    height: 1484
+  color: '#fcfcfd'
 ---
 
 Preclinical drug discovery is inherently complex and data-intensive. Researchers face the significant challenge of efficiently accessing and analyzing vast volumes of information generated during this critical phase. Traditional keyword-based search methods, often reliant on rigid Boolean logic, frequently fall short when confronted with the nuanced and intricate nature of preclinical research questions.

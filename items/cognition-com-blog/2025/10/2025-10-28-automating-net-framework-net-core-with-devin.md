@@ -6,6 +6,45 @@ published: 2025-10-28T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-10-28-automating-net-framework-net-core-with-devin.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/19653f8ef97357448e0553df5b195d003d189432-1966x1132.png?w=1600&fit=max
+  original:
+    file: 2025-10-28-automating-net-framework-net-core-with-devin.image-90ef125bd4bd.png
+    width: 1600
+    height: 921
+  variants:
+  - file: 2025-10-28-automating-net-framework-net-core-with-devin.image-24205c55f6e4.webp
+    width: 320
+    height: 184
+  - file: 2025-10-28-automating-net-framework-net-core-with-devin.image-d422cc9a352b.webp
+    width: 640
+    height: 368
+  - file: 2025-10-28-automating-net-framework-net-core-with-devin.image-b32380c8c1cf.webp
+    width: 960
+    height: 553
+  - file: 2025-10-28-automating-net-framework-net-core-with-devin.image-27243f1c1d1c.webp
+    width: 1280
+    height: 737
+  - file: 2025-10-28-automating-net-framework-net-core-with-devin.image-fb15758dbeec.webp
+    width: 1600
+    height: 921
+  color: '#1e242d'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/5fcdcc84f1ad4b5fbb29573b64df640a84d3befd-1012x646.png?w=1600&fit=max
+  original:
+    file: 2025-10-28-automating-net-framework-net-core-with-devin.image-06baf1da9145.png
+    width: 1012
+    height: 646
+  variants:
+  - file: 2025-10-28-automating-net-framework-net-core-with-devin.image-fc5b803a3514.webp
+    width: 320
+    height: 204
+  - file: 2025-10-28-automating-net-framework-net-core-with-devin.image-1d39661972cb.webp
+    width: 640
+    height: 409
+  - file: 2025-10-28-automating-net-framework-net-core-with-devin.image-093923953c41.webp
+    width: 1012
+    height: 646
+  color: '#fbfbfb'
 ---
 
 Engineering teams dread migrating from .NET Framework to .NET Core. However, autonomous coding agents are rapidly changing the previously known timelines. What once took months, teams are now finishing in as little as [two weeks](https://devin.ai/customers/thecitationgroup) — with Devin.

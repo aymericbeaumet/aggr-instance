@@ -136,6 +136,54 @@ images:
     width: 48
     height: 36
   color: '#b7a799'
+- source: https://lanparty.house/images/living-room.jpg
+  original:
+    file: 2026-09-05-we-built-our-house-for-lan-parties.image-44ba49fe2b96.jpg
+    width: 2016
+    height: 1512
+  color: '#aa6636'
+- source: https://lanparty.house/images/catwalk.jpg
+  original:
+    file: 2026-09-05-we-built-our-house-for-lan-parties.image-369e247b2755.jpg
+    width: 2040
+    height: 1536
+  color: '#341604'
+- source: https://lanparty.house/images/kids-room.jpg
+  original:
+    file: 2026-09-05-we-built-our-house-for-lan-parties.image-7f3501094e55.jpg
+    width: 2040
+    height: 1536
+  color: '#b4b7b9'
+- source: https://lanparty.house/images/call-rooms.jpg
+  original:
+    file: 2026-09-05-we-built-our-house-for-lan-parties.image-1a869f172ae0.jpg
+    width: 2040
+    height: 1355
+  color: '#989797'
+- source: https://lanparty.house/images/cat-restrooms.jpg
+  original:
+    file: 2026-09-05-we-built-our-house-for-lan-parties.image-190e202ab8df.jpg
+    width: 2040
+    height: 1355
+  color: '#b6a699'
+- source: https://lanparty.house/images/guest-rooms.jpg
+  original:
+    file: 2026-09-05-we-built-our-house-for-lan-parties.image-787dd0276915.jpg
+    width: 2040
+    height: 1355
+  color: '#6a6866'
+- source: https://lanparty.house/images/roof-deck.jpg
+  original:
+    file: 2026-09-05-we-built-our-house-for-lan-parties.image-f6f8ee390dd1.jpg
+    width: 2040
+    height: 1536
+  color: '#549ad7'
+- source: https://lanparty.house/images/cat.jpg
+  original:
+    file: 2026-09-05-we-built-our-house-for-lan-parties.image-7f54ab3e123d.jpg
+    width: 2040
+    height: 1536
+  color: '#ebeae4'
 ---
 
 ## We built our house for LAN parties

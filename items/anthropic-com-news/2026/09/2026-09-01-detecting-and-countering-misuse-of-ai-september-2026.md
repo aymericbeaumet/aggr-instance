@@ -170,6 +170,449 @@ images:
     width: 320
     height: 353
   color: '#f7f8f6'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F72970785999715f22b78c4fc2d0e2f20786fdfd3-1920x471.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-62b442d39a12.webp
+    width: 1920
+    height: 471
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-824075c360dd.webp
+    width: 320
+    height: 79
+  color: '#f7f8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Ff3ddd5297b62ba79c500e9d921a6bafbf7dfb954-1920x471.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-497b7262a59d.webp
+    width: 1920
+    height: 471
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-8d7506ffce03.webp
+    width: 320
+    height: 79
+  color: '#f8f8f6'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F966baae8ca495387317bcf4fe8c4147522584903-1920x471.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-1405343b1c82.webp
+    width: 1920
+    height: 471
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-bfddff35c2eb.webp
+    width: 320
+    height: 79
+  color: '#f7f8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F0c118bda9102ec213c6035fb16a4847509c49e1b-1920x496.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-aa1220194c64.webp
+    width: 1920
+    height: 496
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-75cef02ea133.webp
+    width: 320
+    height: 83
+  color: '#f8f8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fd67f43c0159621c1e7b84b5cc5245f0e2bed40a2-1920x471.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-aa6a381da6a4.webp
+    width: 1920
+    height: 471
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-21bc7005952c.webp
+    width: 320
+    height: 79
+  color: '#f8f8f6'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F08c5bd02a2fc4c27002bc17f5f07c29e38000d59-1920x471.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-9475ef8efb2d.webp
+    width: 1920
+    height: 471
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-e273a5d40032.webp
+    width: 320
+    height: 79
+  color: '#f8f8f6'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F57702ff9f64d0a10b7c3c12f0debec33dd185124-1920x471.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-044706cf8a94.webp
+    width: 1920
+    height: 471
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-0fd8cb7de064.webp
+    width: 320
+    height: 79
+  color: '#f8f8f6'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F5b3c1191e266cbbe020d44dfb9acdbc1bedf5b9f-1920x1778.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-6a4624055502.webp
+    width: 1920
+    height: 1778
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-5809aeb076b5.webp
+    width: 320
+    height: 296
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-e1bfb3e0f079.webp
+    width: 640
+    height: 593
+  color: '#f8f8f8'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fe3724dfd4779f2c838c6cb0b70c54cc5f757ef2a-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-c258abc9fd64.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-b646dec340f5.webp
+    width: 320
+    height: 185
+  color: '#faf8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fb518031942512c47b27b5a0c65d67c509318c867-1990x704.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-72df300f7abf.webp
+    width: 1990
+    height: 704
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-a5c80e63d8ea.webp
+    width: 320
+    height: 113
+  color: '#f9f9f8'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F9ce3edba5554816c9f0aac2d661ba860ba7551a2-1990x1620.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-8dce0bdb065f.webp
+    width: 1990
+    height: 1620
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-567203fd0a22.webp
+    width: 320
+    height: 261
+  color: '#f9f8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F219929a00ffce40e1a67b9d9fa33084a01daf6ec-1990x1620.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-c858594ef94c.webp
+    width: 1990
+    height: 1620
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-666273276936.webp
+    width: 320
+    height: 261
+  color: '#faf8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F4f3d2da01fe0c8488f61c0f1f30b4e539a095cb6-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-e7cbcf777533.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-90bd76630608.webp
+    width: 320
+    height: 185
+  color: '#131317'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Ff5b85037fdaf7b599c544e77b0f76c06d75257a1-1990x858.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-d002171f5de7.webp
+    width: 1990
+    height: 858
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-e856d6959c7d.webp
+    width: 320
+    height: 138
+  color: '#f7f7f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F50310bb34607a9bcac2a1ecddae75c7547ebc5e2-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-7ce8c0c2df69.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-f1c93a030482.webp
+    width: 320
+    height: 185
+  color: '#faf9f6'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fd1b0a944121b60eaea479afba155f1c75da4a87d-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-53b4ba4b5c7d.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-bc36c1000f7b.webp
+    width: 320
+    height: 185
+  color: '#fbfaf9'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Ff8895df92b5ec0ea58be773446ff04fc198e4e5d-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-019c04238bf0.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-630de7930fdb.webp
+    width: 320
+    height: 185
+  color: '#faf8f4'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fe976cb85cd718bdfd272d70d296ece74ab60c064-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-8355513a5042.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-22488d8d9f0c.webp
+    width: 320
+    height: 185
+  color: '#fbf9f7'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F4cee6e4dcbcfa110aea472b5f6e5a2cdfa0937fd-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-c3934eb4fec6.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-ea26316adb8b.webp
+    width: 320
+    height: 185
+  color: '#fbf9f6'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F3a285b36a6c34c01c2377882cd8f26838c601c69-1990x734.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-106202a4f453.webp
+    width: 1990
+    height: 734
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-2dc868a41ca5.webp
+    width: 320
+    height: 118
+  color: '#faf9f7'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F615f56ed52a382c0631355595ea691dc268ff1d5-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-196e74f5d13a.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-9b3438516ebb.webp
+    width: 320
+    height: 185
+  color: '#faf8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fa96c365e73fecaee2efb1c3149545a9d97c0d812-1990x734.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-fef6f8089d4b.webp
+    width: 1990
+    height: 734
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-bd91617cc908.webp
+    width: 320
+    height: 118
+  color: '#faf9f6'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fbcae98f28b9f99f32eb9e5d72fa994ee730282e8-1990x1250.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-cbb19a20d88b.webp
+    width: 1990
+    height: 1250
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-8c4141221297.webp
+    width: 320
+    height: 201
+  color: '#f8f9f6'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fc3a3242fdb031d4b508557fcbc790b9b233d9505-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-9234c23661aa.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-2fbebc45f77c.webp
+    width: 320
+    height: 185
+  color: '#faf8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fd54d70fe0a25ebee59b8a9eecb32d70e048e8421-1990x1620.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-f5b14f839b37.webp
+    width: 1990
+    height: 1620
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-5db40a5783d8.webp
+    width: 320
+    height: 261
+  color: '#f9f8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F04d4d1292aa3c5069a1390dd6b164bec444f2e87-1990x1617.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-cda2e33b9d52.webp
+    width: 1990
+    height: 1617
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-94cb2d070ea3.webp
+    width: 320
+    height: 260
+  color: '#f9f9f7'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fc5c7183d60d65a5ac34e454a02653468c287ae24-1920x960.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-c6aa8e5dcee5.webp
+    width: 1920
+    height: 960
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-fa804df57c64.webp
+    width: 320
+    height: 160
+  color: '#f9f8f3'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fef384f0fab07ffb7fc9c2df850e561ad33ff791a-1920x744.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-49128f788fb5.webp
+    width: 1920
+    height: 744
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-c8a6e43f56a7.webp
+    width: 320
+    height: 124
+  color: '#f8f9f6'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F4c445959585523daef561e14eaa8f8da2ccc7dde-1920x821.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-10828a104da9.webp
+    width: 1920
+    height: 821
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-8eaf19af131b.webp
+    width: 320
+    height: 137
+  color: '#f9f7f3'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fbef891c7485a75fa18002afbd18909f1d453888e-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-b60f793988fa.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-e79006bfdb39.webp
+    width: 320
+    height: 185
+  color: '#faf8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fae32bdff452a5193a13b0dda3366900629a1a9d1-1920x568.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-cf3d9972ea96.webp
+    width: 1920
+    height: 568
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-c9f5832fbc77.webp
+    width: 320
+    height: 95
+  color: '#faf8f3'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fd0be69c577562e8fdb1cc98d0e9e7eb124cb2b15-1990x892.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-a6d8685bd65e.webp
+    width: 1990
+    height: 892
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-2e981d74b9a2.webp
+    width: 320
+    height: 143
+  color: '#faf8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F0eba606146d3dd88ccc072436349e99a6608f8f7-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-aae8d03f5a54.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-a31c6cf6f7b0.webp
+    width: 320
+    height: 185
+  color: '#f9f8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fa091a50d8def75bcaf1ddcfa53b2a6f7ec5d71f8-1990x1150.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-8aaaa4220d50.webp
+    width: 1990
+    height: 1150
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-fb2f4ab84d91.webp
+    width: 320
+    height: 185
+  color: '#faf8f4'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F3a08ffef18a047f8f23d558c815e76c6c2d74aa2-1920x1487.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-26b5d96a55b5.webp
+    width: 1920
+    height: 1487
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-4917219149c1.webp
+    width: 320
+    height: 248
+  color: '#f9f8f4'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F2a9ebbee3b14c546b3010a3bfd932fa75b72a5e7-1920x966.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-6e1466af156e.webp
+    width: 1920
+    height: 966
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-1411dbdfe48d.webp
+    width: 320
+    height: 161
+  color: '#f9f8f4'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F6716b70cd1f06ca89ef70c18e2e48dec77e2591d-1920x1276.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-c61f0406586f.webp
+    width: 1920
+    height: 1276
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-87f43a412c6b.webp
+    width: 320
+    height: 213
+  color: '#faf8f4'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F37f60e304d8d25803ecdc8ec1eb075ba84667f0e-1920x1246.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-30c6d1599dba.webp
+    width: 1920
+    height: 1246
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-ab11e28677ec.webp
+    width: 320
+    height: 208
+  color: '#faf8f4'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fde017d1dd096ecf0374da1e251fd4139c45f3777-1920x1258.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-fddc9f1f29cc.webp
+    width: 1920
+    height: 1258
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-152788452206.webp
+    width: 320
+    height: 210
+  color: '#f9faf7'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Fa33486c9223106bbcd4f6cf58ac09f9a7a0b56de-1920x1124.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-39ce73bdbbe7.webp
+    width: 1920
+    height: 1124
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-cd39feeba9c8.webp
+    width: 320
+    height: 187
+  color: '#f9f7f3'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F7e9eb08b31a1f4812f0fb2bd89999b90604b4f68-1920x1259.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-8252b094ecd7.webp
+    width: 1920
+    height: 1259
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-bde1e9933471.webp
+    width: 320
+    height: 210
+  color: '#f9faf7'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Ff5a5b4928fc9f8b9d5ee40ccb9358dd346e7a2ff-1920x1526.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-b7865b9e5234.webp
+    width: 1920
+    height: 1526
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-6e83ab118135.webp
+    width: 320
+    height: 254
+  color: '#f8f9f6'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Ff2bbccb4f43c02cf858fc7a232f714f7598fe044-1920x470.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-bc3135cc0330.webp
+    width: 1920
+    height: 470
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-c4fbd93d2e4d.webp
+    width: 320
+    height: 78
+  color: '#f8f8f5'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F0e2c5cfa7cb0e27eac962ffb59e394ddd9d5de46-1920x631.jpg&w=3840&q=75
+  original:
+    file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-ef42af7f22ef.webp
+    width: 1920
+    height: 631
+  variants:
+  - file: 2026-09-01-detecting-and-countering-misuse-of-ai-september-2026.image-67a3f4e23a2d.webp
+    width: 320
+    height: 105
+  color: '#f8f8f6'
 html_truncated: true
 ---
 

@@ -52,6 +52,16 @@ images:
     width: 256
     height: 256
   color: '#fba7c7'
+- source: https://camo.githubusercontent.com/c52dae836dd56b750f0287b501f758eebf035a01fe7f7365260cafdf5bbcc66f/68747470733a2f2f696d672e736869656c64732e696f2f6769746875622f6c6963656e73652f6179676872692f692d686176652d616468643f7374796c653d666c6174
+  original:
+    file: 2026-09-08-i-have-adhd-a-skill-to-stop-coding-agents-from-burying-the.image-2cac0a151168.png
+    width: 78
+    height: 20
+  variants:
+  - file: 2026-09-08-i-have-adhd-a-skill-to-stop-coding-agents-from-burying-the.image-d37d892fc800.webp
+    width: 78
+    height: 20
+  color: '#595959'
 ---
 
 [![i-have-adhd](https://github.com/ayghri/i-have-adhd/raw/main/logo.png)](https://github.com/ayghri/i-have-adhd/blob/main/logo.png)

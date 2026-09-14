@@ -197,6 +197,66 @@ images:
     width: 500
     height: 121
   color: '#030000'
+- source: https://github.com/kvcache-ai/Mooncake/raw/main/image/hardwares/T-Head_logo.png
+  original:
+    file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-dc1adc728ff8.png
+    width: 200
+    height: 200
+  variants:
+  - file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-25b7aef33fb4.webp
+    width: 200
+    height: 200
+  color: '#000000'
+- source: https://github.com/kvcache-ai/Mooncake/raw/main/image/partners/aliyun_logo.png
+  original:
+    file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-80a6d2a26b4e.png
+    width: 600
+    height: 75
+  color: '#fefdfc'
+- source: https://github.com/kvcache-ai/Mooncake/raw/main/image/partners/sunrise_logo.png
+  original:
+    file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-3c43efaaaf43.png
+    width: 1519
+    height: 398
+  variants:
+  - file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-76eea24afb99.webp
+    width: 320
+    height: 84
+  - file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-bbb207346aff.webp
+    width: 640
+    height: 168
+  - file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-bfd26bc9a3af.webp
+    width: 960
+    height: 252
+  - file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-d86bfce8af6a.webp
+    width: 1280
+    height: 335
+  - file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-ed0c40703cb3.webp
+    width: 1519
+    height: 398
+  color: '#fefefd'
+- source: https://github.com/kvcache-ai/Mooncake/raw/main/image/partners/hygon_logo.png
+  original:
+    file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-0d7a96787757.jpg
+    width: 498
+    height: 139
+  color: '#fdfdfd'
+- source: https://github.com/kvcache-ai/Mooncake/raw/main/image/hardwares/biren_logo.png
+  original:
+    file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-06e304687d48.png
+    width: 1200
+    height: 316
+  variants:
+  - file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-38ca46542bf2.webp
+    width: 320
+    height: 84
+  - file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-6dbe30240a38.webp
+    width: 640
+    height: 169
+  - file: 2024-06-26-mooncake-a-kvcache-centric-disaggregated-architecture-for.image-40d46beff766.webp
+    width: 1200
+    height: 316
+  color: '#000000'
 ---
 
 Mooncake is the serving platform for [![icon](https://github.com/kvcache-ai/Mooncake/raw/main/image/kimi.png) Kimi](https://kimi.ai/), a leading LLM service provided by [![icon](https://github.com/kvcache-ai/Mooncake/raw/main/image/moonshot.jpg) Moonshot AI](https://www.moonshot.cn/). Under real workloads, Mooncake’s innovative architecture enables Kimi to handle 75% more requests while adhering to SLOs.

@@ -227,6 +227,43 @@ images:
     width: 1600
     height: 1176
   color: '#fcfcf9'
+- source: https://lalitm.com/assets/buildprof/rust-crates-vs-zig-object-notes.png
+  original:
+    file: 2026-09-12-i-made-a-build-visualizer-to-understand-bun-s-compile-times.image-48b9b58def45.png
+    width: 1600
+    height: 1560
+  color: '#fdfdfb'
+- source: https://lalitm.com/assets/buildprof/zig-ci-diagnostic-probes-notes.png
+  original:
+    file: 2026-09-12-i-made-a-build-visualizer-to-understand-bun-s-compile-times.image-dcabe755c5dd.png
+    width: 1600
+    height: 795
+  variants:
+  - file: 2026-09-12-i-made-a-build-visualizer-to-understand-bun-s-compile-times.image-33b7b84e8c4c.webp
+    width: 320
+    height: 159
+  - file: 2026-09-12-i-made-a-build-visualizer-to-understand-bun-s-compile-times.image-1ec7f06bf3c9.webp
+    width: 640
+    height: 318
+  - file: 2026-09-12-i-made-a-build-visualizer-to-understand-bun-s-compile-times.image-9c42be11107f.webp
+    width: 960
+    height: 477
+  - file: 2026-09-12-i-made-a-build-visualizer-to-understand-bun-s-compile-times.image-0130dcbc1947.webp
+    width: 1600
+    height: 795
+  color: '#fcfbfa'
+- source: https://lalitm.com/assets/buildprof/zig-cold-webkit-download-article.png
+  original:
+    file: 2026-09-12-i-made-a-build-visualizer-to-understand-bun-s-compile-times.image-7550ed813206.png
+    width: 1600
+    height: 380
+  color: '#fdfcfa'
+- source: https://lalitm.com/assets/buildprof/zig-generated-classes-compiler-phases-article.png
+  original:
+    file: 2026-09-12-i-made-a-build-visualizer-to-understand-bun-s-compile-times.image-c744029b4747.png
+    width: 1600
+    height: 480
+  color: '#fdfcfa'
 ---
 
 I built [buildprof](https://buildprof.lalitm.com) ([Github](https://github.com/lalitMaganti/buildprof)), an open-source tracing tool that shows where the time goes when you compile software on Linux. Here’s a realtime video of it profiling a clean build of ripgrep:

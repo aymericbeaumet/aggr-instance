@@ -163,6 +163,18 @@ images:
     width: 7600
     height: 3900
   color: '#fcfcfd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/suite/singlenav.png
+  original:
+    file: 2026-06-16-qwen-robotnav-a-scalable-navigation-model-designed-for-an.image-e8cd2a288395.jpg
+    width: 8000
+    height: 4500
+  color: '#f9f9f9'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/robotnav/fig_teaser.png
+  original:
+    file: 2026-06-16-qwen-robotnav-a-scalable-navigation-model-designed-for-an.image-28e31ce5ef23.png
+    width: 6666
+    height: 3027
+  color: '#f8f8f9'
 ---
 
 [GitHub](https://github.com/QwenLM/Qwen-RobotNav) [Paper](https://qianwen-res.oss-accelerate.aliyuncs.com/qwenrobot/papers/Qwen_RobotNav.pdf)

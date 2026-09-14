@@ -54,6 +54,28 @@ images:
     width: 1920
     height: 1080
   color: '#e7e7f9'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3.6/Figures/qwen3.6_max_preview_score.png
+  original:
+    file: 2026-04-18-qwen3-6-max-preview-smarter-sharper-still-evolving.image-1daccba2734d.png
+    width: 17277
+    height: 10523
+  variants:
+  - file: 2026-04-18-qwen3-6-max-preview-smarter-sharper-still-evolving.image-5e7b0d2ffc08.webp
+    width: 320
+    height: 195
+  - file: 2026-04-18-qwen3-6-max-preview-smarter-sharper-still-evolving.image-73a50ad6a7d0.webp
+    width: 640
+    height: 390
+  - file: 2026-04-18-qwen3-6-max-preview-smarter-sharper-still-evolving.image-cb387888d439.webp
+    width: 960
+    height: 585
+  - file: 2026-04-18-qwen3-6-max-preview-smarter-sharper-still-evolving.image-1bc34b3372f6.webp
+    width: 1280
+    height: 780
+  - file: 2026-04-18-qwen3-6-max-preview-smarter-sharper-still-evolving.image-60ed1968d652.webp
+    width: 1600
+    height: 975
+  color: '#fbfbfb'
 ---
 
 ![Qwen3.6-Max-Preview Main Image](https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/Figures/3.6_max_preview_banner.png)

@@ -32,6 +32,22 @@ images:
     width: 640
     height: 335
   color: '#fefefe'
+- source: https://refactoringenglish.com/excerpts/write-an-effective-design-doc/architecture-diagram.svg
+  original:
+    file: 2026-09-14-how-to-write-an-effective-software-design-document.image-8dfc3c0afbfa.png
+    width: 903
+    height: 784
+  variants:
+  - file: 2026-09-14-how-to-write-an-effective-software-design-document.image-b3ca1d19523b.webp
+    width: 320
+    height: 278
+  - file: 2026-09-14-how-to-write-an-effective-software-design-document.image-342d1ac84b19.webp
+    width: 640
+    height: 556
+  - file: 2026-09-14-how-to-write-an-effective-software-design-document.image-bb4c142cad3c.webp
+    width: 903
+    height: 784
+  color: '#d8e9d2'
 ---
 
 A good design doc can save you years of development time. Writing a design doc forces you to think through important decisions before you waste time on the wrong implementation. It’s also the best way to coordinate design decisions among teammates and partner teams.

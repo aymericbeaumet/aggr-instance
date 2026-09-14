@@ -141,6 +141,532 @@ images:
     width: 48
     height: 27
   color: '#083638'
+- source: https://www.nomanssky.com/media/legacy/uploads/2018/07/logo-ps4.png
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-d9cf851ebfa7.png
+    width: 134
+    height: 28
+  color: '#fcfcfc'
+- source: https://www.nomanssky.com/media/legacy/uploads/2020/11/logo-ps5.png
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-aca96a8763cb.png
+    width: 129
+    height: 28
+  color: '#fcfcfc'
+- source: https://www.nomanssky.com/media/legacy/uploads/2018/07/logo-steam.png
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-10ca84c6cc96.png
+    width: 100
+    height: 31
+  color: '#fefefe'
+- source: https://www.nomanssky.com/media/legacy/uploads/2018/07/logo-xbox-one.png
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-34515fd1fd96.png
+    width: 140
+    height: 28
+  color: '#fcfcfc'
+- source: https://www.nomanssky.com/media/legacy/uploads/2020/11/logo-xbox-series-x-s.png
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-e70085bad6d6.png
+    width: 65
+    height: 28
+  color: '#fefefe'
+- source: https://www.nomanssky.com/media/legacy/uploads/2022/02/logo-xbox-game-pass-140w.png
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-82cea798a272.png
+    width: 140
+    height: 24
+  color: '#fbfbfb'
+- source: https://www.nomanssky.com/media/legacy/uploads/2022/06/logo-nintendo-switch-83w.png
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-3893f7f84b7c.png
+    width: 84
+    height: 20
+  color: '#fefefe'
+- source: https://www.nomanssky.com/media/ivelqzb1/createalliance_2.jpg?width=3840&v=1dd405b39932890
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-21f808e48bd7.jpg
+    width: 3840
+    height: 2160
+  color: '#092848'
+- source: https://www.nomanssky.com/media/kvxfi1a5/outpost-7.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-283d5f9fb4bb.jpg
+    width: 768
+    height: 432
+  color: '#681408'
+- source: https://www.nomanssky.com/media/0t3ps0bd/outpost-26.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-02b8c7b2fe76.jpg
+    width: 768
+    height: 432
+  color: '#b7580a'
+- source: https://www.nomanssky.com/media/mlul2e5b/outpost-23.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-dd4cb4b18c99.jpg
+    width: 768
+    height: 432
+  color: '#0b2627'
+- source: https://www.nomanssky.com/media/0t3ps0bd/outpost-26.jpg?width=3840&v=1dd405b394afc00
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-11c56b7fe572.jpg
+    width: 3840
+    height: 2160
+  color: '#b75809'
+- source: https://www.nomanssky.com/media/oizce44k/sean-07_09_2026-15_56_08.jpg?width=3840&v=1dd405b38a01600
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-27582c043c24.jpg
+    width: 3840
+    height: 2160
+  color: '#2a4428'
+- source: https://www.nomanssky.com/media/kc1gdinh/spacebasecomputercutout.png?mode=crop&width=290
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-e17d8bb773b4.png
+    width: 290
+    height: 337
+  color: '#283449'
+- source: https://www.nomanssky.com/media/ybaje0fs/spacebase-1.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-304751181512.jpg
+    width: 1040
+    height: 585
+  color: '#125764'
+- source: https://www.nomanssky.com/media/z2nhfekh/spacebase2-11.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-6d186763e363.jpg
+    width: 768
+    height: 432
+  color: '#161b24'
+- source: https://www.nomanssky.com/media/urwfehcd/spacebase2-7.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-0a8c70553a8d.jpg
+    width: 768
+    height: 432
+  color: '#a73caa'
+- source: https://www.nomanssky.com/media/ybaje0fs/spacebase-1.jpg?width=3840&v=1dd405b37dbb490
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-cc007ed9b442.jpg
+    width: 3840
+    height: 2160
+  color: '#125864'
+- source: https://www.nomanssky.com/media/otjca5h4/hulkb_0003_layer-73.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-68cfa8d570ea.jpg
+    width: 768
+    height: 432
+  color: '#6a77a5'
+- source: https://www.nomanssky.com/media/pnsbdzj1/hulk_0008_layer-64.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-68cbfba12eeb.jpg
+    width: 768
+    height: 432
+  color: '#080916'
+- source: https://www.nomanssky.com/media/kmcfvhcx/hulk-08.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-9ad8dbef610b.jpg
+    width: 768
+    height: 432
+  color: '#242827'
+- source: https://www.nomanssky.com/media/kmcfvhcx/hulk-08.jpg?width=3840&v=1dd405b37c56d70
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-d8aa41558a91.jpg
+    width: 3840
+    height: 2160
+  color: '#242828'
+- source: https://www.nomanssky.com/media/ktphfgaj/stationexteriordecoration-3-1.jpg?width=3840&v=1dd405b3ad93d20
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-3205d5e7aa6c.jpg
+    width: 3840
+    height: 2160
+  color: '#562826'
+- source: https://www.nomanssky.com/media/bvwigroo/misc4kplanet-21.jpg?width=3840&v=1dd405b387cfda0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-9e86ad9376b3.jpg
+    width: 3840
+    height: 2160
+  color: '#d6c5ba'
+- source: https://www.nomanssky.com/media/mx1fbdd1/expeditionui_pg1.png?width=3840&v=1dd405b37b010b0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-4ce79c88f69c.png
+    width: 3840
+    height: 2160
+  color: '#140c19'
+- source: https://www.nomanssky.com/media/ztlc0kqw/allianceleaderboard.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-d456aa65b357.jpg
+    width: 1040
+    height: 585
+  color: '#062847'
+- source: https://www.nomanssky.com/media/ztlc0kqw/allianceleaderboard.jpg?width=3838&v=1dd405b37cf0a60
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-c538ff3f53a7.jpg
+    width: 3838
+    height: 2158
+  color: '#062947'
+- source: https://www.nomanssky.com/media/bgvn2cwh/frame03cutout.png?mode=crop&width=260
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-712de1c015bb.png
+    width: 260
+    height: 213
+  color: '#32a895'
+- source: https://www.nomanssky.com/media/jlsnkguw/artframes-16.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-52528c2f0030.jpg
+    width: 1040
+    height: 585
+  color: '#6b2516'
+- source: https://www.nomanssky.com/media/jlsnkguw/artframes-16.jpg?width=3840&v=1dd405b39d1b830
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-bab6cab38ca0.jpg
+    width: 3840
+    height: 2160
+  color: '#6b2516'
+- source: https://www.nomanssky.com/media/01zjk3v5/sean-07_09_2026-14_38_02.jpg?width=3840&v=1dd405b38b80ad0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-19591354be6b.jpg
+    width: 3840
+    height: 2160
+  color: '#4c4747'
+- source: https://www.nomanssky.com/media/s4apifgv/spacemisc-13.jpg?width=3840&v=1dd405b3b38e950
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-03466be85e95.jpg
+    width: 3840
+    height: 2160
+  color: '#2b2567'
+- source: https://www.nomanssky.com/media/3uckyv4s/baseintfortress-7.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-3f41954f0f98.jpg
+    width: 768
+    height: 432
+  color: '#15171b'
+- source: https://www.nomanssky.com/media/rtqe3l14/stationbase-2.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-edbc850633bf.jpg
+    width: 768
+    height: 432
+  color: '#191516'
+- source: https://www.nomanssky.com/media/rtqe3l14/stationbase-2.jpg?width=3840&v=1dd405b37f64170
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-9f6fe759444f.jpg
+    width: 3840
+    height: 2160
+  color: '#191515'
+- source: https://www.nomanssky.com/media/bwuf5lo3/diplo-8.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-ce75c3280128.jpg
+    width: 1040
+    height: 585
+  color: '#c5d8e7'
+- source: https://www.nomanssky.com/media/bwuf5lo3/diplo-8.jpg?width=3840&v=1dd405b3a8af610
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-5d9c85cef72f.jpg
+    width: 3840
+    height: 2160
+  color: '#c5d8e7'
+- source: https://www.nomanssky.com/media/udrjxul1/baseintfortress-4.jpg?width=3840&v=1dd405b3a7f3640
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-d000fdf61351.jpg
+    width: 3840
+    height: 2160
+  color: '#182736'
+- source: https://www.nomanssky.com/media/qhoa2qbo/spacemisc-9.jpg?width=3840&v=1dd405b3b4f3070
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-c6388d1fc88a.jpg
+    width: 3840
+    height: 2160
+  color: '#281318'
+- source: https://www.nomanssky.com/media/luoffv15/productsfanout-1.png?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-b6af45b2433a.png
+    width: 1040
+    height: 602
+  color: '#c6c6c7'
+- source: https://www.nomanssky.com/media/m3zladbf/generic-1.jpg?width=3840&v=1dd405b3aed1340
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-f278a7137385.jpg
+    width: 3840
+    height: 2160
+  color: '#384637'
+- source: https://www.nomanssky.com/media/gqeeoo5i/playermultitool-15.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-a250fe28fd2c.jpg
+    width: 1040
+    height: 585
+  color: '#040705'
+- source: https://www.nomanssky.com/media/pycn4l5q/multitoolshadow_1.png?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-17ec7ce5bdb5.png
+    width: 1040
+    height: 965
+  color: '#586769'
+- source: https://www.nomanssky.com/media/gqeeoo5i/playermultitool-15.jpg?width=3840&v=1dd405b3895dcd0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-f9bf5b9e8048.jpg
+    width: 3840
+    height: 2160
+  color: '#030604'
+- source: https://www.nomanssky.com/media/ahkcaxhs/asteroidbelts-14.jpg?width=3840&v=1dd405b3a737670
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-816fdd8f5b29.jpg
+    width: 3840
+    height: 2400
+  color: '#02c200'
+- source: https://www.nomanssky.com/media/t22f4iyb/generic2-9.jpg?width=3840&v=1dd405b3b0a1120
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-395782318ef9.jpg
+    width: 3840
+    height: 2160
+  color: '#3a4767'
+- source: https://www.nomanssky.com/media/0nwbzzj4/asteroidbelts-14.jpg?width=3840&v=1dd405b38699cb0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-816fdd8f5b29.jpg
+    width: 3840
+    height: 2400
+  color: '#02c200'
+- source: https://www.nomanssky.com/media/nisdh5mk/misc4kplanet-10.jpg?width=3840&v=1dd405b3b6b43f0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-4160467612d1.jpg
+    width: 3840
+    height: 2160
+  color: '#374349'
+- source: https://www.nomanssky.com/media/dxror1lc/misc4kplanet-9.jpg?width=3840&v=1dd405b388bcab0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-1ee891b81eb6.jpg
+    width: 3840
+    height: 2160
+  color: '#b9cad7'
+- source: https://www.nomanssky.com/media/pzfnnbwd/sean-07_09_2026-13_01_57.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-406170b90373.jpg
+    width: 1040
+    height: 585
+  color: '#476837'
+- source: https://www.nomanssky.com/media/uaffhwmm/interceptorrender_1.png?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-564a9bfd7948.png
+    width: 1040
+    height: 546
+  color: '#020101'
+- source: https://www.nomanssky.com/media/pzfnnbwd/sean-07_09_2026-13_01_57.jpg?width=3840&v=1dd405b38dc0d90
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-d05b2f980899.jpg
+    width: 3840
+    height: 2160
+  color: '#476837'
+- source: https://www.nomanssky.com/media/bcynt5z3/cutout-jiggly-slime-d-1.png?mode=crop&width=240
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-26e7a4e47bea.png
+    width: 240
+    height: 233
+  color: '#57b725'
+- source: https://www.nomanssky.com/media/0teptrc3/infestedoutpost_0012_layer-25.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-c3279a41f2de.jpg
+    width: 1040
+    height: 585
+  color: '#283724'
+- source: https://www.nomanssky.com/media/qaup3owh/infestedoutpost_0000_layer-37.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-1eea73bd7689.jpg
+    width: 768
+    height: 432
+  color: '#383624'
+- source: https://www.nomanssky.com/media/oejlkozo/infestedoutpost_0019_layer-18.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-a72a8705415a.jpg
+    width: 768
+    height: 432
+  color: '#366613'
+- source: https://www.nomanssky.com/media/lyghaso3/infestedoutpost_0003_layer-34.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-deb248e876d6.jpg
+    width: 768
+    height: 432
+  color: '#160b14'
+- source: https://www.nomanssky.com/media/qaup3owh/infestedoutpost_0000_layer-37.jpg?width=3840&v=1dd405b37e7e990
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-647ac5287ed0.jpg
+    width: 3840
+    height: 2160
+  color: '#383624'
+- source: https://www.nomanssky.com/media/lzxb1wyl/generic-7.jpg?width=3840&v=1dd405b3af6b030
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-0ccc48e2689d.jpg
+    width: 3840
+    height: 2160
+  color: '#261309'
+- source: https://www.nomanssky.com/media/slipzdyn/no-mans-sky-07_09_2026-16_12_06.jpg?width=3840&v=1dd405b38aa4f30
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-5d0542102d4f.jpg
+    width: 3840
+    height: 2160
+  color: '#070706'
+- source: https://www.nomanssky.com/media/xtehy5qa/generic2-7.jpg?width=3840&v=1dd405b3b007430
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-c165dab0981e.jpg
+    width: 3840
+    height: 2160
+  color: '#5797b7'
+- source: https://www.nomanssky.com/media/is3pxzzb/misc4kplanet-6.jpg?width=3840&v=1dd405b3b5e72b0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-e600174597b8.jpg
+    width: 3840
+    height: 2160
+  color: '#f7f9e7'
+- source: https://www.nomanssky.com/media/3vgoo12p/sean-07_09_2026-16_42_07.jpg?width=3840&v=1dd405b392d88f0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-62c5e78dcea2.jpg
+    width: 3840
+    height: 2160
+  color: '#272726'
+- source: https://www.nomanssky.com/media/n5lpml55/platformbase1-19.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-1ed7669bfda6.jpg
+    width: 1040
+    height: 585
+  color: '#170a17'
+- source: https://www.nomanssky.com/media/zqxdtnpx/platformbase1-4.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-89842f892498.jpg
+    width: 768
+    height: 432
+  color: '#172725'
+- source: https://www.nomanssky.com/media/lb0cnqpu/ruin_platform-5-1.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-29a61133d55c.jpg
+    width: 768
+    height: 432
+  color: '#293438'
+- source: https://www.nomanssky.com/media/pj2ote41/icebase01.jpg?mode=crop&width=768
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-fbf9138fed54.jpg
+    width: 768
+    height: 432
+  color: '#675656'
+- source: https://www.nomanssky.com/media/n5lpml55/platformbase1-19.jpg?width=3840&v=1dd405b384795c0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-c38dfecac82b.jpg
+    width: 3840
+    height: 2160
+  color: '#170a17'
+- source: https://www.nomanssky.com/media/iispjdus/minionboard01.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-e94ab495fdd3.jpg
+    width: 1040
+    height: 650
+  color: '#251922'
+- source: https://www.nomanssky.com/media/iispjdus/minionboard01.jpg?width=2560&v=1dd405b39bbe640
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-7619635e6260.jpg
+    width: 2560
+    height: 1600
+  color: '#251922'
+- source: https://www.nomanssky.com/media/xtqbaaln/spacewalk-14.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-0ea80dbef072.jpg
+    width: 1040
+    height: 585
+  color: '#26b787'
+- source: https://www.nomanssky.com/media/xtqbaaln/spacewalk-14.jpg?width=3840&v=1dd405b38291140
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-78e5329286fb.jpg
+    width: 3840
+    height: 2160
+  color: '#26b787'
+- source: https://www.nomanssky.com/media/wbvjagts/image-8.jpg?width=3840&v=1dd405b391b3970
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-e97d3e10cf4f.jpg
+    width: 3840
+    height: 2160
+  color: '#aba993'
+- source: https://www.nomanssky.com/media/c23ffbzj/iceasteroidcutout3.png?mode=crop&width=220
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-a6edce8b240b.png
+    width: 220
+    height: 364
+  variants:
+  - file: 2026-09-09-no-man-s-sky-cosmos.image-b4d8b743b0a3.webp
+    width: 220
+    height: 364
+  color: '#86b7c7'
+- source: https://www.nomanssky.com/media/sy4hlodo/iceasteroidbelts-11.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-91d06d786cfa.jpg
+    width: 1040
+    height: 650
+  color: '#01c200'
+- source: https://www.nomanssky.com/media/sy4hlodo/iceasteroidbelts-11.jpg?width=3840&v=1dd405b380a1790
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-84532f2181b2.jpg
+    width: 3840
+    height: 2400
+  color: '#01c200'
+- source: https://www.nomanssky.com/media/0m1nt0u3/spacemisc-11.jpg?width=3840&v=1dd405b3b4608b0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-d6814ab5ee48.jpg
+    width: 3840
+    height: 2160
+  color: '#173944'
+- source: https://www.nomanssky.com/media/2jukxqjw/spacemisc-2.jpg?width=3840&v=1dd405b39a0e430
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-00f4a90987d9.jpg
+    width: 3840
+    height: 2160
+  color: '#481b27'
+- source: https://www.nomanssky.com/media/e2afopk0/forwardlightingafter_1.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-c6d0c1417cec.jpg
+    width: 1040
+    height: 585
+  color: '#08020c'
+- source: https://www.nomanssky.com/media/b3oj0b1i/forwardlightingbefore_1.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-622c9ad3eb56.jpg
+    width: 1040
+    height: 585
+  color: '#08020c'
+- source: https://www.nomanssky.com/media/vatfni3s/outpost-22.jpg?width=3840&v=1dd405b3a3e0e90
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-72e2717413b7.jpg
+    width: 3840
+    height: 2160
+  color: '#57a948'
+- source: https://www.nomanssky.com/media/v1tp3gyx/twitch.png?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-4f9693bd8651.png
+    width: 1040
+    height: 524
+  color: '#475755'
+- source: https://www.nomanssky.com/media/uewdpzaf/planetcloudsafter_1.png?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-29812f31891f.png
+    width: 1040
+    height: 585
+  color: '#23b4a6'
+- source: https://www.nomanssky.com/media/fkad4uyw/planetcloudsbefore_1.png?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-5d90acdd0b18.png
+    width: 1040
+    height: 585
+  color: '#fcfbf7'
+- source: https://www.nomanssky.com/media/fgznowd3/generic2-4.jpg?width=3840&v=1dd405b3ae1efb0
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-70e62709b342.jpg
+    width: 3840
+    height: 2160
+  color: '#374648'
+- source: https://www.nomanssky.com/media/5lifcvkf/goldenwagamama18.jpg?mode=crop&width=1040
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-eb4d5e73f524.jpg
+    width: 1040
+    height: 585
+  color: '#567656'
+- source: https://www.nomanssky.com/media/5lifcvkf/goldenwagamama18.jpg?width=3840&v=1dd405b37a0ce70
+  original:
+    file: 2026-09-09-no-man-s-sky-cosmos.image-2cc7c27f807b.jpg
+    width: 3840
+    height: 2160
+  color: '#567656'
 ---
 
 ![Book cover styled art showcasing No Man's Sky artwork](https://www.nomanssky.com/media/0rpnhmw5/nms-cosmos-book-cover.webp)

@@ -6,6 +6,29 @@ published: 2026-02-10T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-02-10-closing-the-agent-loop-devin-autofixes-review-comments.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/a3a17f863367c56531361bf83c07601f32188f0d-1878x1204.png?w=1600&fit=max
+  original:
+    file: 2026-02-10-closing-the-agent-loop-devin-autofixes-review-comments.image-6e8a6813fcd0.png
+    width: 1600
+    height: 1026
+  variants:
+  - file: 2026-02-10-closing-the-agent-loop-devin-autofixes-review-comments.image-7184ef5c905f.webp
+    width: 320
+    height: 205
+  - file: 2026-02-10-closing-the-agent-loop-devin-autofixes-review-comments.image-cf6a66e3dfa6.webp
+    width: 640
+    height: 410
+  - file: 2026-02-10-closing-the-agent-loop-devin-autofixes-review-comments.image-cb88ecedba24.webp
+    width: 960
+    height: 616
+  - file: 2026-02-10-closing-the-agent-loop-devin-autofixes-review-comments.image-88a7941f4866.webp
+    width: 1280
+    height: 821
+  - file: 2026-02-10-closing-the-agent-loop-devin-autofixes-review-comments.image-fcb6ba09ef01.webp
+    width: 1600
+    height: 1026
+  color: '#212931'
 ---
 
 We built a feature that massively increased our internal token spend on Devin. But our PRs are now much more free of bugs and we can't go back.\

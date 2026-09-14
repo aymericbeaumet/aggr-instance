@@ -6,6 +6,39 @@ published: 2025-01-16T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-01-16-devin-january-25-product-update.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/fe93f5c9ffc84bf3e13c691b42d8dde26ec0fd79-532x344.png?w=1600&fit=max
+  original:
+    file: 2025-01-16-devin-january-25-product-update.image-07ff589480b9.png
+    width: 532
+    height: 344
+  variants:
+  - file: 2025-01-16-devin-january-25-product-update.image-c5a1f141226b.webp
+    width: 320
+    height: 207
+  - file: 2025-01-16-devin-january-25-product-update.image-f5354b80c5ee.webp
+    width: 532
+    height: 344
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/deaaf2fc9f84619200fcbb769624f809cae6fcd9-626x342.png?w=1600&fit=max
+  original:
+    file: 2025-01-16-devin-january-25-product-update.image-b1cdc5c56511.png
+    width: 626
+    height: 342
+  variants:
+  - file: 2025-01-16-devin-january-25-product-update.image-7848aa14d0af.webp
+    width: 320
+    height: 175
+  - file: 2025-01-16-devin-january-25-product-update.image-8c321139203f.webp
+    width: 626
+    height: 342
+  color: '#fbfbfb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/08c768e0d177c722f0f6b7d1707f8b6d75c0a4b7-676x193.png?w=1600&fit=max
+  original:
+    file: 2025-01-16-devin-january-25-product-update.image-2b4903a9bce7.png
+    width: 676
+    height: 193
+  color: '#484848'
 ---
 
 By The Cognition Team01.16.25

@@ -54,6 +54,28 @@ images:
     width: 3039
     height: 1416
   color: '#d3ccf3'
+- source: http://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3-Omni-Flash-2025-12-01/q3o251201_metric.png
+  original:
+    file: 2025-12-08-qwen3-omni-flash-2025-12-01-hear-you-see-you-follow-smarter.image-9db8a25514cf.png
+    width: 12560
+    height: 9431
+  variants:
+  - file: 2025-12-08-qwen3-omni-flash-2025-12-01-hear-you-see-you-follow-smarter.image-6c49f623205e.webp
+    width: 320
+    height: 240
+  - file: 2025-12-08-qwen3-omni-flash-2025-12-01-hear-you-see-you-follow-smarter.image-554bfc20001a.webp
+    width: 640
+    height: 481
+  - file: 2025-12-08-qwen3-omni-flash-2025-12-01-hear-you-see-you-follow-smarter.image-b63590fabe50.webp
+    width: 960
+    height: 721
+  - file: 2025-12-08-qwen3-omni-flash-2025-12-01-hear-you-see-you-follow-smarter.image-47ce0d627161.webp
+    width: 1280
+    height: 961
+  - file: 2025-12-08-qwen3-omni-flash-2025-12-01-hear-you-see-you-follow-smarter.image-4b5fec310a3a.webp
+    width: 1600
+    height: 1201
+  color: '#030303'
 ---
 
 ![](https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen3-Omni-Flash-2025-12-01/q3o251201.png#center)

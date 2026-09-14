@@ -6,6 +6,13 @@ published: 2026-04-15T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-04-15-devin-in-windsurf.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/caa9b5c9a1bf7cdd99db57306bd3a462f5c1c6bc-1920x1080.jpg?w=1600&fit=max
+  original:
+    file: 2026-04-15-devin-in-windsurf.image-95a22c599c0a.jpg
+    width: 1600
+    height: 900
+  color: '#c9c9c4'
 ---
 
 By The Cognition Team04.15.26

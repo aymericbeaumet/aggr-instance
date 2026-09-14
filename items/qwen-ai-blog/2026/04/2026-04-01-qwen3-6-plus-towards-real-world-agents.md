@@ -197,6 +197,555 @@ images:
     width: 48
     height: 36
   color: '#c3b7aa'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3.6/Figures/qwen3.6_plus_score.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-9851c1897988.png
+    width: 17457
+    height: 10428
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-ada0f0bb6b36.webp
+    width: 320
+    height: 191
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-b1c16e55bc51.webp
+    width: 640
+    height: 382
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-8dfe59ab8c57.webp
+    width: 960
+    height: 573
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-c2af590ea5d6.webp
+    width: 1280
+    height: 765
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-892133317276.webp
+    width: 1600
+    height: 956
+  color: '#fcfbfc'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Reasoning/Visual_Reasoning_OCR_01.jpg
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-239121b74d5b.jpg
+    width: 1728
+    height: 1080
+  color: '#888589'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Reasoning/Visual_Reasoning_OCR_02.jpg
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-476b8ea4b7c1.jpg
+    width: 952
+    height: 1442
+  color: '#982419'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask2/image_1.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-abf943e77f32.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-70b4039b23eb.webp
+    width: 320
+    height: 180
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-4ac52635d007.webp
+    width: 640
+    height: 360
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-eed836242ca2.webp
+    width: 960
+    height: 540
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-bcb1cc0ce420.webp
+    width: 1280
+    height: 720
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-808f9e726499.webp
+    width: 1600
+    height: 900
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-afc9791f78d8.webp
+    width: 1920
+    height: 1080
+  color: '#867868'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask2/image_2.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a95e94c6693c.png
+    width: 1376
+    height: 768
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-000bea34648c.webp
+    width: 320
+    height: 179
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-8ad8862b61c2.webp
+    width: 640
+    height: 357
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a39b6ee7a78c.webp
+    width: 960
+    height: 536
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-2e5704cd618c.webp
+    width: 1280
+    height: 714
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-c7ec5bc89b05.webp
+    width: 1376
+    height: 768
+  color: '#191816'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask2/image_3.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-8f229f6aa577.png
+    width: 1376
+    height: 768
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-8fee3e31ae3a.webp
+    width: 320
+    height: 179
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-0e18c11bb70b.webp
+    width: 640
+    height: 357
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-c6cb8b493907.webp
+    width: 960
+    height: 536
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-fb69ab337dba.webp
+    width: 1280
+    height: 714
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-ad009a4eaf11.webp
+    width: 1376
+    height: 768
+  color: '#f6edd6'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask2/image_4.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a70cc933187e.png
+    width: 1376
+    height: 768
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-20e04ed65d4b.webp
+    width: 320
+    height: 179
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-71d7befeae36.webp
+    width: 640
+    height: 357
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-7c8d2e4e3a2c.webp
+    width: 960
+    height: 536
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-e22abffcf9f8.webp
+    width: 1280
+    height: 714
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-e5e35e6170f4.webp
+    width: 1376
+    height: 768
+  color: '#d8a838'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask2/image_5.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-0ca248646b26.png
+    width: 1376
+    height: 768
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-459d4df346ea.webp
+    width: 320
+    height: 179
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-5db6e773d1c7.webp
+    width: 640
+    height: 357
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-34926d7cd4b9.webp
+    width: 960
+    height: 536
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-d47a6922f6bd.webp
+    width: 1280
+    height: 714
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-50bc639f12ce.webp
+    width: 1376
+    height: 768
+  color: '#141914'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask3/image_1.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-d47c2766cb3e.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-c23e8dee1352.webp
+    width: 320
+    height: 180
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-ee4a572f18ed.webp
+    width: 640
+    height: 360
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-6c041e323844.webp
+    width: 960
+    height: 540
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-990353137d3c.webp
+    width: 1280
+    height: 720
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-8d610be1cc7a.webp
+    width: 1600
+    height: 900
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-1f0d595ce727.webp
+    width: 1920
+    height: 1080
+  color: '#98a9b7'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask3/image_2.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-0ff2998a0665.png
+    width: 1376
+    height: 768
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-ef99e4259093.webp
+    width: 320
+    height: 179
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-aafe2966f73b.webp
+    width: 640
+    height: 357
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a79bbae42369.webp
+    width: 960
+    height: 536
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-9a40847a58d6.webp
+    width: 1280
+    height: 714
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-f0e0c2d1d2a9.webp
+    width: 1376
+    height: 768
+  color: '#faf9e9'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask3/image_3.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-5fe355411e22.png
+    width: 1376
+    height: 768
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-7737f19ae2e5.webp
+    width: 320
+    height: 179
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-3f411080d4f3.webp
+    width: 640
+    height: 357
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-047ee968e05e.webp
+    width: 960
+    height: 536
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-fafd2dad2770.webp
+    width: 1280
+    height: 714
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-86d683363411.webp
+    width: 1376
+    height: 768
+  color: '#fbf6d7'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask3/image_4.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-bf93319c8e18.png
+    width: 1376
+    height: 768
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a12d8630d147.webp
+    width: 320
+    height: 179
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-3bed7b64ca8b.webp
+    width: 640
+    height: 357
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-0f174d75c1b5.webp
+    width: 960
+    height: 536
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-bd8122b2ee4c.webp
+    width: 1280
+    height: 714
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-af8cd4875509.webp
+    width: 1376
+    height: 768
+  color: '#f8fbf6'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask4/image_1.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-fbf43fd01e84.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-e87a8af5790b.webp
+    width: 320
+    height: 180
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-c4a80fbb69fa.webp
+    width: 640
+    height: 360
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-0dab008968bb.webp
+    width: 960
+    height: 540
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-51a6ed1e6e5f.webp
+    width: 1280
+    height: 720
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-88255e76401b.webp
+    width: 1600
+    height: 900
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-6fd8d0d6d612.webp
+    width: 1920
+    height: 1080
+  color: '#d7d7e7'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask4/image_2.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-0d5d21dc36a7.png
+    width: 1376
+    height: 768
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-2d994935639b.webp
+    width: 320
+    height: 179
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a779c1289c79.webp
+    width: 640
+    height: 357
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-d180666b8ef9.webp
+    width: 960
+    height: 536
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-46d72e4bc6c8.webp
+    width: 1280
+    height: 714
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-0a91f9d411df.webp
+    width: 1376
+    height: 768
+  color: '#f6f6f3'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask4/image_3.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-e8a567106bcd.png
+    width: 1376
+    height: 768
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-0d4920eb104e.webp
+    width: 320
+    height: 179
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-06efa60607e2.webp
+    width: 640
+    height: 357
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-5ec56eed9bfd.webp
+    width: 960
+    height: 536
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-bb9785a4ab91.webp
+    width: 1280
+    height: 714
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-ae8df36a1a1f.webp
+    width: 1376
+    height: 768
+  color: '#f3ebe8'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask5/image_1.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-852d1897a3f6.png
+    width: 1920
+    height: 1080
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-d9dc5261496e.webp
+    width: 320
+    height: 180
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-308c796bc17d.webp
+    width: 640
+    height: 360
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a098148ef371.webp
+    width: 960
+    height: 540
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-7ff9f6b9d232.webp
+    width: 1280
+    height: 720
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-6da4c329ae99.webp
+    width: 1600
+    height: 900
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-8561aa8217a3.webp
+    width: 1920
+    height: 1080
+  color: '#eae9e6'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask5/image_2.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-96299f9f1f29.png
+    width: 1376
+    height: 768
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-ebfee30edd6d.webp
+    width: 320
+    height: 179
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-0654a468a607.webp
+    width: 640
+    height: 357
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-e70374f3b7e1.webp
+    width: 960
+    height: 536
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-bcc5c91ee9d5.webp
+    width: 1280
+    height: 714
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-d5c5a8169d05.webp
+    width: 1376
+    height: 768
+  color: '#ebe9e5'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/Visual_Coding/Unifed_understanding_generation/entask5/image_3.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-7e8015974e71.png
+    width: 1376
+    height: 768
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-36791fbbfc62.webp
+    width: 320
+    height: 179
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-45a5e22a85ea.webp
+    width: 640
+    height: 357
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-bcd758cc64d4.webp
+    width: 960
+    height: 536
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a289681d5d2f.webp
+    width: 1280
+    height: 714
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-fd2a4194a35a.webp
+    width: 1376
+    height: 768
+  color: '#261909'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/32b62294-f389-48f3-aeda-0df3e41d8993.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-9f0d759d7a2d.png
+    width: 591
+    height: 705
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-06dc8dd6bb47.webp
+    width: 320
+    height: 382
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-175dace53107.webp
+    width: 591
+    height: 705
+  color: '#fefefe'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/f74ccccd-2ad6-4d13-bee7-87d0f536561f.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-fee8e7e102f3.png
+    width: 1000
+    height: 500
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-778578257645.webp
+    width: 320
+    height: 160
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-af55d40a27b2.webp
+    width: 640
+    height: 320
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-3cedf5144e45.webp
+    width: 960
+    height: 480
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-49b991996c1e.webp
+    width: 1000
+    height: 500
+  color: '#fdfdfd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/081907ae-d930-4a31-973b-a627ada38c38.jpg
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a25dcb685f85.jpg
+    width: 556
+    height: 470
+  color: '#fbf9fa'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/73952ea3-ca4c-4907-8b70-496e3cf8299c.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-b1fa10649a2f.png
+    width: 1500
+    height: 1500
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-1073d19910b9.webp
+    width: 320
+    height: 320
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-365c23eaeb3b.webp
+    width: 640
+    height: 640
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-98e5d11b5c4d.webp
+    width: 960
+    height: 960
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-5ce97dcbb9ec.webp
+    width: 1280
+    height: 1280
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-6ce787ae57d1.webp
+    width: 1500
+    height: 1500
+  color: '#fdfdfd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/4bdfd416-cf1d-4c65-ba88-86dd645d8d46.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-6ea15a37617f.png
+    width: 239
+    height: 225
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-d58e34485dca.webp
+    width: 239
+    height: 225
+  color: '#fefefe'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/ad95d904-bcc7-46f9-a5fa-d590bbf2ddca.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a2e500053165.png
+    width: 2000
+    height: 500
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-6a1527a26005.webp
+    width: 320
+    height: 80
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-7189a88cb22f.webp
+    width: 640
+    height: 160
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-1386fd94ca28.webp
+    width: 960
+    height: 240
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-08602747f10c.webp
+    width: 1280
+    height: 320
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-70243463f0c9.webp
+    width: 1600
+    height: 400
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-95f504a37577.webp
+    width: 2000
+    height: 500
+  color: '#fdfdfd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/f5502161-9fbf-41d0-bcbb-a0af0c2bd5f7.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-45950889ddcf.png
+    width: 2000
+    height: 500
+  color: '#fbfcfd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/ca7ba129-5046-4ab1-b870-9fdc5f725dff.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-1a2d36d01833.png
+    width: 2000
+    height: 500
+  color: '#fbfcfd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/0f1dac42-aa61-42bc-8e28-fc94babb7951.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-254d01160a66.png
+    width: 2000
+    height: 500
+  color: '#fbfcfd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/cd313019-c159-4754-8ad8-b427230b965e.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-a2b3911f8535.png
+    width: 2000
+    height: 500
+  color: '#010101'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/6bf86d27-0f32-4ed1-a6dc-3dfb57bc6a03.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-4118672e614f.png
+    width: 2000
+    height: 500
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-ad968890d0f2.webp
+    width: 320
+    height: 80
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-24fc5e1167c8.webp
+    width: 640
+    height: 160
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-1ee70ec12a67.webp
+    width: 960
+    height: 240
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-c3a3dd9cb673.webp
+    width: 1280
+    height: 320
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-516c9c4326a6.webp
+    width: 1600
+    height: 400
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-b93d3e564d7d.webp
+    width: 2000
+    height: 500
+  color: '#030303'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/62eed88f-bd93-45a0-88a3-b4b86fbaa068.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-1e74b43a0aca.png
+    width: 1000
+    height: 1000
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-ca33b0b57174.webp
+    width: 1000
+    height: 1000
+  color: '#fefefe'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.6/demo/multiturn_ci/8.png
+  original:
+    file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-9616b4cfb22b.png
+    width: 1080
+    height: 1440
+  variants:
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-d69bb97d0668.webp
+    width: 320
+    height: 427
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-f9e18d3a5bc9.webp
+    width: 640
+    height: 853
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-cff24d199c8b.webp
+    width: 960
+    height: 1280
+  - file: 2026-04-01-qwen3-6-plus-towards-real-world-agents.image-8c2a157adc4b.webp
+    width: 1080
+    height: 1440
+  color: '#08194b'
 html_truncated: true
 ---
 

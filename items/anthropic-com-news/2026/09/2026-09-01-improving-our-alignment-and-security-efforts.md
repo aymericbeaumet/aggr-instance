@@ -7,6 +7,13 @@ first_seen: 2026-09-04T12:14:41.802665207Z
 summary: Our most advanced models for coding and knowledge work. Their research capabilities also offer an early glimpse of how AI models will contribute to scientific progress.
 content: extracted
 html: 2026-09-01-improving-our-alignment-and-security-efforts.html
+images:
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2Ffa1e6273d039d8d476cc59394fb779c84c4b5e75-1920x1080.png&w=3840&q=75
+  original:
+    file: 2026-09-01-improving-our-alignment-and-security-efforts.image-1758c7a95a46.png
+    width: 1920
+    height: 1080
+  color: '#f9f8f4'
 ---
 
 On July 30, we [reported](https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals) three incidents in which Claude models gained unauthorized access to real computer systems. The models—intentionally running without cyber safeguards for evaluation purposes—accessed the internet due to a misconfiguration inside a third-party evaluation environment. Separately, on August 4, the UK AI Security Institute [reported](https://www.aisi.gov.uk/blog/incident-report-unsanctioned-agent-behaviour-during-cyber-testing) an incident from its own cybersecurity testing, in which Claude Mythos 5 took a series of unauthorized actions on the live internet. In that case, the model, again intentionally running without cyber safeguards for evaluation purposes, had been deliberately given internet access.

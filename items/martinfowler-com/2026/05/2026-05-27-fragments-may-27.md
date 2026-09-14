@@ -9,6 +9,19 @@ authors:
 - Martin Fowler
 content: extracted
 html: 2026-05-27-fragments-may-27.html
+images:
+- source: https://i.ytimg.com/vi/ii_rLjQfjp0/hqdefault.jpg
+  original:
+    file: 2026-05-27-fragments-may-27.image-f4bf5395ac0c.jpg
+    width: 480
+    height: 360
+  color: '#000001'
+- source: https://martinfowler.com/img/catalog/2025-goto-kent.png
+  original:
+    file: 2026-05-27-fragments-may-27.image-5252f0b18ade.png
+    width: 1662
+    height: 952
+  color: '#2b3336'
 ---
 
 At the GOTO Conference in Copenhagen in 2025, [Kent Beck and I spent some time on stage](https://www.youtube.com/watch?v=ii_rLjQfjp0&list=PLEx5khR4g7PINwOsYrkwz3lTTJUYoXC53) talking and answering questions from the audience - a format I refer to as “two old geezers on a park bench”. We talk about our experiences with LLM-augmented programming (at that point - October 2025), we show our frustration that things we’ve been saying for thirty years still need to be said, we say how anything like a manifesto reunion needs to be led by a younger generation, and opine on what junior developers should be focusing on in their career.

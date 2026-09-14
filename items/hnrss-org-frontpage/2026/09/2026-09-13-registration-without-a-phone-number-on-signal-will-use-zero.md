@@ -26,6 +26,12 @@ images:
     width: 48
     height: 25
   color: '#fefefe'
+- source: https://community.signalusers.org/images/emoji/apple/sweat_smile.png?v=15
+  original:
+    file: 2026-09-13-registration-without-a-phone-number-on-signal-will-use-zero.image-2193d7d5798b.png
+    width: 72
+    height: 72
+  color: '#fecb4c'
 ---
 
 August 22, 2026, 6:49pm 200

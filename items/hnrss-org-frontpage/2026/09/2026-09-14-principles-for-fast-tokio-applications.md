@@ -1,0 +1,216 @@
+---
+title: Principles for Fast Tokio Applications
+link: https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/
+source: hnrss-org-frontpage
+published: 2026-09-14T15:27:56Z
+updated: 2026-09-14T15:27:56Z
+first_seen: 2026-09-14T22:43:23.776526965Z
+authors:
+- carllerche
+summary: 'Article URL: https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/ Comments URL: https://news.ycombinator.com/item?id=49698607 Points: 147 # Comments: 30'
+content: extracted
+html: 2026-09-14-principles-for-fast-tokio-applications.html
+preview:
+  file: 2026-09-14-principles-for-fast-tokio-applications.preview-8d68aeb6021f.webp
+  width: 256
+  height: 154
+  alt: Two mini-Redis pipeline latency distributions showing that adaptive yielding reduces p50 latency from 0.967 to 0.105 milliseconds and p99 latency from 2.548 to 0.320 milliseconds
+  color: '#f4f4f2'
+images:
+- source: https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/mini-redis-latency-distribution.png
+  original:
+    file: 2026-09-14-principles-for-fast-tokio-applications.image-492a9324ed94.png
+    width: 3000
+    height: 1800
+  color: '#faf9f6'
+- source: https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/lock-contention.png
+  original:
+    file: 2026-09-14-principles-for-fast-tokio-applications.image-653f3356a0fe.png
+    width: 1600
+    height: 1000
+  variants:
+  - file: 2026-09-14-principles-for-fast-tokio-applications.image-b75da7652d23.webp
+    width: 320
+    height: 200
+  - file: 2026-09-14-principles-for-fast-tokio-applications.image-eb4b7777259d.webp
+    width: 640
+    height: 400
+  - file: 2026-09-14-principles-for-fast-tokio-applications.image-5954858cbd95.webp
+    width: 1600
+    height: 1000
+  color: '#151732'
+---
+
+> I'm on my way back from RustConf. At the Unconf, we had a productive discussion about debugging and benchmarking async applications. Many interesting insights were shared. I'm attempting to enumerate some of them here, along with some of my own experiences. This is the first draft of what I hope can become a living document of best practices. Feel free to file an issue or [open a PR](https://github.com/dial9-rs/dial9-rs.github.io/blob/main/content%2Fblog%2Fprinciples-for-fast-tokio-applications.md). I'm hoping to also add a sample app in the coming days demonstrating these issues along with what the dial9 trace looks like.
+>
+> — Russell
+
+There are few hard-and-fast rules for writing code that performs well on Tokio runtimes; the answer to so many questions is "it depends." The performance of a workload depends on what else is running on the runtime at that moment. This is why so many problems only show up in production! Writing async applications that perform well is a balance between fairness and batching, contention and isolation.
+
+This post lays out some general principles and covers exceptions where I can. It assumes basic familiarity with Tokio's work-stealing runtime; a high-level summary is included in [the appendix](https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/#appendix-a-mental-model-for-tokio-in-four-bullet-points).
+
+## General principles
+
+### First, determine whether you have a problem
+
+If you start looking for red flags in a Tokio application, you will find them. Almost every real application I have seen has polls [(the time between `.await` points when the code yields back to the runtime)](https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/#appendix-a-mental-model-for-tokio-in-four-bullet-points) much longer than the 10-100 microseconds Alice Ryhl recommends in her excellent post [What is Blocking?](https://ryhl.io/blog/async-what-is-blocking/). These problems may or may not affect the application metrics or behavior you actually care about (see: [long polls can be fine sometimes](https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/#blocking-the-executor-can-be-fine-sometimes)). It is important to work backward from a real metric you are trying to improve. For example, an application can have long polls that are completely benign; "fixing" them will not measurably impact user-facing metrics.
+
+In the overwhelming majority of problems I have come across, the issue was in the application code itself, often in the interaction between multiple components of a distributed system (and not actually in Tokio). dial9 has given a lot of visibility into Tokio; at least as often as it finds a Tokio problem, it actually clearly demonstrates the *lack* of one (which gives folks the confidence to search elsewhere). Of course, sometimes it is a Tokio problem.
+
+In terms of Tokio metrics, the most useful is the recently added [schedule latency histogram](https://docs.rs/tokio/latest/tokio/runtime/struct.RuntimeMetrics.html#method.schedule_latency_histogram_bucket_range). Schedule latency is the amount of time between your task being ready to run (e.g., because the socket has data) and Tokio actually polling the future. Although this won't tell you what the cause is, scheduling latency is the most common symptom of poor interactions between Tokio and your code.
+
+### Split for latency, batch for throughput
+
+#### Yield more frequently to optimize for latency
+
+Low latency across many requests requires fairness between connections.
+
+Consider Redis (or any application that supports request pipelining). A naive implementation will read data directly off the connection while more data is available. When requests are pipelined, the entire pipelined request (or most of it) will end up in an in memory buffer. When you read frames off of it, each will be `Poll::Ready` (without going back to the network). This creates both long polls and unfairness between clients.
+
+The impact on throughput is usually smaller: the same number of requests are processed. Latency, however, changes dramatically because one entire pipeline can wait behind another. Explicitly yielding after each request can reduce latency by roughly 10× in this example. You can do even better by yielding only after several consecutive immediately-ready reads.
+
+```rust
+async fn handle_conn(&mut self) -> crate::Result<()> {
+    while !self.shutdown.is_shutdown() {
+        // If the connection has buffered data, this can repeatedly return
+        // Poll::Ready without yielding back to the runtime.
+        let frame = tokio::select! {
+            res = self.connection.read_frame() => res?,
+            _ = self.shutdown.recv() => {
+                return Ok(());
+            }
+        };
+
+        execute_command(&self.db, &mut self.connection, frame).await?;
+
+        // To improve fairness:
+        // tokio::task::yield_now().await;
+    }
+}
+```
+
+[![Two mini-Redis pipeline latency distributions showing that adaptive yielding reduces p50 latency from 0.967 to 0.105 milliseconds and p99 latency from 2.548 to 0.320 milliseconds](https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/mini-redis-latency-distribution.png)](https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/mini-redis-latency-distribution.png)
+
+Yielding after four consecutive immediately-ready reads makes pipelined requests much fairer without giving up batching entirely.
+
+**How do I know if I have this problem?**
+
+- P99 is much greater than P50.
+- Polls take longer than the work inside them should require.
+- Many spans fall inside a single poll.
+
+#### Batch work to amortize overhead
+
+Fairness is not free. The more useful work you can do per runtime event—changing tasks, polling, moving between workers, or changing threads—the more efficient your application can be.
+
+Perhaps the best example is `tokio::fs`. I sometimes go so far as to say that "`tokio::fs` is considered harmful." Without [`io_uring`](https://docs.rs/tokio/latest/tokio/runtime/struct.Builder.html#method.enable_io_uring), Tokio runs each filesystem operation on the blocking pool. Each call to [`spawn_blocking`](https://docs.rs/tokio/latest/tokio/task/fn.spawn_blocking.html) also has a cost, and every runtime has a shared blocking pool.
+
+If you know you will perform a series of filesystem operations—or any blocking work—batch them into the largest sensible blocking segment. In some cases, a dedicated OS thread is a better fit.
+
+This principle applies anywhere you interact with Tokio. If you know you will send work to the [global queue](https://docs.rs/tokio/latest/tokio/runtime/index.html#multi-threaded-runtime-behavior-at-the-time-of-writing), batching can amortize that coordination too.
+
+Even things as fast as spawning a task are not free! Spawning a task is cheap, but if you spawn 100s or 1000s of tasks, each one represents work the runtime has to deal with separately. Each creates more chances to be impacted by scheduling delay, more individual polls the runtime needs to handle, and generally more overhead in general. When you spawn a task, consider how much work you are actually scheduling: spawning a 10-microsecond unit of work onto its own task is probably anti-helpful. Tools like dial9 or tokio-metrics can help you track the lifecycle of tasks.
+
+**How do I know if I have this problem?**
+
+- Tokio APIs such as `spawn_blocking` consume noticeable time in flamegraphs.
+- A tight loop performs many individually small filesystem or blocking operations.
+- Throughput improves when the same work is grouped into larger units.
+
+### Beware global resources
+
+The Tokio runtime schedules work on workers: dedicated threads that poll ready tasks. Workers scale across cores, but some runtime resources still require shared coordination.
+
+The blocking pool is currently [1](https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/#blocking-queue) a global resource. At high enough rates, pushing work onto the blocking queue becomes a bottleneck and `spawn_blocking` can become visible in flamegraphs. I have seen negative performance effects at roughly 50,000 blocking tasks per second on a 32-core host; your mileage will vary. `spawn_blocking` is not a magic fix for every piece of blocking or CPU-heavy code. For short, bounded work, it may be faster to let Tokio's workers and work stealing handle it, but, as always, "it depends."
+
+Tokio also has a global task queue. Tasks land there when local worker queues overflow, which is usually rare, or when work is scheduled from outside a runtime worker, which can be common in some applications. One example is a channel whose sender runs on a non-Tokio thread.
+
+**How do I know if I have this problem?**
+
+- Runtime-wide operations such as `spawn_blocking` are prominent in flamegraphs.
+- The global queue is consistently deep. In a healthy application it should generally stay close to empty; in a saturated application, it can take a long time to drain.
+
+### Be extremely careful with mutexes
+
+One of the easiest ways to stall an entire runtime is to block a worker on a contended mutex.
+
+Things like a metrics registry stored behind a mutex or read-write lock are especially susceptible to this issue. If a flush holds the lock while doing expensive work, every Tokio worker may eventually schedule a task that tries to record a metric and blocks on the same lock. Stealing becomes impossible because every worker is stuck!
+
+Keep critical sections in async applications extremely short (e.g., a single hashmap update). `RWLock`s are almost never the right primitive to use as they still create contention on atomics, even for the read path. Do not hold the lock while flushing, performing I/O, or awaiting another future.
+
+`tokio::sync::Mutex` trades one issue for another: Tokio Mutexes are much more expensive to lock, are susceptible to subtle issues like [FutureLock](https://rfd.shared.oxide.computer/rfd/0609), and are really only appropriate if the critical section lasts multiple milliseconds.
+
+**How do I know if I have this problem?**
+
+- P99 spikes at predictable intervals like once every minute when a background task runs
+- In dial9, many tasks suddenly become blocked and off-CPU for a nontrivial duration.
+
+[![dial9 trace showing all four Tokio workers blocked by mutex contention, followed by kernel scheduling delays and a sudden drop in active tasks](https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/lock-contention.png)](https://dial9-rs.github.io/blog/principles-for-fast-tokio-applications/lock-contention.png)
+
+A contended blocking mutex stalls all four runtime workers at once.
+
+### Constrain parallelism—usually
+
+Tokio can happily spawn far more tasks than the rest of your system can handle. Accidentally opening 3,000 concurrent connections to S3 because a workload fanned out an unbounded number of tasks is very common.
+
+The answer is boring: limit concurrency. Fancy adaptive algorithms are sometimes appropriate, but a [`Semaphore`](https://docs.rs/tokio/latest/tokio/sync/struct.Semaphore.html) is often enough.
+
+### Isolate Tokio workers from other threads
+
+Tokio's design relies on workers waking quickly. However, if the operating system is highly loaded, it may take 10–20 ms—or more—for the kernel to schedule a worker after Tokio attempts to wake it. If you measure P99 latency in single-digit milliseconds, this is a disaster. I've observed this during incremental migrations from Java to Rust at Amazon, where both processes ran on the same host and the Rust process gradually took on more of the work.
+
+The less work the Java process did, the faster the Rust process became, even as it handled more work. This effect is even stronger when the other applications use a large number of threads.
+
+The most basic solution is to use `cgroups` or related APIs to pin the Tokio workers and other code to separate CPU cores.
+
+The same issue can arise from other Rust threads. Background threads such as those used by `tracing_appender` can sometimes do more than 100 ms of work without yielding the CPU. If Tokio attempts to wake a worker during this time, that worker may be delayed until the kernel preempts the other thread.
+
+If you see this happening, the solution is the same: pin noncritical background work to its own core and move Tokio workers to other cores. **You rarely need every core for Tokio, and reserving cores for other work tends to improve latency.**
+
+**How do I know I have this problem?**
+
+- dial9 shows a kernel scheduling delay between a worker-unpark event and the worker actually running.
+
+## Tricks for when you know better
+
+The patterns in this section are not generally the right thing to do, but sometimes they are exactly what a workload needs.
+
+### Blocking the executor can be fine—sometimes
+
+In an idealized async application, all work would happen in tiny bursts with frequent yields back to Tokio. The real world does not always work that way, and tiny bursts are not necessarily the fastest way to run software. Batching work can be more efficient.
+
+In practice, long polls are not always a problem. Under light load, Tokio's work stealing can compensate when one worker is occupied for longer than usual. That starts to break down under two conditions:
+
+1. The Tokio runtime is heavily loaded and spare worker capacity does not exist.
+2. The operating system is heavily loaded, so unparking workers is frequently delayed.
+
+In both cases, stealing work takes longer. If work is not stolen quickly enough, core runtime maintenance—such as driving I/O—may not happen frequently enough to maintain low latency.
+
+**Important note!** This advice does not apply if you are utilizing things like `tokio::join!` and `tokio::select!` that utilize in-task concurrency. Within a single task, there is no work stealing; if you block the executor, nothing else running *on that task* can make progress. This sometimes manifests as unexpected timeouts and generally bad latency.
+
+### Use multiple runtimes to isolate workloads by priority
+
+The strongest isolation comes from assigning work to separate runtimes and pinning those runtimes to dedicated cores. Many network services have both latency-sensitive work and lower-priority background work. Putting them on separate runtimes creates a scheduling boundary between the two.
+
+You can also set OS-level niceness when the runtime threads start. See dial9's [multiple-runtime example](https://github.com/dial9-rs/dial9/blob/main/dial9/examples/multi_runtime.rs) and Tokio's [`on_thread_start`](https://docs.rs/tokio/latest/tokio/runtime/struct.Builder.html#method.on_thread_start) hook.
+
+At TokioConf the general impression from most talks is that folks ended up moving to a solution with at least two runtimes.
+
+### Spin to keep control
+
+> This is a very advanced tactic for chasing latency measured in microseconds. I don't recommend reaching for this first, but it can definitely work.
+
+Every time you yield back to the Tokio scheduler—or Tokio parks a worker thread and yields it to the operating system—you create a chance for that work to be delayed when it wakes again.
+
+For extremely latency-sensitive work, one option is to intentionally spin for a short preset period, maybe 50 microseconds, rather than yield while waiting for the next piece of useful work. This consumes a core and can harm neighboring workloads, so it is probably wrong for most applications. Under carefully controlled conditions, however, it can be the right tradeoff.
+
+## Appendix: A mental model for Tokio in four bullet points
+
+- Rust futures make incremental progress between await points. These active sections are called polls, after the [`Future::poll`](https://doc.rust-lang.org/stable/std/future/trait.Future.html#tymethod.poll) method.
+- When futures are not being polled, they are idle and waiting for an executor to run them again. A good executor polls a future only when it has work to do.
+- Tokio runs *N* workers, usually one per available core. Each worker has a local queue. When a queue overflows or work cannot be added to a local queue, the task goes to the [global queue](https://docs.rs/tokio/latest/tokio/runtime/index.html#multi-threaded-runtime-behavior-at-the-time-of-writing).
+- When one worker's queue backs up, another worker can steal work from it—if the runtime detects the imbalance and another worker has capacity.
+
+1
+
+[Tokio 1.52.0](https://github.com/tokio-rs/tokio/releases/tag/tokio-1.52.0) briefly shipped a sharded blocking queue, but [1.52.1 reverted it](https://github.com/tokio-rs/tokio/releases/tag/tokio-1.52.1) after a regression that could cause `spawn_blocking` to hang. Tokio [PR #8337](https://github.com/tokio-rs/tokio/pull/8337) later re-landed the sharded queue as an unstable feature that is disabled by default.

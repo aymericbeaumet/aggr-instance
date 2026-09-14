@@ -6,6 +6,112 @@ published: 2024-09-05T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2024-09-05-devin-september-24-product-update.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/484f1a5a0232be076124a6f2bf5df9bc7f1e65a7-936x720.gif?w=1600&fit=max
+  original:
+    file: 2024-09-05-devin-september-24-product-update.image-09bf870a3b88.gif
+    width: 936
+    height: 720
+  color: '#262626'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/67b075fd7a10dcc2050fd39c5fd39653023f0cf8-1626x1030.png?w=1600&fit=max
+  original:
+    file: 2024-09-05-devin-september-24-product-update.image-0f1e0a7c492b.png
+    width: 1600
+    height: 1014
+  variants:
+  - file: 2024-09-05-devin-september-24-product-update.image-6fa88c934aa9.webp
+    width: 320
+    height: 203
+  - file: 2024-09-05-devin-september-24-product-update.image-907c19027297.webp
+    width: 640
+    height: 406
+  - file: 2024-09-05-devin-september-24-product-update.image-b8ac64b83b4a.webp
+    width: 960
+    height: 608
+  - file: 2024-09-05-devin-september-24-product-update.image-87b2ebadff7e.webp
+    width: 1280
+    height: 811
+  - file: 2024-09-05-devin-september-24-product-update.image-2494ccfa32d1.webp
+    width: 1600
+    height: 1014
+  color: '#fbfbfc'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/8aef908507c1956d0b2e68dc94e8d3bbff1a3df2-851x570.png?w=1600&fit=max
+  original:
+    file: 2024-09-05-devin-september-24-product-update.image-123718663176.png
+    width: 851
+    height: 570
+  color: '#fcfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/b673128f334303fcf6c8e8ca070a5ed86efb6d4d-985x814.png?w=1600&fit=max
+  original:
+    file: 2024-09-05-devin-september-24-product-update.image-73636b9a26dd.png
+    width: 985
+    height: 814
+  variants:
+  - file: 2024-09-05-devin-september-24-product-update.image-7e3ecf253fad.webp
+    width: 320
+    height: 264
+  - file: 2024-09-05-devin-september-24-product-update.image-b55dc0a35b7f.webp
+    width: 640
+    height: 529
+  - file: 2024-09-05-devin-september-24-product-update.image-dd5ce465663d.webp
+    width: 985
+    height: 814
+  color: '#282828'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/736e2b91326ca9af32e2fcd04a332be0b0fef760-847x949.png?w=1600&fit=max
+  original:
+    file: 2024-09-05-devin-september-24-product-update.image-21d7db572368.png
+    width: 847
+    height: 949
+  color: '#282828'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/5e57a1be802c8501b4d6550a03823a7280c557ef-906x1066.png?w=1600&fit=max
+  original:
+    file: 2024-09-05-devin-september-24-product-update.image-d3f7fe39f851.png
+    width: 906
+    height: 1066
+  color: '#fcfcfc'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/990a322299c49dcbc276f020f872373ca3a80ed1-624x480.gif?w=1600&fit=max
+  original:
+    file: 2024-09-05-devin-september-24-product-update.image-554cd95879f3.gif
+    width: 624
+    height: 480
+  color: '#2c2c2c'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/21b85fba3e87ce2f07ef58496388fefb879d9de7-1422x571.png?w=1600&fit=max
+  original:
+    file: 2024-09-05-devin-september-24-product-update.image-1cf18f5b40d3.png
+    width: 1422
+    height: 571
+  variants:
+  - file: 2024-09-05-devin-september-24-product-update.image-930966e1d631.webp
+    width: 320
+    height: 128
+  - file: 2024-09-05-devin-september-24-product-update.image-57fc12f95bb6.webp
+    width: 640
+    height: 257
+  - file: 2024-09-05-devin-september-24-product-update.image-837929c3e3ae.webp
+    width: 960
+    height: 385
+  - file: 2024-09-05-devin-september-24-product-update.image-7d04b63fcdf9.webp
+    width: 1422
+    height: 571
+  color: '#fcfcfc'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/fd141ce9a61cc4d3dc9daf7f13903363f2268a7f-624x480.gif?w=1600&fit=max
+  original:
+    file: 2024-09-05-devin-september-24-product-update.image-91c69b03994d.gif
+    width: 624
+    height: 480
+  color: '#fcfcfc'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/adb22cff4357f17cd1dc607d920b1d584e9956a3-433x234.png?w=1600&fit=max
+  original:
+    file: 2024-09-05-devin-september-24-product-update.image-334d96999a03.png
+    width: 433
+    height: 234
+  color: '#fbfbfc'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/07289478e2ac1f9dec7c230ece8e61183e892019-1482x844.png?w=1600&fit=max
+  original:
+    file: 2024-09-05-devin-september-24-product-update.image-0e494269a902.png
+    width: 1482
+    height: 844
+  color: '#fdfdfd'
 ---
 
 ## Devin automatically responds to comments on its PRs

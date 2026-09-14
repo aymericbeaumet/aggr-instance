@@ -6,6 +6,205 @@ published: 2026-03-01T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/c9417d507221b1aa1541fa7e40e7bbcc60e76a77-1600x975.png?w=1600&fit=max
+  original:
+    file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-c7769aac7c19.png
+    width: 1600
+    height: 975
+  variants:
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-e681a5f87548.webp
+    width: 320
+    height: 195
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-a4f3e2285ba3.webp
+    width: 640
+    height: 390
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-61fed34dddcc.webp
+    width: 960
+    height: 585
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-2ab222ee3305.webp
+    width: 1280
+    height: 780
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-5a6948134202.webp
+    width: 1600
+    height: 975
+  color: '#f6f5f4'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/897206eb8b18422b08f07dcbbcfc08e32b82390d-1600x846.png?w=1600&fit=max
+  original:
+    file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-a6e29be941c4.png
+    width: 1600
+    height: 846
+  variants:
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-9a491d230f67.webp
+    width: 320
+    height: 169
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-2b46be3cbea4.webp
+    width: 640
+    height: 338
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-895f837933c3.webp
+    width: 960
+    height: 508
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-7ef0ef3cb390.webp
+    width: 1280
+    height: 677
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-e3ea40f6bbbe.webp
+    width: 1600
+    height: 846
+  color: '#f6f5f4'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/7f030c4b78f02a27645ffca09d06b9330e3a1bb4-1600x846.png?w=1600&fit=max
+  original:
+    file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-96738b3eefc5.png
+    width: 1600
+    height: 846
+  variants:
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-c5b279c83fd9.webp
+    width: 320
+    height: 169
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-945b340c5f92.webp
+    width: 640
+    height: 338
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-7b3f420b6b81.webp
+    width: 960
+    height: 508
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-cead9b0aa225.webp
+    width: 1280
+    height: 677
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-1553022c274b.webp
+    width: 1600
+    height: 846
+  color: '#f6f5f4'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3e18f64ecf9696b066b3bb3b3ec74c0744bc9567-1600x602.png?w=1600&fit=max
+  original:
+    file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-4156f3ed9e10.png
+    width: 1600
+    height: 602
+  variants:
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-43ee010bc478.webp
+    width: 320
+    height: 120
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-f9dd0f3b9b11.webp
+    width: 640
+    height: 241
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-00e64081e4ae.webp
+    width: 960
+    height: 361
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-5cb8825559d5.webp
+    width: 1280
+    height: 482
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-43c05e0840c2.webp
+    width: 1600
+    height: 602
+  color: '#f6f5f4'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/5e430c03a2194aeb8c2f8a512e72052d7edeb57a-2956x408.png?w=1600&fit=max
+  original:
+    file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-c20f291affef.png
+    width: 1600
+    height: 221
+  variants:
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-d0b5c9ef4315.webp
+    width: 320
+    height: 44
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-1b6f7dd61751.webp
+    width: 640
+    height: 88
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-6189610fa031.webp
+    width: 960
+    height: 133
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-d1911bd578b4.webp
+    width: 1280
+    height: 177
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-8258f3fa2a46.webp
+    width: 1600
+    height: 221
+  color: '#393939'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/67c8c9edfb11896898e5491bdfb4a763dc0285f1-2934x444.png?w=1600&fit=max
+  original:
+    file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-1e85ecd9ab75.png
+    width: 1600
+    height: 242
+  variants:
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-51818dc4a7db.webp
+    width: 320
+    height: 48
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-4fd7ab3dee90.webp
+    width: 640
+    height: 97
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-3f131eb82fb3.webp
+    width: 960
+    height: 145
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-9b567ccb2efc.webp
+    width: 1280
+    height: 194
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-420cb3b3043d.webp
+    width: 1600
+    height: 242
+  color: '#373737'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/d29e12b3338b09f6155645b5a7b8cdb184b6dd19-2950x416.png?w=1600&fit=max
+  original:
+    file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-9c36083f9621.png
+    width: 1600
+    height: 226
+  variants:
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-80c00ca86f84.webp
+    width: 320
+    height: 45
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-c852d0a9287a.webp
+    width: 640
+    height: 90
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-ba77ef3c609c.webp
+    width: 960
+    height: 136
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-751e0db6171d.webp
+    width: 1280
+    height: 181
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-4860ba2f7b7b.webp
+    width: 1600
+    height: 226
+  color: '#383837'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/e607c6caa174199c77a75bb269f06daaf0f2ffaa-3022x436.png?w=1600&fit=max
+  original:
+    file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-e4d7267eb467.png
+    width: 1600
+    height: 231
+  variants:
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-5933a157f836.webp
+    width: 320
+    height: 46
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-d3dc9b6e0a8b.webp
+    width: 640
+    height: 92
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-c883131a841c.webp
+    width: 960
+    height: 139
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-37360f4cedb8.webp
+    width: 1280
+    height: 185
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-189d704f2dbb.webp
+    width: 1600
+    height: 231
+  color: '#363635'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/4ffeee4beff9cf794ee91b9bdf24ebad7fbd374d-1600x757.png?w=1600&fit=max
+  original:
+    file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-92bf0adb6903.png
+    width: 1600
+    height: 757
+  variants:
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-ec042789fdb8.webp
+    width: 320
+    height: 151
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-0c11490f250a.webp
+    width: 640
+    height: 303
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-a1adfaeda7db.webp
+    width: 960
+    height: 454
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-8f95cd716608.webp
+    width: 1280
+    height: 606
+  - file: 2026-03-01-an-early-preview-of-swe-1-6-and-research-update.image-1af11efcca38.webp
+    width: 1600
+    height: 757
+  color: '#f7f7f5'
 ---
 
 We are sharing an early preview of our ongoing SWE-1.6 training run. Since training SWE 1.5, we have refined our RL recipe and scaled our infrastructure to unlock two orders of magnitude more compute. Our next model SWE-1.6 is post-trained on the same pre-trained model as SWE-1.5 and runs equally as fast at 950 tok/s. The current checkpoint achieves an 11% higher score than SWE-1.5 on SWE-Bench Pro.

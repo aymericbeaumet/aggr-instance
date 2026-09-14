@@ -29,6 +29,16 @@ images:
     width: 640
     height: 360
   color: '#0658f8'
+- source: https://x.ai/_next/static/media/el-salvador-banner.03kqq9365tu8e.svg?dpl=a2d6b77a75dae8f07c881cf892692231d4dce27a
+  original:
+    file: 2025-12-11-xai-and-el-salvador-pioneer-the-world-s-first-nationwide-ai.image-76fb90d8e45a.png
+    width: 331
+    height: 120
+  variants:
+  - file: 2025-12-11-xai-and-el-salvador-pioneer-the-world-s-first-nationwide-ai.image-6ea70ad18902.webp
+    width: 331
+    height: 120
+  color: '#f7f7f7'
 ---
 
 ![xAI and El Salvador logos](https://x.ai/_next/static/media/el-salvador-banner.03kqq9365tu8e.svg?dpl=a2d6b77a75dae8f07c881cf892692231d4dce27a)

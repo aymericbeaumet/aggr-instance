@@ -6,6 +6,195 @@ published: 2026-04-14T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/08e561ca0272842411fd07c1cda6a2c2d4567186-2000x949.png?w=1600&fit=max
+  original:
+    file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-5fad26cf4a7a.png
+    width: 1600
+    height: 759
+  variants:
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-80a29aff2b9e.webp
+    width: 320
+    height: 152
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-8649345f06e3.webp
+    width: 640
+    height: 304
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-65e2ec00cc08.webp
+    width: 960
+    height: 455
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-05d3d33555f9.webp
+    width: 1280
+    height: 607
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-4b915a87fa8e.webp
+    width: 1600
+    height: 759
+  color: '#1f1f1f'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/2c6167fbf02585e3fa5351172d35ea337a3087c8-1468x1160.png?w=1600&fit=max
+  original:
+    file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-fcc72df0cc04.png
+    width: 1468
+    height: 1160
+  color: '#12261d'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/5e3a03fd32868f762326accae47560ea31cee301-4812x1980.png?w=1600&fit=max
+  original:
+    file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-f626d7fc601a.png
+    width: 1600
+    height: 658
+  variants:
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-a6ba8d06809f.webp
+    width: 320
+    height: 132
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-a66a46fc8e3f.webp
+    width: 640
+    height: 263
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-7489e6737f9c.webp
+    width: 960
+    height: 395
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-4629255216d1.webp
+    width: 1280
+    height: 526
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-290783ffa9ac.webp
+    width: 1600
+    height: 658
+  color: '#f3f4fb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/007bb0f1ed8599348d26a420c996405fdb6135e5-2540x361.png?w=1600&fit=max
+  original:
+    file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-c62d4e477ddf.png
+    width: 1600
+    height: 227
+  variants:
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-9ff89f9cc2df.webp
+    width: 320
+    height: 45
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-8639a585cf3a.webp
+    width: 640
+    height: 91
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-a7097a410757.webp
+    width: 960
+    height: 136
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-525097364dcd.webp
+    width: 1280
+    height: 182
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-a758de7ded3e.webp
+    width: 1600
+    height: 227
+  color: '#f2f4f9'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/84c2c7020bfb7173620c6d499c1a1e03f18e5017-2540x348.png?w=1600&fit=max
+  original:
+    file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-8ed0bd3e84b2.png
+    width: 1600
+    height: 219
+  variants:
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-4134caa564ca.webp
+    width: 320
+    height: 44
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-d7ba17382bd9.webp
+    width: 640
+    height: 88
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-6459730ccd56.webp
+    width: 960
+    height: 131
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-09c1d9ac5acb.webp
+    width: 1280
+    height: 175
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-7e601521a8a0.webp
+    width: 1600
+    height: 219
+  color: '#f2f4f9'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/9a1131b899105d8b5872d7513163aada4a6cdca7-2540x458.png?w=1600&fit=max
+  original:
+    file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-7804144f54de.png
+    width: 1600
+    height: 289
+  variants:
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-794e99d6f63d.webp
+    width: 320
+    height: 58
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-1e39ef066403.webp
+    width: 640
+    height: 116
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-a1eedc5b38c5.webp
+    width: 960
+    height: 173
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-9b03a3fce512.webp
+    width: 1280
+    height: 231
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-356ef2a8847a.webp
+    width: 1600
+    height: 289
+  color: '#f3f4fb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/c281a39b5d626879fd8d72ee37d95637488f09ed-2545x458.png?w=1600&fit=max
+  original:
+    file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-862997db558f.png
+    width: 1600
+    height: 288
+  variants:
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-ebb427f9a65c.webp
+    width: 320
+    height: 58
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-ef91f0f9dee9.webp
+    width: 640
+    height: 115
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-17fae80ab953.webp
+    width: 960
+    height: 173
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-13ac30c03d7e.webp
+    width: 1280
+    height: 230
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-6b821bea272a.webp
+    width: 1600
+    height: 288
+  color: '#f3f4fb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3adc18390ddd36c39e83adca8694dd4efd150bb0-1600x1200.png?w=1600&fit=max
+  original:
+    file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-4a61f986c10e.png
+    width: 1600
+    height: 1200
+  variants:
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-070dba2e6de1.webp
+    width: 320
+    height: 240
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-5b4324b5f864.webp
+    width: 640
+    height: 480
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-b3b6d4bad5fe.webp
+    width: 960
+    height: 720
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-0beab3a5bb02.webp
+    width: 1280
+    height: 960
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-baa9cc911837.webp
+    width: 1600
+    height: 1200
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3511ad1b7f814a78029794c76ac841dd1895904a-1600x1200.png?w=1600&fit=max
+  original:
+    file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-93400d9067ae.png
+    width: 1600
+    height: 1200
+  variants:
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-03c507975891.webp
+    width: 320
+    height: 240
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-1b910772bdcc.webp
+    width: 640
+    height: 480
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-8343f207b9f1.webp
+    width: 960
+    height: 720
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-dce78316f126.webp
+    width: 1280
+    height: 960
+  - file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-a49af4aaeb66.webp
+    width: 1600
+    height: 1200
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/9e9762e0cf5f05a3e0f7365aed9bf65d519b0634-1600x1151.png?w=1600&fit=max
+  original:
+    file: 2026-04-14-introducing-swe-check-10x-faster-bug-detection.image-e17f7bef7cee.png
+    width: 1600
+    height: 1151
+  color: '#070707'
 ---
 
 Smaller, specialized models can rival frontier generalists on the tasks they're trained for, at a fraction of the cost and latency.

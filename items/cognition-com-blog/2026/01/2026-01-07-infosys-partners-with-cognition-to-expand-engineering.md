@@ -6,6 +6,29 @@ published: 2026-01-07T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-01-07-infosys-partners-with-cognition-to-expand-engineering.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/0a62ac57d82923feb865415da43d742f3103516f-4200x1260.png?w=1600&fit=max
+  original:
+    file: 2026-01-07-infosys-partners-with-cognition-to-expand-engineering.image-620d3f2b5ecf.png
+    width: 1600
+    height: 480
+  variants:
+  - file: 2026-01-07-infosys-partners-with-cognition-to-expand-engineering.image-04e26b2f8be6.webp
+    width: 320
+    height: 96
+  - file: 2026-01-07-infosys-partners-with-cognition-to-expand-engineering.image-8a9a99489ccc.webp
+    width: 640
+    height: 192
+  - file: 2026-01-07-infosys-partners-with-cognition-to-expand-engineering.image-d86da87b8c62.webp
+    width: 960
+    height: 288
+  - file: 2026-01-07-infosys-partners-with-cognition-to-expand-engineering.image-0ededc1e7b95.webp
+    width: 1280
+    height: 384
+  - file: 2026-01-07-infosys-partners-with-cognition-to-expand-engineering.image-8f140c11cfcf.webp
+    width: 1600
+    height: 480
+  color: '#fefefe'
 ---
 
 By The Cognition Team01.07.26

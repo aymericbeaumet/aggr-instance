@@ -9,6 +9,26 @@ authors:
 - Martin Fowler
 content: extracted
 html: 2026-07-16-the-archaeologist-s-copilot.html
+images:
+- source: https://martinfowler.com/articles/archaeologist-copilot/image1.png
+  original:
+    file: 2026-07-16-the-archaeologist-s-copilot.image-9efab4b65cac.png
+    width: 1000
+    height: 546
+  variants:
+  - file: 2026-07-16-the-archaeologist-s-copilot.image-58a9898a8640.webp
+    width: 320
+    height: 175
+  - file: 2026-07-16-the-archaeologist-s-copilot.image-e661d3266a8d.webp
+    width: 640
+    height: 349
+  - file: 2026-07-16-the-archaeologist-s-copilot.image-e92bd497298c.webp
+    width: 960
+    height: 524
+  - file: 2026-07-16-the-archaeologist-s-copilot.image-91504b2bcd1c.webp
+    width: 1000
+    height: 546
+  color: '#f6fafd'
 ---
 
 ## The “Tourist” Trap

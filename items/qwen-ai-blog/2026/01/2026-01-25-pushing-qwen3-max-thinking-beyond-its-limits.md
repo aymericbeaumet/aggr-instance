@@ -54,6 +54,28 @@ images:
     width: 2566
     height: 766
   color: '#e4fafe'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen3-Max-Thinking/score.png
+  original:
+    file: 2026-01-25-pushing-qwen3-max-thinking-beyond-its-limits.image-4a25902197ac.png
+    width: 17277
+    height: 8294
+  variants:
+  - file: 2026-01-25-pushing-qwen3-max-thinking-beyond-its-limits.image-1bcfba8a09cc.webp
+    width: 320
+    height: 154
+  - file: 2026-01-25-pushing-qwen3-max-thinking-beyond-its-limits.image-de02a6e16951.webp
+    width: 640
+    height: 307
+  - file: 2026-01-25-pushing-qwen3-max-thinking-beyond-its-limits.image-71f4cb7676b1.webp
+    width: 960
+    height: 461
+  - file: 2026-01-25-pushing-qwen3-max-thinking-beyond-its-limits.image-3b30702c8914.webp
+    width: 1280
+    height: 614
+  - file: 2026-01-25-pushing-qwen3-max-thinking-beyond-its-limits.image-8fb48447d9c7.webp
+    width: 1600
+    height: 768
+  color: '#fbfbfc'
 ---
 
 ![Qwen3 Main Image](https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen3-Max-Thinking/banner.png)

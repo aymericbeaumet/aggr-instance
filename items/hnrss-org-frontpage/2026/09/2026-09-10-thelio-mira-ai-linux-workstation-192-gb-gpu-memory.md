@@ -142,6 +142,160 @@ images:
     width: 320
     height: 320
   color: '#040404'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/2560w/products/1725/2179/thelio-mira-26-vents-logo__09307.1772653265.1280.1280__80715.1780080100.1280.1280__64635.1788903447.jpg?c=1
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-7d3b2411ad20.jpg
+    width: 1280
+    height: 1280
+  color: '#fefefe'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/2560w/products/1725/2186/thelio-mira-26-detailsR__60378.1772653265.1280.1280__25888.1780080094.1280.1280__20414.1788903447.jpg?c=1
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-9637689063e3.jpg
+    width: 1280
+    height: 1280
+  color: '#171717'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/2560w/products/1725/2184/thelio-mira-26-side-open-2__25603.1772653265.1280.1280__17026.1780080100.1280.1280__01722.1788903447.jpg?c=1
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-4e585a59daf9.jpg
+    width: 1280
+    height: 1280
+  color: '#fefefe'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/2560w/products/1725/2185/thelio-mira-26-side-open-1__34107.1772653265.1280.1280__82399.1780080094.1280.1280__20878.1788903447.jpg?c=1
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-4cb05f3fe38a.jpg
+    width: 1280
+    height: 1280
+  color: '#fefefe'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/2560w/products/1725/2182/thelio-mira-26-side-open__81514.1772653265.1280.1280__95994.1780080094.1280.1280__85904.1788903447.jpg?c=1
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-573f113d0691.jpg
+    width: 1280
+    height: 1280
+  color: '#fefefe'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/2560w/products/1725/2191/thelio-mira-26-front-glass-open__00539.1781195815.1280.1280__92942.1788903447.jpg?c=1
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-b47e03bcaa09.jpg
+    width: 1280
+    height: 1280
+  color: '#fefefe'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/fan-terra-250-1726863628925.png?t=1726863606
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-9836d8f1071f.webp
+    width: 250
+    height: 222
+  color: '#575047'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/cool-terra.png?t=1776352840
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-0aeac26718d2.webp
+    width: 250
+    height: 222
+  color: '#575047'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/chip-terra-250-1726496690656.png?t=1726496670
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-fb4262abdc9b.webp
+    width: 250
+    height: 222
+  color: '#575047'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/hardrive-terra.png?t=1772137198
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-a3c832b81671.webp
+    width: 250
+    height: 222
+  color: '#585047'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/opensourcehardware-terra-250.png?t=1729200308
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-bf6f5b55b176.webp
+    width: 250
+    height: 222
+  color: '#575047'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/usflag-terra-250-1726863601956.png?t=1726863580
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-6f65c843fea6.webp
+    width: 250
+    height: 222
+  color: '#575047'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/local-ai-dual-gpu.jpg?t=1788891028
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-82b00f743df8.webp
+    width: 1216
+    height: 828
+  variants:
+  - file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-0f5035f4bb61.webp
+    width: 320
+    height: 218
+  color: '#f9f9f9'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/local-ai-developmentrr.jpg?t=1788890811
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-32330a01cc35.webp
+    width: 1216
+    height: 828
+  variants:
+  - file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-152a418711d3.webp
+    width: 320
+    height: 218
+  color: '#e9e8ea'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/custom-uxr3-min.png?t=1758904187
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-3ab2170ec780.webp
+    width: 1900
+    height: 1002
+  variants:
+  - file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-ca65a55ebbb2.webp
+    width: 320
+    height: 169
+  color: '#2a2827'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/right-to-repair-thelio.jpg?t=1776368218
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-38c5413c0b68.webp
+    width: 1216
+    height: 828
+  variants:
+  - file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-9a262a2bee6f.webp
+    width: 320
+    height: 218
+  color: '#e9e9e9'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/manufacturing-us-colorado.jpg?t=1788891236
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-186f41c989f7.webp
+    width: 1216
+    height: 828
+  color: '#787776'
+- source: https://img.youtube.com/vi/MZNpBigdsDY/maxresdefault.jpg
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-8f43c08de389.jpg
+    width: 1280
+    height: 720
+  color: '#f3f3f3'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/thelio-mira-ai-one-pager-1-.jpg?t=1788894571
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-ba6e0c38e0b8.webp
+    width: 768
+    height: 384
+  color: '#fead01'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/thelio-mira-ai-blog.jpg?t=1788894579
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-eed4ea08897e.webp
+    width: 768
+    height: 384
+  color: '#4da6b1'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/original/image-manager/thelio-mira-ai-solutions.jpg?t=1788894586
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-750ccc8554ff.webp
+    width: 768
+    height: 384
+  color: '#0b0716'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/80w/products/1338/1674/product-launchb-keyboardRR-min__56185.1762895813.jpg?c=1%2080w,%20https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/160w/products/1338/1674/product-launchb-keyboardRR-min__56185.1762895813.jpg?c=1%20160w,%20https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/320w/products/1338/1674/product-launchb-keyboardRR-min__56185.1762895813.jpg?c=1%20320w,%20https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/640w/products/1338/1674/product-launchb-keyboardRR-min__56185.1762895813.jpg?c=1%20640w,%20https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/960w/products/1338/1674/product-launchb-keyboardRR-min__56185.1762895813.jpg?c=1%20960w,%20https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/1280w/products/1338/1674/product-launchb-keyboardRR-min__56185.1762895813.jpg?c=1%201280w,%20https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/1920w/products/1338/1674/product-launchb-keyboardRR-min__56185.1762895813.jpg?c=1%201920w,%20https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/2560w/products/1338/1674/product-launchb-keyboardRR-min__56185.1762895813.jpg?c=1%202560w
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-62d472932643.jpg
+    width: 80
+    height: 80
+  color: '#fefefe'
+- source: https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/2560w/products/1339/1679/product-launchheavyb-keyboardR3-min__15174.1762896056.jpg?c=1
+  original:
+    file: 2026-09-10-thelio-mira-ai-linux-workstation-192-gb-gpu-memory.image-e0d226988e1b.jpg
+    width: 2560
+    height: 2560
+  color: '#ffffff'
 ---
 
 [![Front-facing Thelio Mira features its stainless steel front ports and power button amid a glossy tempered glass facade.](https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/2560w/products/1725/2187/thelio-mira-26-frontRR__11359.1772653265.1280.1280__76157.1780080100.1280.1280__57602.1788206893.jpg?c=1 "Front-facing Thelio Mira features its stainless steel front ports and power button amid a glossy tempered glass facade.")](https://cdn11.bigcommerce.com/s-pywjnxrcr2/images/stencil/1280x1280/products/1725/2187/thelio-mira-26-frontRR__11359.1772653265.1280.1280__76157.1780080100.1280.1280__57602.1788206893.jpg?c=1)

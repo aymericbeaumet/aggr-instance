@@ -6,6 +6,78 @@ published: 2026-07-08T17:02:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.html
+images:
+- source: https://cognition.com/images/swe-1-7/policy-entropy.svg
+  original:
+    file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-34e2eef5a405.png
+    width: 663
+    height: 418
+  variants:
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-b225618f6d4c.webp
+    width: 320
+    height: 202
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-23aff999e030.webp
+    width: 663
+    height: 418
+  color: '#050506'
+- source: https://cognition.com/images/swe-1-7/train-infer-mismatch.svg
+  original:
+    file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-a93ddac45d6b.png
+    width: 746
+    height: 508
+  variants:
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-1ee80d1b05a3.webp
+    width: 320
+    height: 218
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-feb86a1adf30.webp
+    width: 746
+    height: 508
+  color: '#2969d8'
+- source: https://cognition.com/images/swe-1-7/response-length.svg
+  original:
+    file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-aade435abc82.png
+    width: 717
+    height: 418
+  variants:
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-ac06d6024ebd.webp
+    width: 320
+    height: 187
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-6203d074b9d8.webp
+    width: 717
+    height: 418
+  color: '#1569fe'
+- source: https://cognition.com/images/swe-1-7/behavioral-tendencies.svg
+  original:
+    file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-d10788b15f8d.png
+    width: 999
+    height: 376
+  variants:
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-7c800a900e89.webp
+    width: 320
+    height: 120
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-3ddaa56d5fe5.webp
+    width: 640
+    height: 241
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-ced29e71ac6c.webp
+    width: 999
+    height: 376
+  color: '#030303'
+- source: https://cognition.com/images/swe-1-7/edge-cases.svg
+  original:
+    file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-981876335fbb.png
+    width: 855
+    height: 399
+  variants:
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-230050b2c8f5.webp
+    width: 320
+    height: 149
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-463edfe7974d.webp
+    width: 640
+    height: 299
+  - file: 2026-07-08-swe-1-7-frontier-intelligence-at-a-fraction-of-the-cost.image-a72c5d265616.webp
+    width: 855
+    height: 399
+  color: '#c2255c'
 ---
 
 Ben Pan\*, Carlo Baronio\*, Rohan Choudhury, Eric Lu, Ryan Kim, Deniz Birlikci, TC Qin, Sam Lee, Fermi Ma, Allen Liu, Yang Liu, Sampriti Panda, Jacob Teo, Ray Wang, Gary Chang, Steven Cao, Silas Alberti\*equal contribution

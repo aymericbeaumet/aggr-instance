@@ -45,6 +45,22 @@ images:
     width: 2243
     height: 652
   color: '#f4edea'
+- source: https://snap.berkeley.edu/static/img/snap-logo-white.svg
+  original:
+    file: 2026-09-11-l-snap-an-inviting-programming-language-for-kids-and-adults.image-c16b42a463e9.png
+    width: 1187
+    height: 653
+  variants:
+  - file: 2026-09-11-l-snap-an-inviting-programming-language-for-kids-and-adults.image-e22f5681150a.webp
+    width: 320
+    height: 176
+  - file: 2026-09-11-l-snap-an-inviting-programming-language-for-kids-and-adults.image-8aaad1ee837b.webp
+    width: 640
+    height: 352
+  - file: 2026-09-11-l-snap-an-inviting-programming-language-for-kids-and-adults.image-87fbca6678f8.webp
+    width: 1187
+    height: 653
+  color: '#fafafa'
 ---
 
 Snap*!* is a broadly inviting programming language for kids and adults that's also a platform for serious study of computer science.

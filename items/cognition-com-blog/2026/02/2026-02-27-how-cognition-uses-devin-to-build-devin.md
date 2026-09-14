@@ -6,6 +6,255 @@ published: 2026-02-27T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-02-27-how-cognition-uses-devin-to-build-devin.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/840f0033d2af9f8f5657e1f6d8dc6c692dca4618-1800x900.png?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-bfb5ad5dcd7e.png
+    width: 1600
+    height: 800
+  variants:
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-a91bd0490bf4.webp
+    width: 320
+    height: 160
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-8d52eab44503.webp
+    width: 640
+    height: 320
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-8523e2859493.webp
+    width: 960
+    height: 480
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-90ccaacb8ee6.webp
+    width: 1280
+    height: 640
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-77b29cd48b20.webp
+    width: 1600
+    height: 800
+  color: '#1c1d21'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/73907a22b6b74868d66b9f89ddd7c959a13aeab6-1800x600.png?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-029be140b293.png
+    width: 1600
+    height: 533
+  variants:
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-6893b30147a8.webp
+    width: 320
+    height: 107
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-67407b4fad19.webp
+    width: 640
+    height: 213
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-21bdd09e6d79.webp
+    width: 960
+    height: 320
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-b8b5efcbc8f1.webp
+    width: 1280
+    height: 426
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-2dae61b9580a.webp
+    width: 1600
+    height: 533
+  color: '#1c1d21'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/7a532700453975f856678e789da1ec90a96b7c08-1800x636.png?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-8f38c9b42cd7.png
+    width: 1600
+    height: 565
+  variants:
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-9813c99f0a9f.webp
+    width: 320
+    height: 113
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-3c87b3348a0e.webp
+    width: 640
+    height: 226
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-af13bf68875d.webp
+    width: 960
+    height: 339
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-03c335758dd1.webp
+    width: 1280
+    height: 452
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-b85606879f42.webp
+    width: 1600
+    height: 565
+  color: '#1c1d21'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/33a7add5eabc5580339e08866f07c413dc8dfbee-1800x1110.png?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-f196a44b6a32.png
+    width: 1600
+    height: 987
+  variants:
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-3b7f0d1ad13a.webp
+    width: 320
+    height: 197
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-ce110427b469.webp
+    width: 640
+    height: 395
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-907ac5026b14.webp
+    width: 960
+    height: 592
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-20dedb9424ed.webp
+    width: 1280
+    height: 790
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-e9bf6dda9304.webp
+    width: 1600
+    height: 987
+  color: '#131415'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/c6a06400326fb63ac4930ced0048f95a46daf9ec-1920x1049.gif?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-1972e6fb1e2d.gif
+    width: 1600
+    height: 874
+  color: '#151617'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/1bbee607834ed969e22d4115fad4f2b25b316f4f-1800x430.png?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-adf0e4e8668c.png
+    width: 1600
+    height: 382
+  variants:
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-b02064a3e5a9.webp
+    width: 320
+    height: 76
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-0912d762378f.webp
+    width: 640
+    height: 153
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-048c7e13b7de.webp
+    width: 960
+    height: 229
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-7b3f9b53ebc7.webp
+    width: 1280
+    height: 306
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-902d873534db.webp
+    width: 1600
+    height: 382
+  color: '#1c1d21'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/d72fba54324532b2102072ce538856feeed376ac-1800x1096.png?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-3be36c5cc1d9.png
+    width: 1600
+    height: 974
+  variants:
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-c55dcd0ec036.webp
+    width: 320
+    height: 195
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-59ddf64bebb2.webp
+    width: 640
+    height: 390
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-70f6bb29a30b.webp
+    width: 960
+    height: 584
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-6c227145d08c.webp
+    width: 1280
+    height: 779
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-61c019bf3f88.webp
+    width: 1600
+    height: 974
+  color: '#1b1d21'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/32e51e7b2ec98b8e27ee9ffb4a284612806c811e-1800x836.png?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-9c11265e1d7c.png
+    width: 1600
+    height: 743
+  variants:
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-92b031ae4172.webp
+    width: 320
+    height: 149
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-c43e786137d8.webp
+    width: 640
+    height: 297
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-56db5f905934.webp
+    width: 960
+    height: 446
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-d61e30da4220.webp
+    width: 1280
+    height: 594
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-9714aff6c516.webp
+    width: 1600
+    height: 743
+  color: '#1c1d21'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/6211a369c9253182f5d01bed8b166622a740a351-1800x1120.png?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-6be9b02f9c25.png
+    width: 1600
+    height: 996
+  variants:
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-4452b650f9dd.webp
+    width: 320
+    height: 199
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-315f09481603.webp
+    width: 640
+    height: 398
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-3c41c4ee10f6.webp
+    width: 960
+    height: 598
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-36b489bae55a.webp
+    width: 1280
+    height: 797
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-dccea38e2eea.webp
+    width: 1600
+    height: 996
+  color: '#1c1c1c'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/0f8f55c092561ade2e7eba5b67885f6835009d54-1800x1080.png?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-9de294f2f74f.png
+    width: 1600
+    height: 960
+  variants:
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-29231527b4a5.webp
+    width: 320
+    height: 192
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-837405562066.webp
+    width: 640
+    height: 384
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-c48a85fbeaad.webp
+    width: 960
+    height: 576
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-671c9fdea900.webp
+    width: 1280
+    height: 768
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-b75fb29e9e0b.webp
+    width: 1600
+    height: 960
+  color: '#1e1e1e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/dff6c1c992aed282692f59477810a6a73b3b1b1b-1800x1080.png?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-7b83c3d5716a.png
+    width: 1600
+    height: 960
+  variants:
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-88b2c11357fa.webp
+    width: 320
+    height: 192
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-8bd31c596ec5.webp
+    width: 640
+    height: 384
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-a6e30e8d299c.webp
+    width: 960
+    height: 576
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-25758717edd3.webp
+    width: 1280
+    height: 768
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-064efbc82070.webp
+    width: 1600
+    height: 960
+  color: '#1e1e1e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/d935813d8fd651efaff1c22e75144872bef2dc2b-1800x826.png?w=1600&fit=max
+  original:
+    file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-91620a7b6ec2.png
+    width: 1600
+    height: 734
+  variants:
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-bad217f13ba8.webp
+    width: 320
+    height: 147
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-1a6462f21a2d.webp
+    width: 640
+    height: 294
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-e3f1d3324e31.webp
+    width: 960
+    height: 440
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-765395e47134.webp
+    width: 1280
+    height: 587
+  - file: 2026-02-27-how-cognition-uses-devin-to-build-devin.image-f98d89458760.webp
+    width: 1600
+    height: 734
+  color: '#1b1d21'
 ---
 
 We've been building Devin with Devin since the beginning. Last week, we merged 659 Devin PRs into our own codebase, up from 154 in our best week in 2025.

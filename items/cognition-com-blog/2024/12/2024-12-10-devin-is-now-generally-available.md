@@ -6,6 +6,117 @@ published: 2024-12-10T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2024-12-10-devin-is-now-generally-available.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/c7c887019189c18355d40cf904fba5448f21d5f5-2014x168.png?w=1600&fit=max
+  original:
+    file: 2024-12-10-devin-is-now-generally-available.image-76a3944add95.png
+    width: 1600
+    height: 134
+  variants:
+  - file: 2024-12-10-devin-is-now-generally-available.image-5bd7e80abfa6.webp
+    width: 320
+    height: 27
+  - file: 2024-12-10-devin-is-now-generally-available.image-0348e73d3a6e.webp
+    width: 640
+    height: 54
+  - file: 2024-12-10-devin-is-now-generally-available.image-51c1684ee6cb.webp
+    width: 960
+    height: 80
+  - file: 2024-12-10-devin-is-now-generally-available.image-310b978c6177.webp
+    width: 1280
+    height: 107
+  - file: 2024-12-10-devin-is-now-generally-available.image-807c38a09ab8.webp
+    width: 1600
+    height: 134
+  color: '#0e1219'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3411a1a87aa611878f7658e15649177b428bf706-1736x168.png?w=1600&fit=max
+  original:
+    file: 2024-12-10-devin-is-now-generally-available.image-91f07a9c199e.png
+    width: 1600
+    height: 155
+  variants:
+  - file: 2024-12-10-devin-is-now-generally-available.image-b6a8777deef4.webp
+    width: 320
+    height: 31
+  - file: 2024-12-10-devin-is-now-generally-available.image-59a13e037f97.webp
+    width: 640
+    height: 62
+  - file: 2024-12-10-devin-is-now-generally-available.image-0b361f237877.webp
+    width: 960
+    height: 93
+  - file: 2024-12-10-devin-is-now-generally-available.image-bddd75fa740d.webp
+    width: 1280
+    height: 124
+  - file: 2024-12-10-devin-is-now-generally-available.image-421072ac62c0.webp
+    width: 1600
+    height: 155
+  color: '#0d1118'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/18a73299e1ab51f155303433d963ed6069e18480-1854x168.png?w=1600&fit=max
+  original:
+    file: 2024-12-10-devin-is-now-generally-available.image-81e0ebc5855f.png
+    width: 1600
+    height: 145
+  variants:
+  - file: 2024-12-10-devin-is-now-generally-available.image-aece2c7149f2.webp
+    width: 320
+    height: 29
+  - file: 2024-12-10-devin-is-now-generally-available.image-dbcb9f4e285d.webp
+    width: 640
+    height: 58
+  - file: 2024-12-10-devin-is-now-generally-available.image-30a3c84bb260.webp
+    width: 960
+    height: 87
+  - file: 2024-12-10-devin-is-now-generally-available.image-bce55b62412a.webp
+    width: 1280
+    height: 116
+  - file: 2024-12-10-devin-is-now-generally-available.image-2fcc09f472f0.webp
+    width: 1600
+    height: 145
+  color: '#0d1117'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/dc90640bf91bd47cdea29e98fc3b60aaf7cd8107-2042x168.png?w=1600&fit=max
+  original:
+    file: 2024-12-10-devin-is-now-generally-available.image-4415dbd30c7c.png
+    width: 1600
+    height: 132
+  variants:
+  - file: 2024-12-10-devin-is-now-generally-available.image-e5f8bce1955f.webp
+    width: 320
+    height: 26
+  - file: 2024-12-10-devin-is-now-generally-available.image-07d86cddaea6.webp
+    width: 640
+    height: 53
+  - file: 2024-12-10-devin-is-now-generally-available.image-17123a5b2968.webp
+    width: 960
+    height: 79
+  - file: 2024-12-10-devin-is-now-generally-available.image-f818b47cd2f0.webp
+    width: 1280
+    height: 106
+  - file: 2024-12-10-devin-is-now-generally-available.image-94777f8d5b3d.webp
+    width: 1600
+    height: 132
+  color: '#0d1116'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/5a31675b672e516ea4fcb974ecfedb90b78a0c01-1712x168.png?w=1600&fit=max
+  original:
+    file: 2024-12-10-devin-is-now-generally-available.image-cdcbc09ecb32.png
+    width: 1600
+    height: 157
+  variants:
+  - file: 2024-12-10-devin-is-now-generally-available.image-49f1608338cf.webp
+    width: 320
+    height: 31
+  - file: 2024-12-10-devin-is-now-generally-available.image-8895a97eaec0.webp
+    width: 640
+    height: 63
+  - file: 2024-12-10-devin-is-now-generally-available.image-24d9dfbfe4a3.webp
+    width: 960
+    height: 94
+  - file: 2024-12-10-devin-is-now-generally-available.image-412640326f96.webp
+    width: 1280
+    height: 126
+  - file: 2024-12-10-devin-is-now-generally-available.image-1899aa79786b.webp
+    width: 1600
+    height: 157
+  color: '#0d1218'
 ---
 
 By The Cognition Team12.10.24

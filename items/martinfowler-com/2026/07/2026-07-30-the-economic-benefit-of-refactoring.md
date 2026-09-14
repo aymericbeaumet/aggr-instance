@@ -9,6 +9,29 @@ authors:
 - Martin Fowler
 content: extracted
 html: 2026-07-30-the-economic-benefit-of-refactoring.html
+images:
+- source: https://martinfowler.com/articles/exploring-gen-ai/steps-chart.png
+  original:
+    file: 2026-07-30-the-economic-benefit-of-refactoring.image-e7cf2ac5a04e.png
+    width: 3000
+    height: 1800
+  variants:
+  - file: 2026-07-30-the-economic-benefit-of-refactoring.image-66945311c0eb.webp
+    width: 320
+    height: 192
+  - file: 2026-07-30-the-economic-benefit-of-refactoring.image-657312ce0492.webp
+    width: 640
+    height: 384
+  - file: 2026-07-30-the-economic-benefit-of-refactoring.image-d645a801e5e1.webp
+    width: 960
+    height: 576
+  - file: 2026-07-30-the-economic-benefit-of-refactoring.image-d620e7a63c16.webp
+    width: 1280
+    height: 768
+  - file: 2026-07-30-the-economic-benefit-of-refactoring.image-bb9e44c0f2dd.webp
+    width: 3000
+    height: 1800
+  color: '#171717'
 ---
 
 As part of getting to grips with the new world of agentic engineering, I built an application to support my work. It’s a sophisticated app: high-quality web UI with dynamic refresh and look-up, modals and auto-save, integrations to external systems, machine learning and text analysis, background jobs, and a proper environment setup with fully automated deployment. It’s approximately 150,000 lines of code, primarily in Rust (~120 kLoC) with the remainder in TypeScript and Terraform.

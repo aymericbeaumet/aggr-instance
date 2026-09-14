@@ -26,6 +26,239 @@ images:
     width: 48
     height: 24
   color: '#e8ebfe'
+- source: https://d2lang.com/blog/tala-layouts/positioning/signal-house/tala.svg
+  original:
+    file: 2026-09-07-tala-is-open-source.image-6cc26547ddfa.png
+    width: 1412
+    height: 977
+  variants:
+  - file: 2026-09-07-tala-is-open-source.image-f3161f90b5f4.webp
+    width: 320
+    height: 221
+  - file: 2026-09-07-tala-is-open-source.image-ba9c0fded48a.webp
+    width: 640
+    height: 443
+  - file: 2026-09-07-tala-is-open-source.image-eadac5ac0d73.webp
+    width: 960
+    height: 664
+  - file: 2026-09-07-tala-is-open-source.image-4bdd4f66c70c.webp
+    width: 1280
+    height: 886
+  - file: 2026-09-07-tala-is-open-source.image-c06d989bf95e.webp
+    width: 1412
+    height: 977
+  color: '#f5f1e9'
+- source: https://d2lang.com/blog/tala-layouts/positioning/atlas-data-platform/tala.svg
+  original:
+    file: 2026-09-07-tala-is-open-source.image-4828f3091e35.png
+    width: 1402
+    height: 1212
+  variants:
+  - file: 2026-09-07-tala-is-open-source.image-6ee6d78b8989.webp
+    width: 320
+    height: 277
+  - file: 2026-09-07-tala-is-open-source.image-f9a4756b9657.webp
+    width: 640
+    height: 553
+  - file: 2026-09-07-tala-is-open-source.image-76aa67963de9.webp
+    width: 960
+    height: 830
+  - file: 2026-09-07-tala-is-open-source.image-d0e41a36d65e.webp
+    width: 1280
+    height: 1107
+  - file: 2026-09-07-tala-is-open-source.image-32aafe58ce2e.webp
+    width: 1402
+    height: 1212
+  color: '#eef3f5'
+- source: https://d2lang.com/blog/tala-layouts/positioning/night-shift/tala.svg
+  original:
+    file: 2026-09-07-tala-is-open-source.image-3c4ee33731df.png
+    width: 1452
+    height: 1347
+  variants:
+  - file: 2026-09-07-tala-is-open-source.image-f15985373d28.webp
+    width: 320
+    height: 297
+  - file: 2026-09-07-tala-is-open-source.image-0914fc60571a.webp
+    width: 640
+    height: 594
+  - file: 2026-09-07-tala-is-open-source.image-529748f44947.webp
+    width: 960
+    height: 891
+  - file: 2026-09-07-tala-is-open-source.image-bc448b0cc1d2.webp
+    width: 1280
+    height: 1187
+  - file: 2026-09-07-tala-is-open-source.image-a991197a7e0d.webp
+    width: 1452
+    height: 1347
+  color: '#111b29'
+- source: https://d2lang.com/blog/tala-layouts/positioning/friday-deploy/tala.svg
+  original:
+    file: 2026-09-07-tala-is-open-source.image-8e7b755a1a1d.png
+    width: 1463
+    height: 1407
+  variants:
+  - file: 2026-09-07-tala-is-open-source.image-61fbb9a1be23.webp
+    width: 320
+    height: 308
+  - file: 2026-09-07-tala-is-open-source.image-4fa8c44f8b4f.webp
+    width: 640
+    height: 616
+  - file: 2026-09-07-tala-is-open-source.image-9108d1528cc6.webp
+    width: 960
+    height: 923
+  - file: 2026-09-07-tala-is-open-source.image-568a7775479f.webp
+    width: 1280
+    height: 1231
+  - file: 2026-09-07-tala-is-open-source.image-0b3f078c133e.webp
+    width: 1463
+    height: 1407
+  color: '#fef6ec'
+- source: https://d2lang.com/blog/tala-layouts/positioning/internet-jellyfish/tala.svg
+  original:
+    file: 2026-09-07-tala-is-open-source.image-37df6531dfd6.png
+    width: 1155
+    height: 1112
+  variants:
+  - file: 2026-09-07-tala-is-open-source.image-db6557449930.webp
+    width: 320
+    height: 308
+  - file: 2026-09-07-tala-is-open-source.image-3a0aad2742f1.webp
+    width: 640
+    height: 616
+  - file: 2026-09-07-tala-is-open-source.image-a195c5898789.webp
+    width: 960
+    height: 924
+  - file: 2026-09-07-tala-is-open-source.image-27f5805b78f7.webp
+    width: 1155
+    height: 1112
+  color: '#051c2c'
+- source: https://d2lang.com/blog/tala-layouts/positioning/orbital-coffee/tala.svg
+  original:
+    file: 2026-09-07-tala-is-open-source.image-33e6470c8f81.png
+    width: 1171
+    height: 1172
+  variants:
+  - file: 2026-09-07-tala-is-open-source.image-939d204dabc5.webp
+    width: 320
+    height: 320
+  - file: 2026-09-07-tala-is-open-source.image-80134e87e514.webp
+    width: 640
+    height: 641
+  - file: 2026-09-07-tala-is-open-source.image-602504f75f75.webp
+    width: 960
+    height: 961
+  - file: 2026-09-07-tala-is-open-source.image-650876a936d3.webp
+    width: 1171
+    height: 1172
+  color: '#101222'
+- source: https://d2lang.com/blog/tala-layouts/positioning/cloud-conservatory/tala.svg
+  original:
+    file: 2026-09-07-tala-is-open-source.image-82ebf24e6580.png
+    width: 1402
+    height: 1370
+  variants:
+  - file: 2026-09-07-tala-is-open-source.image-ee67f3f2ec73.webp
+    width: 320
+    height: 313
+  - file: 2026-09-07-tala-is-open-source.image-92800e26cf4d.webp
+    width: 640
+    height: 625
+  - file: 2026-09-07-tala-is-open-source.image-9a53458550cb.webp
+    width: 960
+    height: 938
+  - file: 2026-09-07-tala-is-open-source.image-2105a03ba6a2.webp
+    width: 1280
+    height: 1251
+  - file: 2026-09-07-tala-is-open-source.image-9aa3cf5db742.webp
+    width: 1402
+    height: 1370
+  color: '#f6f4ea'
+- source: https://d2lang.com/blog/tala-layouts/positioning/velvet-rope/tala.svg
+  original:
+    file: 2026-09-07-tala-is-open-source.image-6db282e0b23f.png
+    width: 1517
+    height: 1442
+  variants:
+  - file: 2026-09-07-tala-is-open-source.image-5ec1e3a319ce.webp
+    width: 320
+    height: 304
+  - file: 2026-09-07-tala-is-open-source.image-2030f60594c0.webp
+    width: 640
+    height: 608
+  - file: 2026-09-07-tala-is-open-source.image-faf4f22b18fa.webp
+    width: 960
+    height: 913
+  - file: 2026-09-07-tala-is-open-source.image-3a82f67bad89.webp
+    width: 1280
+    height: 1217
+  - file: 2026-09-07-tala-is-open-source.image-3cfadb056cb8.webp
+    width: 1517
+    height: 1442
+  color: '#131c22'
+- source: https://d2lang.com/blog/tala-layouts/positioning/synthwave-city/tala.svg
+  original:
+    file: 2026-09-07-tala-is-open-source.image-e0ebffffff56.png
+    width: 1548
+    height: 1342
+  variants:
+  - file: 2026-09-07-tala-is-open-source.image-d3c1488ffb46.webp
+    width: 320
+    height: 277
+  - file: 2026-09-07-tala-is-open-source.image-02d6ab915fc3.webp
+    width: 640
+    height: 555
+  - file: 2026-09-07-tala-is-open-source.image-446e1d71825c.webp
+    width: 960
+    height: 832
+  - file: 2026-09-07-tala-is-open-source.image-237f6d2365bb.webp
+    width: 1280
+    height: 1110
+  - file: 2026-09-07-tala-is-open-source.image-cadd24697d71.webp
+    width: 1548
+    height: 1342
+  color: '#120e28'
+- source: https://d2lang.com/blog/tala-layouts/positioning/printing-room/tala.svg
+  original:
+    file: 2026-09-07-tala-is-open-source.image-4ddc4e79d5c4.png
+    width: 1600
+    height: 1014
+  variants:
+  - file: 2026-09-07-tala-is-open-source.image-56fcffad3c29.webp
+    width: 320
+    height: 203
+  - file: 2026-09-07-tala-is-open-source.image-2648499ddeb2.webp
+    width: 640
+    height: 406
+  - file: 2026-09-07-tala-is-open-source.image-d80d5e21d495.webp
+    width: 960
+    height: 608
+  - file: 2026-09-07-tala-is-open-source.image-b176d31dab85.webp
+    width: 1280
+    height: 811
+  - file: 2026-09-07-tala-is-open-source.image-a292b5e267f1.webp
+    width: 1600
+    height: 1014
+  color: '#f6f3eb'
+- source: https://d2lang.com/blog/tala-layouts/positioning/robot-chassis/tala.svg
+  original:
+    file: 2026-09-07-tala-is-open-source.image-4cff1fe15d54.png
+    width: 1223
+    height: 1600
+  variants:
+  - file: 2026-09-07-tala-is-open-source.image-a9ecdc6259be.webp
+    width: 320
+    height: 419
+  - file: 2026-09-07-tala-is-open-source.image-f720ffab4795.webp
+    width: 640
+    height: 837
+  - file: 2026-09-07-tala-is-open-source.image-15703464515b.webp
+    width: 960
+    height: 1256
+  - file: 2026-09-07-tala-is-open-source.image-fb73978bb9fd.webp
+    width: 1223
+    height: 1600
+  color: '#f3ebe1'
 ---
 
 Following up on the announcement [here](https://d2lang.com/blog/d2-non-profit/), TALA (Terrastruct's AutoLayout Algorithm) is now open-source under the same license as D2 (MPL-2.0).

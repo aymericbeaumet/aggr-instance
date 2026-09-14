@@ -6,6 +6,130 @@ published: 2025-11-14T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/1669b064fa3d9de7a68b62b4d2784e7856fbed27-1400x500.png?w=1600&fit=max
+  original:
+    file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-b0c46ec4d313.png
+    width: 1400
+    height: 500
+  variants:
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-4a41baf25466.webp
+    width: 320
+    height: 114
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-eaab0b3c288c.webp
+    width: 640
+    height: 229
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-ae23fed04423.webp
+    width: 1400
+    height: 500
+  color: '#0f131c'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/621afab3e569a2b90e61a952c733b4e0f1d65cba-2963x1467.png?w=1600&fit=max
+  original:
+    file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-3932ab3f59df.png
+    width: 1600
+    height: 792
+  variants:
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-6ae16822f5a9.webp
+    width: 320
+    height: 158
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-f3d4c37bdcd6.webp
+    width: 640
+    height: 317
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-326ea7d0c059.webp
+    width: 960
+    height: 475
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-04cb73ff840a.webp
+    width: 1280
+    height: 634
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-fe2ae30c9367.webp
+    width: 1600
+    height: 792
+  color: '#fefefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/56ebf7834fbe08c1dc79491f200b71307ef9da0d-1712x656.png?w=1600&fit=max
+  original:
+    file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-8b2addb566d7.png
+    width: 1600
+    height: 613
+  variants:
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-f2e4398ccb2e.webp
+    width: 320
+    height: 123
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-3b6ea1bd59aa.webp
+    width: 640
+    height: 245
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-f6302c0334a1.webp
+    width: 960
+    height: 368
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-386a27590699.webp
+    width: 1280
+    height: 490
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-57da3d3a1253.webp
+    width: 1600
+    height: 613
+  color: '#fafafa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/8a30c06c220b9fed9bea558f9945126709fac55a-1200x721.png?w=1600&fit=max
+  original:
+    file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-1523d77e392d.png
+    width: 1200
+    height: 721
+  variants:
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-1f5090bed385.webp
+    width: 320
+    height: 192
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-212babe00dc4.webp
+    width: 640
+    height: 385
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-cd2b529b3176.webp
+    width: 960
+    height: 577
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-2d09d082aa84.webp
+    width: 1200
+    height: 721
+  color: '#1a1c20'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/de62d08befecf33f2f0f55f4ca35f35a831a4138-2916x1908.png?w=1600&fit=max
+  original:
+    file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-6a572cc32fae.png
+    width: 1600
+    height: 1047
+  variants:
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-2ab54708a9a7.webp
+    width: 320
+    height: 209
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-a9b76fe0b8f0.webp
+    width: 640
+    height: 419
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-f2e6b5cfe705.webp
+    width: 960
+    height: 628
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-8703dc197637.webp
+    width: 1280
+    height: 838
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-8f7668c58617.webp
+    width: 1600
+    height: 1047
+  color: '#f6f5f4'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/43a5b52dbcc51b2be73c1385a16e3a52fdb52942-1536x1024.png?w=1600&fit=max
+  original:
+    file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-072f2fe136b8.png
+    width: 1536
+    height: 1024
+  variants:
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-0f991f4ccb64.webp
+    width: 320
+    height: 213
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-8a71d6f2e4a3.webp
+    width: 640
+    height: 427
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-6671f733d08a.webp
+    width: 960
+    height: 640
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-268dab3a9e2b.webp
+    width: 1280
+    height: 853
+  - file: 2025-11-14-devin-s-2025-performance-review-learnings-from-18-months-of.image-1dad425c3b7f.webp
+    width: 1536
+    height: 1024
+  color: '#e5d9b7'
 ---
 
 ![Devin's 2025 Performance Review: Learnings From 18 Months of Agents At Work](https://cdn.sanity.io/images/2mc9cv2v/production/1669b064fa3d9de7a68b62b4d2784e7856fbed27-1400x500.png?w=1600&fit=max)

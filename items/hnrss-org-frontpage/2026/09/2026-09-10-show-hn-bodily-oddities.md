@@ -137,6 +137,48 @@ images:
     width: 48
     height: 48
   color: '#faf3ea'
+- source: https://vester.si/bodily-oddities/_astro/blue-field-entoptic-phenomenon.BpLHqupA_aAV4p.webp
+  original:
+    file: 2026-09-10-show-hn-bodily-oddities.image-62fbc2951418.webp
+    width: 880
+    height: 880
+  color: '#fbf6ea'
+- source: https://vester.si/bodily-oddities/_astro/accessory-ossicles.BtsTjA73_1uM2Oe.webp
+  original:
+    file: 2026-09-10-show-hn-bodily-oddities.image-b7e94f620209.webp
+    width: 880
+    height: 880
+  color: '#fcf4ec'
+- source: https://vester.si/bodily-oddities/_astro/alice-in-wonderland-syndrome.CTp7xPDg_Z1ec6zj.webp
+  original:
+    file: 2026-09-10-show-hn-bodily-oddities.image-609ef27db370.webp
+    width: 880
+    height: 880
+  color: '#fcf5ea'
+- source: https://vester.si/bodily-oddities/_astro/benign-fasciculations.B3dEfZiT_Z1ntyMR.webp
+  original:
+    file: 2026-09-10-show-hn-bodily-oddities.image-23e947b37cb7.webp
+    width: 880
+    height: 880
+  color: '#fbf4ec'
+- source: https://vester.si/bodily-oddities/_astro/brain-zaps.D4lnNVzO_2kHGxR.webp
+  original:
+    file: 2026-09-10-show-hn-bodily-oddities.image-63f907389080.webp
+    width: 880
+    height: 880
+  color: '#f9f4eb'
+- source: https://vester.si/bodily-oddities/_astro/call-of-the-void.BI8XA7pi_2drY4i.webp
+  original:
+    file: 2026-09-10-show-hn-bodily-oddities.image-44eae3de3799.webp
+    width: 880
+    height: 880
+  color: '#fcf5ed'
+- source: https://vester.si/bodily-oddities/_astro/cervical-ribs.clP5xQLW_iQzU2.webp
+  original:
+    file: 2026-09-10-show-hn-bodily-oddities.image-69b523a26565.webp
+    width: 880
+    height: 880
+  color: '#fcf6ee'
 ---
 
 ## Browse by body region

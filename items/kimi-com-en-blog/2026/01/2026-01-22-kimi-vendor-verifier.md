@@ -24,6 +24,16 @@ images:
     width: 48
     height: 27
   color: '#010104'
+- source: https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white
+  original:
+    file: 2026-01-22-kimi-vendor-verifier.image-3c82973f86d3.png
+    width: 65
+    height: 20
+  variants:
+  - file: 2026-01-22-kimi-vendor-verifier.image-09c71d42a7a5.webp
+    width: 65
+    height: 20
+  color: '#252424'
 ---
 
 1. [Research](https://www.kimi.com/en/blog/)

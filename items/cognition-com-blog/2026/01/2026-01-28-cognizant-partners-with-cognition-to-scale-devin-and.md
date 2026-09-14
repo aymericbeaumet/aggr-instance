@@ -6,6 +6,29 @@ published: 2026-01-28T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-01-28-cognizant-partners-with-cognition-to-scale-devin-and.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/08522b9462d4b7f912114073c60af089ddf931d0-4200x1260.png?w=1600&fit=max
+  original:
+    file: 2026-01-28-cognizant-partners-with-cognition-to-scale-devin-and.image-dbef96bd0d06.png
+    width: 1600
+    height: 480
+  variants:
+  - file: 2026-01-28-cognizant-partners-with-cognition-to-scale-devin-and.image-30522cdabd27.webp
+    width: 320
+    height: 96
+  - file: 2026-01-28-cognizant-partners-with-cognition-to-scale-devin-and.image-862fba41698c.webp
+    width: 640
+    height: 192
+  - file: 2026-01-28-cognizant-partners-with-cognition-to-scale-devin-and.image-f47eac226bd9.webp
+    width: 960
+    height: 288
+  - file: 2026-01-28-cognizant-partners-with-cognition-to-scale-devin-and.image-043f2239958b.webp
+    width: 1280
+    height: 384
+  - file: 2026-01-28-cognizant-partners-with-cognition-to-scale-devin-and.image-c9833d869768.webp
+    width: 1600
+    height: 480
+  color: '#fefefe'
 ---
 
 By The Cognition Team01.28.26

@@ -6,6 +6,29 @@ published: 2025-05-05T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-05-05-deepwiki-ai-docs-for-any-repo.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/4aaf250820dd4be1cb4f9cc8413f25f68d0ab415-2916x1908.png?w=1600&fit=max
+  original:
+    file: 2025-05-05-deepwiki-ai-docs-for-any-repo.image-38bcdcafe9e2.png
+    width: 1600
+    height: 1047
+  variants:
+  - file: 2025-05-05-deepwiki-ai-docs-for-any-repo.image-2ab54708a9a7.webp
+    width: 320
+    height: 209
+  - file: 2025-05-05-deepwiki-ai-docs-for-any-repo.image-a9b76fe0b8f0.webp
+    width: 640
+    height: 419
+  - file: 2025-05-05-deepwiki-ai-docs-for-any-repo.image-f2e6b5cfe705.webp
+    width: 960
+    height: 628
+  - file: 2025-05-05-deepwiki-ai-docs-for-any-repo.image-8703dc197637.webp
+    width: 1280
+    height: 838
+  - file: 2025-05-05-deepwiki-ai-docs-for-any-repo.image-8f7668c58617.webp
+    width: 1600
+    height: 1047
+  color: '#f6f5f4'
 ---
 
 By The Cognition Team05.05.25

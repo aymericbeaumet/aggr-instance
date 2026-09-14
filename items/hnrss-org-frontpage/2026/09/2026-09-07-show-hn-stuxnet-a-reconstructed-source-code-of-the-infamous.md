@@ -39,6 +39,36 @@ images:
     width: 1200
     height: 600
   color: '#fdfdfd'
+- source: https://camo.githubusercontent.com/b0c6c6845a74cb65a7f0a32bdcfd8fbf80eeb40026c4029af424ab371c94b8bd/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f6275696c642d70617373696e672d627269676874677265656e
+  original:
+    file: 2026-09-07-show-hn-stuxnet-a-reconstructed-source-code-of-the-infamous.image-59ae8caeb627.png
+    width: 88
+    height: 20
+  variants:
+  - file: 2026-09-07-show-hn-stuxnet-a-reconstructed-source-code-of-the-infamous.image-1346711b8857.webp
+    width: 88
+    height: 20
+  color: '#595959'
+- source: https://camo.githubusercontent.com/48bf9b56d44f38db53ce21294cf0b9487d0a3734ab3ba1fe4c69858ae20db2c1/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4c6963656e73652d47504c76332d626c75652e737667
+  original:
+    file: 2026-09-07-show-hn-stuxnet-a-reconstructed-source-code-of-the-infamous.image-786095da57c2.png
+    width: 96
+    height: 20
+  variants:
+  - file: 2026-09-07-show-hn-stuxnet-a-reconstructed-source-code-of-the-infamous.image-a907094f3b94.webp
+    width: 96
+    height: 20
+  color: '#595959'
+- source: https://camo.githubusercontent.com/6682970949ee789e20073a18954455d96912242b7b7119f73005eb05343bbedb/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f706c6174666f726d2d57696e646f777325323025374325323057696e434525323025374325323053434144412d6c6967687467726579
+  original:
+    file: 2026-09-07-show-hn-stuxnet-a-reconstructed-source-code-of-the-infamous.image-7ae1616cdcfb.png
+    width: 216
+    height: 20
+  variants:
+  - file: 2026-09-07-show-hn-stuxnet-a-reconstructed-source-code-of-the-infamous.image-6288c74e8147.webp
+    width: 216
+    height: 20
+  color: '#959595'
 ---
 
 [![Build Status](https://camo.githubusercontent.com/b0c6c6845a74cb65a7f0a32bdcfd8fbf80eeb40026c4029af424ab371c94b8bd/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f6275696c642d70617373696e672d627269676874677265656e)](https://github.com/Sadpainy/Stuxnet/blob/main) [![License: GPL v3](https://camo.githubusercontent.com/48bf9b56d44f38db53ce21294cf0b9487d0a3734ab3ba1fe4c69858ae20db2c1/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4c6963656e73652d47504c76332d626c75652e737667)](https://www.gnu.org/licenses/gpl-3.0) [![Platform](https://camo.githubusercontent.com/6682970949ee789e20073a18954455d96912242b7b7119f73005eb05343bbedb/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f706c6174666f726d2d57696e646f777325323025374325323057696e434525323025374325323053434144412d6c6967687467726579)](https://github.com/Sadpainy/Stuxnet/blob/main)

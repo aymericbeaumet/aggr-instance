@@ -6,6 +6,25 @@ published: 2026-04-09T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-04-09-launching-in-japan-with-takumi-masai.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/d3f8831f374c53d0340d6e654668a0283873ae8e-5356x3571.jpg?w=1600&fit=max
+  original:
+    file: 2026-04-09-launching-in-japan-with-takumi-masai.image-5d023089801e.jpg
+    width: 1600
+    height: 1066
+  color: '#05050a'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/d0871c6777117f714b6e9dbdd4235df4e60a4d2d-6240x4160.jpg?w=1600&fit=max
+  original:
+    file: 2026-04-09-launching-in-japan-with-takumi-masai.image-9185b2664d63.jpg
+    width: 1600
+    height: 1066
+  color: '#f9f9fb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/c1130d6c8147fa8f0b247eb16e25b89167852230-6240x4160.jpg?w=1600&fit=max
+  original:
+    file: 2026-04-09-launching-in-japan-with-takumi-masai.image-83f7cbdf7a1a.jpg
+    width: 1600
+    height: 1066
+  color: '#141a29'
 ---
 
 Japan has a rare combination of the things we believe in. World class engineering talent. Ambitious enterprises. A genuine appetite for transformation. Japanese enterprises have built some of the most complex, high stakes systems in the world, and have a generation of developers who should be spending their time on hard problems, not basic implementation. Devin was built for exactly this moment.

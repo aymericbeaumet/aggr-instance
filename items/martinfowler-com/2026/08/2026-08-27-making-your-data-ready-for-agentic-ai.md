@@ -9,6 +9,87 @@ authors:
 - Martin Fowler
 content: extracted
 html: 2026-08-27-making-your-data-ready-for-agentic-ai.html
+images:
+- source: https://martinfowler.com/articles/making-data-ready-for-agentic-ai/medallion.svg
+  original:
+    file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-3c5196a062ff.png
+    width: 800
+    height: 500
+  variants:
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-900efa97dfbe.webp
+    width: 320
+    height: 200
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-66aab056e1a1.webp
+    width: 640
+    height: 400
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-45a0ffb3cca7.webp
+    width: 800
+    height: 500
+  color: '#000000'
+- source: https://martinfowler.com/articles/making-data-ready-for-agentic-ai/context-layer.svg
+  original:
+    file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-adb5bd6bc1c4.png
+    width: 700
+    height: 350
+  variants:
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-17a2bf0afb71.webp
+    width: 320
+    height: 160
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-171c7a96ee02.webp
+    width: 640
+    height: 320
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-deb97bd40701.webp
+    width: 700
+    height: 350
+  color: '#000000'
+- source: https://martinfowler.com/articles/making-data-ready-for-agentic-ai/semantic-layer-seq.svg
+  original:
+    file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-0b6e085a6614.png
+    width: 724
+    height: 348
+  variants:
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-efa18fd5b645.webp
+    width: 320
+    height: 154
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-47329afc8899.webp
+    width: 640
+    height: 308
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-7ff990a1374e.webp
+    width: 724
+    height: 348
+  color: '#fdfdfe'
+- source: https://martinfowler.com/articles/making-data-ready-for-agentic-ai/po-payment.svg
+  original:
+    file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-b7ed6c1822cf.png
+    width: 1244
+    height: 674
+  variants:
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-59b8be5c1df0.webp
+    width: 320
+    height: 173
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-037d077f47f1.webp
+    width: 640
+    height: 347
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-cdb0f635ea8c.webp
+    width: 960
+    height: 520
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-628cf7c8b717.webp
+    width: 1244
+    height: 674
+  color: '#fdfdfe'
+- source: https://martinfowler.com/articles/making-data-ready-for-agentic-ai/stack.svg
+  original:
+    file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-fbbdc121cbc7.png
+    width: 500
+    height: 300
+  variants:
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-764ac40e38f0.webp
+    width: 320
+    height: 192
+  - file: 2026-08-27-making-your-data-ready-for-agentic-ai.image-b695c409063e.webp
+    width: 500
+    height: 300
+  color: '#000000'
 ---
 
 There's a lot of excitement right now about agent frameworks, orchestration patterns, and protocols. All of it matters, but almost none of it delivers value if you skip the data layer. Before any agent framework can produce useful outcomes, your data has to be in a shape that a machine can consume, trust, and act on. In this article, we discuss what your data needs to look like for agentic AI to derive value from it.

@@ -6,6 +6,13 @@ published: 2026-01-28T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-01-28-devin-crosses-the-pond-cognition-opens-its-london-office.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/a2251ba803ebe30029f27c660c9fa29cda041144-5804x3874.jpg?w=1600&fit=max
+  original:
+    file: 2026-01-28-devin-crosses-the-pond-cognition-opens-its-london-office.image-14f202ed7070.jpg
+    width: 1600
+    height: 1068
+  color: '#080403'
 ---
 
 By The Cognition Team01.28.26

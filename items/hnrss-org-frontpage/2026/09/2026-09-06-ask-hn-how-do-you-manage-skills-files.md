@@ -10,6 +10,17 @@ authors:
 summary: 'How do you find skills, keep them organized, and make sure they actually work? Do you keep improving them over time? I believe skills will eventually be eating by model capabilities, but until then I''m just looking for a better way to manage things. Comments URL: https://news.ycombinator.com/item?id=49589914 Points: 245 # Comments: 231'
 content: extracted
 html: 2026-09-06-ask-hn-how-do-you-manage-skills-files.html
+images:
+- source: https://news.ycombinator.com/s.gif
+  original:
+    file: 2026-09-06-ask-hn-how-do-you-manage-skills-files.image-56d45f8a17f5.gif
+    width: 1
+    height: 1
+  variants:
+  - file: 2026-09-06-ask-hn-how-do-you-manage-skills-files.image-341355a3f873.webp
+    width: 1
+    height: 1
+  color: '#000000'
 ---
 
 ![](https://news.ycombinator.com/s.gif)

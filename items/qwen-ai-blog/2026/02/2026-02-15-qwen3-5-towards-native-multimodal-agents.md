@@ -226,6 +226,426 @@ images:
     width: 2250
     height: 1500
   color: '#e4e6e9'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3.5/Figures/qwen3.5_397b_a17b_score.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-2f9f9caa6bba.png
+    width: 17277
+    height: 11171
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-f43bf5706d20.webp
+    width: 320
+    height: 207
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-d62887a47c27.webp
+    width: 640
+    height: 414
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-f5e4c980f681.webp
+    width: 960
+    height: 621
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-7d8578c9ac5d.webp
+    width: 1280
+    height: 828
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-5335d416e4bd.webp
+    width: 1600
+    height: 1035
+  color: '#fbfbfb'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/WebDev/openqwen_screenshot.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-9d18dfdeae4f.png
+    width: 2702
+    height: 7054
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-8d1f627891c8.webp
+    width: 320
+    height: 835
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-19b4503ba55f.webp
+    width: 640
+    height: 1671
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-06cfe5337bb7.webp
+    width: 960
+    height: 2506
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-6605ba307817.webp
+    width: 1280
+    height: 3342
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-84e9e76fcef4.webp
+    width: 1600
+    height: 4177
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-4ce950e9dd1b.webp
+    width: 2702
+    height: 7054
+  color: '#0c1829'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/WebDev/web_image_search_screenshot.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-a6636171e22a.png
+    width: 2940
+    height: 7980
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-4f1b5464abde.webp
+    width: 320
+    height: 869
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-5b3a6a4caf4d.webp
+    width: 640
+    height: 1737
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-16b5986cb9da.webp
+    width: 960
+    height: 2606
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-985d5ab9b79e.webp
+    width: 1280
+    height: 3474
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-6902331dcbde.webp
+    width: 1600
+    height: 4343
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-28a1809e98b8.webp
+    width: 2940
+    height: 7980
+  color: '#14151a'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/cotground/vstar_180_res.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-1a1f93739967.png
+    width: 2250
+    height: 1500
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-8af8b2baf84b.webp
+    width: 320
+    height: 213
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-e25e1118cb43.webp
+    width: 640
+    height: 427
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-d7f2d5f87054.webp
+    width: 960
+    height: 640
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-a9b8b8ee1710.webp
+    width: 1280
+    height: 853
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-ad22e5b121f9.webp
+    width: 1600
+    height: 1067
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-ca2ff8f43cb0.webp
+    width: 2250
+    height: 1500
+  color: '#e4e6e9'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/cotground/vstar_89.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-f6232a4ee398.png
+    width: 1500
+    height: 2250
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-2c2e80e9448b.webp
+    width: 320
+    height: 480
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-422386f243a5.webp
+    width: 640
+    height: 960
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-da26c5c3a124.webp
+    width: 960
+    height: 1440
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-f522170cced3.webp
+    width: 1280
+    height: 1920
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-7f89f0d44f16.webp
+    width: 1500
+    height: 2250
+  color: '#75a5dd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/cotground/vstar_89_res.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-1d7ea0d20e1f.png
+    width: 1500
+    height: 2250
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-5eeb264c4ef6.webp
+    width: 320
+    height: 480
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-b16933f39dcf.webp
+    width: 640
+    height: 960
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-6f7ef63b743a.webp
+    width: 960
+    height: 1440
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-ac2076028f7e.webp
+    width: 1280
+    height: 1920
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-fde01be84d88.webp
+    width: 1500
+    height: 2250
+  color: '#75a5dd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/cotground/realworld_99.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-411a82f32693.jpg
+    width: 1448
+    height: 938
+  color: '#040404'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/cotground/realworld_99_res.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-584bdec45908.jpg
+    width: 1448
+    height: 938
+  color: '#040404'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/cotground/215.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-abdad5aacdc5.jpg
+    width: 1152
+    height: 1536
+  color: '#d7d7d6'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/cotground/215_res.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-daf8c87a4354.png
+    width: 1152
+    height: 1536
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-625de5b6c913.webp
+    width: 320
+    height: 427
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-228dbfc17f9f.webp
+    width: 640
+    height: 853
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-cf6db979d16e.webp
+    width: 960
+    height: 1280
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-ed62154e0c0e.webp
+    width: 1152
+    height: 1536
+  color: '#d7d7d6'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/cotground/84.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-41192101b4ae.jpg
+    width: 1448
+    height: 938
+  color: '#53596b'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/cotground/84_res.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-e07e63b00b4d.png
+    width: 1448
+    height: 938
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-cce3b40f4826.webp
+    width: 320
+    height: 207
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-456088223256.webp
+    width: 640
+    height: 415
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-df596b7f27f7.webp
+    width: 960
+    height: 622
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-97fe6c0d5fb8.webp
+    width: 1280
+    height: 829
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-db577fb8fd5c.webp
+    width: 1448
+    height: 938
+  color: '#53596b'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/cotground/510.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-6cc37dca67fc.jpg
+    width: 1152
+    height: 1536
+  color: '#c6b8a8'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/cotground/510_res.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-4b12351ef43a.png
+    width: 1152
+    height: 1536
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-703bbe98b733.webp
+    width: 320
+    height: 427
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-252c5a7295cf.webp
+    width: 640
+    height: 853
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-1aa0dda0c4b1.webp
+    width: 960
+    height: 1280
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-797c75e3f0c8.webp
+    width: 1152
+    height: 1536
+  color: '#c6b8a8'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/Thinking_with_image/complicated_maze.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-0e58c26cc6f8.jpg
+    width: 612
+    height: 606
+  color: '#030303'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/Thinking_with_image/0e5fa726-72e2-4b96-9709-6aa7270a9983.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-4779c986e36a.png
+    width: 1500
+    height: 500
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-f8e67c2cb9b0.webp
+    width: 320
+    height: 107
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-ac020a01261e.webp
+    width: 640
+    height: 213
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-1fc5c639b8dc.webp
+    width: 960
+    height: 320
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-ebfcff7bfcc5.webp
+    width: 1280
+    height: 427
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-ab822478ef83.webp
+    width: 1500
+    height: 500
+  color: '#000000'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/Thinking_with_image/a2529aad-b91c-4992-bfe5-0903d2b4ef33.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-4a1fd1150d51.png
+    width: 1000
+    height: 500
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-89441ba7d241.webp
+    width: 320
+    height: 160
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-599499e23c17.webp
+    width: 640
+    height: 320
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-0b050058d469.webp
+    width: 960
+    height: 480
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-e9e597dd6fd9.webp
+    width: 1000
+    height: 500
+  color: '#171616'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/Thinking_with_image/10c97490-e7b0-441b-b0cf-4d7a4e95812c.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-fbe852569961.png
+    width: 1500
+    height: 1500
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-7d6ee5f16f94.webp
+    width: 320
+    height: 320
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-ad51fc4cd46d.webp
+    width: 640
+    height: 640
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-beb27ff3ea33.webp
+    width: 960
+    height: 960
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-8dfa2e8e4eb1.webp
+    width: 1280
+    height: 1280
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-ab751ccbbb72.webp
+    width: 1500
+    height: 1500
+  color: '#030303'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/CI_Demo/5515f5e5-b167-4bb1-a383-388fb4750cc2.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-286f0e5cab76.jpg
+    width: 736
+    height: 672
+  color: '#9401d3'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/CI_Demo/4b4be2ec-f671-4e82-a5e5-26e4ef93d1d3.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-8335543cb1f7.png
+    width: 1000
+    height: 500
+  color: '#ab37a9'
+- source: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3.5/demo/CI_Demo/f88994f9-bb9d-47f9-a6b7-d69904792f33.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-d1d693a6ca34.png
+    width: 1500
+    height: 500
+  color: '#fefefe'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/Thinking_with_image/sudoku.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-d5f3b374d6e8.jpg
+    width: 662
+    height: 662
+  color: '#fbfbfb'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/Thinking_with_image/902206cf-c06b-487a-8dc0-b6efbc38781c.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-f03f44d724ff.png
+    width: 1500
+    height: 1500
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-0cb82efaca77.webp
+    width: 320
+    height: 320
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-5c5c59080c79.webp
+    width: 640
+    height: 640
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-4fa84941f662.webp
+    width: 960
+    height: 960
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-e7124d46d273.webp
+    width: 1280
+    height: 1280
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-116b5bb1768d.webp
+    width: 1500
+    height: 1500
+  color: '#fbfbfb'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/Thinking_with_image/sliding_block.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-7fe5ae929e4e.jpg
+    width: 922
+    height: 452
+  color: '#fafafa'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/STEM/stem-case11.jpeg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-ec4ddcef49f5.png
+    width: 457
+    height: 351
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-371cba96bb6e.webp
+    width: 320
+    height: 246
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-a95eed4d6ecb.webp
+    width: 457
+    height: 351
+  color: '#fdfdfd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/STEM/stem-case6.jpeg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-9c823207116f.png
+    width: 1284
+    height: 1216
+  color: '#171819'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/STEM/stem-case4.jpeg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-43121e3d727a.jpg
+    width: 910
+    height: 1302
+  color: '#fefefe'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/STEM/olympida_0.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-16a874957e15.jpg
+    width: 447
+    height: 322
+  color: '#fefefe'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/STEM/bbv-172.png
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-aaef95c63721.png
+    width: 555
+    height: 665
+  variants:
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-7ba1aa2d4772.webp
+    width: 320
+    height: 383
+  - file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-5e638eaf6b44.webp
+    width: 555
+    height: 665
+  color: '#e8e8e8'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/STEM/zero_sub_48.jpg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-187fcdd5671d.jpg
+    width: 1920
+    height: 1047
+  color: '#fdfdfd'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/STEM/stem-case5-1.jpeg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-0192934c17a1.jpg
+    width: 685
+    height: 778
+  color: '#fefefe'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/STEM/stem-case5-2.jpeg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-3cfcea97acf5.jpg
+    width: 712
+    height: 702
+  color: '#fefefe'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/STEM/stem-case2.jpeg
+  original:
+    file: 2026-02-15-qwen3-5-towards-native-multimodal-agents.image-bbfdc3c9e560.jpg
+    width: 1043
+    height: 1209
+  color: '#fcfcfc'
 html_truncated: true
 ---
 

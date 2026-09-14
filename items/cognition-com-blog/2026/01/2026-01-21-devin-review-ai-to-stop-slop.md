@@ -6,6 +6,130 @@ published: 2026-01-21T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-01-21-devin-review-ai-to-stop-slop.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/d3a2ab40ed159480636c231c48bfd8c547554e4e-926x768.png?w=1600&fit=max
+  original:
+    file: 2026-01-21-devin-review-ai-to-stop-slop.image-ebe0dfe22315.png
+    width: 926
+    height: 768
+  color: '#fefefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/4b91360f898d7b38ddc3be61ebecd91df4578333-1986x1496.png?w=1600&fit=max
+  original:
+    file: 2026-01-21-devin-review-ai-to-stop-slop.image-c583fe221adb.png
+    width: 1600
+    height: 1205
+  variants:
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-a550e4d72c44.webp
+    width: 320
+    height: 241
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-80f25922da98.webp
+    width: 640
+    height: 482
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-d78fbda526ef.webp
+    width: 960
+    height: 723
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-02ebd4d8e82f.webp
+    width: 1280
+    height: 964
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-6e70fd428897.webp
+    width: 1600
+    height: 1205
+  color: '#fafafb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/62a49d86741bf7901263a4f10c7c0983d1518dda-597x291.png?w=1600&fit=max
+  original:
+    file: 2026-01-21-devin-review-ai-to-stop-slop.image-c17b89d6d30f.png
+    width: 597
+    height: 291
+  variants:
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-80e3cb060e65.webp
+    width: 320
+    height: 156
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-05c3bec2fb66.webp
+    width: 597
+    height: 291
+  color: '#000000'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f4db99a8dd0979c61848c64ff3c8741b2c00db22-1805x714.png?w=1600&fit=max
+  original:
+    file: 2026-01-21-devin-review-ai-to-stop-slop.image-0035d4a9944e.png
+    width: 1600
+    height: 633
+  variants:
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-0860b859afb5.webp
+    width: 320
+    height: 127
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-92fdfe39733b.webp
+    width: 640
+    height: 253
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-869af3694020.webp
+    width: 960
+    height: 380
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-9bba7996969a.webp
+    width: 1280
+    height: 506
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-13dae7de0371.webp
+    width: 1600
+    height: 633
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/c912959f2ce81ff38cc519c59d8977b745e4b626-3452x1598.png?w=1600&fit=max
+  original:
+    file: 2026-01-21-devin-review-ai-to-stop-slop.image-e57f0bd15fe3.png
+    width: 1600
+    height: 741
+  variants:
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-b529dd50dcec.webp
+    width: 320
+    height: 148
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-34f2c4e69389.webp
+    width: 640
+    height: 296
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-441b1d8d0bc3.webp
+    width: 960
+    height: 445
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-4586df278e6b.webp
+    width: 1280
+    height: 593
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-0729e2d7e1b7.webp
+    width: 1600
+    height: 741
+  color: '#171717'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/a960e2d41ef0de2e05757239e64f1c863c80a635-1988x1372.png?w=1600&fit=max
+  original:
+    file: 2026-01-21-devin-review-ai-to-stop-slop.image-50ad8fcdca8a.png
+    width: 1600
+    height: 1104
+  variants:
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-13ece57a14f2.webp
+    width: 320
+    height: 221
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-48d16f7b8fdc.webp
+    width: 640
+    height: 442
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-41686ac8fdc8.webp
+    width: 960
+    height: 662
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-5e60d91f8429.webp
+    width: 1280
+    height: 883
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-1ac0ab8c4968.webp
+    width: 1600
+    height: 1104
+  color: '#181919'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3dbff23629f04010fac6a6f042f7c48cbef97d90-968x1110.png?w=1600&fit=max
+  original:
+    file: 2026-01-21-devin-review-ai-to-stop-slop.image-c78d0a7e6a72.png
+    width: 968
+    height: 1110
+  variants:
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-13bb7754ee48.webp
+    width: 320
+    height: 367
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-cf632a759275.webp
+    width: 640
+    height: 734
+  - file: 2026-01-21-devin-review-ai-to-stop-slop.image-85f3b02fd87d.webp
+    width: 968
+    height: 1110
+  color: '#1c1c1c'
 ---
 
 By The Cognition Team01.21.26

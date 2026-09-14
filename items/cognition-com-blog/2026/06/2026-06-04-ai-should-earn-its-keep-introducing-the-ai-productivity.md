@@ -6,6 +6,13 @@ published: 2026-06-04T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-06-04-ai-should-earn-its-keep-introducing-the-ai-productivity.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/d378ef146ec6070438bfaeab4d9e47e8b886e55d-1920x1080.jpg?w=1600&fit=max
+  original:
+    file: 2026-06-04-ai-should-earn-its-keep-introducing-the-ai-productivity.image-a27a9051b537.jpg
+    width: 1600
+    height: 900
+  color: '#c6c5c5'
 ---
 
 By Scott Wu06.04.26

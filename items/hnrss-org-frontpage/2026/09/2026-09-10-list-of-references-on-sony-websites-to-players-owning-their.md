@@ -159,6 +159,93 @@ images:
     width: 600
     height: 200
   color: '#090a0a'
+- source: https://consumerrights.wiki/thumb.php?f=Sony-playstation-digital-ownership-eula-licensed-not-sold.png&width=1200
+  original:
+    file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-0e0eaeaa7040.png
+    width: 1200
+    height: 1197
+  color: '#fbfbfb'
+- source: https://consumerrights.wiki/thumb.php?f=Sony-playstation-digital-ownership-psplus-lose-dlc.png&width=1680
+  original:
+    file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-b15b87cd9bc7.png
+    width: 1680
+    height: 66
+  variants:
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-576858e6f0c3.webp
+    width: 320
+    height: 13
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-03c9517289c5.webp
+    width: 640
+    height: 25
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-f5fa28051c94.webp
+    width: 960
+    height: 38
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-91a6fa784d23.webp
+    width: 1280
+    height: 50
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-6ddbbbdcd006.webp
+    width: 1600
+    height: 63
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-6e9bca84ef42.webp
+    width: 1680
+    height: 66
+  color: '#bbbbbb'
+- source: https://consumerrights.wiki/thumb.php?f=Sony-playstation-digital-ownership-cancellation-next-launch.png&width=1560
+  original:
+    file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-32c76e074e75.png
+    width: 1560
+    height: 641
+  color: '#fbfbfb'
+- source: https://consumerrights.wiki/thumb.php?f=Sony-playstation-lawsuit-bpc-17500-6.png&width=1320
+  original:
+    file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-493417208e5e.png
+    width: 1320
+    height: 1200
+  color: '#fafafa'
+- source: https://consumerrights.wiki/thumb.php?f=Sony-playstation-lawsuit-ftc-alert.png&width=1320
+  original:
+    file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-b20b0fd4bc12.png
+    width: 1320
+    height: 1157
+  variants:
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-85a33d29109a.webp
+    width: 320
+    height: 280
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-1c21cb8cf54e.webp
+    width: 640
+    height: 561
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-500e8f69499a.webp
+    width: 960
+    height: 841
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-7d527bfd2aab.webp
+    width: 1280
+    height: 1122
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-953ea4c3e347.webp
+    width: 1320
+    height: 1157
+  color: '#fbfbfb'
+- source: https://consumerrights.wiki/images/8/80/Sony_ownership_evidence_contact_sheet.png
+  original:
+    file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-67538ce39dc7.png
+    width: 1600
+    height: 4160
+  variants:
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-14bb5b9e96b8.webp
+    width: 320
+    height: 832
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-05d9df078503.webp
+    width: 640
+    height: 1664
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-760fcf58d418.webp
+    width: 960
+    height: 2496
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-06ebcde8587a.webp
+    width: 1280
+    height: 3328
+  - file: 2026-09-10-list-of-references-on-sony-websites-to-players-owning-their.image-c8360c999a5b.webp
+    width: 1600
+    height: 4160
+  color: '#f5f5f7'
 ---
 
 \

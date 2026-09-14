@@ -94,6 +94,457 @@ images:
     width: 2688
     height: 1536
   color: '#121163'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/2.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-a96d634323a4.png
+    width: 2688
+    height: 1536
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-021e2061b49d.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-337689a163dc.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-b4d811672732.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-f3ea7d37029a.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-3123850d9293.webp
+    width: 1600
+    height: 914
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-637a7a32e862.webp
+    width: 2688
+    height: 1536
+  color: '#f4f7f9'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/3.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-3f4aea3afc2e.png
+    width: 2688
+    height: 1536
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-48d4def1de4e.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-c1e84783fff5.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-0dd475eb0af3.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-9fc1a643f70f.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-5dc8d83566fa.webp
+    width: 1600
+    height: 914
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-fe3ec8f03768.webp
+    width: 2688
+    height: 1536
+  color: '#f8f5e5'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/4.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-cf2e13fd9cf9.png
+    width: 2688
+    height: 1536
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-7f892e576447.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-079f596f4934.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-f91e2017405c.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-417c054be118.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-866c2cf5b64d.webp
+    width: 1600
+    height: 914
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-9b0d7446463b.webp
+    width: 2688
+    height: 1536
+  color: '#f2ede3'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/5.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-1f9b91b90eca.png
+    width: 2688
+    height: 1536
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-cfc94e7086e9.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-bb5a1f14328c.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-5ed352fa617f.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-2b3a866ec2b5.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-31d7a50552e4.webp
+    width: 1600
+    height: 914
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-d2c477d5a38b.webp
+    width: 2688
+    height: 1536
+  color: '#d9c7a5'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/6.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-55eb08c93d82.png
+    width: 2688
+    height: 1536
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-a0adddc73123.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-d551f2261ccc.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-50711e4dc75c.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-f439a2e92399.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-16ea52720ab1.webp
+    width: 1600
+    height: 914
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-8831666743bc.webp
+    width: 2688
+    height: 1536
+  color: '#f5f0e6'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/7.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-558b0eb42c05.png
+    width: 2688
+    height: 1536
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-3ff46a9d6fb0.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-dd2d5f3ee418.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-f95f5aeb251b.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-fb16e0d1a965.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-525586a3817b.webp
+    width: 1600
+    height: 914
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-a78ac8399f19.webp
+    width: 2688
+    height: 1536
+  color: '#97a49a'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/8.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-42aef36151da.png
+    width: 1536
+    height: 2688
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-cce4efa664ce.webp
+    width: 320
+    height: 560
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-3fc38e7732af.webp
+    width: 640
+    height: 1120
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-47030a5ce27a.webp
+    width: 960
+    height: 1680
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-ba40f11cdc82.webp
+    width: 1280
+    height: 2240
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-dbfd678ff993.webp
+    width: 1536
+    height: 2688
+  color: '#071318'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/9.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-6e7752737fe5.png
+    width: 2688
+    height: 1536
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-dd1aca1b4c2c.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-16cd56f162a3.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-9bf0d9233324.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-e6db3e3c4431.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-58be8af84425.webp
+    width: 1600
+    height: 914
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-4107da680604.webp
+    width: 2688
+    height: 1536
+  color: '#f9f7f3'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/10.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-2fec60439402.png
+    width: 2688
+    height: 1536
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-2f82822876c2.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-7d22d2315825.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-7f9e4d528110.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-7dff3ac91571.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-f4594ca2db0e.webp
+    width: 1600
+    height: 914
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-0f4c28793054.webp
+    width: 2688
+    height: 1536
+  color: '#969998'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/11.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-41443eabe39e.png
+    width: 2688
+    height: 1536
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-1b6b5ffe01d3.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-3a1a1a784d19.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-b3f0c4fcdcd6.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-e00164bfd945.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-7df6b51918e3.webp
+    width: 1600
+    height: 914
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-d23a70468342.webp
+    width: 2688
+    height: 1536
+  color: '#fbfaf1'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/12.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-28e9d6b15e40.png
+    width: 2688
+    height: 1536
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-09b35e66cf92.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-a79d02b254e4.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-5a8bbbe2de51.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-6b8322348834.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-2703afe9a01e.webp
+    width: 1600
+    height: 914
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-9f696f7d9840.webp
+    width: 2688
+    height: 1536
+  color: '#8598a8'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/13.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-99734c730dc6.png
+    width: 2688
+    height: 1536
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-76a2fc748a5d.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-1bb89fb7828d.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-7e24e6dc09e3.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-bde4f4d32842.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-88a80df106f0.webp
+    width: 1600
+    height: 914
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-f20b13d03377.webp
+    width: 2688
+    height: 1536
+  color: '#162819'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/e1_1.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-c2b61ecaad14.png
+    width: 1344
+    height: 768
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-3956563f6806.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-97191688b277.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-1619094a958d.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-2b5ae05d09b4.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-4ed1aadc8a2b.webp
+    width: 1344
+    height: 768
+  color: '#f4eee0'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/e1_2.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-3ee08137ad07.png
+    width: 1344
+    height: 768
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-5905e01f59ea.webp
+    width: 320
+    height: 183
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-c3b5dca5f06c.webp
+    width: 640
+    height: 366
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-1df89ac72a7e.webp
+    width: 960
+    height: 549
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-28071e9f0587.webp
+    width: 1280
+    height: 731
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-770afaa190fc.webp
+    width: 1344
+    height: 768
+  color: '#f2ecdd'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/e2_1.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-396bf0257ac8.png
+    width: 2048
+    height: 2048
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-6319850401a9.webp
+    width: 320
+    height: 320
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-0d98dbdaa972.webp
+    width: 640
+    height: 640
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-f227e9660e2f.webp
+    width: 960
+    height: 960
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-aecff02a39a4.webp
+    width: 1280
+    height: 1280
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-f7d0b07b0ee2.webp
+    width: 1600
+    height: 1600
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-d0243508d11e.webp
+    width: 2048
+    height: 2048
+  color: '#030907'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/e2_2.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-bbf682393e40.png
+    width: 1024
+    height: 1024
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-17f51c26f2de.webp
+    width: 320
+    height: 320
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-5f0c7bdb4b17.webp
+    width: 640
+    height: 640
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-3c465e650878.webp
+    width: 960
+    height: 960
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-321add4182cf.webp
+    width: 1024
+    height: 1024
+  color: '#e4e9ea'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/e3_1.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-971dec818265.png
+    width: 2048
+    height: 2048
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-6bc8176a983d.webp
+    width: 320
+    height: 320
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-8dfcfbc7d53a.webp
+    width: 640
+    height: 640
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-7d9ff6735ee9.webp
+    width: 960
+    height: 960
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-12d41cccba13.webp
+    width: 1280
+    height: 1280
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-dbdac8e49d32.webp
+    width: 1600
+    height: 1600
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-7f21f4aa7a53.webp
+    width: 2048
+    height: 2048
+  color: '#f1f1e7'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/e3_2.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-4fc13be9524b.png
+    width: 1024
+    height: 1024
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-82f82e682d05.webp
+    width: 320
+    height: 320
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-650b27627df8.webp
+    width: 640
+    height: 640
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-4f039fa798e3.webp
+    width: 960
+    height: 960
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-d720538da24b.webp
+    width: 1024
+    height: 1024
+  color: '#f8f8f3'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/e4_1.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-48f050ec5bb7.png
+    width: 896
+    height: 1184
+  color: '#975736'
+- source: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/e5_2.png
+  original:
+    file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-ae7242477758.png
+    width: 851
+    height: 851
+  variants:
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-4a368c40c939.webp
+    width: 320
+    height: 320
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-e8e84eb86fd8.webp
+    width: 640
+    height: 640
+  - file: 2026-02-10-qwen-image-2-0-professional-infographics-exquisite.image-2c0323c8d4e6.webp
+    width: 851
+    height: 851
+  color: '#c2a679'
 ---
 
 ![](https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen-Image/image2/top.png#center)

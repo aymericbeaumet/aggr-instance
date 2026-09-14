@@ -61,6 +61,45 @@ images:
     width: 1920
     height: 1080
   color: '#5985da'
+- source: https://moonshotai.github.io/Kimi-Researcher/assets/figure/2-a.svg
+  original:
+    file: 2025-06-20-kimi-researcher.image-1374737bc62b.png
+    width: 768
+    height: 576
+  variants:
+  - file: 2025-06-20-kimi-researcher.image-e5b648b32157.webp
+    width: 320
+    height: 240
+  - file: 2025-06-20-kimi-researcher.image-228f80a2089f.webp
+    width: 768
+    height: 576
+  color: '#242424'
+- source: https://moonshotai.github.io/Kimi-Researcher/assets/figure/2-b.svg
+  original:
+    file: 2025-06-20-kimi-researcher.image-92fea0a8a7dd.png
+    width: 768
+    height: 576
+  variants:
+  - file: 2025-06-20-kimi-researcher.image-753af4584338.webp
+    width: 320
+    height: 240
+  - file: 2025-06-20-kimi-researcher.image-59ece5ca944a.webp
+    width: 768
+    height: 576
+  color: '#242426'
+- source: https://moonshotai.github.io/Kimi-Researcher/assets/figure/3.svg
+  original:
+    file: 2025-06-20-kimi-researcher.image-9c1b4fa07340.png
+    width: 768
+    height: 576
+  variants:
+  - file: 2025-06-20-kimi-researcher.image-a5f87b090542.webp
+    width: 320
+    height: 240
+  - file: 2025-06-20-kimi-researcher.image-9fcb30218673.webp
+    width: 768
+    height: 576
+  color: '#232323'
 ---
 
 ## End-to-End RL Training for Emerging Agentic Capabilities

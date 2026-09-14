@@ -26,6 +26,25 @@ images:
     width: 48
     height: 25
   color: '#24283d'
+- source: https://www.tinybird.co/_next/static/immutable/media/cropped-wordmark.2h1vxqu87g37p.svg
+  original:
+    file: 2026-09-07-i-ve-operated-petabyte-scale-clickhouse-clusters-for-5-years.image-1e33478e7c43.png
+    width: 1440
+    height: 310
+  variants:
+  - file: 2026-09-07-i-ve-operated-petabyte-scale-clickhouse-clusters-for-5-years.image-aa402a47b550.webp
+    width: 320
+    height: 69
+  - file: 2026-09-07-i-ve-operated-petabyte-scale-clickhouse-clusters-for-5-years.image-9f5131e093d4.webp
+    width: 640
+    height: 138
+  - file: 2026-09-07-i-ve-operated-petabyte-scale-clickhouse-clusters-for-5-years.image-6b7e3dffec7c.webp
+    width: 960
+    height: 207
+  - file: 2026-09-07-i-ve-operated-petabyte-scale-clickhouse-clusters-for-5-years.image-7d97d030f2c2.webp
+    width: 1440
+    height: 310
+  color: '#fcfcfc'
 ---
 
 ## Blog

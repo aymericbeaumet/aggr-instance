@@ -6,6 +6,85 @@ published: 2024-12-12T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2024-12-12-announcing-the-devin-open-source-initiative.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/db43246185dd451828bef4129dd353e0da06757a-917x513.png?w=1600&fit=max
+  original:
+    file: 2024-12-12-announcing-the-devin-open-source-initiative.image-4d3126a52eff.png
+    width: 917
+    height: 513
+  variants:
+  - file: 2024-12-12-announcing-the-devin-open-source-initiative.image-65ec960bd243.webp
+    width: 320
+    height: 179
+  - file: 2024-12-12-announcing-the-devin-open-source-initiative.image-2c6af76920c8.webp
+    width: 640
+    height: 358
+  - file: 2024-12-12-announcing-the-devin-open-source-initiative.image-c6f926c9c979.webp
+    width: 917
+    height: 513
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/27b3c022fa81515237f47b9280cf39c0f739fc15-698x922.png?w=1600&fit=max
+  original:
+    file: 2024-12-12-announcing-the-devin-open-source-initiative.image-054e3fd01a90.png
+    width: 698
+    height: 922
+  variants:
+  - file: 2024-12-12-announcing-the-devin-open-source-initiative.image-c8368934afe4.webp
+    width: 320
+    height: 423
+  - file: 2024-12-12-announcing-the-devin-open-source-initiative.image-1b27efa5d38e.webp
+    width: 640
+    height: 845
+  - file: 2024-12-12-announcing-the-devin-open-source-initiative.image-e93b37066ed2.webp
+    width: 698
+    height: 922
+  color: '#2c2c2c'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f612f8e159aa9da821a6fbf1da37db297bf6d81b-674x208.png?w=1600&fit=max
+  original:
+    file: 2024-12-12-announcing-the-devin-open-source-initiative.image-d2bdae6f32b1.png
+    width: 674
+    height: 208
+  color: '#2e2e2e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/876de41f09632743448362b5fdd0da18ae3c2fb6-686x931.png?w=1600&fit=max
+  original:
+    file: 2024-12-12-announcing-the-devin-open-source-initiative.image-f881b8be6c18.png
+    width: 686
+    height: 931
+  variants:
+  - file: 2024-12-12-announcing-the-devin-open-source-initiative.image-9029c4b630d9.webp
+    width: 320
+    height: 434
+  - file: 2024-12-12-announcing-the-devin-open-source-initiative.image-eef136a5f778.webp
+    width: 640
+    height: 869
+  - file: 2024-12-12-announcing-the-devin-open-source-initiative.image-61043a771ee3.webp
+    width: 686
+    height: 931
+  color: '#2d2d2d'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/6c2ad4c221d7930b70fa7a0a3fd7637065a1b8cc-668x563.png?w=1600&fit=max
+  original:
+    file: 2024-12-12-announcing-the-devin-open-source-initiative.image-578a93f37c49.png
+    width: 668
+    height: 563
+  color: '#2e2e2e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/371f3bfa2d27e1fcc9bd2cc63e584a4f1f20d7ea-917x443.png?w=1600&fit=max
+  original:
+    file: 2024-12-12-announcing-the-devin-open-source-initiative.image-922992558119.png
+    width: 917
+    height: 443
+  color: '#0d1117'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/6c58d3b68a7185786378645b1b0f33635eadd7e2-753x356.png?w=1600&fit=max
+  original:
+    file: 2024-12-12-announcing-the-devin-open-source-initiative.image-a222f8e7c5df.png
+    width: 753
+    height: 356
+  color: '#2e2e2e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/242829171398c7a626c84d01fb3c4d3c9f324fef-731x487.png?w=1600&fit=max
+  original:
+    file: 2024-12-12-announcing-the-devin-open-source-initiative.image-6dc06e2782f9.png
+    width: 731
+    height: 487
+  color: '#2e2e2e'
 ---
 
 By Mokshit Jain12.12.24

@@ -155,6 +155,473 @@ images:
     width: 1856
     height: 2304
   color: '#fcfcfc'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/update5.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-6dbdc3297205.png
+    width: 1776
+    height: 2368
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-e14cc048bcd8.webp
+    width: 320
+    height: 427
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-e57d96d64675.webp
+    width: 640
+    height: 853
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-3f6cc05fe75c.webp
+    width: 960
+    height: 1280
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-172d1bf8ea57.webp
+    width: 1280
+    height: 1707
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-fa9d66fe50e2.webp
+    width: 1600
+    height: 2133
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-9ca8986c6547.webp
+    width: 1776
+    height: 2368
+  color: '#dcd8d2'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/update6.jpeg
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-c7875e883672.jpg
+    width: 1080
+    height: 1440
+  color: '#aba5a3'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/update3.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-3a2965d0c37b.png
+    width: 1776
+    height: 2368
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-5015b831d550.webp
+    width: 320
+    height: 427
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-23c017c599b0.webp
+    width: 640
+    height: 853
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-ff1450c09176.webp
+    width: 960
+    height: 1280
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-5089a477ccba.webp
+    width: 1280
+    height: 1707
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-8c0a2e58c3f0.webp
+    width: 1600
+    height: 2133
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-5dd67ef6dc82.webp
+    width: 1776
+    height: 2368
+  color: '#b3aaa5'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/people31_seed9999.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-31a31dd6f2c2.jpg
+    width: 1776
+    height: 2368
+  color: '#0a0904'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/1E9F2FB6-93AF-47FB-A60A-DE2A5572DF9F.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-74665733303e.png
+    width: 1760
+    height: 2368
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-0cd59643dd5b.webp
+    width: 320
+    height: 431
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-810022ecdd63.webp
+    width: 640
+    height: 861
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-ea7bf315f99d.webp
+    width: 960
+    height: 1292
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-0a4113c899d3.webp
+    width: 1280
+    height: 1722
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-fdb7c6422977.webp
+    width: 1600
+    height: 2153
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-8a97471b59bb.webp
+    width: 1760
+    height: 2368
+  color: '#dbe2eb'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/download%20(2).png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-d0c9c8ba9052.png
+    width: 2720
+    height: 1536
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-20a356bc08c7.webp
+    width: 320
+    height: 181
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-f77cb7d38d30.webp
+    width: 640
+    height: 361
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-d56756f3d21e.webp
+    width: 960
+    height: 542
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-86d9b8a620f0.webp
+    width: 1280
+    height: 723
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-cef327be1093.webp
+    width: 1600
+    height: 904
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-30329edb3ec4.webp
+    width: 2720
+    height: 1536
+  color: '#c4b7ab'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/download%20(6).png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-9bab0223a986.png
+    width: 2720
+    height: 1536
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-5be5a7b4c101.webp
+    width: 320
+    height: 181
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-798229bbcc4c.webp
+    width: 640
+    height: 361
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-01a28f3cf2af.webp
+    width: 960
+    height: 542
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-546729a37873.webp
+    width: 1280
+    height: 723
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-0b58b88bb3b1.webp
+    width: 1600
+    height: 904
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-0bf43cebfdd3.webp
+    width: 2720
+    height: 1536
+  color: '#bba389'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/download%20(7).png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-4192551471b8.png
+    width: 2048
+    height: 2048
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-44e214129ccf.webp
+    width: 320
+    height: 320
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-eff8ff7c6ca3.webp
+    width: 640
+    height: 640
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-c530d9628b4c.webp
+    width: 960
+    height: 960
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-a2cdc245c7be.webp
+    width: 1280
+    height: 1280
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-0c828f8dae5e.webp
+    width: 1600
+    height: 1600
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-7fc2e3eb1f2f.webp
+    width: 2048
+    height: 2048
+  color: '#060602'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/mmexport1784533078639.jpg
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-5557f57e3613.png
+    width: 2720
+    height: 1536
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-c83c22ff160e.webp
+    width: 320
+    height: 181
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-56c9ea3bb835.webp
+    width: 640
+    height: 361
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-9899812798b7.webp
+    width: 960
+    height: 542
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-b7c123fe3227.webp
+    width: 1280
+    height: 723
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-251877176e3e.webp
+    width: 1600
+    height: 904
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-b2728bda0480.webp
+    width: 2720
+    height: 1536
+  color: '#153757'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/image%20-%202026-07-21T001903.107.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-8da2a1097b84.png
+    width: 1200
+    height: 1800
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-c289ab18e2cb.webp
+    width: 320
+    height: 480
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-038a6b5238c2.webp
+    width: 640
+    height: 960
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-c717204f2dfb.webp
+    width: 960
+    height: 1440
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-bb7d75b8c4b5.webp
+    width: 1200
+    height: 1800
+  color: '#37292a'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/image%20-%202026-07-21T001907.815.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-527aac2a301e.png
+    width: 1200
+    height: 800
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-24e49249e35a.webp
+    width: 320
+    height: 213
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-b1cfa4f32c99.webp
+    width: 640
+    height: 427
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-997d52304a69.webp
+    width: 960
+    height: 640
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-667c5fce09a1.webp
+    width: 1200
+    height: 800
+  color: '#181718'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/image%20-%202026-07-21T001910.003.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-1548c7512e30.png
+    width: 1200
+    height: 800
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-b30041b7235b.webp
+    width: 320
+    height: 213
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-1a152d8e6376.webp
+    width: 640
+    height: 427
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-7a08f763a2b7.webp
+    width: 960
+    height: 640
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-52e258a31eb0.webp
+    width: 1200
+    height: 800
+  color: '#a7a7a7'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/B94FBC16-D57B-40C8-9EE7-61B632925AC2.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-bd43b494ed2c.png
+    width: 1760
+    height: 1168
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-fbd3ee823e04.webp
+    width: 320
+    height: 212
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-9d3b88b44d6f.webp
+    width: 640
+    height: 425
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-0b2c23ecbfbd.webp
+    width: 960
+    height: 637
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-d896adc51ce8.webp
+    width: 1280
+    height: 849
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-8fe14f1e3142.webp
+    width: 1600
+    height: 1062
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-94cf9023b27c.webp
+    width: 1760
+    height: 1168
+  color: '#171617'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/0d876cb1-4ed6-4950-9f5c-e5aae886e4e5.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-469778b2320a.png
+    width: 896
+    height: 2336
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-046d7f40e982.webp
+    width: 320
+    height: 834
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-0551f5a699f9.webp
+    width: 640
+    height: 1669
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-8842e9623980.webp
+    width: 896
+    height: 2336
+  color: '#956a38'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/ab2969ca-90dc-48a8-ae6b-4ef7f01c56a3.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-131f7c7667e0.png
+    width: 896
+    height: 2336
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-8bcaf253508d.webp
+    width: 320
+    height: 834
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-f0052f660336.webp
+    width: 640
+    height: 1669
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-25ac8daabf34.webp
+    width: 896
+    height: 2336
+  color: '#a68355'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/image%20-%202026-07-21T003026.688.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-615aaa9a52d3.png
+    width: 1536
+    height: 2736
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-4e1edf93b2e2.webp
+    width: 320
+    height: 570
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-f95c88f3949f.webp
+    width: 640
+    height: 1140
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-8a3c1e784749.webp
+    width: 960
+    height: 1710
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-4860e75e07ab.webp
+    width: 1280
+    height: 2280
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-47c5077ed95a.webp
+    width: 1536
+    height: 2736
+  color: '#676767'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/iwEdAqNwbmcDAQTRBoAF0QnABrDQDrHWHy7VXwoxvRc_1ZIAB9MAAAABHxSFlwgACaJpbQoAC9IABSUu.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-572e3cc136c2.jpg
+    width: 1664
+    height: 2496
+  color: '#fdf4eb'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/mlp.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-9254f840798f.jpg
+    width: 1664
+    height: 2496
+  color: '#e9e8e6'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/image%20-%202026-07-21T003739.706.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-8adcad54db0f.png
+    width: 2496
+    height: 1488
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-6096cc3d2cca.webp
+    width: 320
+    height: 191
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-e064ec901cdd.webp
+    width: 640
+    height: 382
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-e394f76797ef.webp
+    width: 960
+    height: 572
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-cc86f1874194.webp
+    width: 1280
+    height: 763
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-2b9675e18896.webp
+    width: 1600
+    height: 954
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-98a939b8cfd7.webp
+    width: 2496
+    height: 1488
+  color: '#363939'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/image%20-%202026-07-21T003745.645.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-4451cfec2ab3.png
+    width: 1376
+    height: 2784
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-53d9162b1057.webp
+    width: 320
+    height: 647
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-b25870f8a15e.webp
+    width: 640
+    height: 1295
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-05e15bfffa50.webp
+    width: 960
+    height: 1942
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-7028b670289e.webp
+    width: 1280
+    height: 2590
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-3bff553e3a1f.webp
+    width: 1376
+    height: 2784
+  color: '#fafbfc'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/c8fef88f-9379-4826-9860-af1b4d2f6f00.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-28abe163bf9e.png
+    width: 960
+    height: 1088
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-a55d64107afa.webp
+    width: 320
+    height: 363
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-7fd265d47397.webp
+    width: 640
+    height: 725
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-24926af4be5b.webp
+    width: 960
+    height: 1088
+  color: '#3c5329'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/update4.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-8644a9dce98f.png
+    width: 1920
+    height: 2176
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-e15b7a441782.webp
+    width: 320
+    height: 363
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-bfc17d9b996f.webp
+    width: 640
+    height: 725
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-e786b6930259.webp
+    width: 960
+    height: 1088
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-b865d6d04c01.webp
+    width: 1280
+    height: 1451
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-155a1ed61922.webp
+    width: 1600
+    height: 1813
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-9f4d3805e3af.webp
+    width: 1920
+    height: 2176
+  color: '#14170b'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/download%20(8).png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-20e167339a73.png
+    width: 1776
+    height: 2368
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-8b8a0710a3ec.webp
+    width: 320
+    height: 427
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-8ec876b6a5f1.webp
+    width: 640
+    height: 853
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-02b674568cca.webp
+    width: 960
+    height: 1280
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-d1a808cf3411.webp
+    width: 1280
+    height: 1707
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-a4bc42180a91.webp
+    width: 1600
+    height: 2133
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-b0f136caf58b.webp
+    width: 1776
+    height: 2368
+  color: '#e9f9fb'
+- source: https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/case_06.png
+  original:
+    file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-1165c6e39a07.png
+    width: 1088
+    height: 1920
+  variants:
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-228858e87fab.webp
+    width: 320
+    height: 565
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-e1f97be42fa2.webp
+    width: 640
+    height: 1129
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-c8317ba2c4f1.webp
+    width: 960
+    height: 1694
+  - file: 2026-07-21-qwen-image-3-0-rich-content-authentic-details-deep-knowledge.image-87065ed2e00a.webp
+    width: 1088
+    height: 1920
+  color: '#1c233c'
 ---
 
 ![](https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen-Image/image3/banner.png#center)

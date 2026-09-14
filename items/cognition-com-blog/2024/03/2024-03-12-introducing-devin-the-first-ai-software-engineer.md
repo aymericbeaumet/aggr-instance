@@ -6,6 +6,29 @@ published: 2024-03-12T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2024-03-12-introducing-devin-the-first-ai-software-engineer.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/5dd1cd4fd86149ed2cf4d8ab605f99707040615e-1600x858.png?w=1600&fit=max
+  original:
+    file: 2024-03-12-introducing-devin-the-first-ai-software-engineer.image-ec26ee79a9a6.png
+    width: 1600
+    height: 858
+  variants:
+  - file: 2024-03-12-introducing-devin-the-first-ai-software-engineer.image-f5baf8904459.webp
+    width: 320
+    height: 172
+  - file: 2024-03-12-introducing-devin-the-first-ai-software-engineer.image-3761ebe7bda4.webp
+    width: 640
+    height: 343
+  - file: 2024-03-12-introducing-devin-the-first-ai-software-engineer.image-1e85cbbc58df.webp
+    width: 960
+    height: 515
+  - file: 2024-03-12-introducing-devin-the-first-ai-software-engineer.image-98e664eed794.webp
+    width: 1280
+    height: 686
+  - file: 2024-03-12-introducing-devin-the-first-ai-software-engineer.image-c549a3f06066.webp
+    width: 1600
+    height: 858
+  color: '#181818'
 ---
 
 Devin is a tireless, skilled teammate, equally ready to build alongside you or independently complete tasks for you to review.

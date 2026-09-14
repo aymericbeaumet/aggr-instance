@@ -6,6 +6,29 @@ published: 2025-08-05T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-08-05-enterprise-guide-migrating-from-jenkins-to-github-actions.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/e883df1976f22c498a0d5f93e329db9aff3c3e05-800x384.png?w=1600&fit=max
+  original:
+    file: 2025-08-05-enterprise-guide-migrating-from-jenkins-to-github-actions.image-879dde778b7d.png
+    width: 800
+    height: 384
+  variants:
+  - file: 2025-08-05-enterprise-guide-migrating-from-jenkins-to-github-actions.image-7903ba50c8b2.webp
+    width: 320
+    height: 154
+  - file: 2025-08-05-enterprise-guide-migrating-from-jenkins-to-github-actions.image-f4553ab1b567.webp
+    width: 640
+    height: 307
+  - file: 2025-08-05-enterprise-guide-migrating-from-jenkins-to-github-actions.image-d89d795cf2ac.webp
+    width: 800
+    height: 384
+  color: '#fefefe'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/8d9b18c92cf1a74eeb3b4437ee5b5a49d8646743-1246x560.jpg?w=1600&fit=max
+  original:
+    file: 2025-08-05-enterprise-guide-migrating-from-jenkins-to-github-actions.image-9e03c7c02166.jpg
+    width: 1246
+    height: 560
+  color: '#fcfcfc'
 ---
 
 By The Cognition Team08.05.25

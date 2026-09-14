@@ -6,6 +6,55 @@ published: 2024-07-20T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2024-07-20-using-devin-to-recover-from-the-crowdstrike-outage.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/a5bf059c5709d74da8921ae1c3a64b2cfc3e44d5-701x440.png?w=1600&fit=max
+  original:
+    file: 2024-07-20-using-devin-to-recover-from-the-crowdstrike-outage.image-ac77fc1f89b0.png
+    width: 701
+    height: 440
+  color: '#d6daf0'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/6d836629ed6e06533d409a6b930d640269bc49ae-1564x1476.webp?w=1600&fit=max
+  original:
+    file: 2024-07-20-using-devin-to-recover-from-the-crowdstrike-outage.image-04b8c8966ac1.jpg
+    width: 1564
+    height: 1476
+  color: '#464648'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/fa3b4bbdc78e025ee9fb3ccc77e657a5d476b00d-1364x636.webp?w=1600&fit=max
+  original:
+    file: 2024-07-20-using-devin-to-recover-from-the-crowdstrike-outage.image-73975f568463.jpg
+    width: 1364
+    height: 636
+  color: '#262626'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/5f7a19f1fe7aca364b8d00bf496ebc167cd4eab7-1328x980.webp?w=1600&fit=max
+  original:
+    file: 2024-07-20-using-devin-to-recover-from-the-crowdstrike-outage.image-0fa77e93b6e0.jpg
+    width: 1328
+    height: 980
+  color: '#252525'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/b1adce4525cda19c11a144f93b869a54852d68b7-1458x1276.webp?w=1600&fit=max
+  original:
+    file: 2024-07-20-using-devin-to-recover-from-the-crowdstrike-outage.image-5a2ddc9781e4.jpg
+    width: 1458
+    height: 1276
+  color: '#242424'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/e9aa7655c9a26b1f551ac8a68a5af5e9f29d46a1-842x396.webp?w=1600&fit=max
+  original:
+    file: 2024-07-20-using-devin-to-recover-from-the-crowdstrike-outage.image-0cc02aeb9b50.jpg
+    width: 842
+    height: 396
+  color: '#2e2e2e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/b9da38d99d5c09f179eec4c520696138b081dd56-666x78.webp?w=1600&fit=max
+  original:
+    file: 2024-07-20-using-devin-to-recover-from-the-crowdstrike-outage.image-163b2713cd9f.jpg
+    width: 666
+    height: 78
+  color: '#2f2f2e'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3dcb15685037f927a7d3c0c730d537ad7cc2034f-1578x1016.webp?w=1600&fit=max
+  original:
+    file: 2024-07-20-using-devin-to-recover-from-the-crowdstrike-outage.image-706a8a440028.jpg
+    width: 1578
+    height: 1016
+  color: '#2f2f2f'
 ---
 
 The [CrowdStrike incident](https://www.crowdstrike.com/blog/statement-on-falcon-content-update-for-windows-hosts/) yesterday left Windows machines around the world stuck in the infamous Blue Screen of Death. Recovery efforts are ongoing but painful, and sometimes require manually fixing each machine:

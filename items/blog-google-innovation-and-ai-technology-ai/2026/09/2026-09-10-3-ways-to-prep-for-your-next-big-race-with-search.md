@@ -44,6 +44,12 @@ images:
     width: 640
     height: 360
   color: '#12b9f9'
+- source: https://blog.google/static/blogv2/images/super-g-aurora.svg?version=pr20260902-1737
+  original:
+    file: 2026-09-10-3-ways-to-prep-for-your-next-big-race-with-search.image-c2c59fc81f90.png
+    width: 30
+    height: 30
+  color: '#3184fd'
 ---
 
 Skip to main content

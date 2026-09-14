@@ -6,6 +6,29 @@ published: 2025-09-29T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-09-29-announcing-devin-agent-preview-with-sonnet-4-5.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/d46d0d337d984e92f01cb4f5e7ccec48dc64ac4b-3346x1908.png?w=1600&fit=max
+  original:
+    file: 2025-09-29-announcing-devin-agent-preview-with-sonnet-4-5.image-185768eb30cb.png
+    width: 1600
+    height: 912
+  variants:
+  - file: 2025-09-29-announcing-devin-agent-preview-with-sonnet-4-5.image-c4f1a81a7f02.webp
+    width: 320
+    height: 182
+  - file: 2025-09-29-announcing-devin-agent-preview-with-sonnet-4-5.image-2e6b1606532a.webp
+    width: 640
+    height: 365
+  - file: 2025-09-29-announcing-devin-agent-preview-with-sonnet-4-5.image-c47b2644b24a.webp
+    width: 960
+    height: 547
+  - file: 2025-09-29-announcing-devin-agent-preview-with-sonnet-4-5.image-9b1a31cfe0f7.webp
+    width: 1280
+    height: 730
+  - file: 2025-09-29-announcing-devin-agent-preview-with-sonnet-4-5.image-791e3e804a6d.webp
+    width: 1600
+    height: 912
+  color: '#232323'
 ---
 
 By Theodor Marcu09.29.25

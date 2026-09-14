@@ -160,6 +160,95 @@ images:
     width: 48
     height: 5
   color: '#878787'
+- source: https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhqV8NzxW2mQWm9WhAvBQ0qgn26aX8liGulTOrATGbhZjQ1ezpNorsQk19S_QQPZwI15f5DagIEXXzL40Fzcj_w1S51Bj6jM-DucTqbYhlhxiM-h5fIwLma8do3vrY_N3zZhZKT2VH4qOLDl-PM4H261OvSfw49PmKbd03cQpM6vO0nYIWqdXyvDrwYdAVI/s16000/multiplexer_01.jpg
+  original:
+    file: 2026-09-04-decoding-the-nec-v20-microcode.image-82c762f2b15f.jpg
+    width: 504
+    height: 522
+  color: '#778787'
+- source: https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh-ks0oYvBbwAHr2qJHR1IUCuBzywtxcjM3X9IGFuDXKnrviS0p_ODrdbNJzCRVvIjXCr0OGAdUSyadGKGBCITGb4OCMjYKx62e1cj6zeWnXwEVRMxMgOSYJCp3EKqxdfThlowTfaBpknEa5ZULFPr9199kbdMa7cJ-Ze3uofWIV_OKwynr1cr1ApEar_Mj/s1600/lawsuit_format_00.png
+  original:
+    file: 2026-09-04-decoding-the-nec-v20-microcode.image-c8202bb64e14.png
+    width: 758
+    height: 171
+  variants:
+  - file: 2026-09-04-decoding-the-nec-v20-microcode.image-8c7ea13c9ad3.webp
+    width: 320
+    height: 72
+  - file: 2026-09-04-decoding-the-nec-v20-microcode.image-a4c8eba004ac.webp
+    width: 640
+    height: 144
+  - file: 2026-09-04-decoding-the-nec-v20-microcode.image-67a37d54e9f7.webp
+    width: 758
+    height: 171
+  color: '#fdfdfd'
+- source: https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhRnZt_9Rnq2Pxl1M8uMdicpFKiie4GKwoq_pPnfrvAeCVUr6_tsnMGZ-2-ol_PH83TaOprhOVTFttxvunxC1MV9UlRuEwVpqrkJX4w7VrMaGeGwA227tde93p0vre0vlVhL47g8463Mfwb1UpEkOmwWecr8WjT7rSUKr1IhPNdL_BL5HvgK5iFw2z81eFd/s1600/discord_musing_00.png
+  original:
+    file: 2026-09-04-decoding-the-nec-v20-microcode.image-8fa0f7da9597.png
+    width: 661
+    height: 390
+  variants:
+  - file: 2026-09-04-decoding-the-nec-v20-microcode.image-d7087cd47b31.webp
+    width: 320
+    height: 189
+  - file: 2026-09-04-decoding-the-nec-v20-microcode.image-314fb9084e13.webp
+    width: 661
+    height: 390
+  color: '#323338'
+- source: https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjuL9pfYdnlDuI9s9RgyhwwVw4X4zb8k1NmuNMXS6wjf8dYxuU9ZOeXcrzJNzmfeRroKRWOyM23sM7YBr0BmJhGKoeTSebo5cUjwM9-6QDym8kYrNj1BprGAelqGb2IAY5V8Kzdo-UB_mwz4FT5WlNlZIIgBihWRGmdAokR7c7BrvgqP5bv1b69RBo_IGKK/s1600/microcode_colorized_04.png
+  original:
+    file: 2026-09-04-decoding-the-nec-v20-microcode.image-048dbfd25671.png
+    width: 1573
+    height: 930
+  color: '#808080'
+- source: https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjT3omw9zj9azSsHrSi-RJoJTair7wnYl1iWL_gpT9EsoY7ER95OLhejPMdT6WqF-a7ZK9x45RRwxTOGWNQ6vAGwofEZNE86RUEAfqUVxvCif-qSQmiXUtMnyJoG1DNonbx7pR6g9-LhzEfwl6gBwekFG8XEDzOmv1VuDkb7etxYQH1440oc_C-fSgHMq4p/s1600/spreadsheet_00.png
+  original:
+    file: 2026-09-04-decoding-the-nec-v20-microcode.image-df684eb23374.png
+    width: 1561
+    height: 686
+  color: '#f7f7f7'
+- source: https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhWlKPnW9S8YGLlKwVraxRrK3POoXOX61416kN45bCY5iIHaoCw1yy2pQ-0D9_u-TTbiiJeNU7rpO2zfYt8J-pp4dsRmj-LYCD-1c78GQN-92WXqvk0w1Havg7lVbR6ioWGpn3FrpS2d8NaVnKjeuiQxiLfBjmXr5ii1cf55WSUfLsx_6XV8vQgOtKuBQty/s1600/group_decode_pla_01.jpg
+  original:
+    file: 2026-09-04-decoding-the-nec-v20-microcode.image-f8db89a81387.jpg
+    width: 1600
+    height: 1053
+  color: '#849797'
+- source: https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEigIj6e-b0-lB9xYX7HElT-og_38kydLrDLBauCXdIxE8JgDO90RIrPEA8S47XpQLY-Psa8qgKkJg_rA0AMm0-vrWeobDCFNGI2Czvk1Al1O8-eZqMtOtNS1PmyLx1XrUOUdSAO0cCvfEYMVCSz_F7oaOZtz3cMsEsgXaOZwvECrYfh_GN6aHllcVlvckUJ/s1600/v20_word_format.png
+  original:
+    file: 2026-09-04-decoding-the-nec-v20-microcode.image-b6cc6bcf4038.png
+    width: 758
+    height: 928
+  variants:
+  - file: 2026-09-04-decoding-the-nec-v20-microcode.image-da2ab0a78119.webp
+    width: 320
+    height: 392
+  - file: 2026-09-04-decoding-the-nec-v20-microcode.image-8d79be9a252e.webp
+    width: 758
+    height: 928
+  color: '#fcfcfc'
+- source: https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjzhnV_WQ-sYf6ltKSL9QmyFRcPyTOkwSQcF-adxp4gK-Rz1_3_j1nlINkwpDIfS10ExbizXbuCpJo49dZ9Hlh8pwI4YHtPZ_jLLqlTmvf-i9EEu88gORbqdFG8Jzn3Bdmcu5hna87m8SsDbCwzQ3jFZBDiDo3xaI_wVNsp_uBYtLrvjNe8km-onsiYyu5m/s1600/v20_vs_v30_switch_metal.png
+  original:
+    file: 2026-09-04-decoding-the-nec-v20-microcode.image-1a87f0d870e5.png
+    width: 572
+    height: 455
+  variants:
+  - file: 2026-09-04-decoding-the-nec-v20-microcode.image-e7472053d935.webp
+    width: 320
+    height: 255
+  - file: 2026-09-04-decoding-the-nec-v20-microcode.image-e6a5ef983b68.webp
+    width: 572
+    height: 455
+  color: '#889495'
+- source: https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhu8J1gPcdvtGLyISjfEbgcaG76ZDfup-w94KMXGhQiWobsUTaycaqXP_1oP2mx6CvU7huAosDkH6F4ZqIkq1WLGNm1xVagV-oo3i3ZNZmhGyxmhzUjGqu7R5Icm977jUFo7lHF2-X4U-Raz6G6qkCUzfcea8sWqKTSJBwhtMh2TvIAQEoyjVvIauBVS35p/s1600/v20_vs_v30_switch_metal_zoom.png
+  original:
+    file: 2026-09-04-decoding-the-nec-v20-microcode.image-5c436207391d.png
+    width: 271
+    height: 496
+  variants:
+  - file: 2026-09-04-decoding-the-nec-v20-microcode.image-3e3b9140bea9.webp
+    width: 271
+    height: 496
+  color: '#768688'
 ---
 
 reenigne's [decoding of the 8088 microcode in 2020](https://www.reenigne.org/blog/8086-microcode-disassembled/) opened the doors for extremely accurate emulation of the 8088 CPU.

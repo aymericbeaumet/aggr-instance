@@ -7,6 +7,198 @@ first_seen: 2026-09-04T12:14:41.802665207Z
 summary: Our most advanced models for coding and knowledge work. Their research capabilities also offer an early glimpse of how AI models will contribute to scientific progress.
 content: extracted
 html: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.html
+images:
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F9f37b737d862a71f1fbcd15e5d9d5f98d3ca1ca2-1200x675.png&w=256&q=75
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-de6f893152e7.webp
+    width: 256
+    height: 144
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/628e9fd1129632a8fc5682deec87b1888c2e8e89-155x16.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-582316a03e11.png
+    width: 155
+    height: 16
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-1297464bd813.webp
+    width: 155
+    height: 16
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/da5b4cfb98abd20aa33357f44216a41279e57e0d-155x62.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-ee451f0c6895.png
+    width: 155
+    height: 62
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-cf775895dc42.webp
+    width: 155
+    height: 62
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/b847b0a49194adb0df9674c8b5e5fe176e845bda-109x27.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-52bca19569b4.png
+    width: 110
+    height: 27
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-5a0481053661.webp
+    width: 110
+    height: 27
+  color: '#14b2c4'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/632ae4b5eb52539491a30a3c1cb2694febdb53ab-187x75.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-d68c7a055cd2.png
+    width: 187
+    height: 75
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-89643997f1bd.webp
+    width: 187
+    height: 75
+  color: '#00328b'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/ad6656fb6427494ec5696471e61947bb72035ee9-273x191.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-2dcde85585b5.png
+    width: 273
+    height: 191
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-f56936c042f4.webp
+    width: 273
+    height: 191
+  color: '#00a1e0'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/8e369e94bf09c7916c1e8045d7abc474e07b8a85-163x43.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-125fffc71c87.png
+    width: 164
+    height: 43
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-8e54bad50377.webp
+    width: 164
+    height: 43
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/58a9a5ba70a6c5d7a8604419d51236e1073fdc79-182x34.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-a6fc2f2b0ca1.png
+    width: 182
+    height: 34
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-9cf4ddea32af.webp
+    width: 182
+    height: 34
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/7b6dc90891455bc4c8624591184e5e826fc56541-156x53.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-ffece5269957.png
+    width: 156
+    height: 53
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-b4a6718806c4.webp
+    width: 156
+    height: 53
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/468fc2c0bb3ca80ff2b112002d4d665c1e2bff65-360x180.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-9355d8f1c2ac.png
+    width: 360
+    height: 180
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-781be6e09eaf.webp
+    width: 360
+    height: 180
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/721103059e160dd255816a622fc8d3e3cffe0047-150x48.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-5de22aa09f5a.png
+    width: 150
+    height: 48
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-bbbe9d67ab24.webp
+    width: 150
+    height: 48
+  color: '#2ab3e6'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/d514853a44cf69f069306c98b558f214112c4ef3-91x64.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-c72f3e68980b.png
+    width: 91
+    height: 64
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-c26acd782e5b.webp
+    width: 91
+    height: 64
+  color: '#533afc'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/beb4f74e935e111be9a63875ae7743aaea2cb0a2-88x64.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-b6aceb72bd8e.png
+    width: 88
+    height: 64
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-770a94c029dc.webp
+    width: 88
+    height: 64
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/3c70dfc4944696f4d3ecb9357d8b760190f7e322-2394x1000.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-9c9339354302.png
+    width: 1600
+    height: 669
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-184f530d6953.webp
+    width: 320
+    height: 134
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-67da5169a1ab.webp
+    width: 640
+    height: 268
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-800c82a5b3ba.webp
+    width: 960
+    height: 401
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-490b25694f48.webp
+    width: 1600
+    height: 669
+  color: '#4aca3d'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/e93eb9aa6aeb9e95f584bf8a401c4bdd1206d225-112x24.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-4ab6c20a1f5c.png
+    width: 112
+    height: 24
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-fa7d5f8449aa.webp
+    width: 112
+    height: 24
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/752b5acf21c1b5502f0ba42f7b92b05401cc425d-462x68.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-854d6e3962e2.png
+    width: 462
+    height: 68
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-95dfc5b8c965.webp
+    width: 320
+    height: 47
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-b9b9e3eee325.webp
+    width: 462
+    height: 68
+  color: '#000000'
+- source: https://www-cdn.anthropic.com/images/4zrzovbb/website/6dfc3bd55cc5f9d5ebdd8d5437505ae4b8560412-120x64.svg
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-85cad2e634b8.png
+    width: 120
+    height: 64
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-c19cf2dab846.webp
+    width: 120
+    height: 64
+  color: '#0c0b0b'
+- source: https://www.anthropic.com/_next/image?url=https%3A%2F%2Fwww-cdn.anthropic.com%2Fimages%2F4zrzovbb%2Fwebsite%2F021fdfc765d03eaac26f5d2aa9cb06111b7a9297-3840x4644.png&w=3840&q=75
+  original:
+    file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-555374ba3e72.webp
+    width: 3840
+    height: 4644
+  variants:
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-9bc2a5a33d7f.webp
+    width: 320
+    height: 387
+  - file: 2026-09-01-developing-enterprise-frontier-safeguards-with-our-customers.image-8e63936de3b2.webp
+    width: 640
+    height: 774
+  color: '#eeede4'
 ---
 
 Today we’re announcing Enterprise Frontier Safeguards (EFS), a solution that combines the privacy of zero data retention (ZDR) with state-of-the-art safeguards for detecting misuse. EFS works by storing data in cloud infrastructure controlled by the customer, not Anthropic. EFS will be rolling out to customers in phases, starting later this fall. To make the transition smooth, eligible customers will receive ZDR on Fable 5 and Fable 5.1 until EFS is ready.

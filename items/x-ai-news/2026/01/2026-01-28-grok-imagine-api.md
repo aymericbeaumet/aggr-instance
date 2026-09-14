@@ -132,6 +132,12 @@ images:
     width: 48
     height: 27
   color: '#988866'
+- source: https://x.ai/_next/image?url=https%3A%2F%2Fdata.x.ai%2Freleases%2Fimagine%2Fcastle%2Fcastle-1.jpg&w=3840&q=75
+  original:
+    file: 2026-01-28-grok-imagine-api.image-6304640e5201.jpg
+    width: 1280
+    height: 720
+  color: '#d6d6d6'
 ---
 
 ### A world-class video generation model.

@@ -6,6 +6,51 @@ published: 2026-05-27T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-05-27-more-devins-in-more-places.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/071a1155b7d6715945903b5aeaf160377ab5a263-1600x846.png?w=1600&fit=max
+  original:
+    file: 2026-05-27-more-devins-in-more-places.image-cbabe17ea094.png
+    width: 1600
+    height: 846
+  variants:
+  - file: 2026-05-27-more-devins-in-more-places.image-73889a029d76.webp
+    width: 320
+    height: 169
+  - file: 2026-05-27-more-devins-in-more-places.image-371b2c1e756e.webp
+    width: 640
+    height: 338
+  - file: 2026-05-27-more-devins-in-more-places.image-cacd7fffd584.webp
+    width: 960
+    height: 508
+  - file: 2026-05-27-more-devins-in-more-places.image-d498be98c3ac.webp
+    width: 1280
+    height: 677
+  - file: 2026-05-27-more-devins-in-more-places.image-0e5f96fd0976.webp
+    width: 1600
+    height: 846
+  color: '#f6f5f4'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/93702be104e37df8d93eae8c652efd245a8be71e-1600x846.png?w=1600&fit=max
+  original:
+    file: 2026-05-27-more-devins-in-more-places.image-d5842a9ac5c5.png
+    width: 1600
+    height: 846
+  variants:
+  - file: 2026-05-27-more-devins-in-more-places.image-c37a32786719.webp
+    width: 320
+    height: 169
+  - file: 2026-05-27-more-devins-in-more-places.image-c4da194146b5.webp
+    width: 640
+    height: 338
+  - file: 2026-05-27-more-devins-in-more-places.image-691912b49fa2.webp
+    width: 960
+    height: 508
+  - file: 2026-05-27-more-devins-in-more-places.image-ac08c7dc1ade.webp
+    width: 1280
+    height: 677
+  - file: 2026-05-27-more-devins-in-more-places.image-99dc6c4bd016.webp
+    width: 1600
+    height: 846
+  color: '#f6f5f4'
 ---
 
 By The Cognition Team05.27.26

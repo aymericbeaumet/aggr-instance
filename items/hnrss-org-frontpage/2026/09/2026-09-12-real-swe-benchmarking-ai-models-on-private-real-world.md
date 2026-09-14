@@ -10,6 +10,69 @@ authors:
 summary: 'Article URL: https://withspecific.com/benchmarks/real-swe Comments URL: https://news.ycombinator.com/item?id=49676820 Points: 100 # Comments: 59'
 content: extracted
 html: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.html
+images:
+- source: https://withspecific.com/logos/anthropic.svg?dpl=dpl_ABGtodWDkmm7BqTikqe2cpVTakLw
+  original:
+    file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-51260600cbae.png
+    width: 24
+    height: 24
+  variants:
+  - file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-cecaabd3e2bb.webp
+    width: 24
+    height: 24
+  color: '#d97757'
+- source: https://withspecific.com/logos/openai.png?dpl=dpl_ABGtodWDkmm7BqTikqe2cpVTakLw
+  original:
+    file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-bbc27a7b6c13.png
+    width: 128
+    height: 128
+  color: '#fefefe'
+- source: https://withspecific.com/logos/google.png?dpl=dpl_ABGtodWDkmm7BqTikqe2cpVTakLw
+  original:
+    file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-18ecd5cf1757.png
+    width: 128
+    height: 128
+  color: '#3487fd'
+- source: https://withspecific.com/logos/zai.svg?dpl=dpl_ABGtodWDkmm7BqTikqe2cpVTakLw
+  original:
+    file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-9fe297564b79.png
+    width: 30
+    height: 30
+  variants:
+  - file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-d874ac92eee5.webp
+    width: 30
+    height: 30
+  color: '#2d2d2d'
+- source: https://withspecific.com/logos/xai.svg?dpl=dpl_ABGtodWDkmm7BqTikqe2cpVTakLw
+  original:
+    file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-2860509233dd.png
+    width: 12
+    height: 12
+  variants:
+  - file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-c0ae79fb4b82.webp
+    width: 12
+    height: 12
+  color: '#000000'
+- source: https://withspecific.com/logos/meta.svg?dpl=dpl_ABGtodWDkmm7BqTikqe2cpVTakLw
+  original:
+    file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-3b686abb62d5.png
+    width: 24
+    height: 24
+  variants:
+  - file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-9a5187317c65.webp
+    width: 24
+    height: 24
+  color: '#0866ff'
+- source: https://withspecific.com/logos/kimi.svg?dpl=dpl_ABGtodWDkmm7BqTikqe2cpVTakLw
+  original:
+    file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-9141e3f1ea0f.png
+    width: 24
+    height: 25
+  variants:
+  - file: 2026-09-12-real-swe-benchmarking-ai-models-on-private-real-world.image-2b3d9ec92541.webp
+    width: 24
+    height: 25
+  color: '#000000'
 ---
 
 September 2026

@@ -6,6 +6,107 @@ published: 2025-09-04T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/bc67c8fa956ff3bedc6e226482ce1465ba65d4dd-2639x1508.png?w=1600&fit=max
+  original:
+    file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-07cb1de1fe85.png
+    width: 1600
+    height: 914
+  variants:
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-96cc08183fbe.webp
+    width: 320
+    height: 183
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-9f4ab8698c25.webp
+    width: 640
+    height: 366
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-fe3e83fea9b9.webp
+    width: 960
+    height: 548
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-66e903529ed4.webp
+    width: 1280
+    height: 731
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-4cb20704f24d.webp
+    width: 1600
+    height: 914
+  color: '#f3f4fb'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/2721ebbe00d925a01ef5cf1f8aed31073e0aface-1388x148.png?w=1600&fit=max
+  original:
+    file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-43de425f4c8a.png
+    width: 1388
+    height: 148
+  variants:
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-0b7d4004b7fd.webp
+    width: 320
+    height: 34
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-d56f566f6959.webp
+    width: 640
+    height: 68
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-c2248f8b5a1a.webp
+    width: 960
+    height: 102
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-295f78dbdf6d.webp
+    width: 1388
+    height: 148
+  color: '#23262a'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/0214ae377a0de358093bf00dc1ef3af27c8fd1cc-1096x508.png?w=1600&fit=max
+  original:
+    file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-9527e8cd5e91.png
+    width: 1096
+    height: 508
+  variants:
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-dcae2308cff9.webp
+    width: 320
+    height: 148
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-9e63a8313ec3.webp
+    width: 640
+    height: 297
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-4c91c184a9fe.webp
+    width: 1096
+    height: 508
+  color: '#1a1d21'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/923c0142f66f73d7584a4de0c8e6dc0c8e0e1304-2638x1509.png?w=1600&fit=max
+  original:
+    file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-5a1c34f71d77.png
+    width: 1600
+    height: 915
+  color: '#fafafa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/c43385800f7ed97323c253930135087a8a3935cb-1252x1568.png?w=1600&fit=max
+  original:
+    file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-902f45ca9511.png
+    width: 1252
+    height: 1568
+  color: '#1a1d21'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/6f3759f8faca93ab05cee05f6560c3352b37db5c-1270x1108.png?w=1600&fit=max
+  original:
+    file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-c259b35415e9.png
+    width: 1270
+    height: 1108
+  color: '#1a1d21'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/b24b1a71a5901357532ee720dbc70137cf5fe9fb-1166x898.png?w=1600&fit=max
+  original:
+    file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-bac288da427a.png
+    width: 1166
+    height: 898
+  variants:
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-6bf826aee415.webp
+    width: 320
+    height: 246
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-d2e29419f853.webp
+    width: 640
+    height: 493
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-d284311911e8.webp
+    width: 960
+    height: 739
+  - file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-5aaa618bb1a3.webp
+    width: 1166
+    height: 898
+  color: '#040404'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/767e88192c7cdfbe2f2c1cba3c29926603505c2f-1536x1024.png?w=1600&fit=max
+  original:
+    file: 2025-09-04-how-eight-sleep-uses-devin-as-a-data-analyst.image-e2f23a8e6f32.png
+    width: 1536
+    height: 1024
+  color: '#fafbfb'
 ---
 
 Building the future of sleep requires us to make data-driven product, operations, and finance decisions. But as a small team, we faced a challenge every scaling company knows well: the flood of *random data asks*.

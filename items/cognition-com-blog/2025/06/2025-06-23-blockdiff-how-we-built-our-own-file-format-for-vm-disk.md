@@ -6,6 +6,117 @@ published: 2025-06-23T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f7e4a26fb05a4f1f8cd16950c0f9a26a97e9224c-3160x730.png?w=1600&fit=max
+  original:
+    file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-1673ec430d56.png
+    width: 1600
+    height: 370
+  variants:
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-338407577a3f.webp
+    width: 320
+    height: 74
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-93fb444b59b3.webp
+    width: 640
+    height: 148
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-3e79f7e06234.webp
+    width: 960
+    height: 222
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-f21a87754af2.webp
+    width: 1280
+    height: 296
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-f75608ad031a.webp
+    width: 1600
+    height: 370
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/4b55ddc121a302ee02a402c82d6663f6172e041f-2058x1210.png?w=1600&fit=max
+  original:
+    file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-b71164caf6ef.png
+    width: 1600
+    height: 941
+  variants:
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-5b603c8f8a20.webp
+    width: 320
+    height: 188
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-11ad73156ba2.webp
+    width: 640
+    height: 376
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-7c04dc2ae04c.webp
+    width: 960
+    height: 565
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-cb005fb20dbb.webp
+    width: 1280
+    height: 753
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-60d0d7cce8da.webp
+    width: 1600
+    height: 941
+  color: '#f8f9fa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/f89d93dfebf47b2b2b2b9199e578d52249422a00-2842x1318.png?w=1600&fit=max
+  original:
+    file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-6b1cf0c27e55.png
+    width: 1600
+    height: 742
+  variants:
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-39937dcc5272.webp
+    width: 320
+    height: 148
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-ef0c55357d28.webp
+    width: 640
+    height: 297
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-ab3cf8529ead.webp
+    width: 960
+    height: 445
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-9d528f0cea8a.webp
+    width: 1280
+    height: 594
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-b422e3b56b26.webp
+    width: 1600
+    height: 742
+  color: '#fdfdfd'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/1e8678309bdefb581bc0a6696a8dfd99f3f2bccb-1696x912.png?w=1600&fit=max
+  original:
+    file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-26114182b602.png
+    width: 1600
+    height: 860
+  variants:
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-64f34cebd5d4.webp
+    width: 320
+    height: 172
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-4156166956aa.webp
+    width: 640
+    height: 344
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-ad05d4297f89.webp
+    width: 960
+    height: 516
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-1615c082ea83.webp
+    width: 1280
+    height: 688
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-4aa7ffee6c50.webp
+    width: 1600
+    height: 860
+  color: '#f8f9fa'
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/4fd99d0465b98efe5d2dc6228d0f11c193f40e4a-1938x500.png?w=1600&fit=max
+  original:
+    file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-46fd6ea780a9.png
+    width: 1600
+    height: 413
+  variants:
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-23a6d7d970bd.webp
+    width: 320
+    height: 83
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-7c6718819eaf.webp
+    width: 640
+    height: 165
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-6d16cf6fa422.webp
+    width: 960
+    height: 248
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-8f9254aba6be.webp
+    width: 1280
+    height: 330
+  - file: 2025-06-23-blockdiff-how-we-built-our-own-file-format-for-vm-disk.image-a79c7c786cd9.webp
+    width: 1600
+    height: 413
+  color: '#fcfcfc'
 ---
 
 *We made it open-source here:* [https://github.com/CognitionAI/blockdiff](https://github.com/CognitionAI/blockdiff)

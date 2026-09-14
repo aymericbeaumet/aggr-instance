@@ -39,6 +39,104 @@ images:
     width: 1200
     height: 600
   color: '#fdfdfd'
+- source: https://github.com/argonautlabsai/deltafin/raw/main/k3-public-bench/results/charts/drive-ladder.svg
+  original:
+    file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-de4ce64a655f.png
+    width: 973
+    height: 463
+  variants:
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-9c5f3a1e1c95.webp
+    width: 320
+    height: 152
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-233f2f3799ed.webp
+    width: 640
+    height: 305
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-26e02715e6d2.webp
+    width: 960
+    height: 457
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-32436ad3e6bb.webp
+    width: 973
+    height: 463
+  color: '#fafaf9'
+- source: https://github.com/argonautlabsai/deltafin/raw/main/k3-public-bench/results/charts/drive-draw.svg
+  original:
+    file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-722e8b3e36fb.png
+    width: 962
+    height: 439
+  variants:
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-8f9391f6f816.webp
+    width: 320
+    height: 146
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-e8b303838de3.webp
+    width: 640
+    height: 292
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-9822c6355451.webp
+    width: 960
+    height: 438
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-163a2f3b7502.webp
+    width: 962
+    height: 439
+  color: '#fafaf9'
+- source: https://camo.githubusercontent.com/b78abff773c2f118212cb4f37162fe4bb86957446fb49a29a7f7b4e45e42ae62/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f6d6f64656c2d4b696d695f4b335f2543322542375f322e38545f4d6f452d626c756576696f6c6574
+  original:
+    file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-166cfe2266fd.png
+    width: 160
+    height: 20
+  variants:
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-3c6f1767eb5b.webp
+    width: 160
+    height: 20
+  color: '#8b37d9'
+- source: https://camo.githubusercontent.com/197fb5d81e42386aeaac806fb05b572cbec82dec9ce4cb72d0ffc51265418af5/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f706c6174666f726d732d6d61634f535f61726d36345f2543322542375f4c696e75785f7838362d2d3634253246616172636836342d696e666f726d6174696f6e616c
+  original:
+    file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-e0bccde9f82b.png
+    width: 286
+    height: 20
+  variants:
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-85a9ac7d9175.webp
+    width: 286
+    height: 20
+  color: '#1181c2'
+- source: https://camo.githubusercontent.com/5b18301eb463fe23d66f12cf031e0cdf8c1c9068731805875175246221ba6cc0/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f616363656c657261746f72732d4d50532532464d6574616c5f2543322542375f435544415f2543322542375f4350552d396366
+  original:
+    file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-fd43382a1ccb.png
+    width: 222
+    height: 20
+  variants:
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-2ec6696ea86c.webp
+    width: 222
+    height: 20
+  color: '#5a5a5a'
+- source: https://camo.githubusercontent.com/6f8d6f1e9a12b6af4409fa1f959d8d72a869cc7bdb6de6eb8b965d736643a3b5/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f726f7574696e672d616c6c5f31365f657870657274732d7465616c
+  original:
+    file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-a16f05d137e2.png
+    width: 134
+    height: 20
+  variants:
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-a162f27fa7e0.webp
+    width: 134
+    height: 20
+  color: '#057575'
+- source: https://camo.githubusercontent.com/dcc3742377abbb37b5fe712de2af9ea0411a20b73ef8bb297e50b5ae7219e4f5/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f72756e74696d652d6f6e655f636f6d70696c65645f62696e6172792d627269676874677265656e
+  original:
+    file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-514541e11d13.png
+    width: 174
+    height: 20
+  variants:
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-465c6a440df2.webp
+    width: 174
+    height: 20
+  color: '#5a5a5a'
+- source: https://camo.githubusercontent.com/b8cadaa967891081f8f165695470689986c028821dd8a040132f6e661795dc0d/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f6c6963656e73652d4d49542d626c7565
+  original:
+    file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-5841c91882ce.png
+    width: 78
+    height: 20
+  variants:
+  - file: 2026-09-08-kimi-k3-2-8t-at-1-token-s-on-a-macbook-pro-streamed-from.image-7f4a9c9056ec.webp
+    width: 78
+    height: 20
+  color: '#595959'
 ---
 
 **TL;DR** — Kimi K3 (2.8T-parameter MoE, 1.45 TB of expert weights) running on one M5 Max MacBook Pro with 128 GB, experts streamed from four SSDs.

@@ -6,6 +6,23 @@ published: 2026-05-18T00:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-05-18-introducing-auto-triage.html
+images:
+- source: https://cdn.sanity.io/images/2mc9cv2v/production/3a84ce188766faa5ce1ef3eb0d98d9c6ea7a581e-1200x630.png?w=1600&fit=max
+  original:
+    file: 2026-05-18-introducing-auto-triage.image-fb3f63627f3a.png
+    width: 1200
+    height: 630
+  variants:
+  - file: 2026-05-18-introducing-auto-triage.image-082d35a4663d.webp
+    width: 320
+    height: 168
+  - file: 2026-05-18-introducing-auto-triage.image-6fc274532003.webp
+    width: 640
+    height: 336
+  - file: 2026-05-18-introducing-auto-triage.image-a2b946dd0ee3.webp
+    width: 1200
+    height: 630
+  color: '#141414'
 ---
 
 ![Introducing Auto-Triage](https://cdn.sanity.io/images/2mc9cv2v/production/3a84ce188766faa5ce1ef3eb0d98d9c6ea7a581e-1200x630.png?w=1600&fit=max)

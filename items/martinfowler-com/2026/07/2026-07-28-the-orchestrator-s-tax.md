@@ -9,6 +9,50 @@ authors:
 - Martin Fowler
 content: extracted
 html: 2026-07-28-the-orchestrator-s-tax.html
+images:
+- source: https://martinfowler.com/articles/orchestrator-tax/orchestrator_subagent_cost_distribution.png
+  original:
+    file: 2026-07-28-the-orchestrator-s-tax.image-086ff1d1fcf0.png
+    width: 1200
+    height: 660
+  color: '#f1ede6'
+- source: https://martinfowler.com/articles/orchestrator-tax/context_pollution_compounds_over_turns.png
+  original:
+    file: 2026-07-28-the-orchestrator-s-tax.image-dea2b117a5d7.png
+    width: 2720
+    height: 1360
+  variants:
+  - file: 2026-07-28-the-orchestrator-s-tax.image-401131963981.webp
+    width: 320
+    height: 160
+  - file: 2026-07-28-the-orchestrator-s-tax.image-fb03906e632a.webp
+    width: 640
+    height: 320
+  - file: 2026-07-28-the-orchestrator-s-tax.image-a8904979f62b.webp
+    width: 960
+    height: 480
+  - file: 2026-07-28-the-orchestrator-s-tax.image-a97c8bdd02ba.webp
+    width: 1280
+    height: 640
+  - file: 2026-07-28-the-orchestrator-s-tax.image-1d78f75b3e79.webp
+    width: 1600
+    height: 800
+  - file: 2026-07-28-the-orchestrator-s-tax.image-b7d0f596d3fe.webp
+    width: 2720
+    height: 1360
+  color: '#d3d1c7'
+- source: https://martinfowler.com/articles/orchestrator-tax/governance_balance_no_tilt.png
+  original:
+    file: 2026-07-28-the-orchestrator-s-tax.image-a4df8803a51a.png
+    width: 1200
+    height: 560
+  color: '#f1ede6'
+- source: https://martinfowler.com/articles/orchestrator-tax/learning_flywheel_open_ended.png
+  original:
+    file: 2026-07-28-the-orchestrator-s-tax.image-f337d7d423e4.png
+    width: 1200
+    height: 560
+  color: '#f1ede6'
 ---
 
 I was deep into a Claude Code session on a .NET codebase when a doubt interrupted the work. Four subagents were already running against a response-pipeline refactor, results were arriving out of order, and the session had started to feel harder to reason about than the code itself.

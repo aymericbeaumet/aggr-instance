@@ -22,6 +22,12 @@ images:
     width: 69
     height: 357
   color: '#676797'
+- source: https://s.turbifycdn.com/aah/paulgraham/making-startups-powerful-1.gif
+  original:
+    file: 2026-09-13-making-startups-powerful.image-d47f7575c0bb.gif
+    width: 220
+    height: 18
+  color: '#c9a9a9'
 ---
 
 ![Making Startups Powerful](https://s.turbifycdn.com/aah/paulgraham/making-startups-powerful-1.gif)September 2026

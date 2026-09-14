@@ -160,6 +160,31 @@ images:
     width: 1954
     height: 962
   color: '#fcfcfd'
+- source: https://eiln.github.io/posts/2026-08-10-ane-cnn/artifacts/m1-die.png
+  original:
+    file: 2026-09-12-retrospectively-reverse-engineering-apple-s-neural-engine.image-46dd51a70455.png
+    width: 2604
+    height: 2492
+  variants:
+  - file: 2026-09-12-retrospectively-reverse-engineering-apple-s-neural-engine.image-55a2eb95e18b.webp
+    width: 320
+    height: 306
+  - file: 2026-09-12-retrospectively-reverse-engineering-apple-s-neural-engine.image-39528dcb5560.webp
+    width: 640
+    height: 612
+  - file: 2026-09-12-retrospectively-reverse-engineering-apple-s-neural-engine.image-bee9730294d9.webp
+    width: 960
+    height: 919
+  - file: 2026-09-12-retrospectively-reverse-engineering-apple-s-neural-engine.image-8ab4c6eea521.webp
+    width: 1280
+    height: 1225
+  - file: 2026-09-12-retrospectively-reverse-engineering-apple-s-neural-engine.image-88c68f4485d0.webp
+    width: 1600
+    height: 1531
+  - file: 2026-09-12-retrospectively-reverse-engineering-apple-s-neural-engine.image-a9a15c24065f.webp
+    width: 2604
+    height: 2492
+  color: '#373638'
 ---
 
 Aug 10, 2026

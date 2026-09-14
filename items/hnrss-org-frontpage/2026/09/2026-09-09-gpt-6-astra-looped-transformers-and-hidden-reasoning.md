@@ -26,6 +26,344 @@ images:
     width: 48
     height: 27
   color: '#fdfdfd'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fd02ced21-56da-4b5b-a520-33f0a20567cf_8058x5120.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-a0c6e80891fd.png
+    width: 8058
+    height: 5120
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-1438e20e84e8.webp
+    width: 320
+    height: 203
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-e35b8f7ea718.webp
+    width: 640
+    height: 407
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-dc85f553c765.webp
+    width: 960
+    height: 610
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-d1e57f18e113.webp
+    width: 1280
+    height: 813
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-c962757c02b9.webp
+    width: 1600
+    height: 1017
+  color: '#fdfdfd'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F105c079e-822e-4de9-bd16-2afe56286541_4879x2744.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-6c32b7b48584.png
+    width: 4879
+    height: 2744
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-389b0c660e79.webp
+    width: 320
+    height: 180
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-0ce1b7a1242d.webp
+    width: 640
+    height: 360
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-036a39b29a7e.webp
+    width: 960
+    height: 540
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-c45ce1823281.webp
+    width: 1280
+    height: 720
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-727093c2c425.webp
+    width: 1600
+    height: 900
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-86337b730e3b.webp
+    width: 4879
+    height: 2744
+  color: '#fcfcfc'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fd41d18af-38d4-4925-97c3-175a1b9443cd_2682x2664.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-89b4800b8109.png
+    width: 2682
+    height: 2664
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-72ad9ef6ec8d.webp
+    width: 320
+    height: 318
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-6961989a65bc.webp
+    width: 640
+    height: 636
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-57d4866eaa60.webp
+    width: 960
+    height: 954
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-14a06a01ddbc.webp
+    width: 1280
+    height: 1271
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-644257fbcb24.webp
+    width: 1600
+    height: 1589
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-afb315a52daf.webp
+    width: 2682
+    height: 2664
+  color: '#fdfdfd'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F6c447af3-6466-473a-8ba3-0759b798e187_1867x3427.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-cb1dbe48cba5.png
+    width: 1867
+    height: 3427
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-304f08927cfb.webp
+    width: 320
+    height: 587
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-b580dc91ca66.webp
+    width: 640
+    height: 1175
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-e475a176950c.webp
+    width: 960
+    height: 1762
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-1ab76f8c659b.webp
+    width: 1280
+    height: 2350
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-524e92ca1341.webp
+    width: 1600
+    height: 2937
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-0bd93e129bcc.webp
+    width: 1867
+    height: 3427
+  color: '#fdfdfc'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F1c43d5a9-a977-49ef-a3f8-6e643c381f13_4708x2488.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-c74bd60083b1.png
+    width: 4708
+    height: 2488
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-a265d59e402e.webp
+    width: 320
+    height: 169
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-8b26d33436b7.webp
+    width: 640
+    height: 338
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-22a3525e2862.webp
+    width: 960
+    height: 507
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-65a6b8e520ca.webp
+    width: 1280
+    height: 676
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-d41a9f88b221.webp
+    width: 1600
+    height: 846
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-7a7a89e97333.webp
+    width: 4708
+    height: 2488
+  color: '#fdfdfd'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F2a0d4a0f-621b-4f6e-a7cd-7778c7346efb_4694x2256.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-d0dd0ef5b092.png
+    width: 4694
+    height: 2256
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-0eddcaf3fdbc.webp
+    width: 320
+    height: 154
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-404180d1e77e.webp
+    width: 640
+    height: 308
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-ff13c16b3124.webp
+    width: 960
+    height: 461
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-71c164bf85f6.webp
+    width: 1280
+    height: 615
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-b5ad89d14218.webp
+    width: 1600
+    height: 769
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-95c954151610.webp
+    width: 4694
+    height: 2256
+  color: '#fcfcfc'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fb9850015-07f9-4f73-9034-5d7a3224d767_6922x4628.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-fd89228470da.png
+    width: 6922
+    height: 4628
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-072ee9e334a5.webp
+    width: 320
+    height: 214
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-87ecd994c77f.webp
+    width: 640
+    height: 428
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-21de352e4c6d.webp
+    width: 960
+    height: 642
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-0484f6687774.webp
+    width: 1280
+    height: 856
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-d25f66295ec1.webp
+    width: 1600
+    height: 1070
+  color: '#fcfdfd'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F971afd67-da8b-4d14-8aac-36279754b7c5_6312x2851.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-367f9e5836cd.png
+    width: 6312
+    height: 2851
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-65fb1c1dd726.webp
+    width: 320
+    height: 145
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-7b89d5d9e14c.webp
+    width: 640
+    height: 289
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-0353cdf4df75.webp
+    width: 960
+    height: 434
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-e96bbf3df2fd.webp
+    width: 1280
+    height: 578
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-15775215fe2f.webp
+    width: 1600
+    height: 723
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-9016ef0f22a5.webp
+    width: 6312
+    height: 2851
+  color: '#fdfdfd'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fb12eda20-8fb1-4c5c-a9fa-6212d0abb759_4088x3398.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-4a4c25282339.png
+    width: 4088
+    height: 3398
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-791179bc93d3.webp
+    width: 320
+    height: 266
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-47122574cae2.webp
+    width: 640
+    height: 532
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-87203a0d2fa4.webp
+    width: 960
+    height: 798
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-7406f2b3d3f9.webp
+    width: 1280
+    height: 1064
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-cffa71954120.webp
+    width: 1600
+    height: 1330
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-5a56da040733.webp
+    width: 4088
+    height: 3398
+  color: '#fdfdfd'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F7a37b812-26b3-4d55-846a-2c86c28e518a_5055x2663.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-6a2cf58575e7.png
+    width: 5055
+    height: 2663
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-17912cbc669f.webp
+    width: 320
+    height: 169
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-6acbc3ccc851.webp
+    width: 640
+    height: 337
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-40262f85692e.webp
+    width: 960
+    height: 506
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-e9907bc59878.webp
+    width: 1280
+    height: 674
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-8265d60ed841.webp
+    width: 1600
+    height: 843
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-3845d6077377.webp
+    width: 5055
+    height: 2663
+  color: '#fcfdfd'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F5e45da87-e3ca-47cd-b84f-c1a10c102e34_2942x1521.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-5c179053ae70.png
+    width: 2942
+    height: 1521
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-2c9a6a5d4bf6.webp
+    width: 320
+    height: 165
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-c537463d77dd.webp
+    width: 640
+    height: 331
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-e38618bb867b.webp
+    width: 960
+    height: 496
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-6efd99129745.webp
+    width: 1280
+    height: 662
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-3ba91fdf770a.webp
+    width: 1600
+    height: 827
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-b216ccc56228.webp
+    width: 2942
+    height: 1521
+  color: '#fcfcfc'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F825fc53f-1111-40a6-b264-17bc092c6ea0_7393x3148.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-d1f1b708b6ac.png
+    width: 7393
+    height: 3148
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-f55652029e1f.webp
+    width: 320
+    height: 136
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-901bf5a5ad02.webp
+    width: 640
+    height: 273
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-e6638b819c0a.webp
+    width: 960
+    height: 409
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-fab0ad814fac.webp
+    width: 1280
+    height: 545
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-9393743737ac.webp
+    width: 1600
+    height: 681
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-5f8c9bf6bbb4.webp
+    width: 7393
+    height: 3148
+  color: '#fdfdfd'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F92b8a84b-b032-45b7-bdfe-8bc0ea30dc39_8185x5312.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-37ee24dda522.png
+    width: 8185
+    height: 5312
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-84f28a9055dc.webp
+    width: 320
+    height: 208
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-35c069aaba19.webp
+    width: 640
+    height: 415
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-f0100bc530f6.webp
+    width: 960
+    height: 623
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-8d8301f0735b.webp
+    width: 1280
+    height: 831
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-1ef88aed2092.webp
+    width: 1600
+    height: 1038
+  color: '#fdfcfc'
+- source: https://magazine.sebastianraschka.com/p/fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F4d348be9-2792-4405-9325-adab29ce5323_7946x4070.png
+  original:
+    file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-550f7307af36.png
+    width: 7946
+    height: 4070
+  variants:
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-79ee98383b87.webp
+    width: 320
+    height: 164
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-fdad1dbad9db.webp
+    width: 640
+    height: 328
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-5a46ee603ef1.webp
+    width: 960
+    height: 492
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-a9cc5dab8ee4.webp
+    width: 1280
+    height: 656
+  - file: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.image-0b5f7144495f.webp
+    width: 1600
+    height: 820
+  color: '#fdfdfd'
 ---
 
 A lot has happened in the last few weeks. I am sure that OpenAI’s GPT-6 Astra is top of mind for everyone right now. In particular, thoughts on its performance, the looped transformer/recurrent depth aspects, and rumors that Astra is “hiding” its reasoning trace (i.e., chain of thought).

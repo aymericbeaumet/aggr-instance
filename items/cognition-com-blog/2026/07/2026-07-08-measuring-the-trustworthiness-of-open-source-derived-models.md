@@ -6,6 +6,171 @@ published: 2026-07-08T17:01:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.html
+images:
+- source: https://cognition.com/images/open-source-models/figure1-alignment.svg
+  original:
+    file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-31beb4fe00f8.png
+    width: 1344
+    height: 239
+  variants:
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-ed53afe9a84e.webp
+    width: 320
+    height: 57
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-daa634884f28.webp
+    width: 640
+    height: 114
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-7b4d0e942fc0.webp
+    width: 960
+    height: 171
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-6e2703d82758.webp
+    width: 1280
+    height: 228
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-7bbba7dc972f.webp
+    width: 1344
+    height: 239
+  color: '#060606'
+- source: https://cognition.com/images/open-source-models/kimi-k2.6-example-response.svg
+  original:
+    file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-fb41e577369d.png
+    width: 1440
+    height: 730
+  variants:
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-853b8062586e.webp
+    width: 320
+    height: 162
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-5f8144f1897f.webp
+    width: 640
+    height: 324
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-7b8138d5a32e.webp
+    width: 960
+    height: 487
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-f71177b1655f.webp
+    width: 1280
+    height: 649
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-2b0407b0351c.webp
+    width: 1440
+    height: 730
+  color: '#040404'
+- source: https://cognition.com/images/open-source-models/swe-1.7-example-response.svg
+  original:
+    file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-a2cb0ae6faf6.png
+    width: 1440
+    height: 788
+  variants:
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-73c824591a3c.webp
+    width: 320
+    height: 175
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-16951f10790b.webp
+    width: 640
+    height: 350
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-aa101147fa63.webp
+    width: 960
+    height: 525
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-de3fc3711ec2.webp
+    width: 1280
+    height: 700
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-76f17206d40c.webp
+    width: 1440
+    height: 788
+  color: '#040404'
+- source: https://cognition.com/images/open-source-models/propaganda-results.svg
+  original:
+    file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-efaa81bd6559.png
+    width: 1431
+    height: 815
+  variants:
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-4c464df9382f.webp
+    width: 320
+    height: 182
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-877496a67f44.webp
+    width: 640
+    height: 365
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-dd112c17f088.webp
+    width: 960
+    height: 547
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-792c4ae4192e.webp
+    width: 1431
+    height: 815
+  color: '#020202'
+- source: https://cognition.com/images/open-source-models/compare_card_font.svg
+  original:
+    file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-7f0741a1be84.png
+    width: 1600
+    height: 818
+  variants:
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-b87671baaa47.webp
+    width: 320
+    height: 164
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-351329796f03.webp
+    width: 640
+    height: 327
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-9188a69099e4.webp
+    width: 960
+    height: 491
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-330c1d969519.webp
+    width: 1280
+    height: 654
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-b7bf04ca1471.webp
+    width: 1600
+    height: 818
+  color: '#000000'
+- source: https://cognition.com/images/open-source-models/misaligned_behavior.svg
+  original:
+    file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-e7c1b10e61d6.png
+    width: 1056
+    height: 508
+  variants:
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-afc8192e853d.webp
+    width: 320
+    height: 154
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-95bc33b6f97f.webp
+    width: 640
+    height: 308
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-904687c775d8.webp
+    width: 960
+    height: 462
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-c9be640a3059.webp
+    width: 1056
+    height: 508
+  color: '#fcad60'
+- source: https://cognition.com/images/open-source-models/swe17_persona_styled.svg
+  original:
+    file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-47f90a4942e6.png
+    width: 1239
+    height: 572
+  variants:
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-01db42c047e7.webp
+    width: 320
+    height: 148
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-679fcf38b51c.webp
+    width: 640
+    height: 295
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-96cee6e58095.webp
+    width: 960
+    height: 443
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-6b6b319d1467.webp
+    width: 1239
+    height: 572
+  color: '#030404'
+- source: https://cognition.com/images/open-source-models/combined_base_models_persona.svg
+  original:
+    file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-9db350348342.png
+    width: 1335
+    height: 572
+  variants:
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-bcaba2f78b19.webp
+    width: 320
+    height: 137
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-f571485095ea.webp
+    width: 640
+    height: 274
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-198acd9678fb.webp
+    width: 960
+    height: 411
+  - file: 2026-07-08-measuring-the-trustworthiness-of-open-source-derived-models.image-64bc4b9caec0.webp
+    width: 1335
+    height: 572
+  color: '#040404'
 ---
 
 By The Cognition Team07.08.26

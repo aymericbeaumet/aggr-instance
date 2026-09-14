@@ -6,6 +6,99 @@ published: 2026-06-08T18:00:00Z
 first_seen: 2026-09-04T12:14:41.802665207Z
 content: extracted
 html: 2026-06-08-introducing-frontiercode.html
+images:
+- source: https://cognition.com/images/frontier-code/false-positive-negative-rates.svg
+  original:
+    file: 2026-06-08-introducing-frontiercode.image-d60bbfa04361.png
+    width: 920
+    height: 429
+  variants:
+  - file: 2026-06-08-introducing-frontiercode.image-efd075057ac4.webp
+    width: 320
+    height: 149
+  - file: 2026-06-08-introducing-frontiercode.image-4ded24a0be14.webp
+    width: 640
+    height: 298
+  - file: 2026-06-08-introducing-frontiercode.image-dc10a8cf3f09.webp
+    width: 920
+    height: 429
+  color: '#9ba9c5'
+- source: https://cognition.com/images/frontier-code/language-composition.svg
+  original:
+    file: 2026-06-08-introducing-frontiercode.image-d83192062c9d.png
+    width: 1600
+    height: 314
+  variants:
+  - file: 2026-06-08-introducing-frontiercode.image-551a21cae92d.webp
+    width: 320
+    height: 63
+  - file: 2026-06-08-introducing-frontiercode.image-9d65e73d2fa5.webp
+    width: 640
+    height: 126
+  - file: 2026-06-08-introducing-frontiercode.image-5a8ccd17227c.webp
+    width: 960
+    height: 188
+  - file: 2026-06-08-introducing-frontiercode.image-235b3d2ac121.webp
+    width: 1600
+    height: 314
+  color: '#15a9be'
+- source: https://cognition.com/images/frontier-code/prompt-length.svg
+  original:
+    file: 2026-06-08-introducing-frontiercode.image-9f08fc03db88.png
+    width: 1600
+    height: 447
+  variants:
+  - file: 2026-06-08-introducing-frontiercode.image-3e48a5546a4a.webp
+    width: 320
+    height: 89
+  - file: 2026-06-08-introducing-frontiercode.image-9dea3b2b22da.webp
+    width: 640
+    height: 179
+  - file: 2026-06-08-introducing-frontiercode.image-f41239f7ad9b.webp
+    width: 960
+    height: 268
+  - file: 2026-06-08-introducing-frontiercode.image-0032d554c336.webp
+    width: 1280
+    height: 358
+  - file: 2026-06-08-introducing-frontiercode.image-4a32d422ad31.webp
+    width: 1600
+    height: 447
+  color: '#666769'
+- source: https://cognition.com/images/frontier-code/patch-size.svg
+  original:
+    file: 2026-06-08-introducing-frontiercode.image-bc5ecdb3e363.png
+    width: 1600
+    height: 744
+  variants:
+  - file: 2026-06-08-introducing-frontiercode.image-38bf17c6db3a.webp
+    width: 320
+    height: 149
+  - file: 2026-06-08-introducing-frontiercode.image-6fb8e8aa569b.webp
+    width: 640
+    height: 298
+  - file: 2026-06-08-introducing-frontiercode.image-431ee136d2dd.webp
+    width: 960
+    height: 446
+  - file: 2026-06-08-introducing-frontiercode.image-229bcfd558da.webp
+    width: 1280
+    height: 595
+  - file: 2026-06-08-introducing-frontiercode.image-31060ceedc77.webp
+    width: 1600
+    height: 744
+  color: '#8794ab'
+- source: https://cognition.com/images/frontier-code/rubric-hardening-pipeline.svg
+  original:
+    file: 2026-06-08-introducing-frontiercode.image-2eeab1f16142.png
+    width: 640
+    height: 270
+  variants:
+  - file: 2026-06-08-introducing-frontiercode.image-423911b264ee.webp
+    width: 320
+    height: 135
+  - file: 2026-06-08-introducing-frontiercode.image-ef20b360f8ff.webp
+    width: 640
+    height: 270
+  color: '#eae9fb'
 ---
 
 By Eric Lu, Ben Pan, Deniz Birlikci, Sam Lee, Ray Wang, Rohan Choudhury, Fermi Ma, TC Qin, Carlo Baronio, Silas Alberti, [and more →](https://cognition.com/blog/frontier-code#acknowledgments)06.08.26
