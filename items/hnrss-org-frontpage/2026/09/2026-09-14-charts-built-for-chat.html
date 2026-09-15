@@ -1,0 +1,144 @@
+<div id="readability-page-1" class="page"><div><article><div><p><a href="https://dbtcharts.com/blog/">Blog</a> ·
+<time datetime="2026-09-14">September 14, 2026</time> · <a href="https://thingsilearned.com/about/">Dave Fowler</a></p><p>We’re open sourcing <a href="https://github.com/dbt-labs/dbt-charts">dbt&nbsp;Charts</a>, a declarative language for dashboards, so that even the dashboards you build by chatting with an agent can be governed.</p></div><div><p>AI for data is here, and the long-promised self-serve analytics is finally
+happening. Anyone with a data connection can chat a report into existence in
+an afternoon, and the first results are impressive.</p><p>The frictions show up fast, though. By default an agent turns one simple report
+into a pile of files: HTML, CSS, and JavaScript, a couple of chart libraries,
+and a React or Streamlit app once it has to be live. Tracing a result back to
+its source means following it through several languages and files, which is
+slow for people to audit and costs the agent time and tokens on every change.</p><p>BI tools went the other way and bolted copilots onto their UI-first apps. That
+keeps the AI on governed rails, but narrow ones: the agent can do only what the
+UI exposes.</p><p>So today you choose between the messy freedom of code and the narrow control
+of a BI tool.
+We built a third option: <a href="#charts-leave-the-bi-tool">skip ahead</a>, or read on
+for how BI got here.</p><h2 id="unbundling-bi">Unbundling BI</h2><p>As dbt Labs founder Tristan Handy wrote recently in
+<a href="https://roundup.getdbt.com/p/bis-second-unbundling">BI’s Second Unbundling</a>:</p><blockquote><p>When I started in data, BI tools were full-stack. Everything happened inside
+one product: data ingestion, transformation, compute, caching, semantics,
+visualization, identity. The BI tool <em>was</em> the data stack. MicroStrategy,
+Cognos, etc: they’re not just visualization tools, they’re integrated data
+platforms.</p><p>Then the modern data stack happened. From ~2015 to 2022, the infrastructure
+layers of that BI bundle got pulled out and turned into purpose-built
+infrastructure. Compute went to the Big 5. Ingestion went to Fivetran.
+Transformation went to dbt. The BI tool was left with: visualization,
+interactive analytical interfaces, semantic definitions (sometimes!),
+identity and access management, and web hosting.</p></blockquote><figure aria-label="The first unbundling of BI: warehousing, then Extract, Load, and Transform, are uncovered as BI shrinks to everything else"><div><ol><li>
+<span>Warehousing</span>
+<span>Big 5</span></li><li><span>E</span>
+<span>L</span>
+<span>T</span>
+<span>Extract</span>
+<span>Load</span>
+<span>Transform</span>
+<span>
+</span><span></span></li></ol><p><span>BI</span>
+<span>everything<span>&nbsp;else</span></span></p></div></figure><p>What that unbundling left behind is the BI tool we know today, and charts
+are its biggest piece. They stayed in the UI for good reason: for most people, clicking is quicker than writing YAML. But more and more charts won’t be made by
+people. As the front end and user of everything becomes increasingly a chat agent, this
+preference flips. Agents are fluent in code, SQL, and Git, and clumsy in someone
+else’s UI. So charts need to move to where agents work: into code.</p><h2 id="charts-leave-the-bi-tool">Charts leave the BI tool</h2><p>Today we’re taking the next step in unbundling BI: we’re open sourcing
+<a href="https://github.com/dbt-labs/dbt-charts">dbt&nbsp;Charts</a>, which takes charts out of
+the BI tool and puts them in code, specifically a new structured YAML language
+that can declare a full interactive dashboard in one auditable YAML file. Chat
+freely with an agent, and what it makes has the freedom of code while staying
+easy to read.</p><figure aria-label="The stack today: warehousing, Extract, Load, Transform, and Chart out of the BI tool, which is squeezed to everything else"><div><ol><li>
+<span>Warehousing</span>
+<span>Big 5</span></li><li><span>E</span>
+<span>L</span>
+<span>T</span>
+<span>Extract</span>
+<span>Load</span>
+<span>Transform</span>
+<span>
+</span><span></span></li><li><span>New</span>
+<span>C</span>
+<span>Chart</span>
+<span><span></span></span></li></ol><p><span>BI</span>
+<span>a few bits</span></p></div></figure><p>In dbt&nbsp;Charts, SQL remains the language for declaring WHAT data you want to see,
+and we wrap that in YAML to declare HOW you want to see it.</p><p>We’ve spent a long time distilling the language to a few core, extensible
+elements: deep in what they can express, easy to organize and read. The YAML
+wraps more than SQL. Markdown carries the prose, and Jinja, as in dbt, carries
+variables and macros.</p><p>Here’s a small example: one variable (a UI filter), one query and one chart.</p><figure><pre><code><span></span><span>variables</span><span>:</span>
+<span>  </span><span>status</span><span>:</span>
+<span>    </span><span>column</span><span>:</span><span> main.documents.status</span>
+
+<span></span><span>queries</span><span>:</span>
+<span>  </span><span>doc_growth</span><span>:</span><span> |</span>
+<span>    </span><span>SELECT</span><span> </span><span>DATE_TRUNC</span><span>(</span><span>'</span><span>month</span><span>'</span><span>,</span><span> </span><span>created_at</span><span>)</span><span> </span><span>AS</span><span> </span><span>month</span><span>,</span>
+<span>           </span><span>SUM</span><span>(</span><span>COUNT</span><span>(</span><span>*</span><span>)</span><span>)</span><span> </span><span>OVER</span><span> </span><span>(</span><span>ORDER</span><span> </span><span>BY</span><span> </span><span>month</span><span>)</span>
+<span>             </span><span>AS</span><span> </span><span>num_docs</span>
+<span>    </span><span>FROM</span><span> </span><span>main</span><span>.</span><span>documents</span>
+<span>    </span><span>WHERE</span><span> </span><span>{</span><span>{</span><span> </span><span>filter</span><span>(</span><span>'</span><span>status</span><span>'</span><span>,</span><span> </span><span>status</span><span>)</span><span> </span><span>}</span><span>}</span>
+<span>    </span><span>GROUP</span><span> </span><span>BY</span><span> </span><span>1</span>
+
+<span></span><span>charts</span><span>:</span>
+<span>  </span><span>growth</span><span>:</span>
+<span>    </span><span>title</span><span>:</span><span> Documents created, all time</span>
+<span>    </span><span>type</span><span>:</span><span> area</span>
+<span>    </span><span>query</span><span>:</span><span> doc_growth</span>
+<span>    </span><span>x</span><span>:</span><span> month</span>
+<span>    </span><span>y</span><span>:</span><span> num_docs</span>
+
+<span></span><span>rows</span><span>:</span>
+<span>  </span><span>-</span><span> </span><span>growth</span></code></pre><p><img src="https://dbtcharts.com/assets/img/blog/documents-growth.svg?v=2224c19ac0425973e892786cec3b3347121fb12a5637c8d2788efaf09f78eb03" width="672" height="564" alt="Documents created, all time: an area chart that climbs from 184 to 58,440, rendered from the board above" loading="lazy"></p></figure><p>That file is the whole board. The CLI renders any board file to static SVG,
+or to HTML, PNG, PDF, and even the terminal, on your laptop or in CI, and
+serves a folder of them as a site:</p><pre><code><span><span>dct render charts/documents.yml --format svg   <span># or html, png, pdf, terminal</span>
+</span></span><span><span>dct serve</span></span></code></pre><p>Those few elements go deep: over 1,100 config options today, across
+<a href="https://docs.dbtcharts.com/charts/extensibility/">sixteen chart types</a> and the
+<a href="https://docs.dbtcharts.com/charts/extensibility/#composed-charts">composed charts</a>
+built from them. And like any good language, it can express complex layouts
+and visuals.</p><p>You rarely set those options by hand. Styles cascade: a chart inherits from its
+board, the board from its theme, and a theme is one line to switch. A board can
+also <code>extends:</code> another board, so a house style or a standard report is written
+once and inherited everywhere. Boards stay short, and theming stays cheap.</p><p><a href="https://dbtcharts.com/assets/img/home/growth-review.svg"><img src="https://dbtcharts.com/assets/img/home/growth-review.svg" alt="A complete commercial performance board with KPIs, bars, a donut, a line chart, and a table"></a></p><p><em>A complete dbt&nbsp;Charts board, rendered from one easy-to-read YAML file.</em></p><h2 id="deep-integration-with-dbt">Deep integration with dbt</h2><p>You don’t have to use dbt&nbsp;Charts with a dbt project, but when you do, a lot
+unlocks. The chart layer sits directly on the transform layer, and the deeper
+the integration, the easier it is to change both.</p><p>With dbt&nbsp;Charts, your <code>charts/</code> directory lives next to your <code>models/</code> in the
+same Git repo, so a change to a model and its charts ships on one branch,
+through one CI run, and breaks before it reaches production.</p><pre><code><span><span>your_dbt_project/
+</span></span><span><span>  .git/
+</span></span><span><span>  dbt_project.yml
+</span></span><span><span>  models/
+</span></span><span><span>  charts/          # new folder in a dbt repo for your dashboards
+</span></span><span><span>    revenue.yml</span></span></code></pre><p>Queries reach models through <code>ref()</code>, resolved from your manifest, so a renamed
+model or a missing column fails the pull request that broke it,
+before <code>dbt run</code> rebuilds the warehouse:</p><pre><code><span><span>dbt parse <span>&amp;&amp;</span> dct validate charts/</span></span></code></pre><p>Support for the dbt Semantic Layer is planned, so a board can use a metric as
+the project defines it instead of restating its SQL. Follow
+<a href="https://github.com/dbt-labs/dbt-charts/issues/1">dbt-labs/dbt-charts#1</a>.</p><h2 id="built-for-chat">Built for chat</h2><p>Agents can be quite blind, and they do best with a tight feedback loop.
+dbt&nbsp;Charts gives them one: strict validation of both the YAML and the SQL, and
+an extensive set of visualization checks that flag problems before anyone sees
+the board:</p><pre><code><span>$</span><span> dct render charts/revenue.yml</span>
+<span>WARN-BAR-BAND-WIDTH-TOO-NARROW</span>
+<span>182</span><span> bands x </span><span>2</span><span> series across </span><span>640px</span>
+<span>Fix:</span><span> roll up to a coarser grain.</span>
+
+<span>WARN-TABLE-COLUMNS-OVERFLOW</span>
+<span>Table needs </span><span>980px</span><span> but only </span><span>640px</span><span> is available.</span>
+<span>Fix:</span><span> drop columns or widen the slot.</span></code></pre><h2 id="a-beautiful-cohesive-reporting-system">A beautiful, cohesive reporting system</h2><p>We hope dbt&nbsp;Charts, like dbt before it, becomes the open standard language for
+its layer of the data stack. We designed it for a future where humans and AI
+build together, and we wanted it to look like that future, not like another
+dashboard grid. We recruited <a href="https://infowetrust.com/about">RJ Andrews</a>, a
+data graphic designer, author, and historian, to design the charts. His grasp of the craft’s history is what makes the result feel new: it reaches past the dashboard era to
+what charts looked like when people drew them with care.</p><p>Many tools cheat with cards and boxes that fake alignment at the cost of visual
+noise and lost space. We worked out the spacing, sizing, and layout of every
+chart, on its own and next to its neighbors.</p><figure aria-label="A pile of dbt Charts boards"><img src="https://dbtcharts.com/assets/img/language/wall-showcase-general-dundersign-commercial-finance.svg" width="1440" height="1219" alt="A dbt Charts board: showcase/general/dundersign-commercial-finance" loading="lazy"><img src="https://dbtcharts.com/assets/img/language/wall-showcase-general-one-dataset-nine-ways.svg" width="1200" height="1288" alt="A dbt Charts board: showcase/general/one-dataset-nine-ways" loading="lazy"><img src="https://dbtcharts.com/assets/img/language/wall-showcase-boards-dundersign-support-operations.svg" width="1440" height="1152" alt="A dbt Charts board: showcase/boards/dundersign-support-operations" loading="lazy"><img src="https://dbtcharts.com/assets/img/language/wall-showcase-boards-quarterly-business-review.svg" width="1440" height="3065" alt="A dbt Charts board: showcase/boards/quarterly-business-review" loading="lazy"><img src="https://dbtcharts.com/assets/img/language/wall-showcase-charts-composed-chart-shapes.svg" width="1872" height="1202" alt="A dbt Charts board: showcase/charts/composed-chart-shapes" loading="lazy"></figure><p>The result is a cohesive system of charts that feels a level above current BI.</p><p>Alongside the open-source language, today we’re launching
+<a href="https://dbtcharts.com">dbtCharts.com</a> in public beta: a hosted platform for the
+rest of BI. With charts pulled out, what remains is chiefly hosting, access
+control, and a UI. By their nature these perhaps can’t be unbundled, or at least
+shouldn’t be, so the platform handles them on top of the open-source language.</p><figure></figure><p>The platform connects to your warehouse and adds conversational analytics, a visual
+editor for the finishing touches, version history, and sharing with permissions
+for users and groups, so the people reading a board don’t need a warehouse
+login.</p><p>And of course, these charts were built for chat. The platform has first-class
+conversational analytics: like Claude or ChatGPT, but with permissioned
+read-only access to your warehouse and an expert analyst’s skills and tools
+built in.
+Explore by chatting with charts, and at any point click in to fine-tune and
+save the board.</p><p>Because it’s built on the open language, every change, from chat, the visual
+editor, or code, lands in the same YAML in your Git repo. Nothing is locked in: the same board runs on your laptop, in CI, and on
+the platform, and teams can self-serve, agent in hand, without creating a
+second, hidden data stack.</p><h2 id="try-the-beta">Try the beta</h2><p>The dbt&nbsp;Charts language is open source under the Apache 2.0 license, and you can
+author, render, and serve boards locally without creating an account. Install it
+yourself, or hand your coding agent one line:</p><div><p><span>Terminal</span>
+<code>uv tool install dbt-charts</code>
+</p><p><span>Claude / AI</span>
+<code>Make charts of this with dbt Charts. Start with: uv tool install dbt-charts &amp;&amp; dct skills intro</code>
+</p></div><ul><li>Code: <a href="https://github.com/dbt-labs/dbt-charts">github.com/dbt-labs/dbt-charts</a></li><li>Docs: <a href="https://docs.dbtcharts.com">docs.dbtCharts.com</a></li><li>Hosted BI: <a href="https://dbtcharts.com">dbtCharts.com</a></li><li>Community: <a href="https://getdbt.slack.com/archives/C0C1SFL0QN5">#dbt-charts</a> on the <a href="https://www.getdbt.com/community/join-the-community">dbt Community Slack</a></li></ul><p>dbt&nbsp;Charts is pre-1.0 and still changing. When the grammar changes, boards
+migrate as they parse, so the boards you write today keep rendering. Try it, tell us what is missing<sup>[<a href="https://github.com/dbt-labs/dbt-charts/issues/1">1</a>]</sup><sup>[<a href="https://github.com/dbt-labs/dbt-charts/issues/2">2</a>]</sup>, join the discussion in <a href="https://getdbt.slack.com/archives/C0C1SFL0QN5">#dbt-charts</a> on Slack, and help us build the chart layer
+that open data infrastructure has been waiting for.</p></div></article></div></div>
