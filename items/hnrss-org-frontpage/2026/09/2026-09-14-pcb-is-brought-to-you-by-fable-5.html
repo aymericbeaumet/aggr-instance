@@ -1,0 +1,108 @@
+<div id="readability-page-1" class="page"><div><figure><img src="https://a6mzero.com/static/images/board-cropped.jpeg" alt="" loading="lazy"><figcaption>The board I will be journaling about.</figcaption></figure>
+
+<p>I have been wanting to design a simple PCB for the last couple of years now. The thought of converting a design idea into a physical board and programming it to do things is fascinating to me. Long story short, I procrastinated until I tried to vibe-generate a dead simple PCB with Claude Opus 4.8 and it was terrible ! It had no idea about the orientation of the components, it did not do any proper routing. I was disappointed and accepted the fact that these tools were not there yet.</p>
+
+<p>Then arrived the Fable 5. At first I was not that hopeful. One Thursday evening, around 10 hours before my weekly reset for Claude, I decided to give it another try; this time with Fable 5.</p>
+
+<p>I had two rules:</p>
+
+<ol><li>No manual edits or verification of the board.</li><li>Every problem I face before manufacturing will be solved by Fable.</li></ol>
+
+<p>This meant I was going to trust Fable with my wallet. I decided to describe the board I want it to generate, and I was not going to be involved in the design phase. I was the end customer.</p>
+
+<p>This is the prompt I gave it:</p>
+
+
+
+<p>That was it, a short description of a RPI 2350 based development board which can drive an E-ink display. After working autonomously for a couple of hours it came up with the design shown in the video below.</p>
+
+
+<figure>
+<video src="https://a6mzero.com/static/video/pcb-turntable.mp4" poster="https://a6mzero.com/static/images/pcb-turntable-poster.jpg" controls="" loop="" muted="" playsinline="" preload="metadata"></video>
+<figcaption>The board as it freshly came out of Kicad ⃰.</figcaption>
+</figure>
+
+<dl>
+<p><dt>Board</dt><dd>31.8 × 37.32 mm, 4 layer</dd></p>
+<p><dt>MCU</dt><dd>RP2350A</dd></p>
+<p><dt>Display</dt><dd>1.54" E-ink, 200×200</dd></p>
+<p><dt>Flash</dt><dd>8 MB QSPI</dd></p>
+<p><dt>Cost</dt><dd>26€ per board</dd></p>
+</dl>
+
+<h2>A closer look to some errors</h2>
+
+<p>The design process was not error free of course. When I showed the initial design (Claude was still working on it) of the PCB to my colleague, the first thing he wanted me to check (after recovering from the pain of seeing them tracks) was the DRC (Design Rule Checking) errors. I did not know what it was, and when we looked at it, there were indeed 65 DRC errors. Following the rule, I only mentioned the errors to Fable and did nothing else.</p>
+
+
+
+<p>Fable was amazing at component selection, except for the two components I highlighted above. The big one on the top left is the SPI flash which stores the firmware and other data that you want to save. The SPI flash memory Claude chose was W25Q128JVS. It comes with the SOIC-8 wide package, but the pads designed for the memory was for a SOP-8 package, meaning the chip is too big for the pads. The bottom left component on the other hand is the transistor that switches the boost converter for the E-ink driver circuitry. As you can see it also chose the wrong package, as it is too small for the pads. I did not realise these until I uploaded the required files to JLCPCB. There I could see the issues, and I discussed it with Claude. For the W25Q128JVS it insisted that there was a SOP-8 package but I could not find it in LCSC's library. Eventually we settled at the P25Q64SH chip.</p>
+
+<h2>But wait a minute, how did it even route ?</h2>
+
+<p>The design had 65 footprints, 54 nets and 118 unconnected lines. It is not a complex PCB by any means :P. Fable decided to use the Freerouting open-source project. The tool worked for 2 minutes, and after seventeen passes it plateaued at sixty nine connections, leaving 49 disconnected, and it could not finish the job. The remaining connections were hand-routed by Claude.</p>
+
+
+<figure>
+<video src="https://a6mzero.com/static/video/pcb-autoroute.mp4" poster="https://a6mzero.com/static/images/pcb-autoroute-poster.jpg" controls="" loop="" muted="" playsinline="" preload="metadata"></video>
+<figcaption>Freerouting doing its job</figcaption>
+</figure>
+
+<p>After I ordered the board my colleague mentioned to me the KiCadRoutingTools open-source project. It ran for 1.25 seconds and it could route all the connections with no problem. I will try this tool out for my upcoming hardware projects.</p>
+
+<div><figure><img src="https://a6mzero.com/static/images/pcb-router-compare.png" alt="Freerouting versus KiCadRoutingTools" loading="lazy"><figcaption>Same placement, two routers</figcaption></figure></div>
+
+<h2>Ordering with JLCPCB</h2>
+
+<p>I had never ordered anything from a PCB manufacturer before. It seemed complex and I was reluctant to take the first step. Upon Claude's compilation of the project, I asked it to prepare the required files for JLCPCB, and tell me what to select on their GUI. Man am I satisfied with JLCPCB. It was so straight forward, easy to interact with and there was no bloat. I uploaded the files, some components Claude selected were not available, we did a back and forth and voila we were done. For five fully assembled boards I paid 130 Euros, ordered the E-ink displays from a local shop and now it was the waiting game.</p>
+
+<h2>Some cool animations while we are waiting for the PCBs</h2>
+
+
+<figure>
+<video src="https://a6mzero.com/static/video/pcb-4layer-xray.mp4" poster="https://a6mzero.com/static/images/pcb-4layer-xray-poster.jpg" controls="" loop="" muted="" playsinline="" preload="metadata"></video>
+<figcaption>The four layers, pulled apart.</figcaption>
+</figure>
+
+
+<figure>
+<video src="https://a6mzero.com/static/video/pcb-fold-assembly.mp4" poster="https://a6mzero.com/static/images/pcb-fold-assembly-poster.jpg" controls="" loop="" muted="" playsinline="" preload="metadata"></video>
+<figcaption>Assembly of our board</figcaption>
+</figure>
+
+<h2>The boards have arrived !!!</h2>
+
+<p>I received the PCBs and the first thing I wanted to do was to plug it in to my laptop. I have broken multiple USB modules for my Framework earlier, hence I thought checking for a short between 3v3 and ground was a no-brainer, although my colleague was suggesting me to just yeet it since this was a fully vibe-generated board. There was no short and I just plugged it in. There it was, the board was recognized and it was ready to be used.</p>
+
+<figure><img src="https://a6mzero.com/static/images/factory-2.jpeg" alt="" loading="lazy"></figure>
+
+<h2>What do I do with it ?</h2>
+
+<p>I already wrote some proof-of-concept apps, and they worked perfectly fine. I can read on that beautiful 1.54 inch display :D Stopwatch is quite handy if i need some focusing, and the album is my favourite feature since even after powering the board off, the images stay on the display thanks to E-ink.</p>
+
+
+
+<figure>
+<video src="https://a6mzero.com/static/video/demo.mp4" poster="https://a6mzero.com/static/images/demo-poster.jpg" controls="" loop="" muted="" playsinline="" preload="metadata"></video>
+<figcaption>Hands on with the finished board.</figcaption>
+</figure>
+
+<h2>How do I feel all about this ?</h2>
+
+<p>Great and meh. I love how I was able to just describe the board I want in plain English, send the files overseas and then receive a fully functional board without knowing any proper PCB design knowledge. The possibilities are limitless here, and I will certainly continue doing this in the future.</p>
+
+<p>That said, I was not feeling much of an accomplishment, rightfully so. I used to enjoy the learning and the struggle that came with it. Although we are in the best era to learn about something, the fact that you can make things without knowing anything about a subject puts you in an uncomfortable spot.</p>
+
+<h2>The future I wish to have</h2>
+
+<p>Yes it does suck that the joy we had while building has been sucked out of us and now we are told to enjoy building from a higher abstraction level. I am trying to adjust to this, especially at work. At work I can't just YOLO stuff so I meticulously review all the time. It is tiring but knowing the fact that my input still matters, is rewarding. For my hobby projects tho, I will continue to YOLO it and build stuff fast without necessarily knowing about the details.</p>
+
+<p>I hope one day JLCPCB or PCBWAY will have a chat-box where I can dump all my ideas and some of my illustrations, and two days later they will ship me the board. I want them to remove the middle man, and make PCB generation so much simpler and safer.</p>
+
+<h2>Sneak Peek</h2>
+
+<p>I already started working on my next project. Using Fable 5.1 with KiCAD and KiCADRoutingTools I am building an NVIDIA Jetson Orin Nano based tablet. The same rules I mentioned earlier will apply and I will let you know about the results(if I get to order it :P) .</p>
+
+<figure><img src="https://a6mzero.com/static/images/orin-tablet.png" alt="" loading="lazy"><figcaption>NVIDIA Jetson Orin Nano based Tablet</figcaption></figure>
+
+<p>Thank you for reading my journal, sharing is the most fun part of tinkering and building. I appreciate that you are part of this fun journey :)</p></div></div>
