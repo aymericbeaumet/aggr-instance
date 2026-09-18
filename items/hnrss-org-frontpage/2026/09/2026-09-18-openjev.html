@@ -1,0 +1,116 @@
+<div id="readability-page-1" class="page"><div>
+      <header>
+        <a href="https://openjev.com/">openjev</a>
+        <p><span>Can we run something like Jev in your browser?</span>
+          <a href="https://github.com/TheoLeeCJ/openjev">GitHub repo ↗</a></p>
+      </header>
+
+      <section>
+        <p>A live, local experiment</p>
+        <h2>Decision model <mark>in your browser.</mark></h2>
+        <p>A local model can either read probabilities for your allowed options without decoding them, or write the same kind of distribution token by token. Pick a size, run both on your own GPU, and measure the difference.</p>
+        <p><span>browser only</span><span>no backend</span><span>your timings</span><span id="model-size">1.56 GB model</span></p>
+        <p role="status"><strong>There is no waitlist!</strong> Just try it out ↓</p>
+        <p id="device-note">MiniCPM5 2B is selected by default. On a phone or smaller device, switch to Qwen3 0.6B in the model box if needed.</p>
+      </section>
+
+      <section aria-labelledby="setup-title">
+        <div>
+          <div><p>00 / setup</p><h2 id="setup-title">Load the model once</h2></div>
+          <p><label for="model-select">Model
+              
+            </label>
+            </p>
+        </div>
+        <p id="model-notice" role="note">Larger model. Loading may be slower or may not fit on some low-end devices.</p>
+        <div aria-labelledby="quality-title">
+          <p><strong id="quality-title">Model performance</strong><span>higher is better</span></p>
+          <div>
+            <table>
+              <thead><tr><th>Model</th><th>Download</th><th>Authored</th><th>Perturbed</th><th>TypeSafe</th></tr></thead>
+              <tbody>
+                <tr data-quality-model="qwen3-0.6b"><td>Qwen3 0.6B</td><td>639 MB</td><td>44.0%</td><td>52.8%</td><td>40.7%</td></tr>
+                <tr data-quality-model="minicpm5-2b"><td>MiniCPM5 2B</td><td>1.56 GB</td><td>68.6%</td><td>69.3%</td><td>63.7%</td></tr>
+                <tr data-quality-model="qwen3.5-4b"><td>Qwen3.5 4B</td><td>3.01 GB</td><td>81.3%</td><td>76.6%</td><td>84.5%</td></tr>
+                <tr><td>Published Jev</td><td>hosted</td><td>—</td><td>—</td><td>88.3%</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Native BF16 · TypeSafe: same 102-row subset · Jev: published result · browser builds are quantized</p>
+        </div>
+        <p :class="['support', kind]" role="status">{{ text }}</p>
+        <div aria-label="Model setup phases">
+          <div><p><small>download / cache</small><strong id="download-value">—</strong></p><p><span id="download-detail">starts only when you click load</span></p></div>
+          <p><small>model load</small><strong id="load-value">—</strong><span>download and prepare</span></p>
+          <p><small>warmup</small><strong id="warmup-value">—</strong><span>compile passes for both methods</span></p>
+        </div>
+        <p>Weights come from Hugging Face and remain in your browser cache. Inputs never leave this page. First load can take several minutes depending on the selected model, network and GPU.</p>
+      </section>
+
+      <section aria-labelledby="workbench-title">
+        <div><p>01 / decision</p><h2 id="workbench-title">Give it a real choice</h2></div>
+
+        <p><span>Try an example</span>
+          
+          </p>
+
+        <div>
+          <p><label>State</label>
+          <label>Question</label></p>
+        </div>
+        <p>Both paths receive the same decision. One reads option probabilities directly; the other asks the model to write its option probabilities as JSON text.</p>
+      </section>
+
+      <section aria-label="The two decision paths">
+        <p><small>your decision</small><strong>state + question + options</strong></p>
+        
+        <p><small>same local model</small><strong id="selected-model">MiniCPM5 · 2B</strong></p>
+        
+        <div>
+          <p><small>read logits</small><strong>A…T probabilities</strong></p>
+          <p><small>write tokens</small><strong><i>{</i><i>options</i><i> + </i><i>probabilities</i><i>}</i></strong></p>
+        </div>
+      </section>
+
+      <section aria-label="Live comparison results">
+        <article>
+          <div><div><p>02A / direct readout</p><h2>Choice probabilities</h2></div><p><span>no decoding</span></p></div>
+          <p>Read the model’s choice logits and normalize only across the options you supplied.</p>
+          <p>waiting for a run</p>
+          <dl>
+            <p><dt>total</dt><dd id="direct-total">—</dd></p>
+            <p><dt>input</dt><dd id="direct-input">—</dd></p>
+            <p><dt>output</dt><dd id="direct-readouts">1 readout</dd></p>
+          </dl>
+        </article>
+
+        <article>
+          <div><div><p>02B / generation</p><h2>JSON probabilities</h2></div><p><span>token by token</span></p></div>
+          <p>Ask the model to estimate the same displayed-option distribution and write it as JSON. Watch every token arrive.</p>
+          <pre id="generated-output">waiting for a run</pre>
+          <dl>
+            <p><dt>first token</dt><dd id="generation-ttft">—</dd></p>
+            <p><dt>total</dt><dd id="generation-total">—</dd></p>
+            <p><dt>input</dt><dd id="generation-input">—</dd></p>
+            <p><dt>output</dt><dd id="generation-tokens">—</dd></p>
+          </dl>
+        </article>
+      </section>
+
+      <section aria-live="polite">
+        <span>measured wall-time ratio</span><strong id="ratio">run it on your GPU</strong>
+        <p id="run-note">The methods run sequentially on the same loaded model so they do not contend for one GPU. Direct runs first, then generation.</p>
+      </section>
+
+      <details>
+        <summary>What these numbers do—and do not—mean</summary>
+        <div>
+          <p><b>Conditional probabilities.</b> Direct scores are a softmax over only the displayed option tokens. They are not calibrated confidence and do not include every answer the model might prefer.</p>
+          <p><b>Local model tiers.</b> The phone model trades accuracy for size. MiniCPM is the desktop default. The 4B option needs substantially more memory. None is claimed to match Jev.</p>
+          <p><b>Real local timing.</b> Setup, warmup, prompt preparation, direct execution, first generated token and generation completion are timed with <code>performance.now()</code>. No canned results appear.</p>
+          <p><b>Quantized weights.</b> The demo uses pinned GGUF builds through wllama. Quantization can change both quality and speed.</p>
+        </div>
+      </details>
+
+      
+    </div></div>
