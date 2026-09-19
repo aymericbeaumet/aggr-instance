@@ -6,7 +6,7 @@ published: 2025-10-16T04:00:00Z
 updated: 2025-10-16T04:00:00Z
 first_seen: 2026-09-19T21:30:23.395188495Z
 summary: "Avertis par un abonné inquiet pour son beau-frère de 22 ans, nous avons infiltré pendant six mois un business club basé à Dubaï promettant des rendements irréalistes. Virements de 10 000 €, pression pour recruter famille et amis, faux profils et caméra cachée : notre enquête révèle un système de type Ponzi qui transforme vos proches en prospects et vos économies en fumée. On explique comment ces réseaux opèrent, les signaux d’alerte et comment s’en protéger. En plateau Michaël de Marliave — animateur \uFEFF➤ Pour découvrir Mammouth IA : https://mammouth.ai/ ➤ Pour le Merch Micode et Underscore_ : https://traphic.fr/collections/micode ⚠️ Précommandes avant le 15 Janvier ! Hébergé par Acast. Visitez acast.com/privacy pour plus d'informations."
-content: feed
+content: extracted
 html: 2025-10-16-j-ai-infiltre-une-pyramide-de-ponzi-micode.html
 preview:
   file: 2025-10-16-j-ai-infiltre-une-pyramide-de-ponzi-micode.preview-77a2ae8c15d4.webp
@@ -26,28 +26,14 @@ images:
     width: 1400
     height: 1400
   color: '#031726'
+- source: https://i.ytimg.com/vi/90QU1zK6kM4/hqdefault.jpg
+  original:
+    file: 2025-10-16-j-ai-infiltre-une-pyramide-de-ponzi-micode.image-43acac4fe939.jpg
+    width: 480
+    height: 360
+  color: '#000101'
 extra:
   audio_url: https://sphinx.acast.com/p/acast/s/micode-underscore/e/68d51389acc34956e6bf53a1/media.mp3
   duration_seconds: 3967
   thumbnail: https://assets.pippa.io/shows/6139142f588d8c5deac642d6/9cbcda3f-b3f0-470d-8104-5b88076d7f20.jpeg
 ---
-
-Avertis par un abonné inquiet pour son beau-frère de 22 ans, nous avons infiltré pendant six mois un business club basé à Dubaï promettant des rendements irréalistes. Virements de 10 000 €, pression pour recruter famille et amis, faux profils et caméra cachée : notre enquête révèle un système de type Ponzi qui transforme vos proches en prospects et vos économies en fumée. On explique comment ces réseaux opèrent, les signaux d’alerte et comment s’en protéger.
-
-* * *
-
-**En plateau**
-
-- Michaël de Marliave — animateur
-
-**﻿**➤ Pour découvrir Mammouth IA : https://mammouth.ai/
-
-\
-
-➤ Pour le Merch Micode et Underscore\_ : [https://traphic.fr/collections/micode](https://www.youtube.com/redirect?event=video_description&redir_token=QUFFLUhqbVRfTU9vNjFxdzVmdk9wVllEbU9GRVpjY2hxd3xBQ3Jtc0trN3ItTGwyMkhSUHRWR2JWaU1YaGJGTGJ4LVBReFcwVDhIdGpkQTduUEx6V1lZVnFRSXJLVjdSVVNwM3NFZkRjMmdpUzQ5V01hZGlVckoyd3huLV9NLXNWa19RTTljclhxNFIyOHBzNHk1LTJSLW5jcw&q=https%3A%2F%2Ftraphic.fr%2Fcollections%2Fmicode&v=5Oo0u5RZ7HA)
-
-⚠️ Précommandes avant le 15 Janvier !
-
-* * *
-
-Hébergé par Acast. Visitez [acast.com/privacy](https://acast.com/privacy) pour plus d'informations.
