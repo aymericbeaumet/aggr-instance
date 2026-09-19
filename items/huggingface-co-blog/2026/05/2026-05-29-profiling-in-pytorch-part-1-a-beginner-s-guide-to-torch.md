@@ -257,6 +257,28 @@ images:
     width: 1600
     height: 260
   color: '#f7f7f6'
+- source: https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-profiler/kernel-time.png
+  original:
+    file: 2026-05-29-profiling-in-pytorch-part-1-a-beginner-s-guide-to-torch.image-b857e59da091.png
+    width: 16384
+    height: 2218
+  variants:
+  - file: 2026-05-29-profiling-in-pytorch-part-1-a-beginner-s-guide-to-torch.image-f85c75e62260.webp
+    width: 320
+    height: 43
+  - file: 2026-05-29-profiling-in-pytorch-part-1-a-beginner-s-guide-to-torch.image-9814eae2cb9d.webp
+    width: 640
+    height: 87
+  - file: 2026-05-29-profiling-in-pytorch-part-1-a-beginner-s-guide-to-torch.image-1b5e73bcfcd4.webp
+    width: 960
+    height: 130
+  - file: 2026-05-29-profiling-in-pytorch-part-1-a-beginner-s-guide-to-torch.image-aab19e9c10ec.webp
+    width: 1280
+    height: 173
+  - file: 2026-05-29-profiling-in-pytorch-part-1-a-beginner-s-guide-to-torch.image-152dcdd6ecf1.webp
+    width: 1600
+    height: 217
+  color: '#e3e4e5'
 ---
 
 [![Thumbnail of the blog post](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-profiler/thumbnail.png)](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-profiler/thumbnail.png)

@@ -34,6 +34,12 @@ images:
     width: 512
     height: 135
   color: '#a6a6a6'
+- source: https://i.ytimg.com/vi/h8TBLKyo7Rs/hqdefault.jpg
+  original:
+    file: 2026-07-21-pushing-software-engineering-limits-with-napkin-math.image-20e9d0b63279.jpg
+    width: 480
+    height: 360
+  color: '#010101'
 ---
 
 *Hi, this is Gergely with the monthly, free issue of the Pragmatic Engineer Newsletter. In every issue, I cover Big Tech and startups through the lens of senior engineers and engineering leaders. If you’ve been forwarded this email, you can [subscribe here](https://newsletter.pragmaticengineer.com/about?ref=blog.pragmaticengineer.com) .*
