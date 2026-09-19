@@ -1,0 +1,97 @@
+---
+title: 'Redis Lua scripting: several security vulnerabilities fixed'
+link: http://antirez.com/news/119
+source: antirez-com
+published: 2018-06-13T17:15:05Z
+updated: 2018-06-13T17:15:05Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+summary: 'A bit more than one month ago I received an email from the Apple Information Security team. During an auditing the Apple team found a security issue in the Redis Lua subsystem, specifically in the cmsgpack library. The library is not part of Lua itself, it is an implementation of MessagePack I wrote myself. In the course of merging a pull request improving the feature set, a security issue was added. Later the same team found a new issue in the Lua struct library, again such library was not part of Lua itself, at least in the release of Lua we use: we just embedded the source code inside our Lua implementation in order to provide some functionality to the Lua interpreter that is available to Redis users. Then I found another issue in the same struct package, and later the Alibaba team found many other issues in cmsgpack and other code paths using the Lua API. In a short amount of time I was sitting on a pile of Lua related vulnerabilities. Those vulnerabilities are mostly relevant in the specific case of providing managed Redis severs on the cloud, because it is very unlikely that the vulnerabilities discovered can be used without direct access to the Redis server: many Redis users don’t use the cmsgpack or the struct package at all, and who does will very unlikely feed them with untrusted input. However for cloud providers things are different: they have Redis instances, sometimes in multi tenancy setups, exposed to the user that subscribed for the service. She or he can send anything to such Redis instances, triggering the vulnerabilities, corrupting the memory, violating the Redis process, and potentially taking total control of the Redis process. For instance this simple Python program can crash Redis using one of the cmsgpack vunlerabilities [1]. [1] https://gist.github.com/antirez/82445fcbea6d9b19f97014cc6cc79f8a However from the point of view of normal Redis users that control what is sent to their instances, the risk is limited to feeding untrusted data to a function like struct.unpack(), after selecting a particularly dangerous decoding format “bc0” in the format argument. # Coordinating the advisory Thanks to the cooperation and friendly communications between the Apple Information Security team, me, and the Redis cloud providers, I tried to coordinate the release of the vulnerability after contacting all the major Redis providers out there, so that they could patch their systems before the bug was published. I provided a single patch, so that the providers could easily apply it to their systems. Finally between yesterday and today I prepared new patch releases of Redis 3, 4 and 5, with the security fixes included. They are all already released if you are reading this blog post. Unfortunately I was not able to contact smaller or newer cloud providers. The effort to handle the communication with Redis Labs, Amazon, Alibaba, Microsoft, Google, Heroku, Open Redis and Redis Green was already massive, and the risk of leaks extending the information sharing with other subjects even higher (every company included many persons handling the process). I’m sorry if you are a Redis provider finding about this vulnerability just today, I tried to do my best. I want to say thank you to the Apple Information Security team and all the other providers for the hints and help about this issue. # The problem with Lua Honestly when the Redis Lua engine was designed, it was not conceived with this security model of the customer VS the cloud provider in mind. The assumption kinda was that you can trust who pokes with your Redis server. So in general the Lua libraries were not scrutinized for security. The feeling back then was, if you have access to Redis API, anyway you can do far worse. However later things evolved, and cloud providers restricted the API of Redis to expose to their customers, so that it was possible to provide managed Redis instances. However while things like the CONFIG or DEBUG commands were denied, you can’t really avoid exposing EVAL and EVALSHA. The Redis Lua scripting is one of the top used features in our community. So gradually, without me really noticing, the Lua libraries became also an attack vector in a security model that should instead be handled by Redis, because of the changing system in the way Redis is exposed and provided to the final user. As I said, in this model more than the Redis user, is the managed Redis “cloud” provider to be affected, but regardless it is a problem that must be handled. What we can do in order to improve the current state of cloud providers security, regarding the specific problem with Lua scripting? I identified a few things that I want to do in the next months. 1. Lua stack protection. It looks like Lua can be compiled, with some speed penalty, in a way that ensures that it is not possible to misuse the Lua stack API. To be fair, I think that the assumptions Lua makes about the stack are a bit too trivial, with the Lua library developer having to constantly check if there is enough space on the stack to push a new value. Other languages at the same level of abstraction have C APIs that don’t have this problem. So I’ll try to understand if the slowdown of applying more safeguards in the Lua low level C API is acceptable, and in that case, implement it. 2. Security auditing and fuzz testing. Even if my time was limited I already performed some fuzz testing in the Lua struct library. I’ll continue with an activity that will check for other bugs in this area. I’m sure there are much more issues, and the fact that we found just a given set of bugs is only due to the fact that there was no more time to investigate the scripting subsystem. So this is an important activity that is going to be performed. Again at the end of the activity, I’ll coordinate with the Redis vendors so that they could patch in time. 3. From the point of view of the Redis user, it is important that when some untrusted data is sent to the Lua engine, an HMAC is used in order to ensure that the data was not modified. For instance there is a popular pattern where the state of an user is stored in the user cookie itself, to be later decoded. Such data may later be used as input for Redis Lua functions. This is an example where an HMAC is absolutely needed in order to make sure that we read what we previously stored. 4. More Lua sandboxing. There should be plenty of literature and good practices about this topic. We already have some sandboxing implemented, but my feeling from my security days, is that sandboxing is ultimately always a mouse and cat game, and can never be executed in a perfect way. CPU / memory abuses for example may be too complex to track for the goals of Redis. However we should at least be sure that violations may result in a “graceful” abort without any memory content violation issue. 5. Maybe it’s time to upgrade the Lua engine? I’m not sure if newer versions of Lua are more advanced from the point of view of security, however we have the huge problem that upgrading Lua will result in old script potentially no longer working. A very big issue for the Redis community, especially since, for the kind of scripts Redis users normally develop, a more advanced Lua version is only marginally useful. # The issues The problems fixed are listed in the following commits: ce17f76b Security: fix redis-cli buffer overflow. e89086e0 Security: fix Lua struct package offset handling. 5ccb6f7a Security: more cmsgpack fixes by @soloestoy. 1eb08bcd Security: update Lua struct package for security. 52a00201 Security: fix Lua cmsgpack library stack overflow. The first commit is unrelated to this effort, and is a redis-cli buffer overflow that can be exploited only passing a long host argument in the command line. The other issues are the problems that we found on cmsgpack and the struct package. The two scripts to reproduce the issues are the following: https://gist.github.com/antirez/82445fcbea6d9b19f97014cc6cc79f8a and https://gist.github.com/antirez/bca0ad7a9c60c72e9600c7f720e9d035 Both authored by the Apple Information Security team. However the first was modified by me in order to make it more reliably causing the crash. # Versions affected Basically every Redis with Lua scripting is affected. The fixes are available as the following Github tags: 3.2.12 4.0.10 5.0-rc2 The stable release (4.0.10) is also available at http://download.redis.io as usually. Releases tarball hashes are available here: https://github.com/antirez/redis-hashes Please note that the versions released also include different other bugfixes, so it’s a good idea to also read the release notes to know what other things you are upgrading by switching to the new version. I hope to be back with a blog post in the future with the report of the security auditing that is planned for the Lua scripting subsystem in Redis. Comments'
+content: extracted
+html: 2018-06-13-redis-lua-scripting-several-security-vulnerabilities-fixed.html
+---
+
+## [Redis Lua scripting: several security vulnerabilities fixed](https://antirez.com/news/119)
+
+[antirez](https://antirez.com/user/antirez) 3020 days ago. 200707 views.
+
+```
+A bit more than one month ago I received an email from the Apple Information Security team. During an auditing the Apple team found a security issue in the Redis Lua subsystem, specifically in the cmsgpack library. The library is not part of Lua itself, it is an implementation of MessagePack I wrote myself. In the course of merging a pull request improving the feature set, a security issue was added. Later the same team found a new issue in the Lua struct library, again such library was not part of Lua itself, at least in the release of Lua we use: we just embedded the source code inside our Lua implementation in order to provide some functionality to the Lua interpreter that is available to Redis users. Then I found another issue in the same struct package, and later the Alibaba team found many other issues in cmsgpack and other code paths using the Lua API. In a short amount of time I was sitting on a pile of Lua related vulnerabilities.
+
+Those vulnerabilities are mostly relevant in the specific case of providing managed Redis severs on the cloud, because it is very unlikely that the vulnerabilities discovered can be used without direct access to the Redis server: many Redis users don’t use the cmsgpack or the struct package at all, and who does will very unlikely feed them with untrusted input. However for cloud providers things are different: they have Redis instances, sometimes in multi tenancy setups, exposed to the user that subscribed for the service. She or he can send anything to such Redis instances, triggering the vulnerabilities, corrupting the memory, violating the Redis process, and potentially taking total control of the Redis process.
+
+For instance this simple Python program can crash Redis using one of the cmsgpack vunlerabilities [1].
+
+[1] https://gist.github.com/antirez/82445fcbea6d9b19f97014cc6cc79f8a
+
+However from the point of view of normal Redis users that control what is sent to their instances, the risk is limited to feeding untrusted data to a function like struct.unpack(), after selecting a particularly dangerous decoding format “bc0” in the format argument.
+
+# Coordinating the advisory
+
+Thanks to the cooperation and friendly communications between the Apple Information Security team, me, and the Redis cloud providers, I tried to coordinate the release of the vulnerability after contacting all the major Redis providers out there, so that they could patch their systems before the bug was published. I provided a single patch, so that the providers could easily apply it to their systems. Finally between yesterday and today I prepared new patch releases of Redis 3, 4 and 5, with the security fixes included. They are all already released if you are reading this blog post. Unfortunately I was not able to contact smaller or newer cloud providers. The effort to handle the communication with Redis Labs, Amazon, Alibaba, Microsoft, Google, Heroku, Open Redis and Redis Green was already massive, and the risk of leaks extending the information sharing with other subjects even higher (every company included many persons handling the process). I’m sorry if you are a Redis provider finding about this vulnerability just today, I tried to do my best.
+
+I want to say thank you to the Apple Information Security team and all the other providers for the hints and help about this issue.
+
+# The problem with Lua
+
+Honestly when the Redis Lua engine was designed, it was not conceived with this security model of the customer VS the cloud provider in mind. The assumption kinda was that you can trust who pokes with your Redis server. So in general the Lua libraries were not scrutinized for security. The feeling back then was, if you have access to Redis API, anyway you can do far worse.
+
+However later things evolved, and cloud providers restricted the API of Redis to expose to their customers, so that it was possible to provide managed Redis instances. However while things like the CONFIG or DEBUG commands were denied, you can’t really avoid exposing EVAL and EVALSHA. The Redis Lua scripting is one of the top used features in our community.
+
+So gradually, without me really noticing, the Lua libraries became also an attack vector in a security model that should instead be handled by Redis, because of the changing system in the way Redis is exposed and provided to the final user. As I said, in this model more than the Redis user, is the managed Redis “cloud” provider to be affected, but regardless it is a problem that must be handled.
+
+What we can do in order to improve the current state of cloud providers security, regarding the specific problem with Lua scripting? I identified a few things that I want to do in the next months.
+
+1. Lua stack protection. It looks like Lua can be compiled, with some speed penalty, in a way that ensures that it is not possible to misuse the Lua stack API. To be fair, I think that the assumptions Lua makes about the stack are a bit too trivial, with the Lua library developer having to constantly check if there is enough space on the stack to push a new value. Other languages at the same level of abstraction have C APIs that don’t have this problem. So I’ll try to understand if the slowdown of applying more safeguards in the Lua low level C API is acceptable, and in that case, implement it.
+
+2. Security auditing and fuzz testing. Even if my time was limited I already performed some fuzz testing in the Lua struct library. I’ll continue with an activity that will check for other bugs in this area. I’m sure there are much more issues, and the fact that we found just a given set of bugs is only due to the fact that there was no more time to investigate the scripting subsystem. So this is an important activity that is going to be performed. Again at the end of the activity, I’ll coordinate with the Redis vendors so that they could patch in time.
+
+3. From the point of view of the Redis user, it is important that when some untrusted data is sent to the Lua engine, an HMAC is used in order to ensure that the data was not modified. For instance there is a popular pattern where the state of an user is stored in the user cookie itself, to be later decoded. Such data may later be used as input for Redis Lua functions. This is an example where an HMAC is absolutely needed in order to make sure that we read what we previously stored.
+
+4. More Lua sandboxing. There should be plenty of literature and good practices about this topic. We already have some sandboxing implemented, but my feeling from my security days, is that sandboxing is ultimately always a mouse and cat game, and can never be executed in a perfect way. CPU / memory abuses for example may be too complex to track for the goals of Redis. However we should at least be sure that violations may result in a “graceful” abort without any memory content violation issue.
+
+5. Maybe it’s time to upgrade the Lua engine? I’m not sure if newer versions of Lua are more advanced from the point of view of security, however we have the huge problem that upgrading Lua will result in old script potentially no longer working. A very big issue for the Redis community, especially since, for the kind of scripts Redis users normally develop, a more advanced Lua version is only marginally useful.
+
+# The issues
+
+The problems fixed are listed in the following commits:
+
+ce17f76b Security: fix redis-cli buffer overflow.
+e89086e0 Security: fix Lua struct package offset handling.
+5ccb6f7a Security: more cmsgpack fixes by @soloestoy.
+1eb08bcd Security: update Lua struct package for security.
+52a00201 Security: fix Lua cmsgpack library stack overflow.
+
+The first commit is unrelated to this effort, and is a redis-cli buffer overflow that can be exploited only passing a long host argument in the command line. The other issues are the problems that we found on cmsgpack and the struct package.
+
+The two scripts to reproduce the issues are the following:
+
+https://gist.github.com/antirez/82445fcbea6d9b19f97014cc6cc79f8a
+
+and
+
+https://gist.github.com/antirez/bca0ad7a9c60c72e9600c7f720e9d035
+
+Both authored by the Apple Information Security team. However the first was modified by me in order to make it more reliably causing the crash.
+
+# Versions affected
+
+Basically every Redis with Lua scripting is affected.
+
+The fixes are available as the following Github tags:
+
+3.2.12
+4.0.10
+5.0-rc2
+
+The stable release (4.0.10) is also available at http://download.redis.io as usually.
+
+Releases tarball hashes are available here:
+
+https://github.com/antirez/redis-hashes
+
+Please note that the versions released also include different other bugfixes, so it’s a good idea to also read the release notes to know what other things you are upgrading by switching to the new version.
+
+I hope to be back with a blog post in the future with the report of the security auditing that is planned for the Lua scripting subsystem in Redis.
+```
+
+[blog comments powered by Disqus](https://disqus.com)

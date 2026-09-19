@@ -1,0 +1,281 @@
+<div id="readability-page-1" class="page"><div>
+<p><code>huggingface_hub</code> is the Python client at the base of the Hugging Face ecosystem. <code>transformers</code>, <code>datasets</code>, <code>diffusers</code>, <code>sentence-transformers</code> and dozens of other libraries depend on it to talk to the Hub. Every week we don't ship a new release is a week of fixes and features stuck on <code>main</code>.</p>
+<p>For a long time we released every 4 to 6 weeks. We now release every week from a single GitHub Actions workflow. We built it using open-source tools and open-weights models and kept a human in the loop at the one place where judgment matters. Nothing in this post requires a vendor contract, a closed model, or infrastructure you can't run yourself. That was a design goal from the start since we wanted a workflow other maintainers could pick up and adapt. </p>
+<p>By the end of this post, you'll have everything you need to build your own.</p>
+<h2>
+	<a id="where-we-started" href="#where-we-started" rel="nofollow">
+		
+	</a>
+	<span>
+		Where we started
+	</span>
+</h2>
+<p>The old process was partly automated, mostly manual.</p>
+<p>Already in CI:</p>
+<ul>
+<li>Publishing to PyPI once a tag was pushed.</li>
+<li>Opening test branches in downstream libraries with the release candidate pinned.</li>
+</ul>
+<p>Still manual, every single time:</p>
+<ul>
+<li>Creating the release branch, bumping the version in <code>__init__.py</code>, committing, tagging, pushing.</li>
+<li>Watching the downstream CI runs and triaging failures.</li>
+<li>Reading through every PR merged since the last release and writing release notes by hand: grouped by theme, with context, in a voice that didn't read like a <code>git log</code> dump.</li>
+<li>Cutting the stable release after the RC period.</li>
+<li>Drafting an internal Slack announcement and social posts.</li>
+<li>Opening the post-release PR to bump <code>main</code> to the next <code>dev0</code>.</li>
+</ul>
+<p>Writing good notes for a new version was the heavy part, aggregating tens of PRs on different topics. Nothing technically hard but a few hours of focused attention. Add the announcements on top and a minor release was easily a half-day of work spread over several days.</p>
+<h2>
+	<a id="two-kinds-of-work" href="#two-kinds-of-work" rel="nofollow">
+		
+	</a>
+	<span>
+		Two kinds of work
+	</span>
+</h2>
+<p>So we decided to streamline the whole thing. Looking at that list, the work splits in two.</p>
+<p>Some steps are purely mechanical and can be automated: bumping the version, committing, tagging, pushing, opening downstream test branches, opening the post-release PR. Nobody needs to think about those. They just have to happen in the right order, every time, which is what a CI workflow is good at.</p>
+<p>The rest is different. Writing release notes, deciding what to highlight, phrasing an announcement for a human audience: that's brain work. It's the kind of judgment that kept the release manual for years. This is where AI comes in, turning a blank page into a solid first draft in seconds. It's also where we have to be careful because a draft that looks confident and is subtly wrong is worse than no draft at all.</p>
+<h2>
+	<a id="the-design-principle-open-parts-reusable-by-anyone" href="#the-design-principle-open-parts-reusable-by-anyone" rel="nofollow">
+		
+	</a>
+	<span>
+		The design principle: open parts, reusable by anyone
+	</span>
+</h2>
+<p>When we decided to fix this, we set one constraint up front: every moving part had to be something any maintainer could run themselves. No closed model behind an API we couldn't swap, no proprietary release platform, no secret sauce.</p>
+<p>Here's the entire stack:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Part</th>
+<th>What it does</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>GitHub Actions</strong></td>
+<td>Orchestrates the whole release</td>
+</tr>
+<tr>
+<td><strong><a href="https://opencode.ai/" rel="nofollow">OpenCode</a></strong></td>
+<td>Agent runtime that drives the model</td>
+</tr>
+<tr>
+<td><strong>An open-weights model</strong> (currently <a href="https://huggingface.co/zai-org/GLM-5.2">GLM-5.2</a> from Z.ai)</td>
+<td>Drafts the release notes and Slack announcement</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/docs/inference-providers/index">HF Inference Providers</a></strong></td>
+<td>Serves the model</td>
+</tr>
+<tr>
+<td><strong><a href="https://docs.pypi.org/trusted-publishers/" rel="nofollow">PyPI Trusted Publishing</a></strong></td>
+<td>Publishes the package</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The second principle: the model drafts, a human decides. Language models are good at turning thirty terse PR titles into readable release notes. They are not good at being trusted blindly. So the workflow is human-supervised: the model does the first pass, a deterministic script checks its work, and a human reviews and edits before anything ships (more on that below).</p>
+<h2>
+	<a id="a-tour-of-the-pipeline" href="#a-tour-of-the-pipeline" rel="nofollow">
+		
+	</a>
+	<span>
+		A tour of the pipeline
+	</span>
+</h2>
+<p>The full workflow is a single file, <a href="https://github.com/huggingface/huggingface_hub/blob/main/.github/workflows/release.yml" rel="nofollow"><code>.github/workflows/release.yml</code></a>, triggered by hand from the Actions UI. It takes exactly one input:</p>
+<pre><code><span>on:</span>
+  <span>workflow_dispatch:</span>
+    <span>inputs:</span>
+      <span>release_type:</span>
+        <span>type:</span> <span>choice</span>
+        <span>options:</span>
+          <span>-</span> <span>minor-prerelease</span>   <span># cut an RC from main</span>
+          <span>-</span> <span>minor-release</span>      <span># promote the RC to final</span>
+          <span>-</span> <span>patch-release</span>      <span># bugfix on an existing release branch</span>
+</code></pre>
+<p>From there, the jobs run roughly in this order:</p>
+<ul>
+<li><strong>Prepare.</strong> Compute the next version, create or reuse the release branch, bump <code>__version__</code>, commit, tag, push.</li>
+<li><strong>Publish to PyPI.</strong> Build and upload <code>huggingface_hub</code>. In parallel, build and upload the <code>hf</code> CLI as its own PyPI package.</li>
+<li><strong>Release notes.</strong> Diff the commit range since the last tag, pull PR metadata from the GitHub API, and have the model draft a structured changelog (<a href="https://github.com/huggingface/huggingface_hub/releases/tag/v1.20.0" rel="nofollow">here's a recent one</a>). Saved as a <em>draft</em> GitHub release.</li>
+<li><strong>Downstream test branches.</strong> For RCs, open a branch in <code>transformers</code>, <code>datasets</code>, <code>diffusers</code>, <code>sentence-transformers</code> with the RC pinned, so their CI tells us fast if we broke something.</li>
+<li><strong>Slack announcement.</strong> Read the notes and produce an internal announcement in our team voice.</li>
+<li><strong>Archive notes.</strong> Upload both the raw AI draft and the human-edited version to a Hugging Face Bucket, side by side.</li>
+<li><strong>Post-release bump.</strong> After a stable release, open a PR on <code>main</code> bumping to the next <code>dev0</code>.</li>
+<li><strong>Comment on shipped PRs.</strong> Leave a "this shipped in vX.Y.Z" comment on every PR in the release.</li>
+<li><strong>Sync CLI docs.</strong> Open a PR to our <a href="https://github.com/huggingface/skills" rel="nofollow">skills</a> repo with the regenerated <code>hf</code> CLI skill docs.</li>
+<li><strong>Report to Slack.</strong> Every step posts its status as a thread reply; a final job updates the root message with ✅ or ❌.</li>
+</ul>
+<p>The remaining manual steps are reviewing and publishing the draft release notes, and reviewing and posting an internal Slack message. Those two steps are where we want a human in the loop.</p>
+<h2>
+	<a id="trust-but-verify-the-human-in-the-loop-core" href="#trust-but-verify-the-human-in-the-loop-core" rel="nofollow">
+		
+	</a>
+	<span>
+		Trust but verify: the human-in-the-loop core
+	</span>
+</h2>
+<p>Here's the failure mode everyone worries about with AI-generated release notes: the model quietly drops a PR or invents one that isn't in this release. A changelog that's almost right is worse than no changelog because nobody re-checks it.</p>
+<p>We don't trust the generated release notes to be complete on the first try, we verify it deterministically. Before the model runs, a Python script retrieves all PRs that belong to the release and stores them as ground truth.</p>
+<pre><code><span># Deterministic: extract PR numbers from squash-merge commits in the range.</span>
+PR_NUMBER_PATTERN = re.<span>compile</span>(<span>r"\(#(\d+)\)$"</span>)
+
+pr_numbers = [
+    <span>int</span>(m.group(<span>1</span>))
+    <span>for</span> commit <span>in</span> commits_since_last_tag
+    <span>if</span> (m := PR_NUMBER_PATTERN.search(commit.title))
+]
+save_manifest(pr_numbers)  <span># the source of truth</span>
+</code></pre>
+<p>Then model drafts the notes from them. Once done, we check its output against the initial list of PRs:</p>
+<pre><code>expected = <span>set</span>(load_manifest())          <span># what should be there</span>
+found    = extract_pr_refs(notes_md)     <span># what the model wrote (#1234 -&gt; 1234)</span>
+
+missing = expected - found               <span># silently dropped</span>
+extra   = found - expected               <span># belongs to a different release</span>
+</code></pre>
+<p>If anything is missing or extra, we don't fail and we don't ship a wrong file. We hand the discrepancy back to the agent and ask it to fix exactly those PRs:</p>
+<pre><code><span>for</span> _ <span>in</span> <span>range</span>(MAX_ITERATIONS):
+    missing, extra = validate(notes)
+    <span>if</span> <span>not</span> missing <span>and</span> <span>not</span> extra:
+        <span>break</span>  <span># matches the manifest exactly</span>
+    run_agent_fix(missing_prs=missing, extra_prs=extra)
+</code></pre>
+<p>This is the pattern that makes the whole thing trustworthy: a non-deterministic model wrapped in deterministic guardrails. The model is great at writing prose and unreliable at being exhaustive. So we let it write and let code enforce the consistency.</p>
+<h2>
+	<a id="grounding-the-model-so-it-doesnt-make-things-up" href="#grounding-the-model-so-it-doesnt-make-things-up" rel="nofollow">
+		
+	</a>
+	<span>
+		Grounding the model so it doesn't make things up
+	</span>
+</h2>
+<p>Completeness is one half. Accuracy is the other. A model summarizing a PR from its title alone will cheerfully invent a code example that doesn't match the real API.</p>
+<p>To prevent that, when we fetch PR metadata we also pull the actual documentation diffs from each PR: the unified diff of any <code>.md</code> file under <code>docs/</code> that the PR touched.</p>
+<pre><code><span>def</span> <span>fetch_doc_diffs</span>(<span>pr</span>):
+    <span>return</span> [
+        {<span>"filename"</span>: f.filename, <span>"status"</span>: f.status, <span>"patch"</span>: f.patch}
+        <span>for</span> f <span>in</span> pr.get_files()
+        <span>if</span> f.filename.startswith(<span>"docs/"</span>) <span>and</span> f.filename.endswith(<span>".md"</span>) <span>and</span> f.patch
+    ]
+</code></pre>
+<p>That diff goes into the model's context so when it writes "here's the new CLI command," it's quoting the example the PR author actually wrote in the docs. That's the same logic as before: give the model real source material and a narrow job.</p>
+<p>The prompts themselves live as <a href="https://github.com/huggingface/huggingface_hub/tree/main/.opencode/skills/hf-release-notes" rel="nofollow">Skills</a>: small Markdown files (<code>SKILL.md</code> plus reference templates) checked into the repo. The release-notes skill spells out how to pick highlights, how to structure sections, when to add a doc link, etc. It reads like onboarding instructions, which is exactly the right mental model.</p>
+<h2>
+	<a id="the-human-checkpoint" href="#the-human-checkpoint" rel="nofollow">
+		
+	</a>
+	<span>
+		The human checkpoint
+	</span>
+</h2>
+<p>After the RC is published, the draft GitHub release sits there with the AI's first pass in it. This is where the human comes in:</p>
+<ol>
+<li>A reviewer reads the draft, edits for tone and emphasis, fixes anything the model over- or under-weighted.</li>
+<li>Only then do they trigger the <code>minor-release</code> run, which promotes the RC to final.</li>
+</ol>
+<p>The reviewer's time goes into polishing, turning a half-day of writing into a fifteen-minute editing session.</p>
+<p>We also keep a paper trail to improve over time. We archive two files side by side to a Hugging Face Bucket: the raw AI draft, uploaded at RC time before anyone touches it, and the human-edited version, uploaded when the final release is cut.</p>
+<pre><code><span># at RC time: straight from the model, untouched</span>
+hf <span>cp</span> release_notes_raw.txt    <span>"hf://buckets/huggingface/releases/huggingface_hub/<span>${V}</span>/release_notes_raw.txt"</span>
+
+<span># at release time: after the human review</span>
+hf <span>cp</span> release_notes_edited.txt <span>"hf://buckets/huggingface/releases/huggingface_hub/<span>${V}</span>/release_notes_edited.txt"</span>
+</code></pre>
+<p>Collecting both every week gives us a growing dataset of "what the model wrote" versus "what we wished it wrote". Dataset that we can then reuse to update the agent's skill.</p>
+<h2>
+	<a id="open-and-secure-plumbing" href="#open-and-secure-plumbing" rel="nofollow">
+		
+	</a>
+	<span>
+		Open and secure plumbing
+	</span>
+</h2>
+<p>Revamping the release process was a good opportunity to tighten security, especially against supply-chain attacks.</p>
+<p><strong>No PyPI token.</strong> Publishing uses <a href="https://docs.pypi.org/trusted-publishers/" rel="nofollow">Trusted Publishing</a>: PyPI verifies a short-lived OIDC token minted by GitHub for this exact workflow, and issues <a href="https://peps.python.org/pep-0740/" rel="nofollow">PEP 740</a> attestations / Sigstore provenance for every artifact. There's no long-lived secret to leak or rotate.</p>
+<pre><code><span>permissions:</span>
+  <span>id-token:</span> <span>write</span>       <span># mint the OIDC token for PyPI</span>
+  <span>attestations:</span> <span>write</span>   <span># generate Sigstore provenance</span>
+<span># ...</span>
+<span>-</span> <span>uses:</span> <span>pypa/gh-action-pypi-publish@v1.14.0</span>
+  <span>with:</span>
+    <span>attestations:</span> <span>true</span>  <span># no password, no API token, just OIDC</span>
+</code></pre>
+<p><strong>The agent runtime is pinned and verified.</strong> We don't <code>curl | bash</code> the latest OpenCode and hope. We pin a version and check its SHA256 before running it:</p>
+<pre><code>curl -fsSL https://opencode.ai/install | bash -s -- --version <span>"<span>${OPENCODE_VERSION}</span>"</span>
+<span>echo</span> <span>"<span>${OPENCODE_SHA256}</span>  <span>$(which opencode)</span>"</span> | <span>sha256sum</span> -c -
+</code></pre>
+<p>Open tooling doesn't mean careless tooling.</p>
+<h2>
+	<a id="so-what-did-it-cost" href="#so-what-did-it-cost" rel="nofollow">
+		
+	</a>
+	<span>
+		So, what did it cost?
+	</span>
+</h2>
+<p>Almost nothing. A full release (notes plus the Slack announcement, across 20-40 PRs and a few rounds of prompting) costs about <strong>$0.25</strong> on Inference Providers. With open weights billed pay-as-you-go, the only real question each week is "is there something worth shipping?", and there always is.</p>
+<h2>
+	<a id="what-changed-in-practice" href="#what-changed-in-practice" rel="nofollow">
+		
+	</a>
+	<span>
+		What changed in practice
+	</span>
+</h2>
+<p>The cadence went from one release every 4 to 6 weeks to once a week. The secondary effects were the interesting ones:</p>
+<ul>
+<li><strong>Notes got better, not worse.</strong> A first draft always exists, so review time goes to polishing. Grouping is more consistent and we omit fewer things.</li>
+<li><strong>Breakages surface earlier.</strong> Downstream test branches on every RC catch integration issues during the candidate window.</li>
+<li><strong>Contributor loops shortened.</strong> The automatic "shipped in vX.Y.Z" comment turned out to matter more than we expected. When someone reports an issue on a closed PR, everyone can immediately see which release the fix is in. That used to be a manual tag hunt.</li>
+</ul>
+<h2>
+	<a id="make-it-yours" href="#make-it-yours" rel="nofollow">
+		
+	</a>
+	<span>
+		Make it yours
+	</span>
+</h2>
+<p>This is the part we cared about most. The workflow is shaped around <code>huggingface_hub</code> but the structure is generic.</p>
+<p><strong>Reusable almost as-is:</strong></p>
+<ul>
+<li>The trigger and version-bump logic (<code>minor-prerelease</code> then <code>minor-release</code> then <code>patch-release</code>).</li>
+<li>The trust-but-verify loop: deterministic manifest, model draft, validate, re-prompt. This is the transferable idea, independent of what you're generating.</li>
+<li>OIDC Trusted Publishing, pinned and checksum-verified runtime, Slack threading.</li>
+<li>The skill-based prompts: swap the templates, keep the structure.</li>
+</ul>
+<p><strong>Specific to us:</strong></p>
+<ul>
+<li>The downstream repo list and their dependency-pin formats.</li>
+<li>The exact section taxonomy and tone in the skills.</li>
+<li>The Slack and bucket destinations.</li>
+</ul>
+<p>To adapt it: fork the <a href="https://github.com/huggingface/huggingface_hub/blob/main/.github/workflows/release.yml" rel="nofollow">workflow file</a> and <a href="https://github.com/huggingface/huggingface_hub/tree/main/utils/release_notes" rel="nofollow">scripts</a>, point it at your package, rewrite the <a href="https://github.com/huggingface/huggingface_hub/blob/main/.opencode/skills/hf-release-notes/SKILL.md" rel="nofollow">skill Markdown</a> for your project's voice, set two repo variables (the model ID and your OpenCode version), set up Trusted Publishing on PyPI, and delete the downstream-testing job if you don't have downstreams. The trust-but-verify loop is the part worth reusing as-is. It's what makes a generated artifact safe to ship.</p>
+<h2>
+	<a id="whats-next" href="#whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		What's next
+	</span>
+</h2>
+<ul>
+<li><strong>Auto-triaging downstream failures.</strong> Today the workflow opens test branches and a human reads the CI. An obvious next step is to check the failing logs to report them in the internal slack message.</li>
+<li><strong>Extending the pattern.</strong> Most of this is generic. We expect to reuse large parts across other Python libraries in our ecosystem.</li>
+</ul>
+<h2>
+	<a id="takeaway" href="#takeaway" rel="nofollow">
+		
+	</a>
+	<span>
+		Takeaway
+	</span>
+</h2>
+<p>The parts of a release that used to need a half-day of focused human work (writing notes, drafting announcements, coordinating downstream checks) are the parts a model is good at drafting. Everything else is mechanical and fits in a YAML file. The trick was never just "let the AI do it". It's to let the model draft, let deterministic code verify, and let a human decide. It's built entirely from open tools and open weights so the cost rounds to zero and anyone can run it.</p>
+<p>The full workflow file is public. If you maintain a Python library, <a href="https://github.com/huggingface/huggingface_hub/blob/main/.github/workflows/release.yml" rel="nofollow">fork it</a>, adapt it, and let us know how it goes!</p>
+</div></div>

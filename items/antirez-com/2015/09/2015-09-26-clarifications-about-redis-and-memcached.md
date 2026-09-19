@@ -1,0 +1,82 @@
+---
+title: Clarifications about Redis and Memcached
+link: http://antirez.com/news/94
+source: antirez-com
+published: 2015-09-26T16:16:14Z
+updated: 2015-09-26T16:16:14Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+summary: 'If you know me, you know I’m not the kind of guy that considers competing products a bad thing. I actually love the users to have choices, so I rarely do anything like comparing Redis with other technologies. However it is also true that in order to pick the right solution users must be correctly informed. This post was triggered by reading a blog post published by Mike Perham, that you may know as the author of a popular library called Sidekiq, that happens to use Redis as backend. So I would not consider Mike a person which is “against” Redis at all. Yet in his blog post that you can find at the URL http://www.mikeperham.com/2015/09/24/storing-data-with-redis/ he states that, for caching, “you should probably use Memcached instead [of Redis]”. So Mike simply really believes Redis is not good for caching, and he arguments his thesis in this way: 1) Memcached is designed for caching. 2) It performs no disk I/O at all. 3) It is multi threaded and can handle 100,000s of requests by scaling multi core. I’ll address the above statements, and later will provide further informations which are not captured by the above sentences and which are in my opinion more relevant to most caching users and use cases. Memcached is designed for caching: I’ll skip this since it is not an argument. I can say “Redis is designed for caching”. So in this regard they are exactly the same, let’s move to the next thing. It performs no disk I/O at all: In Redis you can just disable disk I/O at all if you want, providing you with a purely in-memory experience. Except, if you really need it, you can persist the database only when you are going to reboot, for example with “SHUTDOWN SAVE”. The bottom line here is that Redis persistence is an added value even when you don’t use it at all. It is multi threaded: This is true, and in my goals there is to make Redis I/O threaded (like in memcached, where the data access itself is not threaded, basically). However Redis, especially using pipelining, can serve an impressive amount of requests per second per thread (half a million is a common figure with very intensive pipelining. Without pipelining it is around 100,000 ops/sec). In the vanilla caching scenario where each Redis instance is the same, works as a master, disk ops are disabled, and sharding is up to the client like in the “memcached sharding model”, to spin multiple Redis processes per system is not terrible. Once you do this what you get is a shared-nothing multi threaded setup so what counts is the amount of operations you can serve per single thread. Last time I checked Redis was at least as fast as memcached per each thread. Implementations change over time so the edge today may be of the one or the other, but I bet they provide near performances since they both tend to maximize the resources they can use. Memcached multi threading is still an advantage since it makes things simpler to use and administer, but I think it is not a crucial part. There is more. Mike talks of operations per second without citing the *quality* of operations. The thing is in systems like Redis and Memcached the cost of command dispatching and I/O is dominating compared to actually touching the in-memory data structures. So basically in Redis executing a simple GET, a SET, or a complex operation like a ZRANK operation is about the same cost. But what you can achieve with a complex operation is a lot more work from the point of view of the application level. Maybe instead of fetching five cached values you can just send a small Lua script. So the actual “scalability” of the two systems have many dimensions, and what you can achieve is one of those. Of Mike’s concerns the only valid I can see is multi threading which, if we consider Redis in its special case of memcached replacement, may be addressed executing multiple processes, or simply by executing just one since it will be very very hard to saturate one thread doing memcached alike operations. The real differences — Now it’s time to talk about the *real* differences between the two systems. * Memory efficiency This is where Memcached used to be better than Redis. In a system designed to represent a plain string to string dictionary, it is simpler to make better use of memory. This difference is not dramatic and it’s like 5 years I don’t check it, but it used to be noticeable. However if we consider memory efficiency of a long running process, things are a bit different. Read the next section. But again to really evaluate memory efficiency, you should put into the bag that specially encoded small aggregated values in Redis are very memory efficient. For example sets of small integers are represented internally as an array of 8, 16, 32 or 64 bits integers, and are accessed in logarithmic time when you want to check the existence of some since they are ordered, so binary search can be used. The same happens when you use hashes to represent objects instead of resorting to JSON. So the real memory efficiency must be evaluated with an use case at hand. * Redis LRU vs Slab allocator Memcached is not perfect from the point of view of memory utilization. If you happen to have an application that dramatically change the size of the cached values over time, you are likely to incur severe fragmentation and the only cure is a reboot. Redis is a lot more deterministic from this point of view. Moreover Redis LRU was lately improved a lot, and is now a very good approximation of real LRU. More info can be found here: http://redis.io/topics/lru-cache. If I understand correctly, memcached LRU still expires according to its slab allocator so sometimes the behavior may be far from real LRU, but I would like to hear what experts have to say about this. If you want to test Redis LRU you now can using the redis-cli LRU testing mode available in recent versions of Redis. * Smart caching If you want to use Redis for caching, and use it ala-memcached, you are truly missing something. This is the biggest mistake in Mike’s blog post in my opinion. People are switching to Redis more and more because they discovered that they can represent their cached data in more useful ways. What to retain the latest N items of something? Use a capped list. Want to take a cached popularity index? Use a sorted set, and so forth. * Persistence and Replication If you need those, they are very important assets. For example using this model scaling a huge load of reads is very simple. The same about restarts with persistence, the ability to take cache snapshots over time, and so forth. But it’s totally fair to have usages where both features are totally irrelevant. What I want to say here is that there are “pure caching” use cases where persistence and replication are important. * Observability Redis is very very observable. It has detailed reporting about a ton of internal metrics, you can SCAN the dataset, observe the expiration of objects. Tune the LRU algorithm. Give names to clients and see them reported in CLIENT LIST. Use “MONITOR” to debug your application, and many other advanced things. I believe this to be an advantage. * Lua scripting I believe Lua scripting to be an impressive help in many caching use cases. For example if you have a cached JSON blob, with a Lua command you can extract a single field and return it to the client instead of transferring everything (you can do the same, conceptually, using Redis hashes directly to represent objects). Conclusions — Memcached is a great piece of software, I read the source code multiple times, it was a revolution in our industry, and you should check if for you is a better bet compared to Redis. However things must be evaluated for what they are, and in the end I was a bit annoyed to read Mike’s report and very similar reports over the years. So I decided to show you my point of view. If you find anything factually incorrect, ping me and I’ll update the blog post according with “EDIT” sections. Comments'
+content: extracted
+html: 2015-09-26-clarifications-about-redis-and-memcached.html
+---
+
+## [Clarifications about Redis and Memcached](https://antirez.com/news/94)
+
+[antirez](https://antirez.com/user/antirez) 4011 days ago. 375418 views.
+
+```
+If you know me, you know I’m not the kind of guy that considers competing products a bad thing. I actually love the users to have choices, so I rarely do anything like comparing Redis with other technologies.
+However it is also true that in order to pick the right solution users must be correctly informed.
+
+This post was triggered by reading a blog post published by Mike Perham, that you may know as the author of a popular library called Sidekiq, that happens to use Redis as backend. So I would not consider Mike a person which is “against” Redis at all. Yet in his blog post that you can find at the URL http://www.mikeperham.com/2015/09/24/storing-data-with-redis/ he states that, for caching, “you should probably use Memcached instead [of Redis]”. So Mike simply really believes Redis is not good for caching, and he arguments his thesis in this way:
+
+1) Memcached is designed for caching.
+2) It performs no disk I/O at all.
+3) It is multi threaded and can handle 100,000s of requests by scaling multi core.
+
+I’ll address the above statements, and later will provide further informations which are not captured by the above sentences and which are in my opinion more relevant to most caching users and use cases.
+
+Memcached is designed for caching: I’ll skip this since it is not an argument. I can say “Redis is designed for caching”. So in this regard they are exactly the same, let’s move to the next thing.
+
+It performs no disk I/O at all: In Redis you can just disable disk I/O at all if you want, providing you with a purely in-memory experience. Except, if you really need it, you can persist the database only when you are going to reboot, for example with “SHUTDOWN SAVE”. The bottom line here is that Redis persistence is an added value even when you don’t use it at all.
+
+It is multi threaded: This is true, and in my goals there is to make Redis I/O threaded (like in memcached, where the data access itself is not threaded, basically). However Redis, especially using pipelining, can serve an impressive amount of requests per second per thread (half a million is a common figure with very intensive pipelining. Without pipelining it is around 100,000 ops/sec). In the vanilla caching scenario where each Redis instance is the same, works as a master, disk ops are disabled, and sharding is up to the client like in the “memcached sharding model”, to spin multiple Redis processes per system is not terrible.  Once you do this what you get is a shared-nothing multi threaded setup so what counts is the amount of operations you can serve per single thread. Last time I checked Redis was at least as fast as memcached per each thread. Implementations change over time so the edge today may be of the one or the other, but I bet they provide near performances since they both tend to maximize the resources they can use. Memcached multi threading is still an advantage since it makes things simpler to use and administer, but I think it is not a crucial part.
+
+There is more. Mike talks of operations per second without citing the *quality* of operations. The thing is in systems like Redis and Memcached the cost of command dispatching and I/O is dominating compared to actually touching the in-memory data structures. So basically in Redis executing a simple GET, a SET, or a complex operation like a ZRANK operation is about the same cost. But what you can achieve with a complex operation is a lot more work from the point of view of the application level. Maybe instead of fetching five cached values you can just send a small Lua script. So the actual “scalability” of the two systems have many dimensions, and what you can achieve is one of those.
+
+Of Mike’s concerns the only valid I can see is multi threading which, if we consider Redis in its special case of memcached replacement, may be addressed executing multiple processes, or simply by executing just one since it will be very very hard to saturate one thread doing memcached alike operations.
+
+The real differences
+—
+
+Now it’s time to talk about the *real* differences between the two systems.
+
+* Memory efficiency
+
+This is where Memcached used to be better than Redis. In a system designed to represent a plain string to string dictionary, it is simpler to make better use of memory. This difference is not dramatic and it’s like 5 years I don’t check it, but it used to be noticeable.
+
+However if we consider memory efficiency of a long running process, things are a bit different. Read the next section.
+
+But again to really evaluate memory efficiency, you should put into the bag that specially encoded small aggregated values in Redis are very memory efficient. For example sets of small integers are represented internally as an array of 8, 16, 32 or 64 bits integers, and are accessed in logarithmic time when you want to check the existence of some since they are ordered, so binary search can be used.
+
+The same happens when you use hashes to represent objects instead of resorting to JSON. So the real memory efficiency must be evaluated with an use case at hand.
+
+* Redis LRU vs Slab allocator
+
+Memcached is not perfect from the point of view of memory utilization. If you happen to have an application that dramatically change the size of the cached values over time, you are likely to incur severe fragmentation and the only cure is a reboot. Redis is a lot more deterministic from this point of view.
+
+Moreover Redis LRU was lately improved a lot, and is now a very good approximation of real LRU. More info can be found here: http://redis.io/topics/lru-cache. If I understand correctly, memcached LRU still expires according to its slab allocator so sometimes the behavior may be far from real LRU, but I would like to hear what experts have to say about this. If you want to test Redis LRU you now can using the redis-cli LRU testing mode available in recent versions of Redis.
+
+* Smart caching
+
+If you want to use Redis for caching, and use it ala-memcached, you are truly missing something. This is the biggest mistake in Mike’s blog post in my opinion. People are switching to Redis more and more because they discovered that they can represent their cached data in more useful ways. What to retain the latest N items of something? Use a capped list. Want to take a cached popularity index? Use a sorted set, and so forth.
+
+* Persistence and Replication
+
+If you need those, they are very important assets. For example using this model scaling a huge load of reads is very simple. The same about restarts with persistence, the ability to take cache snapshots over time, and so forth. But it’s totally fair to have usages where both features are totally irrelevant. What I want to say here is that there are “pure caching” use cases where persistence and replication are important.
+
+* Observability
+
+Redis is very very observable. It has detailed reporting about a ton of internal metrics, you can SCAN the dataset, observe the expiration of objects. Tune the LRU algorithm. Give names to clients and see them reported in CLIENT LIST. Use “MONITOR” to debug your application, and many other advanced things. I believe this to be an advantage.
+
+* Lua scripting
+
+I believe Lua scripting to be an impressive help in many caching use cases. For example if you have a cached JSON blob, with a Lua command you can extract a single field and return it to the client instead of transferring everything (you can do the same, conceptually, using Redis hashes directly to represent objects).
+
+Conclusions
+—
+
+Memcached is a great piece of software, I read the source code multiple times, it was a revolution in our industry, and you should check if for you is a better bet compared to Redis. However things must be evaluated for what they are, and in the end I was a bit annoyed to read Mike’s report and very similar reports over the years. So I decided to show you my point of view. If you find anything factually incorrect, ping me and I’ll update the blog post according with “EDIT” sections.
+```
+
+[blog comments powered by Disqus](https://disqus.com)

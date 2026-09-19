@@ -1,0 +1,1399 @@
+<div id="readability-page-1" class="page"><div>
+<h2>
+	<a id="tldr" href="#tldr" rel="nofollow">
+		
+	</a>
+	<span>
+		TL;DR
+	</span>
+</h2>
+<p>Today I'm releasing six new <a href="https://sbert.net/" rel="nofollow">Sentence Transformers</a> CrossEncoder rerankers, state-of-the-art at their respective sizes, built on top of the <a href="https://huggingface.co/collections/jhu-clsp/encoders-vs-decoders-the-ettin-suite">Ettin</a> ModernBERT encoders, together with the data and full training recipe that produced them:</p>
+<ul>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-17m-v1"><code>cross-encoder/ettin-reranker-17m-v1</code></a></li>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-32m-v1"><code>cross-encoder/ettin-reranker-32m-v1</code></a></li>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-68m-v1"><code>cross-encoder/ettin-reranker-68m-v1</code></a></li>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-150m-v1"><code>cross-encoder/ettin-reranker-150m-v1</code></a></li>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-400m-v1"><code>cross-encoder/ettin-reranker-400m-v1</code></a></li>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-1b-v1"><code>cross-encoder/ettin-reranker-1b-v1</code></a></li>
+</ul>
+<p>The models were trained with a <strong>distillation recipe</strong>: pointwise MSE on <a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v2"><code>mixedbread-ai/mxbai-rerank-large-v2</code></a> scores over <a href="https://huggingface.co/datasets/cross-encoder/ettin-reranker-v1-data"><code>cross-encoder/ettin-reranker-v1-data</code></a>, which is a subset of <a href="https://huggingface.co/datasets/lightonai/embeddings-pre-training"><code>lightonai/embeddings-pre-training</code></a> mixed with a reranked subset of <a href="https://huggingface.co/datasets/lightonai/embeddings-fine-tuning"><code>lightonai/embeddings-fine-tuning</code></a>.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_embeddinggemma-300m.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_embeddinggemma-300m.png" alt="Our six rerankers paired with embeddinggemma-300m on MTEB(eng, v2) Retrieval"></a></p>
+<p><em>Our six rerankers paired with <a href="https://huggingface.co/google/embeddinggemma-300m"><code>google/embeddinggemma-300m</code></a> on MTEB(eng, v2) Retrieval. See <a href="#results" rel="nofollow">Results</a> for five more embedder pairings.</em></p>
+<p>If you're new to rerankers and want the "why" first, jump to <a href="#what-is-a-reranker-and-why-pair-one-with-an-embedder" rel="nofollow">What is a reranker, and why pair one with an embedder?</a>. If you just want to plug a model in, jump to <a href="#usage" rel="nofollow">Usage</a>. If you want to train your own, jump to <a href="#training" rel="nofollow">Training</a>.</p>
+<blockquote>
+<p>I bootstrapped the training recipe below with the new <a href="https://github.com/huggingface/sentence-transformers/tree/main/skills" rel="nofollow"><code>train-sentence-transformers</code> Agent Skill</a> shipped in <a href="https://github.com/huggingface/sentence-transformers/releases/tag/v5.5.0" rel="nofollow">Sentence Transformers v5.5.0</a>. Install it with <code>hf skills add train-sentence-transformers [--global] [--claude]</code> and ask your AI coding agent (Claude Code, Codex, Cursor, Gemini CLI, ...) to fine-tune a <code>SentenceTransformer</code>, <code>CrossEncoder</code>, or <code>SparseEncoder</code> model on your data.</p>
+</blockquote>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of contents
+	</span>
+</h2>
+<ul>
+<li><a href="#what-is-a-reranker-and-why-pair-one-with-an-embedder" rel="nofollow">What is a reranker, and why pair one with an embedder?</a></li>
+<li><a href="#usage" rel="nofollow">Usage</a><ul>
+<li><a href="#end-to-end-retrieve-then-rerank-pipeline" rel="nofollow">End-to-end retrieve-then-rerank pipeline</a></li>
+</ul>
+</li>
+<li><a href="#architecture-details" rel="nofollow">Architecture Details</a></li>
+<li><a href="#results" rel="nofollow">Results</a><ul>
+<li><a href="#mtebeng-v2-retrieval" rel="nofollow">MTEB(eng, v2) Retrieval</a></li>
+<li><a href="#speed" rel="nofollow">Speed</a></li>
+</ul>
+</li>
+<li><a href="#training" rel="nofollow">Training</a><ul>
+<li><a href="#distillation-recipe" rel="nofollow">Distillation recipe</a></li>
+<li><a href="#dataset" rel="nofollow">Dataset</a></li>
+<li><a href="#training-arguments" rel="nofollow">Training Arguments</a></li>
+<li><a href="#evaluation" rel="nofollow">Evaluation</a></li>
+<li><a href="#overall-training-script" rel="nofollow">Overall Training Script</a></li>
+</ul>
+</li>
+<li><a href="#conclusion" rel="nofollow">Conclusion</a></li>
+<li><a href="#acknowledgements" rel="nofollow">Acknowledgements</a></li>
+</ul>
+<h2>
+	<a id="what-is-a-reranker-and-why-pair-one-with-an-embedder" href="#what-is-a-reranker-and-why-pair-one-with-an-embedder" rel="nofollow">
+		
+	</a>
+	<span>
+		What is a reranker, and why pair one with an embedder?
+	</span>
+</h2>
+<p>A reranker (a.k.a. pointwise cross-encoder) is a neural model that takes a <code>(query, document)</code> pair and outputs a single relevance score. Unlike an embedding model, which encodes the query and document separately and computes their similarity from the two embedding vectors, a reranker lets the two texts attend to each other through every transformer layer. That joint encoding is more accurate but also more expensive: the model has to be run once per <code>(query, document)</code> pair rather than once per text.</p>
+<p>Because cross-encoders are too expensive to run over a full corpus, the common production pattern is <strong>retrieve-then-rerank</strong>: a fast embedding model retrieves the top-K candidates (cheap), then a cross-encoder re-orders just those K with high accuracy. The total cost stays bounded while the final ranking is much closer to what an exhaustive cross-encoder pass would produce.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/train-reranker/embedding_vs_reranker_model.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/train-reranker/embedding_vs_reranker_model.png" alt="Embedding vs Reranker Models"></a></p>
+<blockquote>
+<p>Throughout this blogpost I'll use "reranker" and "cross-encoder" interchangeably.</p>
+</blockquote>
+<h2>
+	<a id="usage" href="#usage" rel="nofollow">
+		
+	</a>
+	<span>
+		Usage
+	</span>
+</h2>
+<p>The released models are normal Sentence Transformers <code>CrossEncoder</code> models, so you can use them with just 3 lines of code:</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> CrossEncoder
+
+model = CrossEncoder(<span>"cross-encoder/ettin-reranker-32m-v1"</span>)
+scores = model.predict([
+    (<span>"Where was Apple founded?"</span>, <span>"Apple Inc. was founded in Cupertino, California in 1976 by Steve Jobs, Steve Wozniak, and Ronald Wayne."</span>),
+    (<span>"Where was Apple founded?"</span>, <span>"The Fuji apple is an apple cultivar developed in the late 1930s and brought to market in 1962."</span>),
+])
+<span>print</span>(scores)
+<span># [11.393298  2.968891]   &lt;- larger means more relevant</span>
+</code></pre>
+<p>For a query and a list of candidates, you can also use <code>rank</code> to get back sorted indices and scores:</p>
+<pre><code>ranked = model.rank(
+    query=<span>"Which planet is known as the Red Planet?"</span>,
+    documents=[
+        <span>"Venus is often called Earth's twin because of its similar size and proximity."</span>,
+        <span>"Mars, known for its reddish appearance, is often referred to as the Red Planet."</span>,
+        <span>"Jupiter, the largest planet in our solar system, has a prominent red spot."</span>,
+        <span>"Saturn, famous for its rings, is sometimes mistaken for the Red Planet."</span>,
+    ],
+    top_k=<span>4</span>,
+    return_documents=<span>True</span>,
+)
+<span>for</span> r <span>in</span> ranked:
+    <span>print</span>(<span>f"(<span>{r[<span>'score'</span>]:<span>.2</span>f}</span>): <span>{r[<span>'text'</span>]}</span>"</span>)
+<span># (10.82): Mars, known for its reddish appearance, is often referred to as the Red Planet.</span>
+<span># (9.86): Saturn, famous for its rings, is sometimes mistaken for the Red Planet.</span>
+<span># (8.55): Jupiter, the largest planet in our solar system, has a prominent red spot.</span>
+<span># (6.21): Venus is often called Earth's twin because of its similar size and proximity.</span>
+</code></pre>
+<p>You can swap <a href="https://huggingface.co/cross-encoder/ettin-reranker-32m-v1"><code>cross-encoder/ettin-reranker-32m-v1</code></a> for any other size to trade quality for speed. All six accept up to 8K tokens of context (useful for long-document reranking) thanks to ModernBERT's long-context pre-training.</p>
+<p>It is recommended to install <a href="https://github.com/huggingface/kernels" rel="nofollow"><code>kernels</code></a> and set <code>model_kwargs={"dtype": "bfloat16", "attn_implementation": "flash_attention_2"}</code> for the highest throughput. See the <a href="#speed" rel="nofollow">Speed</a> section below for more details, but in general you can expect a 1.7x-8.3x speedup over default loading depending on model size and sequence length.</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> CrossEncoder
+
+model = CrossEncoder(
+    <span>"cross-encoder/ettin-reranker-32m-v1"</span>,
+    model_kwargs={<span>"dtype"</span>: <span>"bfloat16"</span>, <span>"attn_implementation"</span>: <span>"flash_attention_2"</span>},
+)
+</code></pre>
+<h3>
+	<a id="end-to-end-retrieve-then-rerank-pipeline" href="#end-to-end-retrieve-then-rerank-pipeline" rel="nofollow">
+		
+	</a>
+	<span>
+		End-to-end retrieve-then-rerank pipeline
+	</span>
+</h3>
+<p>A complete example with a fast embedder for retrieval and the reranker for the final ordering:</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> SentenceTransformer, CrossEncoder
+
+<span># Fast retrieval with a static embedder (sub-millisecond on CPU per query)</span>
+embedder = SentenceTransformer(<span>"sentence-transformers/static-retrieval-mrl-en-v1"</span>)
+reranker = CrossEncoder(<span>"cross-encoder/ettin-reranker-68m-v1"</span>)
+
+corpus = [
+    <span>"Apple Inc. was founded in Cupertino, California in 1976 by Steve Jobs, Steve Wozniak, and Ronald Wayne."</span>,
+    <span>"The Fuji apple is an apple cultivar developed in the late 1930s."</span>,
+    <span>"Steve Jobs introduced the iPhone in 2007 at Macworld."</span>,
+    <span>"Macintosh computers were sold by Apple from 1984 onward."</span>,
+    <span># ... thousands or millions more in production</span>
+]
+query = <span>"Where was Apple founded?"</span>
+
+<span># Step 1: encode + retrieve top-100</span>
+query_emb = embedder.encode_query(query, convert_to_tensor=<span>True</span>)
+corpus_emb = embedder.encode_document(corpus, convert_to_tensor=<span>True</span>)
+scores = embedder.similarity(query_emb, corpus_emb)[<span>0</span>]
+top_k_idx = scores.topk(<span>min</span>(<span>100</span>, <span>len</span>(corpus))).indices.tolist()
+
+<span># Step 2: rerank</span>
+top_k_docs = [corpus[i] <span>for</span> i <span>in</span> top_k_idx]
+ranked = reranker.rank(query, top_k_docs, top_k=<span>5</span>, return_documents=<span>True</span>)
+<span>for</span> r <span>in</span> ranked:
+    <span>print</span>(<span>f"(<span>{r[<span>'score'</span>]:<span>.2</span>f}</span>): <span>{r[<span>'text'</span>]}</span>"</span>)
+<span># (11.63): Apple Inc. was founded in Cupertino, California in 1976 by Steve Jobs, Steve Wozniak, and Ronald Wayne.</span>
+<span># (4.71): Steve Jobs introduced the iPhone in 2007 at Macworld.</span>
+<span># (1.96): The Fuji apple is an apple cultivar developed in the late 1930s.</span>
+<span># (1.49): Macintosh computers were sold by Apple from 1984 onward.</span>
+</code></pre>
+<p>This is the same shape used by most modern search systems. The retriever decides what enters the funnel, the reranker decides what wins.</p>
+<h2>
+	<a id="architecture-details" href="#architecture-details" rel="nofollow">
+		
+	</a>
+	<span>
+		Architecture Details
+	</span>
+</h2>
+<p>All six rerankers share the same architecture and differ only in their backbone size. The backbone is one of the six <a href="https://huggingface.co/blog/ettin">Ettin encoders</a> from Johns Hopkins University's Ettin suite. These are ModernBERT-style models with unpadded attention, RoPE positional encodings, GeGLU, and 2T tokens of open-license pre-training, supporting up to 8192 tokens of context.</p>
+<p>On top of each encoder, the reranker uses a 4-module classification head that mirrors <code>ModernBertForSequenceClassification</code> but is built from Sentence Transformers' modular components. The underlying <code>Transformer</code> is a plain <code>AutoModel</code> rather than <code>AutoModelForSequenceClassification</code>, which lets us use sequence unpadding for variable-length inputs for Flash Attention 2. At medium-document sequence lengths this is a 1.7x-8.3x speedup over fp32+SDPA depending on model size (see <a href="#speed" rel="nofollow">Speed</a> for the full benchmark):</p>
+<pre><code>1. Transformer(FA2)
+2. Pooling(cls)
+3. Dense(H, H, bias=False, GELU)
+4. LayerNorm(H)
+5. Dense(H, 1, scores)
+</code></pre>
+<p>In my ablations, CLS pooling outperformed mean pooling. That was a little surprising. ModernBERT uses global attention only every third layer and the other two-thirds use local-window attention that cannot reach CLS from distant positions. Empirically, those few global layers carry enough signal to make CLS the better pooling choice.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Backbone</th>
+<th>Hidden size</th>
+<th>Layers</th>
+<th>Params (head incl.)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-17m-v1"><code>cross-encoder/ettin-reranker-17m-v1</code></a></td>
+<td><a href="https://huggingface.co/jhu-clsp/ettin-encoder-17m"><code>jhu-clsp/ettin-encoder-17m</code></a></td>
+<td>256</td>
+<td>7</td>
+<td>17.6M</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-32m-v1"><code>cross-encoder/ettin-reranker-32m-v1</code></a></td>
+<td><a href="https://huggingface.co/jhu-clsp/ettin-encoder-32m"><code>jhu-clsp/ettin-encoder-32m</code></a></td>
+<td>384</td>
+<td>10</td>
+<td>32.8M</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-68m-v1"><code>cross-encoder/ettin-reranker-68m-v1</code></a></td>
+<td><a href="https://huggingface.co/jhu-clsp/ettin-encoder-68m"><code>jhu-clsp/ettin-encoder-68m</code></a></td>
+<td>512</td>
+<td>19</td>
+<td>68.6M</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-150m-v1"><code>cross-encoder/ettin-reranker-150m-v1</code></a></td>
+<td><a href="https://huggingface.co/jhu-clsp/ettin-encoder-150m"><code>jhu-clsp/ettin-encoder-150m</code></a></td>
+<td>768</td>
+<td>22</td>
+<td>150.9M</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-400m-v1"><code>cross-encoder/ettin-reranker-400m-v1</code></a></td>
+<td><a href="https://huggingface.co/jhu-clsp/ettin-encoder-400m"><code>jhu-clsp/ettin-encoder-400m</code></a></td>
+<td>1024</td>
+<td>28</td>
+<td>401.6M</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-1b-v1"><code>cross-encoder/ettin-reranker-1b-v1</code></a></td>
+<td><a href="https://huggingface.co/jhu-clsp/ettin-encoder-1b"><code>jhu-clsp/ettin-encoder-1b</code></a></td>
+<td>1792</td>
+<td>28</td>
+<td>1.00B</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>All six models are released under the <strong>Apache 2.0</strong> license, matching the Ettin encoders.</p>
+<h2>
+	<a id="results" href="#results" rel="nofollow">
+		
+	</a>
+	<span>
+		Results
+	</span>
+</h2>
+<h3>
+	<a id="mtebeng-v2-retrieval" href="#mtebeng-v2-retrieval" rel="nofollow">
+		
+	</a>
+	<span>
+		MTEB(eng, v2) Retrieval
+	</span>
+</h3>
+<p>I ran each released model through the full <a href="https://github.com/embeddings-benchmark/mteb" rel="nofollow"><code>MTEB(eng, v2)</code> Retrieval benchmark</a> (10 tasks, top-100 reranked) using MTEB's <a href="https://embeddings-benchmark.github.io/mteb/get_started/advanced_usage/two_stage_reranking/" rel="nofollow">two-stage reranking flow</a>, pairing each reranker with six embedding models that span the speed/quality spectrum:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Embedding Model</th>
+<th>Active params</th>
+<th>Retriever-only NDCG@10</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/sentence-transformers/static-retrieval-mrl-en-v1"><code>sentence-transformers/static-retrieval-mrl-en-v1</code></a></td>
+<td>0M</td>
+<td>0.3495</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2"><code>sentence-transformers/all-MiniLM-L6-v2</code></a></td>
+<td>23M</td>
+<td>0.4292</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-small-en-v1.5"><code>BAAI/bge-small-en-v1.5</code></a></td>
+<td>33M</td>
+<td>0.5149</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5"><code>nomic-ai/nomic-embed-text-v1.5</code></a></td>
+<td>137M</td>
+<td>0.5226</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/google/embeddinggemma-300m"><code>google/embeddinggemma-300m</code></a></td>
+<td>308M</td>
+<td>0.5463</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/jinaai/jina-embeddings-v5-text-small-retrieval"><code>jinaai/jina-embeddings-v5-text-small-retrieval</code></a></td>
+<td>596M</td>
+<td>0.5980</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The <strong>dashed retriever-only line</strong> in each chart below is the headline number to beat. Anything below it means the reranker actively hurts the pipeline on average:</p>
+<div>
+	<table>
+		<thead><tr>
+<th></th>
+<th></th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_static-retrieval-mrl-en-v1.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_static-retrieval-mrl-en-v1.png" alt="MTEB(eng, v2) Retrieval with static-retrieval-mrl-en-v1 + reranker"></a></td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_all-MiniLM-L6-v2.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_all-MiniLM-L6-v2.png" alt="MTEB(eng, v2) Retrieval with all-MiniLM-L6-v2 + reranker"></a></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_bge-small-en-v1.5.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_bge-small-en-v1.5.png" alt="MTEB(eng, v2) Retrieval with bge-small-en-v1.5 + reranker"></a></td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_nomic-embed-text-v1.5.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_nomic-embed-text-v1.5.png" alt="MTEB(eng, v2) Retrieval with nomic-embed-text-v1.5 + reranker"></a></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_embeddinggemma-300m.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_embeddinggemma-300m.png" alt="MTEB(eng, v2) Retrieval with embeddinggemma-300m + reranker"></a></td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_jina-embeddings-v5-text-small-retrieval.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ettin-reranker/mteb_ndcg10_jina-embeddings-v5-text-small-retrieval.png" alt="MTEB(eng, v2) Retrieval with jina-embeddings-v5-text-small-retrieval + reranker"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<details><summary>Full table of results (click to expand)</summary>
+
+<p>Mean NDCG@10 over the 6 embedder pairings, sorted descending. Our six models are in <strong>bold</strong>, and the teacher <a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v2"><code>mixedbread-ai/mxbai-rerank-large-v2</code></a> is underlined.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Reranker</th>
+<th>Params</th>
+<th>MTEB(eng, v2) Retrieval NDCG@10</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/Qwen/Qwen3-Reranker-4B"><code>Qwen/Qwen3-Reranker-4B</code></a><sup>†</sup></td>
+<td>4.02B</td>
+<td>0.6367</td>
+</tr>
+<tr>
+<td><u><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v2"><code>mixedbread-ai/mxbai-rerank-large-v2</code></a></u></td>
+<td>1.54B</td>
+<td><u>0.6115</u></td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-1b-v1"><code>cross-encoder/ettin-reranker-1b-v1</code></a></strong></td>
+<td><strong>1.00B</strong></td>
+<td><strong>0.6114</strong></td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-400m-v1"><code>cross-encoder/ettin-reranker-400m-v1</code></a></strong></td>
+<td><strong>401M</strong></td>
+<td><strong>0.6091</strong></td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-150m-v1"><code>cross-encoder/ettin-reranker-150m-v1</code></a></strong></td>
+<td><strong>151M</strong></td>
+<td><strong>0.5994</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Qwen/Qwen3-Reranker-0.6B"><code>Qwen/Qwen3-Reranker-0.6B</code></a></td>
+<td>596M</td>
+<td>0.5940</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-base-v2"><code>mixedbread-ai/mxbai-rerank-base-v2</code></a></td>
+<td>494M</td>
+<td>0.5920</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-68m-v1"><code>cross-encoder/ettin-reranker-68m-v1</code></a></strong></td>
+<td><strong>68.6M</strong></td>
+<td><strong>0.5915</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/jinaai/jina-reranker-m0"><code>jinaai/jina-reranker-m0</code></a></td>
+<td>2.44B</td>
+<td>0.5856</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Alibaba-NLP/gte-reranker-modernbert-base"><code>Alibaba-NLP/gte-reranker-modernbert-base</code></a></td>
+<td>150M</td>
+<td>0.5843</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-32m-v1"><code>cross-encoder/ettin-reranker-32m-v1</code></a></strong></td>
+<td><strong>32.8M</strong></td>
+<td><strong>0.5779</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-embedding-reranker-english-r2"><code>ibm-granite/granite-embedding-reranker-english-r2</code></a></td>
+<td>150M</td>
+<td>0.5656</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-17m-v1"><code>cross-encoder/ettin-reranker-17m-v1</code></a></strong></td>
+<td><strong>17.6M</strong></td>
+<td><strong>0.5576</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-v2-m3"><code>BAAI/bge-reranker-v2-m3</code></a></td>
+<td>568M</td>
+<td>0.5526</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/zeroentropy/zerank-2-reranker"><code>zeroentropy/zerank-2-reranker</code></a><sup>†</sup></td>
+<td>4.02B</td>
+<td>0.5300</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-large"><code>BAAI/bge-reranker-large</code></a></td>
+<td>560M</td>
+<td>0.5098</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2"><code>cross-encoder/ms-marco-MiniLM-L6-v2</code></a></td>
+<td>22.7M</td>
+<td>0.5082</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L12-v2"><code>cross-encoder/ms-marco-MiniLM-L12-v2</code></a></td>
+<td>33.4M</td>
+<td>0.5066</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v1"><code>mixedbread-ai/mxbai-rerank-large-v1</code></a></td>
+<td>435M</td>
+<td>0.5063</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L4-v2"><code>cross-encoder/ms-marco-MiniLM-L4-v2</code></a></td>
+<td>19.2M</td>
+<td>0.4979</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-xsmall-v1"><code>mixedbread-ai/mxbai-rerank-xsmall-v1</code></a></td>
+<td>70.8M</td>
+<td>0.4968</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-base"><code>BAAI/bge-reranker-base</code></a></td>
+<td>278M</td>
+<td>0.4890</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-base-v1"><code>mixedbread-ai/mxbai-rerank-base-v1</code></a></td>
+<td>184M</td>
+<td>0.4865</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><sup>†</sup> Capped to <code>max_seq_length=8192</code> (the 4B Qwen3-based rerankers don't fit on a single H100 80GB at native context). Native-context evaluation is likely higher.</p>
+</details>
+
+<details><summary>Full table of NanoBEIR results (click to expand)</summary>
+
+<p><a href="https://huggingface.co/collections/sentence-transformers/nanobeir-with-bm25-rankings">NanoBEIR</a> is a fast 13-dataset subset of <a href="https://github.com/beir-cellar/beir" rel="nofollow">BEIR</a> that uses 50 queries per dataset against up to 5000 documents each. NanoBEIR is what <code>metric_for_best_model</code> was set to during training (see <a href="#evaluation" rel="nofollow">Evaluation</a>), and what I used to guide the experimentation.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Reranker</th>
+<th>Params</th>
+<th>NanoBEIR mean NDCG@10</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v2"><code>mixedbread-ai/mxbai-rerank-large-v2</code></a></td>
+<td>1.54B</td>
+<td>0.7318</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-1b-v1"><code>cross-encoder/ettin-reranker-1b-v1</code></a></strong></td>
+<td><strong>1.00B</strong></td>
+<td><strong>0.7237</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/jinaai/jina-reranker-m0"><code>jinaai/jina-reranker-m0</code></a></td>
+<td>2.44B</td>
+<td>0.7197</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-400m-v1"><code>cross-encoder/ettin-reranker-400m-v1</code></a></strong></td>
+<td><strong>401M</strong></td>
+<td><strong>0.7193</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-base-v2"><code>mixedbread-ai/mxbai-rerank-base-v2</code></a></td>
+<td>494M</td>
+<td>0.7162</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-150m-v1"><code>cross-encoder/ettin-reranker-150m-v1</code></a></strong></td>
+<td><strong>151M</strong></td>
+<td><strong>0.7086</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Alibaba-NLP/gte-reranker-modernbert-base"><code>Alibaba-NLP/gte-reranker-modernbert-base</code></a></td>
+<td>150M</td>
+<td>0.7017</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-v2-m3"><code>BAAI/bge-reranker-v2-m3</code></a></td>
+<td>568M</td>
+<td>0.6971</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-68m-v1"><code>cross-encoder/ettin-reranker-68m-v1</code></a></strong></td>
+<td><strong>68.6M</strong></td>
+<td><strong>0.6915</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-embedding-reranker-english-r2"><code>ibm-granite/granite-embedding-reranker-english-r2</code></a></td>
+<td>150M</td>
+<td>0.6909</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-32m-v1"><code>cross-encoder/ettin-reranker-32m-v1</code></a></strong></td>
+<td><strong>32.8M</strong></td>
+<td><strong>0.6825</strong></td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-17m-v1"><code>cross-encoder/ettin-reranker-17m-v1</code></a></strong></td>
+<td><strong>17.6M</strong></td>
+<td><strong>0.6746</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v1"><code>mixedbread-ai/mxbai-rerank-large-v1</code></a></td>
+<td>435M</td>
+<td>0.6488</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-large"><code>BAAI/bge-reranker-large</code></a></td>
+<td>560M</td>
+<td>0.6379</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L12-v2"><code>cross-encoder/ms-marco-MiniLM-L12-v2</code></a></td>
+<td>33.4M</td>
+<td>0.6369</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2"><code>cross-encoder/ms-marco-MiniLM-L6-v2</code></a></td>
+<td>22.7M</td>
+<td>0.6312</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L4-v2"><code>cross-encoder/ms-marco-MiniLM-L4-v2</code></a></td>
+<td>19.2M</td>
+<td>0.6298</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-base-v1"><code>mixedbread-ai/mxbai-rerank-base-v1</code></a></td>
+<td>184M</td>
+<td>0.6231</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-xsmall-v1"><code>mixedbread-ai/mxbai-rerank-xsmall-v1</code></a></td>
+<td>70.8M</td>
+<td>0.6136</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-base"><code>BAAI/bge-reranker-base</code></a></td>
+<td>278M</td>
+<td>0.6027</td>
+</tr>
+</tbody>
+	</table>
+</div>
+</details>
+
+<p>The smallest model I'm releasing, our 17M, beats the 33M <code>ms-marco-MiniLM-L12-v2</code> by +0.051 NDCG@10 (0.5576 vs 0.5066) on MTEB and +0.038 (0.6746 vs 0.6369) on NanoBEIR at roughly half the parameter count. The 32M beats the 568M <code>BAAI/bge-reranker-v2-m3</code> by +0.025 (0.5779 vs 0.5526) on MTEB, a 17x parameter gap. If you've been using one of the legacy MiniLM rerankers as the default in your retrieve-then-rerank stack, swapping in our 17M (or 32M) is a low-risk drop-in replacement, with a noticeable quality bump on both benchmarks.</p>
+<p>Moving up the table, our 150M is the strongest reranker I tested in the under-600M range on MTEB, edging out the recent <code>Qwen/Qwen3-Reranker-0.6B</code> (596M) by +0.005 (0.5994 vs 0.5940) and beating every BAAI bge-reranker variant by 0.03 to 0.05. The 68M is also worth a mention: at 0.5915 it lands almost exactly on <code>Qwen3-Reranker-0.6B</code> (0.5940) while using a ninth of the parameters.</p>
+<p>At the top of the released range, our 1B model closely tracks its teacher. It comes within 0.0001 of the 1.54B <code>mxbai-rerank-large-v2</code> on MTEB (0.6114 vs 0.6115) and within 0.008 on NanoBEIR, despite distilling from a model 54% larger than itself. The distillation effectively closes the gap to the teacher, which is what I was hoping to see going into this release.</p>
+<p>The overall strongest reranker in the comparison is <code>Qwen/Qwen3-Reranker-4B</code> at 0.6367 MTEB, +0.025 above our 1B model. Closing that gap from the current recipe would likely require distilling from a stronger teacher (our teacher itself sits below <code>Qwen3-Reranker-4B</code>). For most retrieve-then-rerank workloads, our 1B at a quarter of the parameters (see <a href="#speed" rel="nofollow">Speed</a>) is a much more practical pick.</p>
+<h3>
+	<a id="speed" href="#speed" rel="nofollow">
+		
+	</a>
+	<span>
+		Speed
+	</span>
+</h3>
+<p>Quality numbers are only half of what matters for a reranker. The other half is whether its latency fits inside the budget you have between retrieval and showing results to the user. Let me walk through what I measured.</p>
+<p>I benchmarked all six released models against thirteen public rerankers (strong baselines up to about 1B parameters) on a single NVIDIA H100 80GB. The queries and documents come from <a href="https://huggingface.co/datasets/sentence-transformers/natural-questions"><code>sentence-transformers/natural-questions</code></a> at its natural document-length distribution: most NQ answers are short, some are long. Documents are truncated at <code>max_length=512</code> to avoid giving the older models an unfair advantage. Each model uses its best supported attention implementation: Flash Attention 2 wherever the architecture supports it (BERT, XLM-RoBERTa, ModernBERT, Qwen2), SDPA where it doesn't, and eager for DeBERTa-v2 (which currently has neither FA2 nor SDPA support in <code>transformers</code>).</p>
+<p>For every model an auto-batch search starts at batch size 8 and doubles until the GPU runs out of memory. At each batch size I run three timed passes and keep the median throughput, so a single unlucky run doesn't drag the number around. The reported throughput is at whichever batch size won.</p>
+<p><strong>Table 1.</strong> Throughput in pairs per second, all in <code>bfloat16</code>. Our six rerankers are in <strong>bold</strong>.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Params</th>
+<th>Attn</th>
+<th>pairs / second</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-17m-v1"><code>cross-encoder/ettin-reranker-17m-v1</code></a></strong></td>
+<td><strong>17M</strong></td>
+<td>FA2</td>
+<td><strong>7517</strong></td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-32m-v1"><code>cross-encoder/ettin-reranker-32m-v1</code></a></strong></td>
+<td><strong>32M</strong></td>
+<td>FA2</td>
+<td><strong>6602</strong></td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-68m-v1"><code>cross-encoder/ettin-reranker-68m-v1</code></a></strong></td>
+<td><strong>68M</strong></td>
+<td>FA2</td>
+<td><strong>4913</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L4-v2"><code>cross-encoder/ms-marco-MiniLM-L4-v2</code></a></td>
+<td>19M</td>
+<td>FA2</td>
+<td>4029</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2"><code>cross-encoder/ms-marco-MiniLM-L6-v2</code></a></td>
+<td>22M</td>
+<td>FA2</td>
+<td>3817</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L12-v2"><code>cross-encoder/ms-marco-MiniLM-L12-v2</code></a></td>
+<td>33M</td>
+<td>FA2</td>
+<td>3311</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-150m-v1"><code>cross-encoder/ettin-reranker-150m-v1</code></a></strong></td>
+<td><strong>150M</strong></td>
+<td>FA2</td>
+<td><strong>3237</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-base"><code>BAAI/bge-reranker-base</code></a></td>
+<td>278M</td>
+<td>FA2</td>
+<td>2858</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-xsmall-v1"><code>mixedbread-ai/mxbai-rerank-xsmall-v1</code></a></td>
+<td>70M</td>
+<td>eager</td>
+<td>2636</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-base-v1"><code>mixedbread-ai/mxbai-rerank-base-v1</code></a></td>
+<td>184M</td>
+<td>eager</td>
+<td>1953</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-400m-v1"><code>cross-encoder/ettin-reranker-400m-v1</code></a></strong></td>
+<td><strong>400M</strong></td>
+<td>FA2</td>
+<td><strong>1738</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-large"><code>BAAI/bge-reranker-large</code></a></td>
+<td>560M</td>
+<td>FA2</td>
+<td>1659</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-v2-m3"><code>BAAI/bge-reranker-v2-m3</code></a></td>
+<td>568M</td>
+<td>FA2</td>
+<td>1569</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Alibaba-NLP/gte-reranker-modernbert-base"><code>Alibaba-NLP/gte-reranker-modernbert-base</code></a></td>
+<td>150M</td>
+<td>FA2</td>
+<td>1418</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-embedding-reranker-english-r2"><code>ibm-granite/granite-embedding-reranker-english-r2</code></a></td>
+<td>150M</td>
+<td>FA2</td>
+<td>1404</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-1b-v1"><code>cross-encoder/ettin-reranker-1b-v1</code></a></strong></td>
+<td><strong>1B</strong></td>
+<td>FA2</td>
+<td><strong>928</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v1"><code>mixedbread-ai/mxbai-rerank-large-v1</code></a></td>
+<td>435M</td>
+<td>eager</td>
+<td>867</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-base-v2"><code>mixedbread-ai/mxbai-rerank-base-v2</code></a></td>
+<td>494M</td>
+<td>FA2</td>
+<td>809</td>
+</tr>
+<tr>
+<td><u><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v2"><code>mixedbread-ai/mxbai-rerank-large-v2</code></a></u></td>
+<td><u>1.5B</u></td>
+<td>FA2</td>
+<td><u>387</u></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Our 17M is the fastest reranker in the whole comparison, at 7517 pairs per second. That's almost twice the throughput of <code>ms-marco-MiniLM-L6-v2</code> (3817) and faster even than the smaller <code>ms-marco-MiniLM-L4-v2</code> (4029). And as you saw in the MTEB table earlier, our 17M is also more accurate than every MiniLM variant. If you're currently running a MiniLM cross-encoder, swapping to our 17M is a one-line change that improves both your latency and search quality.</p>
+<p>Our 150M is an even more interesting comparison, because there are two direct architectural peers at exactly 150M parameters: <a href="https://huggingface.co/Alibaba-NLP/gte-reranker-modernbert-base"><code>Alibaba-NLP/gte-reranker-modernbert-base</code></a> and <a href="https://huggingface.co/ibm-granite/granite-embedding-reranker-english-r2"><code>ibm-granite/granite-embedding-reranker-english-r2</code></a>. Both are built on the same ModernBERT-base backbone. Our 150M runs at 3237 pairs per second, while the two peers come in at 1418 and 1404 respectively, for a 2.3x speed gap.</p>
+<p>All three 150M models use Flash Attention 2, but the two peers load through <code>AutoModelForSequenceClassification</code>, which keeps the inputs padded. So attention itself runs the FA2 kernel, but the rest of the model is still doing dense compute on padding tokens that don't contribute anything. Our modular <code>Transformer</code> module (see <a href="#architecture-details" rel="nofollow">Architecture Details</a> above) propagates unpadded inputs all the way through the model, so every layer only spends compute on real tokens. That's the difference between getting some of FA2's benefit and getting all of it.</p>
+<p>At the bottom of the table, our 1B model hits 928 pairs per second, which is 2.4x faster than the 1.54B teacher <code>mxbai-rerank-large-v2</code> (387 pairs per second) while matching its MTEB score within 0.0001. The teacher is Qwen2-based with a prompt-template overhead per pair, so the distilled student inherits the teacher's calibration and judgement but skips all the runtime baggage. This is honestly the most satisfying single number in the whole release for me.</p>
+<p>One unfortunate note: the DeBERTa-v2-based <code>mxbai-rerank-{xsmall,base,large}-v1</code> series ends up much slower than the rest of the table because DeBERTa-v2 currently supports neither Flash Attention 2 nor SDPA in <code>transformers</code>. The 70M <code>mxbai-rerank-xsmall-v1</code> runs at 2636 pairs per second, about half the throughput of our 68M at almost the same parameter count. The models themselves are perfectly fine, they just don't get to use modern attention kernels.</p>
+<details><summary>Same benchmark on a consumer GPU (RTX 3090, 24 GB)</summary>
+
+<p>If you're self-hosting on a consumer card rather than a datacenter GPU, here's the same throughput sweep on an RTX 3090. Same benchmark setup as Table 1: <code>bfloat16</code>, best-supported attention per model, three-trial median throughput at the largest batch that fits.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Params</th>
+<th>Best attn</th>
+<th>pairs / second</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-17m-v1"><code>cross-encoder/ettin-reranker-17m-v1</code></a></strong></td>
+<td><strong>17M</strong></td>
+<td>FA2</td>
+<td><strong>9008</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L4-v2"><code>cross-encoder/ms-marco-MiniLM-L4-v2</code></a></td>
+<td>19M</td>
+<td>FA2</td>
+<td>5071</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-32m-v1"><code>cross-encoder/ettin-reranker-32m-v1</code></a></strong></td>
+<td><strong>32M</strong></td>
+<td>FA2</td>
+<td><strong>4497</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2"><code>cross-encoder/ms-marco-MiniLM-L6-v2</code></a></td>
+<td>22M</td>
+<td>FA2</td>
+<td>4234</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L12-v2"><code>cross-encoder/ms-marco-MiniLM-L12-v2</code></a></td>
+<td>33M</td>
+<td>FA2</td>
+<td>2847</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-68m-v1"><code>cross-encoder/ettin-reranker-68m-v1</code></a></strong></td>
+<td><strong>68M</strong></td>
+<td>FA2</td>
+<td><strong>1916</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-xsmall-v1"><code>mixedbread-ai/mxbai-rerank-xsmall-v1</code></a></td>
+<td>70M</td>
+<td>eager</td>
+<td>1677</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-base"><code>BAAI/bge-reranker-base</code></a></td>
+<td>278M</td>
+<td>FA2</td>
+<td>1329</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-150m-v1"><code>cross-encoder/ettin-reranker-150m-v1</code></a></strong></td>
+<td><strong>150M</strong></td>
+<td>FA2</td>
+<td><strong>982</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-base-v1"><code>mixedbread-ai/mxbai-rerank-base-v1</code></a></td>
+<td>184M</td>
+<td>eager</td>
+<td>772</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-embedding-reranker-english-r2"><code>ibm-granite/granite-embedding-reranker-english-r2</code></a></td>
+<td>150M</td>
+<td>FA2</td>
+<td>598</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Alibaba-NLP/gte-reranker-modernbert-base"><code>Alibaba-NLP/gte-reranker-modernbert-base</code></a></td>
+<td>150M</td>
+<td>FA2</td>
+<td>586</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-large"><code>BAAI/bge-reranker-large</code></a></td>
+<td>560M</td>
+<td>FA2</td>
+<td>448</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-v2-m3"><code>BAAI/bge-reranker-v2-m3</code></a></td>
+<td>568M</td>
+<td>FA2</td>
+<td>436</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-400m-v1"><code>cross-encoder/ettin-reranker-400m-v1</code></a></strong></td>
+<td><strong>400M</strong></td>
+<td>FA2</td>
+<td><strong>429</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v1"><code>mixedbread-ai/mxbai-rerank-large-v1</code></a></td>
+<td>435M</td>
+<td>eager</td>
+<td>266</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-base-v2"><code>mixedbread-ai/mxbai-rerank-base-v2</code></a></td>
+<td>494M</td>
+<td>FA2</td>
+<td>221</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-1b-v1"><code>cross-encoder/ettin-reranker-1b-v1</code></a></strong></td>
+<td><strong>1B</strong></td>
+<td>FA2</td>
+<td><strong>189</strong></td>
+</tr>
+<tr>
+<td><u><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v2"><code>mixedbread-ai/mxbai-rerank-large-v2</code></a></u></td>
+<td><u>1.5B</u></td>
+<td>FA2</td>
+<td><u>69</u></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Our 17M is still the fastest model in the table at 9008 pairs per second, actually higher than its H100 number, which suggests that at tiny sizes raw compute isn't the bottleneck and the H100's extra muscle doesn't translate. The middle of the table reshuffles a bit, with the MiniLM rerankers overtaking our 32M and 68M, and the 1B slipping behind <code>mxbai-rerank-base-v2</code> (189 vs 221 pairs per second). Our 150M model still holds a solid lead over the two 150M ModernBERT-based peers, and the teacher-replacement story still holds, with our 1B at 2.7x the throughput of the 1.5B <code>mxbai-rerank-large-v2</code> (189 vs 69 pairs per second).</p>
+</details>
+
+<details><summary>Same benchmark on CPU (Intel Core i7-13700K)</summary>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Params</th>
+<th>Best attn</th>
+<th>pairs / second</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-17m-v1"><code>cross-encoder/ettin-reranker-17m-v1</code></a></strong></td>
+<td><strong>17M</strong></td>
+<td>SDPA</td>
+<td><strong>267.4</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L4-v2"><code>cross-encoder/ms-marco-MiniLM-L4-v2</code></a></td>
+<td>19M</td>
+<td>SDPA</td>
+<td>206.2</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2"><code>cross-encoder/ms-marco-MiniLM-L6-v2</code></a></td>
+<td>22M</td>
+<td>SDPA</td>
+<td>143.9</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-32m-v1"><code>cross-encoder/ettin-reranker-32m-v1</code></a></strong></td>
+<td><strong>32M</strong></td>
+<td>SDPA</td>
+<td><strong>92.5</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L12-v2"><code>cross-encoder/ms-marco-MiniLM-L12-v2</code></a></td>
+<td>33M</td>
+<td>SDPA</td>
+<td>75.9</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-xsmall-v1"><code>mixedbread-ai/mxbai-rerank-xsmall-v1</code></a></td>
+<td>70M</td>
+<td>eager</td>
+<td>38.9</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-68m-v1"><code>cross-encoder/ettin-reranker-68m-v1</code></a></strong></td>
+<td><strong>68M</strong></td>
+<td>SDPA</td>
+<td><strong>31.2</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-base"><code>BAAI/bge-reranker-base</code></a></td>
+<td>278M</td>
+<td>SDPA</td>
+<td>19.2</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Alibaba-NLP/gte-reranker-modernbert-base"><code>Alibaba-NLP/gte-reranker-modernbert-base</code></a></td>
+<td>150M</td>
+<td>SDPA</td>
+<td>14.7</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-embedding-reranker-english-r2"><code>ibm-granite/granite-embedding-reranker-english-r2</code></a></td>
+<td>150M</td>
+<td>SDPA</td>
+<td>14.5</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-150m-v1"><code>cross-encoder/ettin-reranker-150m-v1</code></a></strong></td>
+<td><strong>150M</strong></td>
+<td>SDPA</td>
+<td><strong>14.0</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-base-v1"><code>mixedbread-ai/mxbai-rerank-base-v1</code></a></td>
+<td>184M</td>
+<td>eager</td>
+<td>13.4</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-large"><code>BAAI/bge-reranker-large</code></a></td>
+<td>560M</td>
+<td>SDPA</td>
+<td>6.2</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-reranker-v2-m3"><code>BAAI/bge-reranker-v2-m3</code></a></td>
+<td>568M</td>
+<td>SDPA</td>
+<td>6.0</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-400m-v1"><code>cross-encoder/ettin-reranker-400m-v1</code></a></strong></td>
+<td><strong>400M</strong></td>
+<td>SDPA</td>
+<td><strong>5.2</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v1"><code>mixedbread-ai/mxbai-rerank-large-v1</code></a></td>
+<td>435M</td>
+<td>eager</td>
+<td>4.3</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-base-v2"><code>mixedbread-ai/mxbai-rerank-base-v2</code></a></td>
+<td>494M</td>
+<td>SDPA</td>
+<td>3.5</td>
+</tr>
+<tr>
+<td><strong><a href="https://huggingface.co/cross-encoder/ettin-reranker-1b-v1"><code>cross-encoder/ettin-reranker-1b-v1</code></a></strong></td>
+<td><strong>1B</strong></td>
+<td>SDPA</td>
+<td><strong>2.1</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>On CPU, we can't take advantage of bf16, Flash Attention 2, or unpadding, so the latency story is a bit simpler: the higher the parameter count, the slower the model. The 17M model is considerably faster than <code>ms-marco-MiniLM-L6-v2</code> (267.4 vs 143.9 pairs per second) and even faster than the smaller <code>ms-marco-MiniLM-L4-v2</code> (206.2). As expected, our 150M model lands alongside the two 150M peers (14.0 vs 14.5 and 14.7 pairs per second) now that unpadding no longer applies. If you're CPU-bound, our 17M and 32M are the practical picks.</p>
+</details>
+
+<p>To explain where the speed comes from, the next table sweeps <code>fp32+SDPA</code>, <code>bf16+SDPA</code>, and <code>bf16+FA2</code> for our six models using the same bench config. The FA2 column is split in two: one with the inputs still padded (what a wrapped model would see) and one with unpadded inputs (what our modular <code>Transformer</code> actually does). The rightmost column is what our models use by default when FA2 is enabled.</p>
+<p><strong>Table 2.</strong> Precision and attention ablation for the six released sizes at <code>max_length=512</code> on natural NQ documents. Each cell shows pairs / second with the multiplier relative to <code>fp32+SDPA</code> in parentheses, and peak GPU memory on the second line. The rightmost column (in <strong>bold</strong>) is the configuration our models use by default when FA2 is enabled.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Params</th>
+<th>fp32+SDPA</th>
+<th>bf16+SDPA</th>
+<th>bf16+FA2 w. padding</th>
+<th><strong>bf16+FA2 w.o. padding</strong></th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-17m-v1"><code>ettin-reranker-17m-v1</code></a></td>
+<td>17M</td>
+<td>4402 (1.00x)<br>0.8 GB</td>
+<td>4523 (1.03x)<br>2.2 GB</td>
+<td>3744 (0.85x)<br>1.9 GB</td>
+<td><strong>7517 (1.71x)</strong><br><strong>1.4 GB</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-32m-v1"><code>ettin-reranker-32m-v1</code></a></td>
+<td>32M</td>
+<td>3307 (1.00x)<br>1.2 GB</td>
+<td>4357 (1.32x)<br>1.6 GB</td>
+<td>3040 (0.92x)<br>2.9 GB</td>
+<td><strong>6602 (2.00x)</strong><br><strong>1.1 GB</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-68m-v1"><code>ettin-reranker-68m-v1</code></a></td>
+<td>68M</td>
+<td>1364 (1.00x)<br>1.0 GB</td>
+<td>2861 (2.10x)<br>2.2 GB</td>
+<td>2003 (1.47x)<br>2.0 GB</td>
+<td><strong>4913 (3.60x)</strong><br><strong>1.5 GB</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-150m-v1"><code>ettin-reranker-150m-v1</code></a></td>
+<td>150M</td>
+<td>671 (1.00x)<br>1.6 GB</td>
+<td>1942 (2.90x)<br>1.8 GB</td>
+<td>1396 (2.08x)<br>3.1 GB</td>
+<td><strong>3237 (4.83x)</strong><br><strong>1.4 GB</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-400m-v1"><code>ettin-reranker-400m-v1</code></a></td>
+<td>400M</td>
+<td>266 (1.00x)<br>2.5 GB</td>
+<td>1113 (4.18x)<br>1.8 GB</td>
+<td>864 (3.25x)<br>2.7 GB</td>
+<td><strong>1738 (6.53x)</strong><br><strong>2.2 GB</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/cross-encoder/ettin-reranker-1b-v1"><code>ettin-reranker-1b-v1</code></a></td>
+<td>1B</td>
+<td>112 (1.00x)<br>4.6 GB</td>
+<td>630 (5.60x)<br>2.8 GB</td>
+<td>522 (4.64x)<br>3.6 GB</td>
+<td><strong>928 (8.26x)</strong><br><strong>4.5 GB</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The total speedup from <code>bf16+FA2 w.o. padding</code> over the <code>fp32+SDPA</code> baseline grows sharply with model size, from 1.71x on the 17M to 8.26x on the 1B. Most of that growth comes from <code>bf16</code> alone: the <code>fp32+SDPA</code> to <code>bf16+SDPA</code> step gives the 17M only a 1.03x speedup but gives the 1B a full 5.60x speedup, also due to the lowered memory cost allowing for bigger batch sizes. In short, <code>bfloat16</code> is the biggest single contributor to the overall speedup.</p>
+<p>Unexpectedly, turning on FA2 while the inputs are still padded is actually slower than <code>bf16+SDPA</code> at every size in the release. The FA2 kernel prefers an unpadded format, and when you feed it padded inputs you pay the bookkeeping overhead of converting between formats while still spending compute on the padding tokens themselves. So the <code>bf16+FA2 w. padding</code> column is roughly what you'd measure if you swapped <code>sdpa</code> for <code>flash_attention_2</code> in <code>model_kwargs</code> without changing anything else about the model loader. This is the situation that <code>gte-reranker-modernbert-base</code> and <code>granite-embedding-reranker-english-r2</code> from Table 1 are in.</p>
+<p>Lastly, going from <code>bf16+FA2 w. padding</code> to <code>bf16+FA2 w.o. padding</code> is worth between 1.78x (1B) and 2.45x (68M) of additional throughput, and it also cuts peak memory considerably, allowing for higher batch sizes.</p>
+<p>So my recommendation is simple: enable <code>bf16</code> and FA2 together. The six Ettin rerankers will use unpadded inputs by default, since that's what the modular <code>Transformer</code> module from the <a href="#architecture-details" rel="nofollow">Architecture Details</a> section is set up for. The full snippet is the same as in the <a href="#usage" rel="nofollow">Usage</a> section above:</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> CrossEncoder
+
+model = CrossEncoder(
+    <span>"cross-encoder/ettin-reranker-150m-v1"</span>,
+    model_kwargs={
+        <span>"dtype"</span>: <span>"bfloat16"</span>,
+        <span>"attn_implementation"</span>: <span>"flash_attention_2"</span>,  <span># See tip below</span>
+    },
+)
+</code></pre>
+<blockquote>
+<p>Use <code>pip install kernels</code> to install FA2. It ships pre-built kernels for a wide range of GPU architectures, CUDA versions, and operating systems.</p>
+</blockquote>
+<p>One caveat for other CrossEncoders: the full speedup is only available for models built with a modular <code>Transformer</code> like the Ettin rerankers. Applying the same two flags to a CrossEncoder that loads through <code>AutoModelForSequenceClassification</code> lands you in the slower <code>bf16+FA2 w. padding</code> column of Table 2 instead.</p>
+<h2>
+	<a id="training" href="#training" rel="nofollow">
+		
+	</a>
+	<span>
+		Training
+	</span>
+</h2>
+<p>The training script below started as the output of the new <a href="https://github.com/huggingface/sentence-transformers/tree/main/skills" rel="nofollow"><code>train-sentence-transformers</code> Agent Skill</a>, shipped in <a href="https://github.com/huggingface/sentence-transformers/releases/tag/v5.5.0" rel="nofollow">Sentence Transformers v5.5.0</a>. If you use an AI coding agent (Claude Code, Codex, Cursor, Gemini CLI, ...), you can install the skill and ask it to fine-tune a <code>SentenceTransformer</code>, <code>CrossEncoder</code>, or <code>SparseEncoder</code> model on your data. The skill carries version-aware guidance for base model selection, loss and evaluator choice, hard-negative mining, distillation, LoRA, Matryoshka, multilingual training, and static embeddings, plus template scripts for each model type.</p>
+<pre><code>hf skills add train-sentence-transformers --claude   <span># symlinks into .claude/skills/</span>
+hf skills add train-sentence-transformers --global   <span># under ~/.agents/skills/</span>
+</code></pre>
+<p>A prompt like <em>"Fine-tune a cross-encoder reranker on <code>(query, document)</code> pairs from my dataset, mine hard negatives, and push to my Hub repo"</em> will produce a runnable script you can then iterate on. That's how I started working on the recipe below.</p>
+<p>All six rerankers were trained with the same single-stage recipe. Only the learning rate and the per-device batch size vary per model size. The full training script is ~150 lines and uses one published dataset.</p>
+<p>The recipe converged after a single sweep across model sizes. Each size's learning rate was tuned by a small grid search on a ~15% subset of the final training data, and the resulting LRs transferred cleanly to the full-data runs without re-tuning. No per-size tuning beyond LR was needed.</p>
+<h3>
+	<a id="distillation-recipe" href="#distillation-recipe" rel="nofollow">
+		
+	</a>
+	<span>
+		Distillation recipe
+	</span>
+</h3>
+<p>Most published reranker recipes train on human-labeled relevance triples (a query, one positive document, and optionally hard negatives) with a contrastive, pointwise, pairwise, or listwise loss like <a href="https://sbert.net/docs/package_reference/cross_encoder/losses.html#multiplenegativesrankingloss" rel="nofollow"><code>MultipleNegativesRankingLoss</code></a>, <a href="https://sbert.net/docs/package_reference/cross_encoder/losses.html#binarycrossentropyloss" rel="nofollow"><code>BinaryCrossEntropyLoss</code></a>, <a href="https://sbert.net/docs/package_reference/cross_encoder/losses.html#ranknetloss" rel="nofollow"><code>RankNetLoss</code></a>, or <a href="https://sbert.net/docs/package_reference/cross_encoder/losses.html#lambdaloss" rel="nofollow"><code>LambdaLoss</code></a>, respectively. See my earlier <a href="https://huggingface.co/blog/train-reranker">Training and Finetuning Reranker Models with Sentence Transformers</a> blogpost, for example.</p>
+<p>But this approach has a few practical and theoretical drawbacks. First, positives need to be human-labeled, which is expensive and slow to scale across many domains. Second, the model only ever sees a label for the small subset of <code>(query, document)</code> pairs that someone went through. Especially after hard negative mining, you end up with a lot of false negatives, e.g. as shown in <a href="https://arxiv.org/abs/2505.16967" rel="nofollow">Hard Negatives, Hard Lessons</a>. Third, the binary nature of this labeling doesn't match reality, where some documents are simply more relevant than others.</p>
+<p>I took a different route here: pointwise MSE distillation from an existing strong teacher reranker. The setup is simple enough to describe in three lines:</p>
+<ul>
+<li><strong>Teacher</strong>: <a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v2"><code>mixedbread-ai/mxbai-rerank-large-v2</code></a> (1.54B parameters).</li>
+<li><strong>Loss</strong>: <a href="https://sbert.net/docs/package_reference/cross_encoder/losses.html#mseloss" rel="nofollow"><code>MSELoss</code></a> on the raw teacher logits (range ~[−12, 22]), i.e. without rescaling.</li>
+<li><strong>Training data</strong>: ~143M <code>(query, document, teacher_score)</code> triples.</li>
+</ul>
+<h3>
+	<a href="#dataset" rel="nofollow">
+		
+	</a>
+	<span>
+		Dataset
+	</span>
+</h3>
+<p>I've released the training data as a single Hugging Face dataset, <a href="https://huggingface.co/datasets/cross-encoder/ettin-reranker-v1-data"><code>cross-encoder/ettin-reranker-v1-data</code></a>, assembled from two sources. Each source is kept as its own split so the provenance is transparent:</p>
+<ol>
+<li>LightOn pre-training data (<a href="https://huggingface.co/datasets/lightonai/embeddings-pre-training"><code>lightonai/embeddings-pre-training</code></a>, non-curated): 32 splits covering broad-domain text similarity signal (MTP, FW-EDU, Reddit, PAQ, S2ORC, Amazon, Wikipedia, MS MARCO, etc.). I limit the number of samples for some of the splits, resulting in ~110M <code>(query, document, similarity)</code> triples in total. </li>
+<li>Rescored retrieval data from <a href="https://huggingface.co/datasets/lightonai/embeddings-fine-tuning"><code>lightonai/embeddings-fine-tuning</code></a>: 7 splits (<code>msmarco</code>, <code>hotpotqa</code>, <code>trivia</code>, <code>nq</code>, <code>squadv2</code>, <code>fiqa</code>, <code>fever</code>). The source dataset has up to 2048 candidate documents per query (initially scored with <a href="https://huggingface.co/Alibaba-NLP/gte-modernbert-base"><code>Alibaba-NLP/gte-modernbert-base</code></a>), which I rescored with <a href="https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v2"><code>mixedbread-ai/mxbai-rerank-large-v2</code></a> and uploaded as <a href="https://huggingface.co/datasets/cross-encoder/lightonai-embeddings-fine-tuning-reranked-v1"><code>cross-encoder/lightonai-embeddings-fine-tuning-reranked-v1</code></a>. That dataset subsamples each query's 2048 candidates down to 256 using the <a href="https://arxiv.org/abs/2604.04734" rel="nofollow">Jang et al.</a> quantile-anchor recipe (all positives + top-16 hard + ~239 quantile-anchor stratified). For training, I pick 64 of those 256 per query: 32 from the score-sorted head (the positive plus the hardest negatives) and 32 medium-difficulty negatives sampled from a band further down the teacher's ranking. See the <a href="https://huggingface.co/datasets/cross-encoder/ettin-reranker-v1-data">dataset card</a> for the exact rank positions.</li>
+</ol>
+<p>Total: ~143M <code>(query, document, score)</code> triples, plus a held-out 5K-row eval split (the tail of <code>quora</code>) that drives the in-training eval loss.</p>
+<h3>
+	<a id="training-arguments" href="#training-arguments" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Arguments
+	</span>
+</h3>
+<p>Most hyperparameters are constant across model sizes:</p>
+<pre><code>CrossEncoderTrainingArguments(
+    num_train_epochs=<span>1</span>,                    <span># I chose more data over more epochs</span>
+    per_device_train_batch_size=...,       <span># global_batch_size // world_size (see table below)</span>
+    gradient_accumulation_steps=<span>1</span>,
+    learning_rate=...,                     <span># per-size, see table</span>
+    warmup_ratio=<span>0.03</span>,                     <span># ~3% linear warmup, then linear decay (default)</span>
+    bf16=<span>True</span>,                             <span># FA2 + bf16 throughout</span>
+    eval_strategy=<span>"steps"</span>,
+    eval_steps=<span>0.05</span>,                       <span># NanoBEIR every 5% of training</span>
+    save_strategy=<span>"steps"</span>,
+    save_steps=<span>0.05</span>,
+    save_total_limit=<span>5</span>,
+    load_best_model_at_end=<span>True</span>,
+    metric_for_best_model=<span>"eval_NanoBEIR_R100_mean_ndcg@10"</span>,
+    seed=<span>12</span>,
+)
+</code></pre>
+<p>Only the learning rate and global batch size very per model size.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Size</th>
+<th>Learning rate</th>
+<th>Global batch size</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>17m</td>
+<td>2.4e-4</td>
+<td>1024</td>
+</tr>
+<tr>
+<td>32m</td>
+<td>1.2e-4</td>
+<td>512</td>
+</tr>
+<tr>
+<td>68m</td>
+<td>3e-5</td>
+<td>256</td>
+</tr>
+<tr>
+<td>150m</td>
+<td>1.5e-5</td>
+<td>192</td>
+</tr>
+<tr>
+<td>400m</td>
+<td>7e-6</td>
+<td>256</td>
+</tr>
+<tr>
+<td>1b</td>
+<td>3e-6</td>
+<td>512</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><code>global_batch_size</code> is <code>per_device_batch_size x world_size x gradient_accumulation_steps</code>. On a single 8-GPU node, the 1024 global batch for 17m means <code>per_device=128</code>. On 8 nodes, it means <code>per_device=8</code>. The training script computes <code>per_device_batch_size</code> from <code>global_batch_size // world_size</code> so the same script works at any node count. The global batch size could be made more consistent, but I found that the above values worked well and didn't want to retune them just for the sake of consistency.</p>
+<h3>
+	<a id="evaluation" href="#evaluation" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation
+	</span>
+</h3>
+<p>I monitored NanoBEIR mean NDCG@10 during training (eval every 5% of steps) and used it as the <code>metric_for_best_model</code> for <code>load_best_model_at_end</code>. NanoBEIR is fast, so I could afford it 20 times per training run. After training, I evaluated both the best checkpoint (according to NanoBEIR) and the last checkpoint on the full MTEB(eng, v2) Retrieval benchmark. The final release checkpoint was the one that did best on MTEB. The NanoBEIR-preferred checkpoint won for all sizes except 68m, where the last checkpoint was slightly stronger.</p>
+<h3>
+	<a id="overall-training-script" href="#overall-training-script" rel="nofollow">
+		
+	</a>
+	<span>
+		Overall Training Script
+	</span>
+</h3>
+<p>The complete script (what every released model was trained with) is a single file. Only <code>ENCODER_SIZE</code> changes per run, and everything else is automatic:</p>
+<pre><code><span>from</span> __future__ <span>import</span> annotations
+
+<span>import</span> logging
+<span>import</span> os
+<span>from</span> pathlib <span>import</span> Path
+
+<span>import</span> torch
+<span>import</span> torch.nn <span>as</span> nn
+<span>from</span> datasets <span>import</span> concatenate_datasets, get_dataset_config_names, load_dataset
+
+<span>from</span> sentence_transformers <span>import</span> CrossEncoder
+<span>from</span> sentence_transformers.base.modules <span>import</span> Dense
+<span>from</span> sentence_transformers.cross_encoder <span>import</span> (
+    CrossEncoderModelCardData,
+    CrossEncoderTrainer,
+    CrossEncoderTrainingArguments,
+)
+<span>from</span> sentence_transformers.cross_encoder.evaluation <span>import</span> CrossEncoderNanoBEIREvaluator
+<span>from</span> sentence_transformers.cross_encoder.losses <span>import</span> MSELoss
+<span>from</span> sentence_transformers.sentence_transformer.modules <span>import</span> LayerNorm, Pooling, Transformer
+
+logging.basicConfig(level=logging.INFO, <span>format</span>=<span>"%(asctime)s %(message)s"</span>, datefmt=<span>"%H:%M:%S"</span>)
+logging.getLogger(<span>"httpx"</span>).setLevel(logging.WARNING)
+
+<span># Per-size config. I swept the learning rates with these global (effective) batch sizes,</span>
+<span># also by incorporating accum_steps</span>
+CONFIGS: <span>dict</span>[<span>str</span>, <span>dict</span>] = {
+    <span>"17m"</span>:  {<span>"base_model_name"</span>: <span>"jhu-clsp/ettin-encoder-17m"</span>,  <span>"learning_rate"</span>: <span>2.4e-4</span>, <span>"global_batch_size"</span>: <span>1024</span>},
+    <span>"32m"</span>:  {<span>"base_model_name"</span>: <span>"jhu-clsp/ettin-encoder-32m"</span>,  <span>"learning_rate"</span>: <span>1.2e-4</span>, <span>"global_batch_size"</span>: <span>512</span>},
+    <span>"68m"</span>:  {<span>"base_model_name"</span>: <span>"jhu-clsp/ettin-encoder-68m"</span>,  <span>"learning_rate"</span>: <span>3e-5</span>,   <span>"global_batch_size"</span>: <span>256</span>},
+    <span>"150m"</span>: {<span>"base_model_name"</span>: <span>"jhu-clsp/ettin-encoder-150m"</span>, <span>"learning_rate"</span>: <span>1.5e-5</span>, <span>"global_batch_size"</span>: <span>192</span>},
+    <span>"400m"</span>: {<span>"base_model_name"</span>: <span>"jhu-clsp/ettin-encoder-400m"</span>, <span>"learning_rate"</span>: <span>7e-6</span>,   <span>"global_batch_size"</span>: <span>256</span>},
+    <span>"1b"</span>:   {<span>"base_model_name"</span>: <span>"jhu-clsp/ettin-encoder-1b"</span>,   <span>"learning_rate"</span>: <span>3e-6</span>,   <span>"global_batch_size"</span>: <span>512</span>},
+}
+ENCODER_SIZE = <span>"17m"</span>
+
+<span>def</span> <span>main</span>() -&gt; <span>None</span>:
+    config = CONFIGS[ENCODER_SIZE]
+    encoder_id = config[<span>"base_model_name"</span>]
+    learning_rate = config[<span>"learning_rate"</span>]
+    global_batch_size = config[<span>"global_batch_size"</span>]
+
+    world_size = <span>int</span>(os.environ.get(<span>"WORLD_SIZE"</span>, <span>1</span>))
+    per_device_batch_size = global_batch_size // world_size
+    dataloader_workers = <span>0</span> <span>if</span> world_size &gt; <span>8</span> <span>else</span> <span>4</span>
+    run_name = <span>f"ettin-reranker-<span>{ENCODER_SIZE}</span>-lr<span>{learning_rate:<span>.0</span>e}</span>"</span>
+
+    <span># 1. Load a model to finetune with model card data</span>
+    <span># The model mirrors ModernBertForSequenceClassification, but with a 'headless' Transformer that just loads</span>
+    <span># AutoModel. This allows for unpadding with FA2, which isn't possible with AutoModelForSequenceClassification.</span>
+    <span># This speeds up training considerably, while heavily reducing memory usage.</span>
+    torch.manual_seed(<span>12</span>)
+    transformer = Transformer(encoder_id, model_kwargs={<span>"attn_implementation"</span>: <span>"flash_attention_2"</span>})
+    transformer.model.config.num_labels = <span>1</span>
+    embedding_dimension = transformer.get_embedding_dimension()
+    pooling = Pooling(embedding_dimension=embedding_dimension, pooling_mode=<span>"cls"</span>)
+    dense_inner = Dense(
+        in_features=embedding_dimension, out_features=embedding_dimension, bias=<span>False</span>,
+        activation_function=nn.GELU(),
+        module_input_name=<span>"sentence_embedding"</span>, module_output_name=<span>"sentence_embedding"</span>,
+    )
+    norm = LayerNorm(dimension=embedding_dimension)
+    dense_score = Dense(
+        in_features=embedding_dimension, out_features=<span>1</span>, bias=<span>True</span>,
+        activation_function=nn.Identity(),
+        module_input_name=<span>"sentence_embedding"</span>, module_output_name=<span>"scores"</span>,
+    )
+    model = CrossEncoder(
+        modules=[transformer, pooling, dense_inner, norm, dense_score],
+        num_labels=<span>1</span>,
+        activation_fn=nn.Identity(),
+        model_card_data=CrossEncoderModelCardData(
+            model_name=<span>f"Ettin Reranker <span>{ENCODER_SIZE}</span> distilled from mxbai-rerank-large-v2"</span>,
+            language=<span>"en"</span>,
+            license=<span>"apache-2.0"</span>,
+        ),
+    )
+    actual_attn = <span>getattr</span>(model[<span>0</span>].model.config, <span>"_attn_implementation"</span>, <span>None</span>)
+    <span>if</span> <span>not</span> (actual_attn <span>and</span> <span>"flash"</span> <span>in</span> actual_attn.lower()):
+        logging.warning(<span>f"FA2 may not be active (attn_impl=<span>{actual_attn!r}</span>); training will be slower."</span>)
+
+    <span># 2. Load the dataset. Each config is one source subset (32 lighton + 7 rerank retrieval</span>
+    <span># domains). The held-out eval rows live as the 'validation' split of the 'quora' config.</span>
+    dataset_repo = <span>"cross-encoder/ettin-reranker-v1-data"</span>
+    train_pieces = []
+    eval_dataset = <span>None</span>
+    <span>for</span> config_name <span>in</span> get_dataset_config_names(dataset_repo):
+        dataset = load_dataset(dataset_repo, config_name)
+        train_pieces.append(dataset[<span>"train"</span>])
+        <span>if</span> <span>"validation"</span> <span>in</span> dataset:
+            eval_dataset = dataset[<span>"validation"</span>]
+    train_dataset = concatenate_datasets(train_pieces)
+    <span>print</span>(train_dataset)
+
+    <span># 3. Define a loss function</span>
+    loss = MSELoss(model)
+
+    <span># 4. Specify training arguments</span>
+    args = CrossEncoderTrainingArguments(
+        output_dir=<span>f"models/<span>{run_name}</span>"</span>,
+        num_train_epochs=<span>1</span>,
+        per_device_train_batch_size=per_device_batch_size,
+        per_device_eval_batch_size=per_device_batch_size,
+        gradient_accumulation_steps=<span>1</span>,
+        learning_rate=learning_rate,
+        warmup_ratio=<span>0.03</span>,
+        bf16=<span>True</span>,
+        eval_strategy=<span>"steps"</span>,
+        eval_steps=<span>0.05</span>,
+        save_strategy=<span>"steps"</span>,
+        save_steps=<span>0.05</span>,
+        save_total_limit=<span>5</span>,
+        logging_steps=<span>0.025</span>,
+        logging_first_step=<span>True</span>,
+        load_best_model_at_end=<span>True</span>,
+        metric_for_best_model=<span>"eval_NanoBEIR_R100_mean_ndcg@10"</span>,
+        dataloader_num_workers=dataloader_workers,
+        run_name=run_name,
+        seed=<span>12</span>,
+    )
+
+    <span># 5. Create an evaluator</span>
+    evaluator = CrossEncoderNanoBEIREvaluator(
+        dataset_names=[<span>"msmarco"</span>, <span>"nfcorpus"</span>, <span>"nq"</span>, <span>"fiqa2018"</span>, <span>"touche2020"</span>, <span>"scifact"</span>,
+                       <span>"hotpotqa"</span>, <span>"arguana"</span>, <span>"fever"</span>, <span>"dbpedia"</span>, <span>"climatefever"</span>, <span>"scidocs"</span>,
+                       <span>"quoraretrieval"</span>],
+        batch_size=per_device_batch_size,
+        always_rerank_positives=<span>False</span>,
+        show_progress_bar=<span>False</span>,
+    )
+
+    <span># 6. Create a trainer</span>
+    trainer = CrossEncoderTrainer(
+        model=model,
+        args=args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        loss=loss,
+        evaluator=evaluator,
+    )
+
+    <span># 7. Evaluate before training</span>
+    <span>if</span> trainer.is_world_process_zero():
+        <span>with</span> torch.autocast(device_type=<span>"cuda"</span>, dtype=torch.bfloat16):
+            evaluator(model)
+
+    <span># 8. Train</span>
+    trainer.train()
+
+    <span># 9. Evaluate the final model</span>
+    <span>if</span> trainer.is_world_process_zero():
+        <span>with</span> torch.autocast(device_type=<span>"cuda"</span>, dtype=torch.bfloat16):
+            evaluator(model)
+
+    <span># 10. Save the final model</span>
+    final_dir = <span>f"models/<span>{run_name}</span>/final"</span>
+    model.save_pretrained(final_dir)
+
+
+<span>if</span> __name__ == <span>"__main__"</span>:
+    main()
+</code></pre>
+<p>For multi-node training (anything past 17m/32m), launch the same script with <code>torchrun</code>:</p>
+<pre><code><span># Single-node (17m, 32m): defaults work</span>
+python train.py
+
+<span># Multi-node 4n setup for 150m, preserves global_batch_size=192:</span>
+torchrun --nproc_per_node=8 --nnodes=4 ... train.py
+</code></pre>
+<h2>
+	<a id="conclusion" href="#conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion
+	</span>
+</h2>
+<p>The ettin-reranker-v1 family, trained with a single simple recipe, is state-of-the-art at every released size up to 1B parameters. Pointwise MSE distillation from a strong teacher onto a broad-domain and retrieval-specific mix scales cleanly from 17M to 1B parameters, with only the learning rate and per-device batch size changing between sizes.</p>
+<p>Every ettin-reranker-v1 model beats the <code>ms-marco-MiniLM-L*-v2</code> family by a comfortable margin on MTEB and NanoBEIR. <code>cross-encoder/ettin-reranker-150m-v1</code> is the strongest mid-tier reranker I tested in the under-600M range, <code>cross-encoder/ettin-reranker-400m-v1</code> lands within 0.0024 of the 1.54B teacher's MTEB score, and <code>cross-encoder/ettin-reranker-1b-v1</code> matches that teacher within 0.0001.</p>
+<p>Everything in one place:</p>
+<ul>
+<li><strong>Models</strong>:<ul>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-17m-v1"><code>cross-encoder/ettin-reranker-17m-v1</code></a></li>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-32m-v1"><code>cross-encoder/ettin-reranker-32m-v1</code></a></li>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-68m-v1"><code>cross-encoder/ettin-reranker-68m-v1</code></a></li>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-150m-v1"><code>cross-encoder/ettin-reranker-150m-v1</code></a></li>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-400m-v1"><code>cross-encoder/ettin-reranker-400m-v1</code></a></li>
+<li><a href="https://huggingface.co/cross-encoder/ettin-reranker-1b-v1"><code>cross-encoder/ettin-reranker-1b-v1</code></a></li>
+</ul>
+</li>
+<li><strong>Dataset</strong>: <a href="https://huggingface.co/datasets/cross-encoder/ettin-reranker-v1-data"><code>cross-encoder/ettin-reranker-v1-data</code></a> with ~143M <code>(query, document, label)</code> triples, kept as 39 named splits so the provenance of every row is visible.</li>
+<li><strong>Training script</strong>: the ~150 lines in <a href="#overall-training-script" rel="nofollow">Overall Training Script</a> above, which is the same script used for all six models.</li>
+</ul>
+<p>If you build something on top of these, please let me know! I'd genuinely love to see what people do with them, and if you manage to train better rerankers using the released data, even better. The recipe is intentionally simple, partly so that there's plenty of headroom for someone else to improve it. Train a stronger teacher and the same script can keep producing better students.</p>
+<h2>
+	<a id="acknowledgements" href="#acknowledgements" rel="nofollow">
+		
+	</a>
+	<span>
+		Acknowledgements
+	</span>
+</h2>
+<p>I'd like to thank the Ettin team (Orion Weller, Kathryn Ricci, Marc Marone, Antoine Chaffin, Dawn Lawrie, and Benjamin Van Durme) for <a href="https://huggingface.co/blog/ettin">building the base encoders</a> that these rerankers are built on, the LightOn team (Antoine Chaffin, Raphael Sourty, Paulo Moura, and Amélie Chatelain) for <a href="https://huggingface.co/blog/lightonai/denseon-lateon">their work on the training data collection</a>, and the Mixedbread AI team (Xianming Li, Aamir Shakir, Rui Huang, Tsz-fung Andrew Lee, Julius Lipp, Benjamin Clavié, and Jing Li) for <a href="https://arxiv.org/abs/2506.03487" rel="nofollow">their work on the teacher model</a>.</p>
+<h2>
+	<a id="citation" href="#citation" rel="nofollow">
+		
+	</a>
+	<span>
+		Citation
+	</span>
+</h2>
+<p>If you use the ettin-reranker-v1 family or any of the released artifacts, please cite this blogpost:</p>
+<pre><code>@misc{aarsen2026ettin-reranker,
+    title = "Introducing the Ettin Reranker Family",
+    author = "Aarsen, Tom",
+    year = "2026",
+    publisher = "Hugging Face",
+    url = "https://huggingface.co/blog/ettin-reranker",
+}
+</code></pre>
+</div></div>

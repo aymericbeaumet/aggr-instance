@@ -1,0 +1,760 @@
+<div id="readability-page-1" class="page"><div>
+<p><a href="https://sbert.net/" rel="nofollow">Sentence Transformers</a> is a Python library for using and training embedding and reranker models for applications like retrieval augmented generation, semantic search, and more. In my <a href="https://huggingface.co/blog/multimodal-sentence-transformers">previous blogpost</a>, I introduced the new multimodal capabilities, showing how to use embedding and reranker models that handle text, images, audio, and video. In this blogpost, I'll show you how to <strong>train or finetune</strong> these multimodal models on your own data.</p>
+<p>As a practical example, I'll walk through finetuning <a href="https://huggingface.co/Qwen/Qwen3-VL-Embedding-2B"><code>Qwen/Qwen3-VL-Embedding-2B</code></a> for Visual Document Retrieval (VDR), the task of retrieving relevant document pages (as images, with charts, tables, and layout intact) for a given text query. The resulting <a href="https://huggingface.co/tomaarsen/Qwen3-VL-Embedding-2B-vdr"><code>tomaarsen/Qwen3-VL-Embedding-2B-vdr</code></a> demonstrates how much performance you can gain by finetuning on your own domain. On my evaluation data, the finetuned model achieves an NDCG@10 of 0.947 compared to the base model's 0.888, and outperforms all existing VDR models I tested against, including models up to 4x its size.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/multimodal-sentence-transformers/vdr_plot.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/multimodal-sentence-transformers/vdr_plot.png" alt="Model size vs NDCG for VDR models"></a></p>
+<blockquote>
+<p>If you're new to multimodal models in Sentence Transformers, I recommend reading <a href="https://huggingface.co/blog/multimodal-sentence-transformers">Multimodal Embedding &amp; Reranker Models with Sentence Transformers</a> first. For training text-only embedding, reranker, or sparse embedding models, see the <a href="#prior-blogposts" rel="nofollow">Prior Blogposts</a> section at the end.</p>
+</blockquote>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#why-finetune" rel="nofollow">Why Finetune?</a></li>
+<li><a href="#training-components" rel="nofollow">Training Components</a></li>
+<li><a href="#model" rel="nofollow">Model</a></li>
+<li><a href="#dataset" rel="nofollow">Dataset</a><ul>
+<li><a href="#visual-document-retrieval-dataset" rel="nofollow">Visual Document Retrieval Dataset</a></li>
+<li><a href="#dataset-format" rel="nofollow">Dataset Format</a></li>
+</ul>
+</li>
+<li><a href="#loss-function" rel="nofollow">Loss Function</a><ul>
+<li><a href="#cachedmultiplenegativesrankingloss" rel="nofollow">CachedMultipleNegativesRankingLoss</a></li>
+<li><a href="#matryoshkaloss" rel="nofollow">MatryoshkaLoss</a></li>
+</ul>
+</li>
+<li><a href="#training-arguments" rel="nofollow">Training Arguments</a></li>
+<li><a href="#evaluator" rel="nofollow">Evaluator</a></li>
+<li><a href="#trainer" rel="nofollow">Trainer</a></li>
+<li><a href="#results" rel="nofollow">Results</a><ul>
+<li><a href="#model-size-vs-ndcg10" rel="nofollow">Model Size vs NDCG@10</a></li>
+<li><a href="#matryoshka-dimensions-vs-ndcg10" rel="nofollow">Matryoshka Dimensions vs NDCG@10</a></li>
+</ul>
+</li>
+<li><a href="#training-multimodal-reranker-models" rel="nofollow">Training Multimodal Reranker Models</a></li>
+<li><a href="#additional-resources" rel="nofollow">Additional Resources</a><ul>
+<li><a href="#prior-blogposts" rel="nofollow">Prior Blogposts</a></li>
+<li><a href="#training-examples" rel="nofollow">Training Examples</a></li>
+<li><a href="#documentation" rel="nofollow">Documentation</a></li>
+</ul>
+</li>
+</ul>
+<h2>
+	<a id="why-finetune" href="#why-finetune" rel="nofollow">
+		
+	</a>
+	<span>
+		Why Finetune?
+	</span>
+</h2>
+<p>General-purpose multimodal embedding models like <a href="https://huggingface.co/Qwen/Qwen3-VL-Embedding-2B"><code>Qwen/Qwen3-VL-Embedding-2B</code></a> are trained on diverse data to perform well across a wide range of languages and tasks: image-text matching, visual question answering, document understanding, and more. But this generality means the model is rarely the best choice for any specific task.</p>
+<p>Consider Visual Document Retrieval: given a text query like "What was the company's Q3 revenue?", the model must find the most relevant document screenshot from a corpus of thousands. This requires understanding document layouts, charts, tables, and text, which is a very different skill from e.g. matching pictures of shoes with product descriptions.</p>
+<p>By finetuning on domain-specific data, the model can learn these specialized patterns. In my experiment, finetuning improved NDCG@10 from 0.888 to 0.947, ahead of every recent multimodal model I tested, including ones up to 4x larger.</p>
+<h2>
+	<a id="training-components" href="#training-components" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Components
+	</span>
+</h2>
+<p>Training multimodal Sentence Transformer models involves the same components as training text-only models:</p>
+<ol>
+<li><a href="#model" rel="nofollow"><strong>Model</strong></a>: The multimodal model to train or finetune.</li>
+<li><a href="#dataset" rel="nofollow"><strong>Dataset</strong></a>: The data used for training and evaluation.</li>
+<li><a href="#loss-function" rel="nofollow"><strong>Loss Function</strong></a>: A function that quantifies the model's performance and guides the optimization process.</li>
+<li><a href="#training-arguments" rel="nofollow"><strong>Training Arguments</strong></a> (optional): Parameters that influence training performance and tracking/debugging.</li>
+<li><a href="#evaluator" rel="nofollow"><strong>Evaluator</strong></a> (optional): A tool for evaluating the model before, during, or after training.</li>
+<li><a href="#trainer" rel="nofollow"><strong>Trainer</strong></a>: Brings together the model, dataset, loss function, and other components for training.</li>
+</ol>
+<p>The multimodal training pipeline uses the same <a href="https://sbert.net/docs/package_reference/sentence_transformer/trainer.html#sentence_transformers.sentence_transformer.trainer.SentenceTransformerTrainer" rel="nofollow"><code>SentenceTransformerTrainer</code></a> as text-only training. The key difference is that your datasets contain images (or other modalities) alongside text, and the model's processor handles the image preprocessing automatically.</p>
+<p>Let's walk through each component, using Visual Document Retrieval (matching text queries to document screenshots) as a running example.</p>
+<h2>
+	<a id="model" href="#model" rel="nofollow">
+		
+	</a>
+	<span>
+		Model
+	</span>
+</h2>
+<p>The most common approach is to finetune an existing multimodal embedding model, or to start from a Vision-Language Model (VLM) checkpoint. The <a href="https://sbert.net/docs/package_reference/base/modules.html#sentence_transformers.base.modules.Transformer" rel="nofollow"><code>Transformer</code></a> module automatically detects supported modalities from the model's processor.</p>
+<p>To finetune an existing multimodal embedding model (e.g. one that already has a <code>modules.json</code> file), you can pass <code>processor_kwargs</code> and <code>model_kwargs</code> to control preprocessing and model loading respectively. <code>processor_kwargs</code> are passed directly to <a href="https://huggingface.co/docs/transformers/model_doc/auto#transformers.AutoProcessor.from_pretrained"><code>AutoProcessor.from_pretrained(...)</code></a> (e.g., image resolution bounds: higher <code>max_pixels</code> means higher quality but more memory), while <code>model_kwargs</code> are passed to the appropriate <a href="https://huggingface.co/docs/transformers/model_doc/auto#transformers.AutoModel.from_pretrained"><code>AutoModel.from_pretrained(...)</code></a> call (e.g., precision, attention implementation):</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> SentenceTransformer
+
+model = SentenceTransformer(
+    <span>"Qwen/Qwen3-VL-Embedding-2B"</span>,
+    model_kwargs={<span>"attn_implementation"</span>: <span>"flash_attention_2"</span>, <span>"torch_dtype"</span>: <span>"bfloat16"</span>},
+    processor_kwargs={<span>"min_pixels"</span>: <span>28</span> * <span>28</span>, <span>"max_pixels"</span>: <span>600</span> * <span>600</span>},
+)
+</code></pre>
+<p>You can also start from a fresh VLM checkpoint that hasn't been trained for embeddings yet. Sentence Transformers will attempt to recognize the architecture, infer the supported modalities from the processor, and set up the appropriate forward method and pooling. If the automatic detection doesn't work perfectly for a particular model, the configuration in the saved <code>sentence_bert_config.json</code> can be edited to adjust modality settings, forward methods, and output handling:</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> SentenceTransformer
+
+model = SentenceTransformer(<span>"Qwen/Qwen3-VL-2B"</span>)
+</code></pre>
+<p>In both cases, the <a href="https://sbert.net/docs/package_reference/base/modules.html#sentence_transformers.base.modules.Transformer" rel="nofollow"><code>Transformer</code></a> module inspects the processor to determine which modalities are available, and <a href="https://sbert.net/docs/package_reference/sentence_transformer/modules.html#sentence_transformers.sentence_transformer.modules.Pooling" rel="nofollow"><code>Pooling</code></a> is added automatically if needed. You can verify the supported modalities:</p>
+<pre><code><span>print</span>(model.modalities)
+<span># ['text', 'image', 'video', 'message']</span>
+
+<span>print</span>(model.supports(<span>"image"</span>))
+<span># True</span>
+</code></pre>
+<details>
+<summary>Alternative: Building multimodal models with Router</summary>
+
+<p>Instead of using a single VLM backbone, you can compose separate encoders for different modalities using the <a href="https://sbert.net/docs/package_reference/base/modules.html#sentence_transformers.base.modules.Router" rel="nofollow"><code>Router</code></a> module. This lets you combine any existing encoders and route inputs to the appropriate one based on detected modality:</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> SentenceTransformer
+<span>from</span> sentence_transformers.sentence_transformer.modules <span>import</span> Dense, Pooling, Router, Transformer
+
+<span># Create separate encoders for different modalities</span>
+text_encoder = Transformer(<span>"sentence-transformers/all-MiniLM-L6-v2"</span>)
+text_pooling = Pooling(text_encoder.get_embedding_dimension(), pooling_mode=<span>"mean"</span>)
+text_projection = Dense(text_encoder.get_embedding_dimension(), <span>768</span>)
+
+<span># SigLIP outputs pooled embeddings directly, so no separate Pooling module is needed</span>
+image_encoder = Transformer(<span>"google/siglip2-base-patch16-224"</span>)
+
+<span># Route inputs based on modality</span>
+router = Router(
+    sub_modules={
+        <span>"text"</span>: [text_encoder, text_pooling, text_projection],
+        <span>"image"</span>: [image_encoder],
+    },
+)
+
+model = SentenceTransformer(modules=[router])
+</code></pre>
+<blockquote>
+<p>Since Router-based multimodal models use separate encoders per modality, their embedding spaces are initially unaligned. Training is required to align the spaces for meaningful cross-modal similarity. The <code>Dense</code> projection layer shown above helps map embeddings from different encoders into a shared space.</p>
+</blockquote>
+<p>This approach is useful when you want to use lightweight, specialized encoders rather than a large VLM. You can also combine Router-based multimodality with task-based routing (e.g. different encoders for queries vs. documents) using <code>route_mappings</code>. See the <a href="https://sbert.net/docs/package_reference/base/modules.html#sentence_transformers.base.modules.Router" rel="nofollow"><code>Router</code></a> documentation for advanced routing scenarios.</p>
+</details>
+
+<h2>
+	<a href="#dataset" rel="nofollow">
+		
+	</a>
+	<span>
+		Dataset
+	</span>
+</h2>
+<h3>
+	<a id="visual-document-retrieval-dataset" href="#visual-document-retrieval-dataset" rel="nofollow">
+		
+	</a>
+	<span>
+		Visual Document Retrieval Dataset
+	</span>
+</h3>
+<p>For this example, I use the <a href="https://huggingface.co/datasets/tomaarsen/llamaindex-vdr-en-train-preprocessed"><code>tomaarsen/llamaindex-vdr-en-train-preprocessed</code></a> dataset, a preprocessed English subset of <a href="https://huggingface.co/datasets/llamaindex/vdr-multilingual-train"><code>llamaindex/vdr-multilingual-train</code></a>. The source dataset was released alongside the <a href="https://huggingface.co/blog/vdr-2b-multilingual">Visual Document Retrieval Goes Multilingual</a> blogpost by LlamaIndex, and consists of ~500k multilingual query-image samples collected from public internet PDFs, with queries synthetically generated using VLMs (gemini-1.5-pro and Qwen2-VL-72B). 
+My preprocessed version filters to the 53,512 English samples and resolves 4 of the 16 ID-based hard negatives per sample into actual document screenshot images, so it can be used directly for training without further preprocessing:</p>
+<pre><code><span>from</span> datasets <span>import</span> load_dataset
+
+train_dataset = load_dataset(<span>"tomaarsen/llamaindex-vdr-en-train-preprocessed"</span>, <span>"train"</span>, split=<span>"train"</span>)
+train_dataset = train_dataset.select_columns([<span>"query"</span>, <span>"image"</span>, <span>"negative_0"</span>])
+eval_dataset = load_dataset(<span>"tomaarsen/llamaindex-vdr-en-train-preprocessed"</span>, <span>"eval"</span>, split=<span>"train"</span>)
+</code></pre>
+<p>The <code>train</code> config contains the first 10,000 samples, and the <code>eval</code> config contains the next 300 samples (a <code>full</code> config with all 53,512 samples is also available). For training, I select <code>query</code>, <code>image</code>, and <code>negative_0</code> to form (anchor, positive, hard negative) triplets. Including additional hard negatives would likely improve the training signal, but each extra negative also increases memory usage and training time, so I stick with one. For evaluation, I keep all four hard negatives per query to build a more challenging retrieval corpus (more on that in the <a href="#evaluator" rel="nofollow">Evaluator</a> section).</p>
+<h3>
+	<a id="dataset-format" href="#dataset-format" rel="nofollow">
+		
+	</a>
+	<span>
+		Dataset Format
+	</span>
+</h3>
+<p>Just like text-only training, the dataset format must match your chosen <a href="#loss-function" rel="nofollow">loss function</a>. The rules are the same:</p>
+<ol>
+<li>If your loss function requires a <em>Label</em>, your dataset must have a column named <strong>"label"</strong> or <strong>"score"</strong>.</li>
+<li>All columns other than <strong>"label"</strong> or <strong>"score"</strong> are considered <em>Inputs</em>. The number of these columns must match the number of valid inputs for your chosen loss function. Beyond the label column, the column names don't matter, only the order does.</li>
+</ol>
+<p>For multimodal datasets, the inputs can contain:</p>
+<ul>
+<li><strong>Text</strong>: strings.</li>
+<li><strong>Image</strong>: PIL images, file paths, URLs, or numpy/torch arrays.</li>
+<li><strong>Audio</strong>: file paths, numpy/torch arrays, dicts with <code>"array"</code> and <code>"sampling_rate"</code> keys, or (if <code>torchcodec</code> is installed) <code>torchcodec.AudioDecoder</code> instances.</li>
+<li><strong>Video</strong>: file paths, numpy/torch arrays, dicts with <code>"array"</code> and <code>"video_metadata"</code> keys, or (if <code>torchcodec</code> is installed) <code>torchcodec.VideoDecoder</code> instances.</li>
+<li><strong>Multimodal dicts</strong>: a dict mapping modality names to values, e.g. <code>{"text": ..., "image": ...}</code>. The keys must be <code>"text"</code>, <code>"image"</code>, <code>"audio"</code>, or <code>"video"</code>.</li>
+</ul>
+<p>The data collator automatically calls <code>model.preprocess()</code>, which detects the modality of each input and applies the appropriate preprocessing. No manual tokenization or image processing is needed.</p>
+<blockquote>
+<p>Many Hugging Face datasets that work out of the box with Sentence Transformers have been tagged with <code>sentence-transformers</code>, allowing you to easily find them at <a href="https://huggingface.co/datasets?other=sentence-transformers">https://huggingface.co/datasets?other=sentence-transformers</a>.</p>
+</blockquote>
+<h2>
+	<a id="loss-function" href="#loss-function" rel="nofollow">
+		
+	</a>
+	<span>
+		Loss Function
+	</span>
+</h2>
+<h3>
+	<a id="cachedmultiplenegativesrankingloss" href="#cachedmultiplenegativesrankingloss" rel="nofollow">
+		
+	</a>
+	<span>
+		CachedMultipleNegativesRankingLoss
+	</span>
+</h3>
+<p>For this training, I use <a href="https://sbert.net/docs/package_reference/sentence_transformer/losses.html#cachedmultiplenegativesrankingloss" rel="nofollow"><code>CachedMultipleNegativesRankingLoss</code></a>, a common choice for retrieval tasks. It accepts (query, positive) pairs with any number of additional hard negative columns, from 0 up to n, as long as each sample has the same number of negatives.
+During training, the loss pushes each query's similarity to its positive <em>up</em> and its similarity to every negative <em>down</em>. The negatives come from two sources:</p>
+<ol>
+<li><strong>Hard negatives</strong>: the negative column(s) explicitly supplied in the dataset (just <code>negative_0</code> in our triplet setup).</li>
+<li><strong>In-batch negatives</strong>: the positives and hard negatives from every <em>other</em> sample in the same batch, reused as additional negatives for this query at no extra cost.</li>
+</ol>
+<p>More negatives per query means a stronger training signal, so a larger batch size directly improves training quality. Beyond that, the "cached" variant of the loss uses gradient caching to make large effective batch sizes feasible even when GPU memory is limited.</p>
+<p>The <code>mini_batch_size</code> parameter controls how many samples are processed at once during the cached forward passes. For large multimodal models, setting this to a small value (e.g., 1) is important to avoid out-of-memory errors without sacrificing the benefits of large effective batch sizes:</p>
+<pre><code><span>from</span> sentence_transformers.sentence_transformer.losses <span>import</span> CachedMultipleNegativesRankingLoss
+
+loss = CachedMultipleNegativesRankingLoss(model, mini_batch_size=<span>1</span>)
+</code></pre>
+<h3>
+	<a id="matryoshkaloss" href="#matryoshkaloss" rel="nofollow">
+		
+	</a>
+	<span>
+		MatryoshkaLoss
+	</span>
+</h3>
+<p>To produce embeddings that work well at multiple dimensionalities, I wrap the base loss with <a href="https://sbert.net/docs/package_reference/sentence_transformer/losses.html#matryoshkaloss" rel="nofollow"><code>MatryoshkaLoss</code></a>. This trains the model so that truncating the embedding to a smaller number of dimensions still yields good performance:</p>
+<pre><code><span>from</span> sentence_transformers.sentence_transformer.losses <span>import</span> CachedMultipleNegativesRankingLoss, MatryoshkaLoss
+
+loss = CachedMultipleNegativesRankingLoss(model, mini_batch_size=<span>1</span>)
+loss = MatryoshkaLoss(model, loss, matryoshka_dims=[<span>2048</span>, <span>1536</span>, <span>1024</span>, <span>512</span>, <span>256</span>, <span>128</span>, <span>64</span>])
+</code></pre>
+<p>This is especially useful for multimodal models, where embeddings can be large (2048 dimensions for Qwen3-VL). With Matryoshka training, you can use truncated embeddings (e.g., 256 or 128 dimensions) at deployment time for faster search with minimal quality loss. As I'll show in the <a href="#results" rel="nofollow">Results</a> section, the finetuned model achieves near-peak performance even at 512 dimensions.</p>
+<h2>
+	<a id="training-arguments" href="#training-arguments" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Arguments
+	</span>
+</h2>
+<p>The <a href="https://sbert.net/docs/package_reference/sentence_transformer/training_args.html#sentencetransformertrainingarguments" rel="nofollow"><code>SentenceTransformerTrainingArguments</code></a> class lets you control training hyperparameters. Here's the configuration used for the VDR finetuning:</p>
+<pre><code><span>from</span> sentence_transformers.sentence_transformer.training_args <span>import</span> SentenceTransformerTrainingArguments, BatchSamplers
+
+run_name = <span>"Qwen3-VL-Embedding-2B-vdr"</span>
+args = SentenceTransformerTrainingArguments(
+    <span># Required parameter:</span>
+    output_dir=<span>f"models/<span>{run_name}</span>"</span>,
+    <span># Optional training parameters:</span>
+    num_train_epochs=<span>1</span>,
+    per_device_train_batch_size=<span>64</span>,
+    per_device_eval_batch_size=<span>64</span>,
+    learning_rate=<span>2e-5</span>,
+    warmup_ratio=<span>0.1</span>,
+    fp16=<span>False</span>,
+    bf16=<span>True</span>,
+    batch_sampler=BatchSamplers.NO_DUPLICATES,
+    <span># Optional tracking/debugging parameters:</span>
+    eval_strategy=<span>"steps"</span>,
+    eval_steps=<span>0.1</span>,
+    save_strategy=<span>"steps"</span>,
+    save_steps=<span>0.1</span>,
+    save_total_limit=<span>2</span>,
+    logging_steps=<span>0.05</span>,
+    run_name=run_name,
+)
+</code></pre>
+<p>A few things to note for (multimodal) training:</p>
+<ul>
+<li><code>bf16=True</code>: bfloat16 is generally preferred over float16 due to better numerical stability.</li>
+<li><code>batch_sampler=BatchSamplers.NO_DUPLICATES</code>: When using <code>MultipleNegativesRankingLoss</code> or its cached variant, having no duplicate samples in a batch ensures that every in-batch negative is a truly different sample.</li>
+<li><code>per_device_train_batch_size=64</code>: This may seem large for a 2B parameter VLM, but <code>CachedMultipleNegativesRankingLoss</code> with <code>mini_batch_size=1</code> handles the memory constraints through gradient caching.</li>
+<li><code>eval_steps</code>, <code>save_steps</code>, and <code>logging_steps</code>: Setting these to a fraction (e.g., 0.1) means evaluation, saving, and logging will happen every 10% of an epoch, which is useful for monitoring training progress.</li>
+</ul>
+<h2>
+	<a id="evaluator" href="#evaluator" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluator
+	</span>
+</h2>
+<p>To track retrieval performance before, during, and after training, I use the <a href="https://sbert.net/docs/package_reference/sentence_transformer/evaluation.html#informationretrievalevaluator" rel="nofollow"><code>InformationRetrievalEvaluator</code></a>. It computes standard retrieval metrics like NDCG@10, MAP, and Recall@k:</p>
+<pre><code><span>from</span> sentence_transformers.sentence_transformer.evaluation <span>import</span> InformationRetrievalEvaluator
+
+<span># Build the evaluation data from the eval dataset.</span>
+<span># Queries and corpus use integer IDs: query 0's relevant document is corpus 0.</span>
+eval_queries = {qid: sample[<span>"query"</span>] <span>for</span> qid, sample <span>in</span> <span>enumerate</span>(eval_dataset)}
+eval_corpus = {did: sample[<span>"image"</span>] <span>for</span> did, sample <span>in</span> <span>enumerate</span>(eval_dataset)}
+num_eval = <span>len</span>(eval_dataset)
+
+<span># Add hard negatives to the corpus with offset IDs (num_eval, 2*num_eval, ...)</span>
+<span># so they don't collide with the positive document IDs (0..num_eval-1).</span>
+negative_columns = [<span>"negative_0"</span>, <span>"negative_1"</span>, <span>"negative_2"</span>, <span>"negative_3"</span>]
+<span>for</span> neg_idx, neg_col <span>in</span> <span>enumerate</span>(negative_columns):
+    <span>for</span> did, sample <span>in</span> <span>enumerate</span>(eval_dataset):
+        eval_corpus[num_eval * (neg_idx + <span>1</span>) + did] = sample[neg_col]
+
+<span># Each query's relevant document is the positive at the same index</span>
+eval_relevant_docs = {idx: [idx] <span>for</span> idx <span>in</span> <span>range</span>(<span>len</span>(eval_dataset))}
+
+eval_evaluator = InformationRetrievalEvaluator(
+    queries=eval_queries,
+    corpus=eval_corpus,
+    relevant_docs=eval_relevant_docs,
+    batch_size=<span>1</span>,
+    show_progress_bar=<span>True</span>,
+    name=<span>"vdr-eval-hard"</span>,
+)
+</code></pre>
+<p>The evaluator takes text queries, a corpus of images (including hard negatives), and a mapping of which documents are relevant to which queries. Note that the corpus contains a mix of positive and hard negative document screenshots, making this a challenging evaluation. Using <code>batch_size=1</code> prevents out-of-memory issues during evaluation of the large VLM.</p>
+<h2>
+	<a id="trainer" href="#trainer" rel="nofollow">
+		
+	</a>
+	<span>
+		Trainer
+	</span>
+</h2>
+<p>The <a href="https://sbert.net/docs/package_reference/sentence_transformer/trainer.html#sentence_transformers.sentence_transformer.trainer.SentenceTransformerTrainer" rel="nofollow"><code>SentenceTransformerTrainer</code></a> brings everything together. Here's the complete training script:</p>
+<pre><code><span>from</span> datasets <span>import</span> load_dataset
+
+<span>from</span> sentence_transformers <span>import</span> SentenceTransformer
+<span>from</span> sentence_transformers.sentence_transformer.evaluation <span>import</span> InformationRetrievalEvaluator
+<span>from</span> sentence_transformers.sentence_transformer.losses <span>import</span> CachedMultipleNegativesRankingLoss, MatryoshkaLoss
+<span>from</span> sentence_transformers.sentence_transformer.model_card <span>import</span> SentenceTransformerModelCardData
+<span>from</span> sentence_transformers.sentence_transformer.trainer <span>import</span> SentenceTransformerTrainer
+<span>from</span> sentence_transformers.sentence_transformer.training_args <span>import</span> (
+    BatchSamplers,
+    SentenceTransformerTrainingArguments,
+)
+
+<span># 1. Load a model to finetune with (optional) model card data</span>
+model = SentenceTransformer(
+    <span>"Qwen/Qwen3-VL-Embedding-2B"</span>,
+    model_card_data=SentenceTransformerModelCardData(
+        language=<span>"en"</span>,
+        license=<span>"apache-2.0"</span>,
+        model_name=<span>"Qwen3-VL-Embedding-2B model trained on Visual Document Retrieval query-document screenshot pairs"</span>,
+    ),
+    model_kwargs={<span>"attn_implementation"</span>: <span>"flash_attention_2"</span>, <span>"torch_dtype"</span>: <span>"bfloat16"</span>},
+    <span># Control image resolution: lower values save memory, higher values preserve detail</span>
+    processor_kwargs={<span>"min_pixels"</span>: <span>28</span> * <span>28</span>, <span>"max_pixels"</span>: <span>600</span> * <span>600</span>},
+)
+
+<span># 2. Load a dataset to finetune on: (query, positive, negative_0) triplets for training,</span>
+<span># all 4 hard negatives retained for evaluation</span>
+train_dataset = load_dataset(<span>"tomaarsen/llamaindex-vdr-en-train-preprocessed"</span>, <span>"train"</span>, split=<span>"train"</span>)
+train_dataset = train_dataset.select_columns([<span>"query"</span>, <span>"image"</span>, <span>"negative_0"</span>])
+eval_dataset = load_dataset(<span>"tomaarsen/llamaindex-vdr-en-train-preprocessed"</span>, <span>"eval"</span>, split=<span>"train"</span>)
+
+<span># 3. Define a loss function</span>
+loss = CachedMultipleNegativesRankingLoss(model, mini_batch_size=<span>1</span>)
+loss = MatryoshkaLoss(model, loss, matryoshka_dims=[<span>2048</span>, <span>1536</span>, <span>1024</span>, <span>512</span>, <span>256</span>, <span>128</span>, <span>64</span>])
+
+<span># 4. (Optional) Specify training arguments</span>
+run_name = <span>"Qwen3-VL-Embedding-2B-vdr"</span>
+args = SentenceTransformerTrainingArguments(
+    <span># Required parameter:</span>
+    output_dir=<span>f"models/<span>{run_name}</span>"</span>,
+    <span># Optional training parameters:</span>
+    num_train_epochs=<span>1</span>,
+    per_device_train_batch_size=<span>64</span>,
+    per_device_eval_batch_size=<span>64</span>,
+    learning_rate=<span>2e-5</span>,
+    warmup_ratio=<span>0.1</span>,
+    fp16=<span>False</span>,  <span># BF16 is preferred over FP16 for VLMs due to better numerical stability</span>
+    bf16=<span>True</span>,  <span># Set to True if your GPU supports BF16 (most modern GPUs do)</span>
+    batch_sampler=BatchSamplers.NO_DUPLICATES,  <span># MultipleNegativesRankingLoss benefits from no duplicates</span>
+    <span># Optional tracking/debugging parameters:</span>
+    eval_strategy=<span>"steps"</span>,
+    eval_steps=<span>0.1</span>,
+    save_strategy=<span>"steps"</span>,
+    save_steps=<span>0.1</span>,
+    save_total_limit=<span>2</span>,
+    logging_steps=<span>0.05</span>,
+    run_name=run_name,  <span># Used in e.g. Trackio if installed</span>
+    <span># report_to=["codecarbon", "trackio"],  # Uncomment to enable logging (pip install codecarbon trackio)</span>
+)
+
+<span># 5. (Optional) Create an evaluator &amp; evaluate the base model</span>
+eval_queries = {qid: sample[<span>"query"</span>] <span>for</span> qid, sample <span>in</span> <span>enumerate</span>(eval_dataset)}
+eval_corpus = {did: sample[<span>"image"</span>] <span>for</span> did, sample <span>in</span> <span>enumerate</span>(eval_dataset)}
+num_eval = <span>len</span>(eval_dataset)
+negative_columns = [<span>"negative_0"</span>, <span>"negative_1"</span>, <span>"negative_2"</span>, <span>"negative_3"</span>]
+<span>for</span> neg_idx, neg_col <span>in</span> <span>enumerate</span>(negative_columns):
+    <span>for</span> did, sample <span>in</span> <span>enumerate</span>(eval_dataset):
+        eval_corpus[num_eval * (neg_idx + <span>1</span>) + did] = sample[neg_col]
+eval_relevant_docs = {idx: [idx] <span>for</span> idx <span>in</span> <span>range</span>(<span>len</span>(eval_dataset))}
+
+eval_evaluator = InformationRetrievalEvaluator(
+    queries=eval_queries,
+    corpus=eval_corpus,
+    relevant_docs=eval_relevant_docs,
+    batch_size=<span>1</span>,
+    show_progress_bar=<span>True</span>,
+    name=<span>"vdr-eval-hard"</span>,
+)
+eval_evaluator(model)
+
+<span># 6. Create a trainer &amp; train</span>
+trainer = SentenceTransformerTrainer(
+    model=model,
+    args=args,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
+    loss=loss,
+    evaluator=eval_evaluator,
+)
+trainer.train()
+
+<span># 7. (Optional) Evaluate at each Matryoshka dimension</span>
+eval_evaluator(model)
+<span>for</span> dim <span>in</span> [<span>2048</span>, <span>1536</span>, <span>1024</span>, <span>512</span>, <span>256</span>, <span>128</span>, <span>64</span>]:
+    dim_evaluator = InformationRetrievalEvaluator(
+        queries=eval_queries,
+        corpus=eval_corpus,
+        relevant_docs=eval_relevant_docs,
+        truncate_dim=dim,
+        batch_size=<span>1</span>,
+        show_progress_bar=<span>True</span>,
+        name=<span>f"vdr-eval-hard-<span>{dim}</span>d"</span>,
+    )
+    dim_evaluator(model)
+
+<span># 8. Save the trained model</span>
+model.save_pretrained(<span>f"models/<span>{run_name}</span>/final"</span>)
+
+<span># 9. (Optional) Push it to the Hugging Face Hub</span>
+<span># This pushes to your personal namespace, e.g. {your_username}/Qwen3-VL-Embedding-2B-vdr</span>
+model.push_to_hub(<span>"Qwen3-VL-Embedding-2B-vdr"</span>)
+</code></pre>
+<p>The training script is nearly identical to a text-only training script. The only differences are:</p>
+<ol>
+<li>Model loading: We pass <code>model_kwargs</code> for precision and attention implementation, and <code>processor_kwargs</code> for image resolution bounds.</li>
+<li>Loss function: We use <code>CachedMultipleNegativesRankingLoss</code> with <code>mini_batch_size=1</code> to handle the large VLM without running out of memory.</li>
+<li>Evaluator: The evaluator uses images in the corpus and text as queries, enabling cross-modal retrieval evaluation.</li>
+</ol>
+<p>Everything else (the trainer, training arguments, dataset loading) works exactly the same as text-only training.</p>
+<h2>
+	<a id="results" href="#results" rel="nofollow">
+		
+	</a>
+	<span>
+		Results
+	</span>
+</h2>
+<h3>
+	<a id="model-size-vs-ndcg10" href="#model-size-vs-ndcg10" rel="nofollow">
+		
+	</a>
+	<span>
+		Model Size vs NDCG@10
+	</span>
+</h3>
+<p>After training for just 1 epoch, the finetuned <a href="https://huggingface.co/tomaarsen/Qwen3-VL-Embedding-2B-vdr">tomaarsen/Qwen3-VL-Embedding-2B-vdr</a> model achieves an NDCG@10 of <strong>0.947</strong> on the evaluation set (300 queries, 1500 corpus documents, cosine similarity). This is a significant improvement over the base <a href="https://huggingface.co/Qwen/Qwen3-VL-Embedding-2B">Qwen/Qwen3-VL-Embedding-2B</a> model's 0.888, and outperforms all existing VDR models:</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/multimodal-sentence-transformers/vdr_plot.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/multimodal-sentence-transformers/vdr_plot.png" alt="Model size vs NDCG for VDR models"></a></p>
+<details>
+<summary>Full NDCG@10 numbers by model (20 models)</summary>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Parameters</th>
+<th>NDCG@10</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>tomaarsen/Qwen3-VL-Embedding-2B-vdr</strong></td>
+<td><strong>2.1B</strong></td>
+<td><strong>0.947</strong></td>
+</tr>
+<tr>
+<td>Qwen/Qwen3-VL-Embedding-8B</td>
+<td>8.1B</td>
+<td>0.923</td>
+</tr>
+<tr>
+<td>nvidia/omni-embed-nemotron-3b</td>
+<td>4.7B</td>
+<td>0.915</td>
+</tr>
+<tr>
+<td>nvidia/llama-nemotron-embed-vl-1b-v2</td>
+<td>1.7B</td>
+<td>0.912</td>
+</tr>
+<tr>
+<td>nomic-ai/nomic-embed-multimodal-7b</td>
+<td>8.3B</td>
+<td>0.912</td>
+</tr>
+<tr>
+<td>llamaindex/vdr-2b-multi-v1</td>
+<td>2.2B</td>
+<td>0.912</td>
+</tr>
+<tr>
+<td>llamaindex/vdr-2b-v1</td>
+<td>2.2B</td>
+<td>0.911</td>
+</tr>
+<tr>
+<td>nomic-ai/nomic-embed-multimodal-3b</td>
+<td>3.8B</td>
+<td>0.899</td>
+</tr>
+<tr>
+<td>Qwen/Qwen3-VL-Embedding-2B</td>
+<td>2.1B</td>
+<td>0.888</td>
+</tr>
+<tr>
+<td>LCO-Embedding/LCO-Embedding-Omni-7B</td>
+<td>8.9B</td>
+<td>0.888</td>
+</tr>
+<tr>
+<td>LCO-Embedding/LCO-Embedding-Omni-3B</td>
+<td>4.7B</td>
+<td>0.860</td>
+</tr>
+<tr>
+<td>BAAI/BGE-VL-v1.5-zs</td>
+<td>7.6B</td>
+<td>0.800</td>
+</tr>
+<tr>
+<td>BAAI/BGE-VL-v1.5-mmeb</td>
+<td>7.6B</td>
+<td>0.797</td>
+</tr>
+<tr>
+<td>BAAI/BGE-VL-MLLM-S2</td>
+<td>7.6B</td>
+<td>0.792</td>
+</tr>
+<tr>
+<td>BidirLM/BidirLM-Omni-2.5B-Embedding</td>
+<td>2.5B</td>
+<td>0.775</td>
+</tr>
+<tr>
+<td>royokong/e5-v</td>
+<td>8.4B</td>
+<td>0.767</td>
+</tr>
+<tr>
+<td>BAAI/BGE-VL-MLLM-S1</td>
+<td>7.6B</td>
+<td>0.710</td>
+</tr>
+<tr>
+<td>sentence-transformers/clip-ViT-L-14</td>
+<td>428M</td>
+<td>0.611</td>
+</tr>
+<tr>
+<td>BAAI/BGE-VL-large</td>
+<td>428M</td>
+<td>0.467</td>
+</tr>
+<tr>
+<td>BAAI/BGE-VL-base</td>
+<td>150M</td>
+<td>0.335</td>
+</tr>
+</tbody>
+	</table>
+</div>
+</details>
+
+
+<p>The finetuned 2B model outperforms even the 8B Qwen3-VL-Embedding model, demonstrating the power of task-specific finetuning. Finetuning on your own domain is often worth considering, even when a larger general-purpose model is available!</p>
+<h3>
+	<a id="matryoshka-dimensions-vs-ndcg10" href="#matryoshka-dimensions-vs-ndcg10" rel="nofollow">
+		
+	</a>
+	<span>
+		Matryoshka Dimensions vs NDCG@10
+	</span>
+</h3>
+<p>The comparison above uses full-size 2048-dim embeddings. Thanks to the Matryoshka training, the finetuned model also holds up well when truncated to fewer dimensions, letting you trade off embedding size and retrieval quality at deployment time:</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/multimodal-sentence-transformers/vdr_plot_mrl.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/multimodal-sentence-transformers/vdr_plot_mrl.png" alt="MRL dimensions vs NDCG@10"></a></p>
+<blockquote>
+<p>The finetuned model's peak is at the full 2048 dimensions (0.948), but it stays within 0.3% of peak all the way down to 512 (4x smaller), and retains over 92% of peak even at 64 (32x smaller). Matryoshka training concentrates the most important information in the earlier dimensions, so moderate truncation costs very little performance.</p>
+</blockquote>
+<details>
+<summary>Full NDCG@10 numbers by dimension</summary>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Dimensions</th>
+<th>Base NDCG@10</th>
+<th>Finetuned NDCG@10</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>2048 (full)</td>
+<td>0.8961 (100%)</td>
+<td>0.9480 (100%)</td>
+</tr>
+<tr>
+<td>1536</td>
+<td>0.8940 (99.8%)</td>
+<td>0.9439 (99.6%)</td>
+</tr>
+<tr>
+<td>1024</td>
+<td>0.8941 (99.8%)</td>
+<td>0.9464 (99.8%)</td>
+</tr>
+<tr>
+<td>512</td>
+<td>0.8760 (97.8%)</td>
+<td>0.9451 (99.7%)</td>
+</tr>
+<tr>
+<td>256</td>
+<td>0.8347 (93.2%)</td>
+<td>0.9372 (98.9%)</td>
+</tr>
+<tr>
+<td>128</td>
+<td>0.7888 (88.0%)</td>
+<td>0.9058 (95.5%)</td>
+</tr>
+<tr>
+<td>64</td>
+<td>0.6852 (76.5%)</td>
+<td>0.8758 (92.4%)</td>
+</tr>
+</tbody>
+	</table>
+</div>
+</details>
+
+<p>The gap between 1024 and 2048 dimensions is small (0.946 vs. 0.948), so I've saved the model with <code>truncate_dim=1024</code> set in its configuration. This means that <code>SentenceTransformer("tomaarsen/Qwen3-VL-Embedding-2B-vdr")</code> produces 1024-dimensional embeddings by default, halving the storage footprint compared to the full 2048. If you want a different dimensionality, pass <code>truncate_dim=N</code> when loading to override it.</p>
+<h2>
+	<a id="training-multimodal-reranker-models" href="#training-multimodal-reranker-models" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Multimodal Reranker Models
+	</span>
+</h2>
+<p>You can also finetune multimodal Cross Encoder (reranker) models using the same training infrastructure. The key difference is using <a href="https://sbert.net/docs/package_reference/cross_encoder/trainer.html#sentence_transformers.cross_encoder.trainer.CrossEncoderTrainer" rel="nofollow"><code>CrossEncoderTrainer</code></a> and Cross Encoder-specific loss functions. This section provides a brief overview; see the <a href="https://github.com/huggingface/sentence-transformers/tree/main/examples/cross_encoder/training/multimodal" rel="nofollow">full training examples</a> for complete, runnable scripts with dataset preparation and evaluation.</p>
+<p>Here's a simplified example based on the <a href="https://github.com/huggingface/sentence-transformers/blob/main/examples/cross_encoder/training/multimodal/training_doodles_any_to_any.py" rel="nofollow">doodles training script</a>, which trains a reranker to match images with text captions:</p>
+<pre><code><span>from</span> sentence_transformers.cross_encoder <span>import</span> CrossEncoder
+<span>from</span> sentence_transformers.cross_encoder.losses <span>import</span> BinaryCrossEntropyLoss
+<span>from</span> sentence_transformers.cross_encoder.modules <span>import</span> LogitScore, Transformer
+<span>from</span> sentence_transformers.cross_encoder.trainer <span>import</span> CrossEncoderTrainer
+<span>from</span> sentence_transformers.cross_encoder.training_args <span>import</span> CrossEncoderTrainingArguments
+
+<span># 1. Build the model from modules</span>
+transformer = Transformer(
+    <span>"Qwen/Qwen3.5-0.8B"</span>,
+    transformer_task=<span>"any-to-any"</span>,
+    model_kwargs={<span>"torch_dtype"</span>: <span>"bfloat16"</span>, <span>"device_map"</span>: <span>"auto"</span>, <span>"attn_implementation"</span>: <span>"flash_attention_2"</span>},
+    processing_kwargs={<span>"chat_template"</span>: {<span>"add_generation_prompt"</span>: <span>True</span>}},
+)
+
+<span># Extend chat template to support "query" and "document" roles</span>
+transformer.processor.chat_template = transformer.processor.chat_template.replace(
+    <span>'message.role == "user"'</span>, <span>'message.role in ["user", "query", "document"]'</span>
+)
+
+<span># LogitScore: score = log(P("1")) - log(P("0"))</span>
+score_head = LogitScore(
+    true_token_id=transformer.tokenizer.convert_tokens_to_ids(<span>"1"</span>),
+    false_token_id=transformer.tokenizer.convert_tokens_to_ids(<span>"0"</span>),
+)
+
+model = CrossEncoder(
+    modules=[transformer, score_head],
+    num_labels=<span>1</span>,
+    prompts={
+        <span>"image_to_text"</span>: <span>"Given the image, judge whether the text matches it. Respond with 1 if they match, 0 if they don't."</span>,
+        <span>"text_to_image"</span>: <span>"Given the text, judge whether the image matches it. Respond with 1 if they match, 0 if they don't."</span>,
+    },
+)
+
+<span># 2. Define the loss</span>
+loss = BinaryCrossEntropyLoss(model)
+
+<span># 3. Multi-dataset training with separate directions</span>
+trainer = CrossEncoderTrainer(
+    model=model,
+    args=args,
+    train_dataset={<span>"image_to_text"</span>: train_image_to_text, <span>"text_to_image"</span>: train_text_to_image},
+    eval_dataset={<span>"image_to_text"</span>: eval_image_to_text, <span>"text_to_image"</span>: eval_text_to_image},
+    loss=loss,
+    evaluator=[image_to_text_evaluator, text_to_image_evaluator],
+)
+trainer.train()
+</code></pre>
+<p>There are multiple valid architectural choices for multimodal rerankers, including:</p>
+<ol>
+<li>Any-to-Any + LogitScore: Uses the multimodal language model to generate a token, then computes the log-odds of "1" vs "0".</li>
+<li>Feature Extraction + Pooling + Dense: Uses only the multimodal base model, and extracts the last token's hidden state and projects it to a score via a Dense layer, avoiding the language modeling head computation.</li>
+</ol>
+<p>Both approaches are demonstrated in the <a href="https://github.com/huggingface/sentence-transformers/tree/main/examples/cross_encoder/training/multimodal" rel="nofollow">multimodal cross encoder training examples</a>.</p>
+<p>The two scripts linked above split the training data into two datasets, one per direction (image-to-text and text-to-image), with a task-specific prompt for each that tells the model how to score in that direction. Each positive pair is then expanded with randomly sampled negatives so the loss sees a balanced mix of matches and non-matches.</p>
+<h2>
+	<a id="additional-resources" href="#additional-resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Additional Resources
+	</span>
+</h2>
+<h3>
+	<a id="training-examples" href="#training-examples" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Examples
+	</span>
+</h3>
+<p>The Sentence Transformers repository includes several multimodal training examples:</p>
+<ul>
+<li><a href="https://github.com/huggingface/sentence-transformers/blob/main/examples/sentence_transformer/training/multimodal/training_visual_document_retrieval.py" rel="nofollow">Visual Document Retrieval</a>: The training script used in this blogpost to finetune a VLM-based embedding model for document screenshot retrieval</li>
+<li><a href="https://github.com/huggingface/sentence-transformers/blob/main/examples/cross_encoder/training/multimodal/training_doodles_any_to_any.py" rel="nofollow">Multimodal Reranker (Any-to-Any)</a>: Train a multimodal reranker using LogitScore</li>
+<li><a href="https://github.com/huggingface/sentence-transformers/blob/main/examples/cross_encoder/training/multimodal/training_doodles_feature_extraction.py" rel="nofollow">Multimodal Reranker (Feature Extraction)</a>: Train a multimodal reranker using Pooling + Dense</li>
+</ul>
+<h3>
+	<a id="documentation" href="#documentation" rel="nofollow">
+		
+	</a>
+	<span>
+		Documentation
+	</span>
+</h3>
+<p>Additionally, the following pages may be useful to learn more about training with Sentence Transformers:</p>
+<ul>
+<li><a href="https://sbert.net/docs/sentence_transformer/training_overview.html" rel="nofollow">Sentence Transformer &gt; Training Overview</a></li>
+<li><a href="https://sbert.net/docs/sentence_transformer/loss_overview.html" rel="nofollow">Sentence Transformer &gt; Loss Overview</a></li>
+<li><a href="https://sbert.net/docs/cross_encoder/training_overview.html" rel="nofollow">Cross Encoder &gt; Training Overview</a></li>
+<li><a href="https://sbert.net/docs/cross_encoder/loss_overview.html" rel="nofollow">Cross Encoder &gt; Loss Overview</a></li>
+<li><a href="https://sbert.net/docs/sentence_transformer/dataset_overview.html" rel="nofollow">Dataset Overview</a></li>
+<li><a href="https://sbert.net/docs/package_reference/sentence_transformer/index.html" rel="nofollow">API Reference</a></li>
+</ul>
+<h3>
+	<a id="companion-blogposts" href="#companion-blogposts" rel="nofollow">
+		
+	</a>
+	<span>
+		Companion Blogposts
+	</span>
+</h3>
+<p>The direct prerequisite and the prior training guides are listed first, followed by related technique posts that stack with multimodal training:</p>
+<ul>
+<li><a href="https://huggingface.co/blog/multimodal-sentence-transformers">Multimodal Embedding &amp; Reranker Models with Sentence Transformers</a>: multimodal inference, the companion to this training post.</li>
+<li><a href="https://huggingface.co/blog/train-sentence-transformers">Training and Finetuning Embedding Models with Sentence Transformers</a>: the general training guide for text-only embedding models.</li>
+<li><a href="https://huggingface.co/blog/train-reranker">Training and Finetuning Reranker Models with Sentence Transformers</a>: Cross Encoder (reranker) training, including the ModernBERT-base reranker example.</li>
+<li><a href="https://huggingface.co/blog/train-sparse-encoder">Training and Finetuning Sparse Embedding Models with Sentence Transformers</a>: SPLADE and other sparse encoder training.</li>
+<li><a href="https://huggingface.co/blog/matryoshka">🪆 Introduction to Matryoshka Embedding Models</a>: background on the <code>MatryoshkaLoss</code> used in this post to produce embeddings that truncate gracefully.</li>
+<li><a href="https://huggingface.co/blog/static-embeddings">Train 400x faster Static Embedding Models with Sentence Transformers</a>: CPU-friendly text embeddings, a natural counterpart to heavy VLM-based models.</li>
+<li><a href="https://huggingface.co/blog/embedding-quantization">Binary and Scalar Embedding Quantization for Significantly Faster &amp; Cheaper Retrieval</a>: post-training compression that also applies to multimodal embeddings.</li>
+<li><a href="https://huggingface.co/blog/vdr-2b-multilingual">Visual Document Retrieval Goes Multilingual</a>: the LlamaIndex post that introduced the dataset used in this blogpost's Visual Document Retrieval example.</li>
+</ul>
+</div></div>

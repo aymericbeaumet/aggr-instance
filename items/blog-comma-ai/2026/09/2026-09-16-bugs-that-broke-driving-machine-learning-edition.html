@@ -1,0 +1,280 @@
+<div id="readability-page-1" class="page"><section itemprop="text">
+        <p>“We have solved self driving, we just need to fix the bugs.”</p>
+<p>Rumor has it that the Linux kernel averages around 0.5 bugs per 1,000 lines of code.
+Some bugs are easy to avoid or catch with tests and metrics. Others are very good at hiding.</p>
+<p>This is a sequel to <a href="https://blog.comma.ai/driving-bugs/" target="_blank" rel="noopener noreferrer">Bugs that broke driving</a> with more Machine Learning related bugs.</p>
+<p>Some of these bugs affected correctness, others slowed things down or used up extra memory.
+They all made training or inference worse.</p>
+<p>Looking back at these bugs helps us understand where our code tends to break and how to catch problems earlier.</p>
+<h2 id="output-layers-need-to-be-run-in-high-precision">Output layers need to be run in high precision<a href="#output-layers-need-to-be-run-in-high-precision" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>September 2026.</em></p>
+<p>The world model is a diffusion transformer (DiT) which predicts the next frame and an “expert” driving plan.</p>
+<p>During inference, the model runs in mixed precision <code>bf16_fp8_nvfp4</code>:</p>
+<ul>
+<li>Transformer MLP linears use NVFP4 (most FLOPs)</li>
+<li>Attention projections, cached attention Q/K/V, and the KV cache use FP8 (saves VRAM)</li>
+<li>Other layers use BF16 (not too many FLOPs)</li>
+<li>Norm reductions, attention scores, and sinusoidal timestep features use FP32 (standard safe mixed precision)</li>
+</ul>
+<p>In particular, the plan output layers ran in BF16. Around 30 m/s, BF16 can only represent speeds in steps of 0.125 m/s.
+The acceleration calculation from the plans subtracts nearby speed predictions and divides by a short time interval <span><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Δ</mi><mi>t</mi></mrow><annotation encoding="application/x-tex">\Delta t</annotation></semantics></math></span>, magnifying the rounding errors:</p>
+<span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>a</mi><mtext>desired</mtext></msub><mo>=</mo><mn>2</mn><mfrac><mrow><msub><mi>v</mi><mtext>target</mtext></msub><mo>−</mo><msub><mi>v</mi><mtext>now</mtext></msub></mrow><mrow><mi mathvariant="normal">Δ</mi><mi>t</mi></mrow></mfrac><mo>−</mo><msub><mi>a</mi><mtext>now</mtext></msub></mrow><annotation encoding="application/x-tex">
+a_{\text{desired}} = 2\frac{v_{\text{target}} - v_{\text{now}}}{\Delta t} - a_{\text{now}}
+</annotation></semantics></math></span><div>
+<figure><a href="https://blog.comma.ai/img/bug_stories_ml/output_precision.png" title="Open image at full size">
+  <picture><source srcset="https://blog.comma.ai/img/bug_stories_ml/output_precision.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/bug_stories_ml/output_precision.png" alt="Acceleration from BF16 and FP32 plan outputs">
+  </picture></a>
+  <figcaption></figcaption>
+</figure>
+</div>
+<p>The fix is to promote the plan head and its inputs to FP32 <em>before</em> running it, Casting the finished plan to FP32 just gives the staircase more decimal places.</p>
+<div><pre tabindex="0"><code data-lang="diff"><span><span><span>+plan_head.float()
+</span></span></span><span><span><span>-plan = plan_head(features).float()
+</span></span></span><span><span><span>+plan = plan_head(features.float())
+</span></span></span></code></pre></div><h2 id="convnext-fp16">ConvNeXt FP16<a href="#convnext-fp16" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>August 2026.</em></p>
+<p>The driving model’s vision encoder is a ConvNeXt, with a learned multiplier on each residual branch: <code>x + gamma * f(x)</code>. At runtime, it runs in FP16.</p>
+<p>The <a href="https://huggingface.co/timm/convnext_xxlarge.clip_laion2b_soup" target="_blank" rel="noopener noreferrer">pretrained checkpoint we used</a> we pick had a value of
+almost 54 at <code>stages[2].blocks[29]</code>. After fine-tuning, some inputs push the residual past FP16’s 65,504 limit leading to <code>inf</code>.</p>
+<p>The annoying thing is that this only triggered in some seemingly random cases, and didn’t happen in the various checks we
+run during model exporting to FP16.</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/bug_stories_ml/convnext_float16.mp4">
+  </video>
+  <figcaption></figcaption>
+</figure>
+
+<p>The workaround was to divide that stage’s residual stream by four and carry the scale through its biases, multipliers, and LayerNorm epsilons:</p>
+<div><pre tabindex="0"><code data-lang="diff"><span><span> stage = encoder.stages[2]
+</span></span><span><span><span>+stage.downsample[1].weight.div_(4)
+</span></span></span><span><span><span>+stage.downsample[1].bias.div_(4)
+</span></span></span><span><span><span>+for block in stage.blocks:
+</span></span></span><span><span><span>+    block.conv_dw.bias.div_(4)
+</span></span></span><span><span><span>+    block.gamma.div_(4)
+</span></span></span><span><span><span>+    block.norm.eps /= 16
+</span></span></span><span><span><span>+encoder.stages[3].downsample[0].eps /= 16
+</span></span></span></code></pre></div><h2 id="missing-desire-targets">Missing desire targets<a href="#missing-desire-targets" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>July 2026.</em></p>
+<p>The driving model predicts “driving desire”, like turning or changing lanes.</p>
+<p>For a while, some training data had no desire targets: we use NaNs to distinguish missing targets,
+and our loss helpers normally handle this by masking those targets out. But the desire loss took an <code>argmax</code> first, and did not have the NaN handling.</p>
+<div><pre tabindex="0"><code data-lang="python"><span><span><span>&gt;&gt;&gt;</span> <span>import</span> <span>torch</span>
+</span></span><span><span><span>&gt;&gt;&gt;</span> <span>import</span> <span>torch.nn.functional</span> <span>as</span> <span>F</span>
+</span></span><span><span><span>&gt;&gt;&gt;</span> <span>target</span> <span>=</span> <span>torch</span><span>.</span><span>full</span><span>((</span><span>1</span><span>,</span> <span>8</span><span>),</span> <span>torch</span><span>.</span><span>nan</span><span>)</span>
+</span></span><span><span><span>&gt;&gt;&gt;</span> <span>target</span><span>.</span><span>argmax</span><span>(</span><span>-</span><span>1</span><span>)</span>
+</span></span><span><span><span>tensor</span><span>([</span><span>0</span><span>])</span>
+</span></span><span><span><span>&gt;&gt;&gt;</span> <span>F</span><span>.</span><span>cross_entropy</span><span>(</span><span>torch</span><span>.</span><span>zeros</span><span>(</span><span>1</span><span>,</span> <span>8</span><span>),</span> <span>target</span><span>.</span><span>argmax</span><span>(</span><span>-</span><span>1</span><span>))</span>
+</span></span><span><span><span>tensor</span><span>(</span><span>2.0794</span><span>)</span>
+</span></span></code></pre></div><p>All those NaNs became class <code>0</code>, “no desire”, with a perfectly normal loss.</p>
+<p>The fix replaces NaNs with zeros while keeping a mask, then uses that mask to ignore missing targets:</p>
+<div><pre tabindex="0"><code data-lang="python"><span><span><span>def</span> <span>num_from_nan</span><span>(</span><span>target</span><span>):</span>
+</span></span><span><span>    <span>valid</span> <span>=</span> <span>~</span><span>torch</span><span>.</span><span>isnan</span><span>(</span><span>target</span><span>)</span>
+</span></span><span><span>    <span>return</span> <span>target</span><span>.</span><span>masked_fill</span><span>(</span><span>~</span><span>valid</span><span>,</span> <span>0</span><span>)</span><span>.</span><span>detach</span><span>(),</span> <span>valid</span>
+</span></span></code></pre></div><div><pre tabindex="0"><code data-lang="diff"><span><span><span>+target, valid = num_from_nan(target)
+</span></span></span><span><span> loss = F.cross_entropy(logits, target.argmax(-1), reduction="none")
+</span></span><span><span><span>+loss = valid.all(-1) * loss
+</span></span></span></code></pre></div><h2 id="redundant-biases-drifted-apart-across-distributed-ranks">Redundant biases drifted apart across distributed ranks<a href="#redundant-biases-drifted-apart-across-distributed-ranks" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>April 2026.</em></p>
+<p>The driving model has many <code>nn.Linear</code> layers. During training, we use <code>torch.compile</code>,
+BF16 autocast and Distributed Data Parallel (DDP) as “acceleration” recipes.</p>
+<p>Sometimes, harmless redundant biases are written in the architecture:</p>
+<div><pre tabindex="0"><code data-lang="python"><span><span><span>a</span> <span>=</span> <span>nn</span><span>.</span><span>Linear</span><span>(</span><span>8</span><span>,</span> <span>8192</span><span>)</span>
+</span></span><span><span><span>b</span> <span>=</span> <span>nn</span><span>.</span><span>Linear</span><span>(</span><span>4</span><span>,</span> <span>8192</span><span>)</span>
+</span></span><span><span><span>y</span> <span>=</span> <span>a</span><span>(</span><span>x</span><span>)</span> <span>+</span> <span>b</span><span>(</span><span>x</span><span>[:,</span> <span>:</span><span>4</span><span>])</span>
+</span></span></code></pre></div><p>Note that the 8/4 is just illustrative, and keeps the weight gradients different while the bias gradients are identical.</p>
+<p><code>a.bias</code> and <code>b.bias</code> will be merged by the compiler into one bias, so they get the same gradient. The compiler went one step further: it made both <code>.grad</code> tensors share the same memory.</p>
+<p>DDP synchronized them correctly, then <code>clip_grad_norm_</code> used its foreach implementation to scale that shared buffer from two CUDA blocks at once.</p>
+<p>Depending on timing, an entry could be multiplied by the clipping coefficient once or twice, giving each rank a different update.</p>
+<p>In one recorded run, rank 0 clipped all 8,192 entries once; rank 1 clipped 384 of them twice. The drift can reach a magnitude of 0.0056 between ranks after only 50 SGD steps, while the weight matrices stayed identical.</p>
+<p>Both biases receive the same faulty update within a rank, their sum drifts too, which can change the model’s outputs.
+DDP synchronizes gradients during training, so it doesn’t repair those parameter differences: the GPUs are now training different copies of the model.</p>
+<p>We worked around it by removing the redundant biases.</p>
+<p>This was fixed in <a href="https://github.com/pytorch/pytorch/blob/v2.13.0/torch/_inductor/fx_passes/joint_graph.py#L801-L804" target="_blank" rel="noopener noreferrer">PyTorch 2.13.0</a> as a side effect of a <a href="https://github.com/pytorch/pytorch/commit/6f94c6e16e1bf562f8f5514953cf9b8d47d07cdd" target="_blank" rel="noopener noreferrer">compiler optimization change</a>.</p>
+<p>It preserved <code>FP32 → BF16 → FP32</code> cast chains so smaller intermediate tensors could still be materialized: in our backward graph, that happened to keep the two bias gradients in separate FP32 buffers.</p>
+<p>Note: The foreach kernel itself still assumes the gradient buffers don’t overlap…</p>
+<h2 id="ddp-random-seed-bug">DDP random seed bug<a href="#ddp-random-seed-bug" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>August 2026.</em></p>
+<p><a href="https://github.com/pytorch/torchtitan" target="_blank" rel="noopener noreferrer">Torchtitan</a> uses the same seed across DDP (replicate), this is correct because weight initialization should match
+across replicate ranks. But torchtitan then keeps that rank identical across during for training.</p>
+<p>With ordinary tensors (not DTensors), different ranks could get identical dropout masks and diffusion noise.</p>
+<p>The fix is to reseed each data-parallel rank after initialization (essentially):</p>
+<div><pre tabindex="0"><code data-lang="diff"><span><span> torch.manual_seed(seed)
+</span></span><span><span> model.init_weights()
+</span></span><span><span><span>+torch.manual_seed(seed + dp_rank)
+</span></span></span><span><span> train(model)
+</span></span></code></pre></div><p>Flux <a href="https://github.com/pytorch/torchtitan/blob/68c97b0c54b0d853fefefab4ecf9e41e6a82a6b7/torchtitan/models/flux/trainer.py#L38-L50" target="_blank" rel="noopener noreferrer">does this after initialization</a>, setting <code>distinct_seed_mesh_dims=["cp", "dp_shard", "dp_replicate"]</code>.</p>
+<figure>
+  <a href="https://blog.comma.ai/img/bug_stories_ml/ddp_worldmodel_diffusion_loss.png" title="Open diffusion loss plot at full size">
+    <img src="https://blog.comma.ai/img/bug_stories_ml/ddp_worldmodel_diffusion_loss.png" alt="Diffusion loss: reference run and adjusted causal run" loading="lazy">
+  </a>
+  <a href="https://blog.comma.ai/img/bug_stories_ml/ddp_worldmodel_plan_loss.png" title="Open plan loss plot at full size">
+    <img src="https://blog.comma.ai/img/bug_stories_ml/ddp_worldmodel_plan_loss.png" alt="Plan loss: reference run and adjusted causal run" loading="lazy">
+  </a>
+  <figcaption><p>Fixing the ddp seed bug produces better world models overall and less noisy loss curves given that the diffusion noise samples are not the same across all ranks.</p></figcaption>
+</figure>
+<h2 id="allnorm">AllNorm<a href="#allnorm" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>June 2021 to April 2026.</em></p>
+<figure>
+  <a href="https://blog.comma.ai/img/bug_stories_ml/allnorm_loss.png" title="Open loss plot at full size">
+    <img src="https://blog.comma.ai/img/bug_stories_ml/allnorm_loss.png" alt="BatchNorm and AllNorm training and validation loss" loading="lazy">
+  </a>
+  <figcaption><p>Training and validation loss for models trained with BatchNorm and AllNorm.</p></figcaption>
+</figure>
+<p>Normalization layers are widely used in Machine Learning. BatchNorm normalizes each channel using the mean and variance across the batch and spatial dimensions. During training, it uses the current batch statistics and updates running averages. During inference, it uses those running averages.</p>
+<p>The driving models are multi-task learners, with some tasks being more sparse than others,
+for example: hard brake events.</p>
+<p>One failure mode we encountered was when a channel specializes in a rare feature. Through batches without that feature, the channel stays quiet and its BatchNorm running variance shrinks.</p>
+<p>When validation activates that channel again, it gets divided by a stored standard deviation that is too small, blowing up the outputs. Training can still look fine because its statistics come from the current batch: when the feature returns, the denominator grows with it.</p>
+<p>LayerNorm fixes this, but needs per input statistics at inference. On device, we want normalization folded into convolutions. Recalibrating BatchNorm running statistics offline also fixes this, but adds overhead and another training pass. Same for lowering momentum which needed extra tuning.</p>
+<p>The best fix we came up with was pooling the whole batch, channels, and spatial dimensions into one set of statistics. We called this AllNorm.</p>
+<div><pre tabindex="0"><code data-lang="python"><span><span><span>class</span> <span>AllNorm</span><span>(</span><span>nn</span><span>.</span><span>Module</span><span>):</span>
+</span></span><span><span>    <span>def</span> <span>__init__</span><span>(</span><span>self</span><span>):</span>
+</span></span><span><span>        <span>super</span><span>()</span><span>.</span><span>__init__</span><span>()</span>
+</span></span><span><span>        <span>self</span><span>.</span><span>bn</span> <span>=</span> <span>nn</span><span>.</span><span>BatchNorm1d</span><span>(</span><span>1</span><span>)</span>
+</span></span><span><span>
+</span></span><span><span>    <span>def</span> <span>forward</span><span>(</span><span>self</span><span>,</span> <span>x</span><span>):</span>
+</span></span><span><span>        <span>return</span> <span>self</span><span>.</span><span>bn</span><span>(</span><span>x</span><span>.</span><span>reshape</span><span>(</span><span>-</span><span>1</span><span>,</span> <span>1</span><span>))</span><span>.</span><span>reshape_as</span><span>(</span><span>x</span><span>)</span>
+</span></span></code></pre></div><p>All channels share statistics, making it robust to this failure, and keeping the ability to fold the statistics into the convolutions.</p>
+<p>Note: With the extra compute that the <a href="https://blog.comma.ai/chestnut/" target="_blank" rel="noopener noreferrer">chestnut</a> gives, we can now afford using LayerNorm and not deal with this!</p>
+
+
+<h2 id="gigashuffles-reusable-cpu-buffers">Gigashuffle’s reusable CPU buffers<a href="#gigashuffles-reusable-cpu-buffers" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>July 2026.</em></p>
+<p><a href="https://github.com/commaai/gigashuffle" target="_blank" rel="noopener noreferrer">Gigashuffle</a> returns tensors backed by reusable CPU buffers.
+Each reader allocates these once and fills them again for every batch:</p>
+<div><pre tabindex="0"><code data-lang="python"><span><span><span># Once per reader:</span>
+</span></span><span><span><span>reader_buffer</span><span>[</span><span>i</span><span>][</span><span>key</span><span>]</span> <span>=</span> <span>torch</span><span>.</span><span>empty</span><span>(</span><span>shape</span><span>,</span> <span>dtype</span><span>=</span><span>dtype</span><span>)</span><span>.</span><span>share_memory_</span><span>()</span>
+</span></span><span><span>
+</span></span><span><span><span># For every batch:</span>
+</span></span><span><span><span>torch</span><span>.</span><span>index_select</span><span>(</span><span>shuffle_buffer</span><span>[</span><span>i</span><span>][</span><span>key</span><span>],</span> <span>0</span><span>,</span> <span>indices</span><span>,</span>
+</span></span><span><span>                   <span>out</span><span>=</span><span>reader_buffer</span><span>[</span><span>i</span><span>][</span><span>key</span><span>])</span>
+</span></span></code></pre></div><p>Normally, each batch is copied to the GPU before the next read.
+Our gradient accumulation loop collected several microbatches first, so later reads overwrote batches already in the list.</p>
+<p>One way to fix this is to clone both inputs and targets before fetching the next microbatch:</p>
+<div><pre tabindex="0"><code data-lang="diff"><span><span> for _ in range(grad_accum):
+</span></span><span><span>     inputs, targets = next(loader)
+</span></span><span><span><span>+    inputs = {k: v.clone() for k, v in inputs.items()}
+</span></span></span><span><span><span>+    targets = {k: v.clone() for k, v in targets.items()}
+</span></span></span><span><span>     microbatches.append((inputs, targets))
+</span></span></code></pre></div><h2 id="fsdp2-init-bugs">FSDP2 init bugs<a href="#fsdp2-init-bugs" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>April 2025.</em></p>
+<p>With FSDP2, we construct the model on <code>meta</code>, shard it, then use <code>to_empty()</code> to allocate the weights.
+Initialization has to run after allocation: not defining an init function for a parameter initializes it
+to the arbitrary memory value it received during allocation.</p>
+<div><pre tabindex="0"><code data-lang="python"><span><span><span>&gt;&gt;&gt;</span> <span>import</span> <span>torch</span>
+</span></span><span><span><span>&gt;&gt;&gt;</span> <span>with</span> <span>torch</span><span>.</span><span>device</span><span>(</span><span>"meta"</span><span>):</span>
+</span></span><span><span><span>...</span>     <span>model</span> <span>=</span> <span>torch</span><span>.</span><span>nn</span><span>.</span><span>Module</span><span>()</span>
+</span></span><span><span><span>...</span>     <span>model</span><span>.</span><span>weight</span> <span>=</span> <span>torch</span><span>.</span><span>nn</span><span>.</span><span>Parameter</span><span>(</span><span>torch</span><span>.</span><span>ones</span><span>(</span><span>4</span><span>))</span>
+</span></span><span><span><span>&gt;&gt;&gt;</span> <span>_</span> <span>=</span> <span>model</span><span>.</span><span>to_empty</span><span>(</span><span>device</span><span>=</span><span>"cpu"</span><span>)</span>
+</span></span><span><span><span>&gt;&gt;&gt;</span> <span>model</span><span>.</span><span>weight</span><span>.</span><span>detach</span><span>()</span>
+</span></span><span><span><span>tensor</span><span>([</span> <span>3.7189e-38</span><span>,</span>  <span>0.0000e+00</span><span>,</span> <span>-</span><span>6.3894e-37</span><span>,</span>  <span>4.5160e-41</span><span>])</span>
+</span></span></code></pre></div><p>No clear fix here but to be paranoid about not forgetting init methods!</p>
+<h2 id="nccl-timeout-increase-didnt-do-anything">NCCL timeout increase didn’t do anything<a href="#nccl-timeout-increase-didnt-do-anything" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>July 2026.</em></p>
+<p>Our RL training runs collect rollouts from the cluster. If the cluster is busy, some ranks can wait for data
+longer than PyTorch’s default NCCL timeout of <a href="https://docs.pytorch.org/docs/2.14/distributed.html#torch.distributed.init_process_group" target="_blank" rel="noopener noreferrer">10 minutes</a>.</p>
+<p>To work around this, we added a barrier with a timeout of one hour before each training step, thinking we have fixed it.
+But that timeout was passed around, only to never be used:</p>
+<div><pre tabindex="0"><code data-lang="python"><span><span><span>opts</span> <span>=</span> <span>BarrierOptions</span><span>()</span>
+</span></span><span><span><span>opts</span><span>.</span><span>timeout</span> <span>=</span> <span>timeout</span>
+</span></span><span><span><span>opts</span><span>.</span><span>asyncOp</span> <span>=</span> <span>async_op</span>
+</span></span><span><span><span>work</span> <span>=</span> <span>group</span><span>.</span><span>barrier</span><span>(</span><span>opts</span><span>=</span><span>opts</span><span>)</span>
+</span></span></code></pre></div><p>The C++ dispatcher passed it along, but NCCL implemented the barrier as an all-reduce and only forwarded <code>asyncOp</code>:</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>// C++ dispatcher
+</span></span></span><span><span><span>BarrierOptions</span> <span>opts</span><span>;</span>
+</span></span><span><span><span>opts</span><span>.</span><span>timeout</span> <span>=</span> <span>std</span><span>::</span><span>chrono</span><span>::</span><span>milliseconds</span><span>(</span><span>timeout</span><span>);</span>
+</span></span><span><span><span>opts</span><span>.</span><span>asyncOp</span> <span>=</span> <span>asyncOp</span><span>;</span>
+</span></span><span><span><span>backend</span><span>-&gt;</span><span>barrier</span><span>(</span><span>opts</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span><span>// ProcessGroupNCCL::barrier
+</span></span></span><span><span><span>AllreduceOptions</span> <span>arOpts</span><span>;</span>
+</span></span><span><span><span>arOpts</span><span>.</span><span>asyncOp</span> <span>=</span> <span>opts</span><span>.</span><span>asyncOp</span><span>;</span>
+</span></span><span><span><span>auto</span> <span>work</span> <span>=</span> <span>allreduce_impl</span><span>(</span><span>barrierTensor</span><span>,</span> <span>"nccl:all_reduce_barrier"</span><span>,</span> <span>arOpts</span><span>);</span>
+</span></span><span><span><span>// opts.timeout goes nowhere.
+</span></span></span></code></pre></div><p>That all-reduce got its deadline from a different options object: the process group’s configuration.
+The watchdog checked that deadline; our <code>barrier(timeout=...)</code> argument never entered the calculation:</p>
+<div><pre tabindex="0"><code data-lang="cpp"><span><span><span>// Creating the collective's work: options_ belongs to the process group.
+</span></span></span><span><span><span>assignTimeoutToWork</span><span>(</span><span>work</span><span>,</span> <span>options_</span><span>);</span>
+</span></span><span><span>
+</span></span><span><span><span>// Inside assignTimeoutToWork(work, option), omitting timeout extensions:
+</span></span></span><span><span><span>work</span><span>-&gt;</span><span>opTimeout_</span> <span>=</span> <span>option</span><span>-&gt;</span><span>timeout</span><span>;</span>
+</span></span><span><span>
+</span></span><span><span><span>// Watchdog calls work.checkTimeout() with no timeout override:
+</span></span></span><span><span><span>if</span> <span>(</span><span>timeElapsed</span> <span>&gt;=</span> <span>opTimeout_</span><span>)</span> <span>{</span>
+</span></span><span><span>  <span>// Report a collective timeout.
+</span></span></span><span><span><span>}</span>
+</span></span></code></pre></div><p>The fix was to give the wait for data its own Gloo group, with the timeout set on that group:</p>
+<div><pre tabindex="0"><code data-lang="diff"><span><span><span>+# Once at startup, on every rank:
+</span></span></span><span><span><span>+ready = dist.new_group(backend="gloo", timeout=timedelta(hours=1))
+</span></span></span><span><span>
+</span></span><span><span> # Before each training step:
+</span></span><span><span><span>-dist.barrier(timeout=timedelta(hours=1))
+</span></span></span><span><span><span>+dist.barrier(group=ready)
+</span></span></span></code></pre></div><h2 id="memory-leak-with-adamws-foreach-updates-on-dtensors">Memory leak with AdamW’s foreach updates on DTensors<a href="#memory-leak-with-adamws-foreach-updates-on-dtensors" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>March 2026.</em></p>
+<p>AdamW batches updates into calls like <code>torch._foreach_mul_(params, 1 - lr * weight_decay)</code>.
+FSDP2 exposes its parameters as DTensors, so those calls go through DTensor’s dispatcher to work out how the operation applies to the shards.
+For foreach’s tensor lists, the dispatcher built a fresh <code>OpSchema</code> on every call, then constructed a cache key from the tensors’ shape and sharding metadata.</p>
+<p>In the C++ key builder, <code>PyTuple_Pack</code> increments its arguments’ reference counts, but <code>.release()</code> stopped the C++ wrapper from decrementing its own reference afterward.
+That left an extra reference to the argument tuple on every call, so the tuples and their metadata kept piling up in CPU RAM.</p>
+<p>The <a href="https://github.com/pytorch/pytorch/pull/176010" target="_blank" rel="noopener noreferrer">fix</a> was to simply not release:</p>
+<div><pre tabindex="0"><code data-lang="diff"><span><span> // torch/csrc/autograd/python_variable.cpp
+</span></span><span><span> // Inside DTensor_OpSchema_recompute_comparison_key_impl (simplified):
+</span></span><span><span> py::tuple args_to_hash_tup(args_to_hash.size());
+</span></span><span><span> // ... fill the tuple with argument metadata ...
+</span></span><span><span> comparison_key = PyTuple_Pack(
+</span></span><span><span>     2, op,
+</span></span><span><span><span>-    args_to_hash_tup.release().ptr());
+</span></span></span><span><span><span>+    args_to_hash_tup.ptr());
+</span></span></span></code></pre></div><p>The bug affected PyTorch 2.10.0 through 2.12.1; the same fix shipped via <a href="https://github.com/pytorch/pytorch/pull/181792" target="_blank" rel="noopener noreferrer">a later PR</a> in 2.13.0.</p>
+<h2 id="cuda-cache-allocation">CUDA cache allocation<a href="#cuda-cache-allocation" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>February 2026.</em></p>
+<p>When doing inference in our distributed cluster, we use an inference server with dynamic batching: <a href="https://github.com/triton-inference-server" target="_blank" rel="noopener noreferrer">triton inference server</a>.
+We usually benchmark at the largest batch size in isolation, and assume this will be the max VRAM the model will use.
+But dynamic batching reserved more VRAM, and we didn’t know why.</p>
+<p>We traced it to how PyTorch caches freed GPU allocations, so the order of batch sizes matters.
+With its default native allocator, this takes just one tensor at a time:</p>
+<div><pre tabindex="0"><code data-lang="python"><span><span><span>import</span> <span>torch</span>
+</span></span><span><span>
+</span></span><span><span><span>def</span> <span>reserved_after</span><span>(</span><span>batch_sizes</span><span>):</span>
+</span></span><span><span>    <span>torch</span><span>.</span><span>cuda</span><span>.</span><span>empty_cache</span><span>()</span>  <span># Reset between experiments.</span>
+</span></span><span><span>    <span>for</span> <span>bs</span> <span>in</span> <span>batch_sizes</span><span>:</span>
+</span></span><span><span>        <span>x</span> <span>=</span> <span>torch</span><span>.</span><span>empty</span><span>(</span><span>bs</span><span>,</span> <span>1024</span><span>,</span> <span>1024</span><span>,</span> <span>device</span><span>=</span><span>"cuda"</span><span>,</span> <span>dtype</span><span>=</span><span>torch</span><span>.</span><span>float32</span><span>)</span>
+</span></span><span><span>        <span>del</span> <span>x</span>
+</span></span><span><span>    <span>return</span> <span>torch</span><span>.</span><span>cuda</span><span>.</span><span>memory_reserved</span><span>()</span> <span>//</span> <span>2</span><span>**</span><span>20</span>
+</span></span><span><span>
+</span></span><span><span><span>print</span><span>(</span><span>reserved_after</span><span>([</span><span>3</span><span>,</span> <span>4</span><span>]))</span>     <span># 28 MiB</span>
+</span></span><span><span><span>print</span><span>(</span><span>reserved_after</span><span>([</span><span>4</span><span>,</span> <span>3</span><span>,</span> <span>4</span><span>]))</span>  <span># 16 MiB</span>
+</span></span></code></pre></div><p>Batch size 3 leaves a cached 12 MiB block, batch size 4 needs 16 MiB, so the allocator keeps both.
+Starting with 4 lets batch 3 use 12 MiB of the larger 16 MiB block.</p>
+<p>We flipped the warmup order to start with the largest batch:</p>
+<div><pre tabindex="0"><code data-lang="diff"><span><span><span>-for bs in range(1, max_batch_size + 1):
+</span></span></span><span><span><span>+for bs in range(max_batch_size, 0, -1):
+</span></span></span><span><span>     warmup(bs)
+</span></span></code></pre></div><h2 id="cuda-graphs-dont-capture-adams-cpu-work">CUDA graphs don’t capture Adam’s CPU work<a href="#cuda-graphs-dont-capture-adams-cpu-work" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><em>June 2022.</em></p>
+<p>When training with CUDA graphs, we used to capture the whole training step, optimizer step included.
+CUDA graphs replay only GPU work, so CPU code inside the capture runs just once!</p>
+<p>By default, PyTorch’s eager Adam increments its step counter and computes its bias corrections, <code>1 - beta1**step</code> and <code>1 - beta2**step</code>, on the CPU:</p>
+<div><pre tabindex="0"><code data-lang="python"><span><span><span># torch/optim/adam.py — Adam._init_group() (simplified)</span>
+</span></span><span><span><span>state</span> <span>=</span> <span>self</span><span>.</span><span>state</span><span>[</span><span>p</span><span>]</span>
+</span></span><span><span><span>if</span> <span>len</span><span>(</span><span>state</span><span>)</span> <span>==</span> <span>0</span><span>:</span>  <span># Initialize this parameter's optimizer state once.</span>
+</span></span><span><span>    <span>state</span><span>[</span><span>"step"</span><span>]</span> <span>=</span> <span>(</span>
+</span></span><span><span>        <span>torch</span><span>.</span><span>zeros</span><span>((),</span> <span>device</span><span>=</span><span>p</span><span>.</span><span>device</span><span>)</span>
+</span></span><span><span>        <span>if</span> <span>group</span><span>[</span><span>"capturable"</span><span>]</span> <span>or</span> <span>group</span><span>[</span><span>"fused"</span><span>]</span>
+</span></span><span><span>        <span>else</span> <span>torch</span><span>.</span><span>tensor</span><span>(</span><span>0.0</span><span>,</span> <span>device</span><span>=</span><span>"cpu"</span><span>)</span> <span># cpu?!?!</span>
+</span></span><span><span>    <span>)</span>
+</span></span></code></pre></div><p>Back then, replay kept updating the GPU moment estimates and weights with those frozen corrections, silently reusing the value of <code>step</code> from the capture-time value.
+We avoided this by running the optimizer outside the graph.</p>
+<p>PyTorch 1.12.0 later added <code>Adam(..., capturable=True)</code>, putting the step counter and bias-correction math on the GPU so replay advances them too.
+Today, manual capture with <code>capturable=False</code> <a href="https://github.com/pytorch/pytorch/blob/v2.14.0/torch/optim/optimizer.py#L440-L449" target="_blank" rel="noopener noreferrer">raises an error</a>.</p>
+<h2 id="looking-back">Looking back<a href="#looking-back" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>The recurring themes were precision, leaked or reused memory, and distributed training. Some bugs were hard to spot
+but preventable with better code practices. Others became obvious once we visualized model
+outputs during inference or inspected model state during training.</p>
+<p>Come fix the bugs that are still hiding (<a href="https://comma.ai/jobs)" target="_blank" rel="noopener noreferrer">https://comma.ai/jobs)</a>.</p>
+<p>Yassine.</p>
+
+      </section></div>

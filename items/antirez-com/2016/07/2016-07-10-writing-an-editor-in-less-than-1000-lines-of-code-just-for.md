@@ -1,0 +1,51 @@
+---
+title: Writing an editor in less than 1000 lines of code, just for fun
+link: http://antirez.com/news/108
+source: antirez-com
+published: 2016-07-10T10:51:11Z
+updated: 2016-07-10T10:51:11Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+summary: 'WARNING: Long pretty useless blog post. TLDR is that I wrote, just for fun, a text editor in less than 1000 lines of code that does not depend on ncurses and has support for syntax highlight and search feature. The code is here: http://github.com/antirez/kilo. Screencast here: https://asciinema.org/a/90r2i9bq8po03nazhqtsifksb For the sentimentalists, keep reading… A couple weeks ago there was this news about the Nano editor no longer being part of the GNU project. My first reaction was, wow people still really care about an old editor which is a clone of an editor originally part of a terminal based EMAIL CLIENT. Let’s say this again, “email client”. The notion of email client itself is gone at this point, everything changed. And yet I read, on Hacker News, a number of people writing how they were often saved by the availability of nano on random systems, doing system administrator tasks, for example. Nano is also how my son wrote his first program in C. It’s an acceptable experience that does not require past experience editing files. This is how I started to think about writing a text editor ways smaller than Nano itself. Just for fun, basically, because I like and admire small programs. How lame, useless, wasting of time is today writing an editor? We are supposed to write shiny incredible projects, very cool, very complex, valuable stuff. But sometimes to make things without a clear purpose is refreshing. There were also memories… I remember my first experiences with the Commodore 16 in-ROM assembler, and all the home computers and BASIC interpreters I used later in my child life. An editor is a fundamental connection between the human and the machine. It allows the human to write something that the computer can interpret. The blinking of a square prompt is something that many of us will never forget. Well, all nice, but my time was very limited. A few hours across two weekends with programmed family activities and meat to prepare for friends in long barbecue sessions. Maybe I could still write an editor on a few spare hours with some trick. My goal was to write an editor which was very small, no curses, and with syntax highlighting. Something usable, basically. That’s the deal.. It’s little stuff, but is already hard to write all this from scratch in a few hours. But … wait, I actually wrote an editor in the past, is part of the LOAD81 project, a Lua based programming environment for children. Maybe I can just reuse it… and instead of using SDL to write on the screen what about sending VT100 escape sequences directly to the terminal? And I’ve code for this as well in linenoise, another toy project that eventually found its place in some may other serious projects. So maybe mixing the two… The first week Saturday morning I went to the sea, and it was great. Later my brother arrived from Edinburg to Catania, and at the end of the day we were together in the garden with our laptops, trying to defend ourselves from the 30 degrees that there were during the day, so I started to hack the first skeleton of the editor. The LOAD81 code was quite modular, to take it away from the original project was a joke. I could kinda edit after a few hours, and it was already time to go bed. The next day I worked again at it before leaving for the sea again. My 15yo sleeps till 1pm, as I did when I was 15yo in summertime after all, so I coded more in sprints of 30 minutes waiting for him to get up, using the rest of the time to play with my wonderful daughter. Finally later in the Sunday night I tried to fix all the remaining stuff. Hey I remember that a few years ago to hack on a project was, to *hack* on it, full time for days. I’m old now, but still young enough to write toy editors and consider it a serious business :-) However life is hard, and Monday arrived. Real business, no time for toy projects, not even time to release what I got during the weekend… It deserved some minimal polishing and a blog post. I had to wait this Monday to put my hands on the “Kilo” editor again. It’s called Kilo because it has less than 1024 lines of code. The “cloc” utility, used in order to count the number of lines of code, signaled me I still had ~100 lines of space before reaching 1024 LOC, and a serious editor needs a “search” feature after all. So back to the code, trying also to restructure and recomment it a bit, since you know, when you mix two projects pieces in a few hours the risk is that the code quality is less than excellent. Well, now it’s time to release it, end of this crazy project. Maybe somebody will use it as a starting point to write a real editor, or maybe it could be used to write some new interesting CLI that goes over the usual REPL style model. The code is at http://github.com/antirez/kilo HN comments: https://news.ycombinator.com/item?id=12065217 Comments'
+content: extracted
+html: 2016-07-10-writing-an-editor-in-less-than-1000-lines-of-code-just-for.html
+---
+
+## [Writing an editor in less than 1000 lines of code, just for fun](https://antirez.com/news/108)
+
+[antirez](https://antirez.com/user/antirez) 3723 days ago. 512614 views.
+
+```
+WARNING: Long pretty useless blog post. TLDR is that I wrote, just for fun, a text editor in less than 1000 lines of code that does not depend on ncurses and has support for syntax highlight and search feature. The code is here: http://github.com/antirez/kilo.
+
+Screencast here: https://asciinema.org/a/90r2i9bq8po03nazhqtsifksb
+
+For the sentimentalists, keep reading…
+
+A couple weeks ago there was this news about the Nano editor no longer being part of the GNU project. My first reaction was, wow people still really care about an old editor which is a clone of an editor originally part of a terminal based EMAIL CLIENT. Let’s say this again, “email client”. The notion of email client itself is gone at this point, everything changed. And yet I read, on Hacker News, a number of people writing how they were often saved by the availability of nano on random systems, doing system administrator tasks, for example. Nano is also how my son wrote his first program in C. It’s an acceptable experience that does not require past experience editing files.
+
+This is how I started to think about writing a text editor ways smaller than Nano itself. Just for fun, basically, because I like and admire small programs.
+
+How lame, useless, wasting of time is today writing an editor? We are supposed to write shiny incredible projects, very cool, very complex, valuable stuff. But sometimes to make things without a clear purpose is refreshing. There were also memories…
+
+I remember my first experiences with the Commodore 16 in-ROM assembler, and all the home computers and BASIC interpreters I used later in my child life. An editor is a fundamental connection between the human and the machine. It allows the human to write something that the computer can interpret. The blinking of a square prompt is something that many of us will never forget.
+
+Well, all nice, but my time was very limited. A few hours across two weekends with programmed family activities and meat to prepare for friends in long barbecue sessions. Maybe I could still write an editor on a few spare hours with some trick. My goal was to write an editor which was very small, no curses, and with syntax highlighting. Something usable, basically. That’s the deal.. It’s little stuff, but is already hard to write all this from scratch in a few hours.
+
+But … wait, I actually wrote an editor in the past, is part of the LOAD81 project, a Lua based programming environment for children. Maybe I can just reuse it… and instead of using SDL to write on the screen what about sending VT100 escape sequences directly to the terminal? And I’ve code for this as well in linenoise, another toy project that eventually found its place in some may other serious projects. So maybe mixing the two…
+
+The first week Saturday morning I went to the sea, and it was great. Later my brother arrived from Edinburg to Catania, and at the end of the day we were together in the garden with our laptops, trying to defend ourselves from the 30 degrees that there were during the day, so I started to hack the first skeleton of the editor. The LOAD81 code was quite modular, to take it away from the original project was a joke. I could kinda edit after a few hours, and it was already time to go bed. The next day I worked again at it before leaving for the sea again. My 15yo sleeps till 1pm, as I did when I was 15yo in summertime after all, so I coded more in sprints of 30 minutes waiting for him to get up, using the rest of the time to play with my wonderful daughter. Finally later in the Sunday night I tried to fix all the remaining stuff.
+
+Hey I remember that a few years ago to hack on a project was, to *hack* on it, full time for days. I’m old now, but still young enough to write toy editors and consider it a serious business :-)
+
+However life is hard, and Monday arrived. Real business, no time for toy projects, not even time to release what I got during the weekend… It deserved some minimal polishing and a blog post.
+
+I had to wait this Monday to put my hands on the “Kilo” editor again. It’s called Kilo because it has less than 1024 lines of code. The “cloc” utility, used in order to count the number of lines of code, signaled me I still had ~100 lines of space before reaching 1024 LOC, and a serious editor needs a “search” feature after all. So back to the code, trying also to restructure and recomment it a bit, since you know, when you mix two projects pieces in a few hours the risk is that the code quality is less than excellent.
+
+Well, now it’s time to release it, end of this crazy project. Maybe somebody will use it as a starting point to write a real editor, or maybe it could be used to write some new interesting CLI that goes over the usual REPL style model.
+
+The code is at http://github.com/antirez/kilo
+
+HN comments: https://news.ycombinator.com/item?id=12065217
+```
+
+[blog comments powered by Disqus](https://disqus.com)

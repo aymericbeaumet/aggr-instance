@@ -1,0 +1,59 @@
+<div id="readability-page-1" class="page"><div id="content">
+<section id="newslist"><article data-news-id="76"><h2><a href="https://antirez.com/news/76">Using Heartbleed as a starting point</a></h2></article></section><topcomment><article data-comment-id="76-" id="76-"><span><span><a href="https://antirez.com/user/antirez">antirez</a></span> 4545 days ago. 290605 views.  </span><pre>The strong reactions about the recent OpenSSL bug are understandable: it is not fun when suddenly all the internet needs to be patched. Moreover for me personally how trivial the bug is, is disturbing. I don’t want to point the finger to the OpenSSL developers, but you just usually think at those class of issues as a bit more subtle, in the case of a software like OpenSSL. Usually you fail to do sanity checks *correctly*, as opposed to this bug where there is a total *lack* of bound checks in the memcpy() call.
+
+However sometimes in the morning I read the code I wrote the night before and I’m deeply embarrassed. Programmers sometimes fail, I for sure do often, so my guess is that what is needed is a different process, and not a different OpenSSL team.
+
+There is who proposes a different language safer than C, and who proposes that the specification is broken because it is too complex. Probably there is some truth in both arguments, however it is unlikely that we move to a different specification or system language soon, so the real question is, what we can do now to improve system software security?
+
+1) Throw money at it.
+
+Making system code safer is simple if there are investments. If different companies hire security experts to do code auditings in the OpenSSL code base, what happens is that the probability of discovering a bug like heartbleed is greater.
+
+I’ve seen very complex bugs that are triggered by a set of non-trivial conditions being discovered by serious code auditing efforts. A memcpy() without bound checks is something that if you analyze the code security-wise, will stand out in the first read. And guess how heartbleed was discovered? Via security auditings performed at Google.
+
+Probably the time to consider open source something that mostly we take from is over. Many companies should follow the example of Google and other companies, using workforce for OSS software development and security.
+
+2) Static and dynamic checks.
+
+Static code analysis is, as a side effect, a semi-automated way to do code auditings.
+In critical system code like OpenSSL even to do some source code annotation or use a set of rules to make static analysis more effective is definitely acceptable.
+
+Static tools today are not a total solution, but the output of a static analysis if carefully inspected by an expert programmer can provide some value.
+
+Another great help comes from dynamic checks like Valgrind. Every system software written in C should be tested using Valgrind automatically at every new commit.
+
+3) Abstract C with libraries.
+
+C is low level and has no built in safety in the language. However something good about C is that it is a language that allows to build layers on top of its rawness.
+
+A sane dynamic string library prevents a lot of buffer overflow issues, and today almost every decent project is using one. However there is more you can do about it. For example for security critical code where memory can contain things like private keys, you can augment your dynamic string library with memory copy primitives that only copy from one buffer to the other performing implicit sanity checks.
+
+Moreover if a buffer contains critical data, you can set logical permissions so that trying to copy from this area aborts the program. There are other less-portable ways using memory management to protect important memory pages in an even more effective ways, however an higher C-level protection can be much simpler in the real-world because of portability / predictability concerns.
+
+In general many things can be explored to avoid using C without protections, creating a library that abstracts on top of it to make programming safer.
+
+4) Randomized tests.
+
+Unit tests are unlikely to trigger edge cases and failed sanity checks.
+There is a class of tests that is known since decades that is, in my opinion, not used enough: fuzzy testing.
+
+The OpenSSL bug was definitely discoverable by sending different kind of OpenSSL packets with different randomized parameters, in conjunction with dynamic analysis tools like Valgrind.
+
+In my experience having a great deal of randomized tests together with an environment where the same tests are ran again and again with the program running over Valgrind, can discover a number of real-world bugs that gets otherwise unnoticed. There are many models to explore, usually you want something that injects totally random data, and intermediate models where valid packets are corrupted in different random ways.
+
+A typical example of this technique is the old DNS compression infinite-loop bug. Trow a few random packets to a naive implementation and you’ll find it in a matter of minutes.
+
+5) Change of mentality about security vs performance.
+
+It is interesting that OpenSSL is doing its own allocation caching stuff because in some systems malloc/free is slow. This is a sign that still performances, even in security critical code, is regarded with too much respect over safety. In this specific instance, it must be admitted that probably when the OpenSSL developers wrapped malloc, they never though of security implications by doing so. However the fact that they cared about a low-level detail like the allocation functions in *some* system is a sign of deep concerns about performances, while they should be more deeply concerned about the correctness / safety of the system.
+
+In general it does not help the fact that the system that is the de facto standard in today’s servers infrastructure, that is, Linux, has had, and still has, one of the worst allocators you will find around, mostly for licensing concerns, since the better allocators are not GPL but BSD licensed.
+
+Probably yet another area where big corps should contribute, by providing significant improvements to glibc malloc. Glibc malloc is, even if better alternatives are available, what many real-world system softwares are going to use anyway.
+
+I would love to see the discussion about heartbleed to take a more pragmatic approach, because one thing is guaranteed: to blame here or there will not change the actual level of the security of OpenSSL or anything else, and there are new challenges in the future. For example the implementation of HTTP/2.0 may be a very delicate moment security wise.
+
+EDIT: Actually I was not right and the malloc implementation inside the Glibc is BSD licensed, so it is not a license issue. I don't know why the Glibc is not using Jemalloc instead that is very good and actively developed allocator.</pre></article></topcomment>
+
+
+<p><a href="https://disqus.com">blog comments powered by <span>Disqus</span></a></p></div></div>

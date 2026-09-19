@@ -1,0 +1,227 @@
+<div id="readability-page-1" class="page"><div>
+<p>You can spin up a private, OpenAI-compatible LLM endpoint on Hugging Face infrastructure with a single command — no servers to provision, no Kubernetes, pay-per-second. Once it's up, you can query it from your laptop, a notebook, or anywhere else.</p>
+<p>It's the quickest way to stand up a model for tests, evals, or batch generation. (If you're after a managed, production-ready service instead, that's what <a href="https://huggingface.co/docs/inference-endpoints">Inference Endpoints</a> are for — <a href="#hf-jobs-or-inference-endpoints" rel="nofollow">more on when to pick which</a> at the end.)</p>
+<p>Here's the whole thing end to end.</p>
+<h2>
+	<a id="prerequisites" href="#prerequisites" rel="nofollow">
+		
+	</a>
+	<span>
+		Prerequisites
+	</span>
+</h2>
+<ul>
+<li>A payment method or a positive prepaid credit balance (Jobs is billed per‑minute by hardware usage).</li>
+<li><code>huggingface_hub &gt;= 1.20.0</code>: <code>pip install -U "huggingface_hub&gt;=1.20.0"</code>.</li>
+<li>Logged in locally: <code>hf auth login</code>.</li>
+</ul>
+<h2>
+	<a id="launch-the-server" href="#launch-the-server" rel="nofollow">
+		
+	</a>
+	<span>
+		Launch the server
+	</span>
+</h2>
+<p><code>hf jobs run</code> is <code>docker run</code> for HF infrastructure. We use the official <code>vllm/vllm-openai</code> image, ask for a GPU with <code>--flavor</code>, and expose vLLM's port with <code>--expose</code>:</p>
+<pre><code>hf <span>jobs</span> run --flavor a10g-large --expose 8000 --<span>timeout</span> 2h \
+  vllm/vllm-openai:latest \
+  vllm serve Qwen/Qwen3-4B --host 0.0.0.0 --port 8000
+</code></pre>
+<p><code>--expose 8000</code> routes the container's port through HF's public jobs proxy (see the <a href="https://huggingface.co/docs/hub/jobs-serving">Serve Models guide</a> for the full reference). The command prints the URL your server is reachable at:</p>
+<pre><code>✓ Job started
+  id: 6a381ca1953ed90bfb947332
+  url: https://huggingface.co/jobs/qgallouedec/6a381ca1953ed90bfb947332
+Hint: Exposed ports are reachable at (requires an HF token with read access to the job):
+  https://6a381ca1953ed90bfb947332--8000.hf.jobs
+</code></pre>
+<p><code>6a381ca1953ed90bfb947332</code> is your job ID. Keep track of it, we'll need it. We'll use <code>&lt;job_id&gt;</code> as a placeholder for it in the rest of the post.</p>
+<p>Give it a couple of minutes to download weights and boot. When the logs show <code>Application startup complete</code>, you're live.</p>
+<h2>
+	<a id="query-it-from-anywhere" href="#query-it-from-anywhere" rel="nofollow">
+		
+	</a>
+	<span>
+		Query it from anywhere
+	</span>
+</h2>
+<p>vLLM speaks the OpenAI API, and every request just needs your HF token as a bearer token. The quickest way to hit it is curl:</p>
+<pre><code>curl https://&lt;job_id&gt;--8000.hf.jobs/v1/chat/completions \
+  -H <span>"Authorization: Bearer <span>$(hf auth token)</span>"</span> \
+  -H <span>"Content-Type: application/json"</span> \
+  -d <span>'{</span>
+<span>    "model": "Qwen/Qwen3-4B",</span>
+<span>    "messages": [{"role": "user", "content": "Hello!"}],</span>
+<span>    "chat_template_kwargs": {"enable_thinking": false}</span>
+<span>  }'</span>
+</code></pre>
+<p>which returns the usual OpenAI-style JSON, with <code>choices[0].message.content</code> holding <code>"Hello! How can I assist you today? 😊"</code>.</p>
+<p>Or, from Python, point the OpenAI client at the exposed URL and pass the token as the API key:</p>
+<pre><code><span>from</span> huggingface_hub <span>import</span> get_token
+<span>from</span> openai <span>import</span> OpenAI
+
+client = OpenAI(
+    base_url=<span>"https://&lt;job_id&gt;--8000.hf.jobs/v1"</span>,
+    api_key=get_token(),
+)
+resp = client.chat.completions.create(
+    model=<span>"Qwen/Qwen3-4B"</span>,
+    messages=[{<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"Hello!"</span>}],
+    extra_body={<span>"chat_template_kwargs"</span>: {<span>"enable_thinking"</span>: <span>False</span>}},
+)
+<span>print</span>(resp.choices[<span>0</span>].message.content)
+</code></pre>
+<pre><code>Hello! How can I assist you today? 😊
+</code></pre>
+<p>Quick health check before you start: <code>curl https://&lt;job_id&gt;--8000.hf.jobs/v1/models -H "Authorization: Bearer $(hf auth token)"</code> should list the model.</p>
+<blockquote>
+<p><strong>🔐 The endpoint is gated, not public.</strong> Every request must carry an HF token with <strong>read access to the job's namespace</strong>. A plain browser visit will be rejected. In effect, the jobs proxy <em>is</em> your API gate: access is scoped to you (and your org). That's fine for private use, but treat the URL accordingly: don't share it expecting it to be open, and don't paste your token into untrusted places. If you need finer-grained or public access, put a proper gateway in front instead. Or see <a href="#hf-jobs-or-inference-endpoints" rel="nofollow">HF Jobs or Inference Endpoints?</a> below.</p>
+</blockquote>
+<h2>
+	<a id="clean-up" href="#clean-up" rel="nofollow">
+		
+	</a>
+	<span>
+		Clean up
+	</span>
+</h2>
+<p>Jobs are billed per second, so stop the server when you're done:</p>
+<pre><code>hf <span>jobs</span> cancel &lt;job_id&gt;
+</code></pre>
+<p>The <code>--timeout</code> you set is a safety net (it'll auto-stop), but cancelling explicitly is cheaper. An <code>a10g-large</code> runs at $1.50/hour — check <code>hf jobs hardware</code> for the full price list and pick the smallest flavor that fits your model.</p>
+<h2>
+	<a id="going-further-bigger-models" href="#going-further-bigger-models" rel="nofollow">
+		
+	</a>
+	<span>
+		Going further: bigger models
+	</span>
+</h2>
+<p>The same command scales to much larger models — pick a beefier <code>--flavor</code> and tell vLLM to shard the model across the GPUs with <code>--tensor-parallel-size</code>. For example, the 122B Qwen3.5 mixture-of-experts model on 2× H200:</p>
+<pre><code>hf <span>jobs</span> run --flavor h200x2 --expose 8000 --<span>timeout</span> 2h \
+  vllm/vllm-openai:latest \
+  vllm serve Qwen/Qwen3.5-122B-A10B \
+  --host 0.0.0.0 --port 8000 --tensor-parallel-size 2 \
+  --max-model-len 32768 --max-num-seqs 256
+</code></pre>
+<p><code>--tensor-parallel-size</code> should match the number of GPUs in the flavor (<code>h200x2</code> → 2, <code>h200x8</code> → 8). Run <code>hf jobs hardware</code> to see what's available and give bigger models a longer <code>--timeout</code>, since they take longer to download and load. For large models, H200 flavors are usually the best value.</p>
+<p>The <code>--max-model-len 32768 --max-num-seqs 256</code> flags are specific to this model: Qwen3.5-122B is a hybrid Mamba/attention architecture with a 256K-token default context, which doesn't leave enough memory for vLLM's default batch settings. Capping the context length and concurrent-sequence count keeps it within the GPUs' memory. If a model fails to start with an out-of-memory or cache-block error, dialing these two down is the first thing to try. Everything else (the exposed URL, the OpenAI client, the token auth) stays exactly the same.</p>
+<h2>
+	<a id="going-further-chat-with-it-in-a-ui" href="#going-further-chat-with-it-in-a-ui" rel="nofollow">
+		
+	</a>
+	<span>
+		Going further: Chat with it in a UI
+	</span>
+</h2>
+<p>Prefer a chat window over curl? A few lines of <a href="https://www.gradio.app/" rel="nofollow">Gradio</a> point at the same endpoint. Add <code>--reasoning-parser deepseek_r1</code> to the <code>vllm serve</code> command so Qwen3's thinking comes back as a separate field (not necessary, but helpful), then run this code locally (you'll just need the job ID):</p>
+<pre><code><span>import</span> gradio <span>as</span> gr
+<span>from</span> gradio <span>import</span> ChatMessage
+<span>from</span> huggingface_hub <span>import</span> get_token
+<span>from</span> openai <span>import</span> OpenAI
+
+client = OpenAI(base_url=<span>"https://&lt;job_id&gt;--8000.hf.jobs/v1"</span>, api_key=get_token())
+
+<span>def</span> <span>chat</span>(<span>message, history</span>):
+    messages = [{<span>"role"</span>: m[<span>"role"</span>], <span>"content"</span>: m[<span>"content"</span>]} <span>for</span> m <span>in</span> history <span>if</span> <span>not</span> m.get(<span>"metadata"</span>)]
+    messages.append({<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: message})
+    stream = client.chat.completions.create(model=<span>"Qwen/Qwen3-4B"</span>, messages=messages, stream=<span>True</span>)
+
+    thinking, answer = <span>""</span>, <span>""</span>
+    <span>for</span> chunk <span>in</span> stream:
+        delta = chunk.choices[<span>0</span>].delta
+        thinking += delta.model_extra.get(<span>"reasoning"</span>, <span>""</span>)
+        answer += delta.content <span>or</span> <span>""</span>
+        out = []
+        <span>if</span> thinking.strip():
+            status = <span>"done"</span> <span>if</span> answer.strip() <span>else</span> <span>"pending"</span>
+            out.append(ChatMessage(role=<span>"assistant"</span>, content=thinking, metadata={<span>"title"</span>: <span>"💭 Thinking"</span>, <span>"status"</span>: status}))
+        <span>if</span> answer.strip():
+            out.append(ChatMessage(role=<span>"assistant"</span>, content=answer))
+        <span>yield</span> out
+
+gr.ChatInterface(chat).launch()
+</code></pre>
+<p>Run it, open <code>http://127.0.0.1:7860</code>, and chat — reasoning streams into the collapsible panel, the answer below.</p>
+<video alt="vllm-jobs-chat-ui" autoplay="" loop="" muted="" playsinline="">
+  <source src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/vllm-jobs/demo.mp4" type="video/mp4">
+</video>
+
+<h2>
+	<a id="going-further-ssh-into-the-running-server" href="#going-further-ssh-into-the-running-server" rel="nofollow">
+		
+	</a>
+	<span>
+		Going further: SSH into the running server
+	</span>
+</h2>
+<p>Need to debug a startup failure, watch GPU memory, or tail logs interactively? You can open a shell straight into the running job. Launch it with <code>--ssh</code> and make sure your public key is registered at <a href="https://huggingface.co/settings/keys">huggingface.co/settings/keys</a>:</p>
+<pre><code>hf <span>jobs</span> run --flavor a10g-large --expose 8000 --<span>timeout</span> 2h --ssh \
+  vllm/vllm-openai:latest \
+  vllm serve Qwen/Qwen3-4B --host 0.0.0.0 --port 8000
+</code></pre>
+<p>then connect with the job ID:</p>
+<pre><code>hf <span>jobs</span> ssh &lt;job_id&gt;
+</code></pre>
+<p>You're now inside the container, where you can run <code>nvidia-smi</code>, inspect the process, or poke at the model directly — which makes debugging and monitoring much easier than reading logs from the outside. SSH support requires <code>huggingface_hub &gt;= 1.20.0</code>.</p>
+<h2>
+	<a id="going-further-use-it-as-a-coding-agent-backend-with-pi" href="#going-further-use-it-as-a-coding-agent-backend-with-pi" rel="nofollow">
+		
+	</a>
+	<span>
+		Going further: Use it as a coding-agent backend with Pi
+	</span>
+</h2>
+<p>The same endpoint can back a terminal coding agent. <a href="https://pi.dev" rel="nofollow">Pi</a> is a provider-agnostic agent harness. Point it at the job and you get a Read/Write/Edit/Bash agent running on your own self-hosted model.</p>
+<p>One thing to set up first: agents drive the model through tool calls, and vLLM only accepts those if the server is launched with tool calling enabled. So relaunch with <code>--enable-auto-tool-choice</code> and a <code>--tool-call-parser</code> matching the model family (<code>hermes</code> for Qwen3). Agents also benefit from a stronger model, so this is a good place to bring in the bigger one:</p>
+<pre><code>hf <span>jobs</span> run --flavor h200x2 --expose 8000 --<span>timeout</span> 2h \
+  vllm/vllm-openai:latest \
+  vllm serve Qwen/Qwen3.5-122B-A10B \
+  --host 0.0.0.0 --port 8000 --tensor-parallel-size 2 \
+  --max-model-len 32768 --max-num-seqs 256 \
+  --reasoning-parser deepseek_r1 \
+  --enable-auto-tool-choice --tool-call-parser hermes
+</code></pre>
+<p>Then add the job as a custom provider in <code>~/.pi/agent/models.json</code>:</p>
+<pre><code><span>{</span>
+  <span>"providers"</span><span>:</span> <span>{</span>
+    <span>"hf-jobs"</span><span>:</span> <span>{</span>
+      <span>"baseUrl"</span><span>:</span> <span>"https://&lt;job_id&gt;--8000.hf.jobs/v1"</span><span>,</span>
+      <span>"api"</span><span>:</span> <span>"openai-completions"</span><span>,</span>
+      <span>"apiKey"</span><span>:</span> <span>"!hf auth token"</span><span>,</span>
+      <span>"models"</span><span>:</span> <span>[</span>
+        <span>{</span> <span>"id"</span><span>:</span> <span>"Qwen/Qwen3.5-122B-A10B"</span> <span>}</span>
+      <span>]</span>
+    <span>}</span>
+  <span>}</span>
+<span>}</span>
+</code></pre>
+<p>Then launch the agent against it:</p>
+<pre><code>pi
+</code></pre>
+<p>The model you spun up a couple of commands ago, now driving an interactive coding agent in your terminal.</p>
+<video alt="vllm-jobs-pi" autoplay="" loop="" muted="" playsinline="">
+  <source src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/vllm-jobs/pi.mp4" type="video/mp4">
+</video>
+
+<h2>
+	<a id="hf-jobs-or-inference-endpoints" href="#hf-jobs-or-inference-endpoints" rel="nofollow">
+		
+	</a>
+	<span>
+		HF Jobs or Inference Endpoints?
+	</span>
+</h2>
+<p>HF Jobs isn't the only way to serve a model on Hugging Face. <a href="https://huggingface.co/docs/inference-endpoints">Inference Endpoints</a> are our managed product for the same job, and which one fits depends on what you're after.</p>
+<p>Reach for <strong>HF Jobs</strong> when you want maximum flexibility and control: it's just <code>docker run</code> on HF infrastructure, so you pick the image, the exact <code>vllm serve</code> flags, and the hardware, and you pay per second for as long as the job runs. That makes it a great fit for experiments, one-off evals, batch generation, or kicking the tires on a model before committing to anything.</p>
+<p>Reach for <strong>Inference Endpoints</strong> when you want something more production-ready. They add the operational niceties a long-lived service needs: finer-grained access control (an endpoint can be public, protected, or private), and scale-to-zero, so you're not billed during periods of inactivity. If you're standing up a durable endpoint rather than running a job, that's the tool to grab.</p>
+<h2>
+	<a id="further-reading" href="#further-reading" rel="nofollow">
+		
+	</a>
+	<span>
+		Further reading
+	</span>
+</h2>
+<p>This post sticks to vLLM, but the same expose-a-port pattern works with any OpenAI-compatible server. To serve GGUFs with llama.cpp or run SGLang instead, see the <a href="https://huggingface.co/docs/hub/jobs-serving">Serve Models on Jobs guide</a>, which walks through those backends.</p>
+</div></div>

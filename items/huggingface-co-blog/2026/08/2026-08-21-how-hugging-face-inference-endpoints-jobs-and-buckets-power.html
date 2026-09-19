@@ -1,0 +1,295 @@
+<div id="readability-page-1" class="page"><div>
+<p>3 months ago, we started a <a href="https://www.reddit.com/r/MachineLearning/comments/1tgmwqr/reviving_paperswithcode_by_hugging_face_p/" rel="nofollow">revival</a> of <a href="https://paperswithcode.co" rel="nofollow">Papers with Code</a> (see also the <a href="https://x.com/NielsRogge/status/2056366395605078252" rel="nofollow">announcement tweet</a>). Its goal is to make open AI research accessible and digestible, so that people can easily find the artifacts related to a paper, find state-of-the-art (SOTA) across the various domains of AI, share interesting research and build on top of each other's work. In other words, its goal is to power the wave of research that leads to the next <a href="https://paperswithcode.co/paper/1706.03762" rel="nofollow">Transformer</a>.</p>
+<p>Of course, making AI research accessible requires a powerful search engine, so that humans and agents can quickly find relevant and related work, either through the website or the <code>pwc search</code> <a href="https://github.com/huggingface/pwc-cli" rel="nofollow">CLI command</a>, which agents can use via the <a href="https://github.com/huggingface/pwc-cli/blob/main/standalone_cli/SKILL.md" rel="nofollow">Skill</a>.</p>
+<p>It's important to note that searching for research is not quite the same as searching for regular text. A useful paper search engine should find an exact title or arXiv identifier, but it should also understand a query such as “small language models for code generation” even when those words do not appear together in a paper. It needs to recognize that “the original BERT paper” is a navigational request, tolerate an incomplete title or typos, and still respond quickly when a model service is cold or temporarily unavailable.</p>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/pwc-search/search-results.png" alt="Papers with Code search results for the query 'DINO'" width="600">
+  <figcaption>Search results on Papers with Code for the query DINO.</figcaption>
+</figure>
+
+<p>For <a href="https://paperswithcode.co" rel="nofollow">Papers with Code</a>, we built this as a <strong>hybrid search</strong> system. This is also based on our prior experience at <a href="http://ml6.eu/" rel="nofollow">ML6</a>, where we developed <a href="https://paperswithcode.co/paper/2005.11401" rel="nofollow">RAG</a>-based systems for clients. It turned out that hybrid search typically outperforms keyword- and vector-based search systems, as it combines the best of both worlds (see also <a href="https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/azure-ai-search-outperforming-vector-search-with-hybrid-retrieval-and-reranking/3929167" rel="nofollow">this blog</a> for more info). Keyword search finds exact mentions, whereas vector search finds more fuzzy, semantically similar terms. Note that <a href="https://www.pinecone.io/learn/series/rag/rerankers/" rel="nofollow">rerankers</a> (also called cross-encoders) can further improve the results, although they also come with additional overhead and latency.</p>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/pwc-search/hybrid-search.png" alt="Chart showing hybrid retrieval outperforming vector-only and keyword search" width="600">
+  <figcaption>Hybrid retrieval outperforms keyword- and vector-only search. Figure from Microsoft, <a href="https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/azure-ai-search-outperforming-vector-search-with-hybrid-retrieval-and-reranking/3929167" rel="nofollow">Azure AI Search: Outperforming vector search with hybrid retrieval and reranking</a> (2023).</figcaption>
+</figure>
+
+<p>Papers with Code relies on a PostgreSQL database, hence its full-text search capabilities provide a fast lexical baseline. For dense embeddings, <a href="https://github.com/pgvector/pgvector" rel="nofollow">pgvector</a> is used to add semantic recall, and the <a href="https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reciprocal-rank-fusion" rel="nofollow">reciprocal rank fusion (RRF)</a> algorithm combines the two. Three Hugging Face services are used for the dense embeddings:</p>
+<ul>
+<li><a href="https://huggingface.co/docs/hub/jobs">Hugging Face Jobs</a> gives us burstable GPU compute for embedding the paper corpus.</li>
+<li><a href="https://huggingface.co/docs/hub/storage-buckets">Hugging Face Storage Buckets</a> provides the durable handoff between our database, experiments, and Jobs.</li>
+<li><a href="https://huggingface.co/docs/inference-endpoints/index">Hugging Face Inference Endpoints</a> serves low-latency embeddings for live queries and incremental updates.</li>
+</ul>
+<p>Today, the system maintains embeddings for more than 110,000 current papers sourced from <a href="https://arxiv.org/" rel="nofollow">arXiv</a> and <a href="https://hf.co/papers" rel="nofollow">Daily Papers</a>. This post explains the architecture, the design decisions behind it, and the lessons we learned while taking it to production.</p>
+<h2>
+	<a id="tldr" href="#tldr" rel="nofollow">
+		
+	</a>
+	<span>
+		TL;DR
+	</span>
+</h2>
+<p>We deliberately split search into an offline corpus build and an online search service:</p>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/pwc-search/architecture.png" alt="Architecture diagram of the offline corpus build and online hybrid search pipeline" width="600">
+  <figcaption>Architecture of the offline corpus build and online hybrid search pipeline.</figcaption>
+</figure>
+
+<p>The expensive, throughput-oriented work runs as Jobs. Durable artifacts live in a Bucket. Only the small query-embedding step sits on the request path, behind a protected Inference Endpoint, to power the online search. If that endpoint is cold, busy, or unhealthy, search immediately falls back to full-text retrieval. This separation makes the system both powerful and fast.</p>
+<h2>
+	<a id="start-with-a-strict-embedding-contract" href="#start-with-a-strict-embedding-contract" rel="nofollow">
+		
+	</a>
+	<span>
+		Start with a strict embedding contract
+	</span>
+</h2>
+<p>Embedding pipelines often fail in subtle ways: a model revision changes, query and document prompts are mixed up, vectors are truncated differently, or an updated abstract no longer matches its stored vector.</p>
+<p>We avoid this by treating the embedding format as a versioned API. Every paper is encoded as:</p>
+<pre><code>normalized title + "\n\n" + normalized abstract
+</code></pre>
+<p>For each vector generation, we record:</p>
+<ul>
+<li>the model repository and exact revision;</li>
+<li>the output dimension;</li>
+<li>the input-format version;</li>
+<li>whether the input is a query or a document;</li>
+<li>the normalization method;</li>
+<li>a content hash for the source title and abstract.</li>
+</ul>
+<p>Our production generation uses <a href="https://huggingface.co/Qwen/Qwen3-Embedding-0.6B"><code>Qwen/Qwen3-Embedding-0.6B</code></a>, pinned to an exact revision, with 256-dimensional L2-normalized vectors. We selected the model with help from the <a href="https://huggingface.co/spaces/mteb/leaderboard">MTEB leaderboard</a>, the go-to benchmark for comparing embedding models. Note that newer embedding models like Qwen3 allow for 2 new features:</p>
+<ul>
+<li>one can specify a <strong>dynamic embedding size</strong>, which allows to trade-off quality with speed/storage costs. Qwen models call this "MRL" which is short for <a href="https://paperswithcode.co/paper/2205.13147" rel="nofollow">Matryoshka Representation Learning</a>. You can learn all about it <a href="https://huggingface.co/blog/matryoshka">here</a>. We chose an embedding size of 256 to make the search fast.</li>
+<li>one can provide an <strong>instruction prompt</strong>. Qwen embedding models support a <code>document</code> prompt (which we use to embed the papers) and live searches use their <code>query</code> prompt (to embed the user query).</li>
+</ul>
+<p>This contract follows an embedding from export, through GPU inference, into PostgreSQL, and finally into online retrieval.</p>
+<h2>
+	<a id="jobs-turn-a-database-snapshot-into-a-vector-corpus" href="#jobs-turn-a-database-snapshot-into-a-vector-corpus" rel="nofollow">
+		
+	</a>
+	<span>
+		Jobs turn a database snapshot into a vector corpus
+	</span>
+</h2>
+<p>Full-corpus embedding is a classic batch workload. It needs a GPU for a relatively short period, benefits from high throughput, and should not consume resources between runs. <a href="https://huggingface.co/docs/huggingface_hub/guides/jobs">Hugging Face Jobs</a> fits that shape well: a Job is defined by a command, a <a href="https://huggingface.co/docs/hub/main/en/jobs-pricing#pricing">hardware flavor</a>, and optionally a Docker image, and can run <a href="https://docs.astral.sh/uv/" rel="nofollow">uv</a> scripts with their dependencies declared inline.</p>
+<p>Our corpus build starts by exporting the latest version of every paper from a repeatable-read PostgreSQL snapshot. The exporter streams rows rather than loading the catalog into memory, writes bounded JSONL shards, and creates a manifest containing row counts and SHA-256 checksums.</p>
+<p>We sync that immutable run directory to a private <a href="https://huggingface.co/docs/hub/storage-buckets">Storage Bucket</a> and mount the Bucket directly (using <a href="https://github.com/huggingface/hf-mount" rel="nofollow">hf-mount</a>) into an <code>l4x1</code> Job (an NVIDIA L4 GPU, which has 24GB of VRAM). From the worker's perspective it is simply a filesystem:</p>
+<pre><code>hf <span>jobs</span> uv run \
+  --flavor l4x1 \
+  --<span>timeout</span> 6h \
+  --volume hf://buckets/OWNER/pwc-paper-embeddings:/bucket \
+  embed_papers_job.py \
+  --input /bucket/runs/RUN_ID/input \
+  --output /bucket/runs/RUN_ID/output \
+  --model Qwen/Qwen3-Embedding-0.6B \
+  --revision MODEL_REVISION \
+  --dimensions 256 \
+  --allow-matryoshka
+</code></pre>
+<p>The worker:</p>
+<ol>
+<li>verifies the input manifest and every shard checksum;</li>
+<li>loads the pinned model revision;</li>
+<li>sorts texts by length to reduce padding;</li>
+<li>calls <code>encode_document</code> in batches (as noted in the <a href="https://huggingface.co/Qwen/Qwen3-Embedding-0.6B">model card</a>);</li>
+<li>reduces the batch size automatically if the GPU runs out of memory;</li>
+<li>truncates the <a href="https://huggingface.co/blog/matryoshka">Matryoshka representation</a> to 256 dimensions and normalizes it;</li>
+<li>writes float16 Parquet shards atomically; and</li>
+<li>records throughput, package versions, hardware, peak VRAM, row counts, and output checksums.</li>
+</ol>
+<p>Each completed shard has its own marker, so a restarted Job can skip verified work. This is useful for a large corpus: retrying should just resume work rather than overwriting existing embeddings.</p>
+<p>In our 5,000-paper pilot, the Qwen Job encoded about 75 papers per second at 1024 dimensions on an L4 GPU. The same pass could be deterministically materialized at 512 and 256 dimensions, so we could compare the storage and retrieval trade-offs without paying for more inference.</p>
+<h2>
+	<a id="buckets-are-the-connective-tissue" href="#buckets-are-the-connective-tissue" rel="nofollow">
+		
+	</a>
+	<span>
+		Buckets are the connective tissue
+	</span>
+</h2>
+<p><a href="https://huggingface.co/docs/hub/storage-buckets">Storage Buckets</a> are mutable, S3-like object storage on the Hub, optimized for AI workloads. They can be accessed through <code>hf://buckets/...</code> paths and <a href="https://github.com/huggingface/hf-mount" rel="nofollow">mounted</a> read-write in Jobs without building a separate storage integration.</p>
+<p>For us, the Bucket is more than a place to put vectors. It is the boundary between three systems with different lifecycles:</p>
+<ul>
+<li>the production database exports source records;</li>
+<li>ephemeral Jobs consume those records and produce vectors;</li>
+<li>the importer validates the results before touching the search index.</li>
+</ul>
+<p>We organize artifacts under immutable run prefixes:</p>
+<pre><code>runs/&lt;run-id&gt;/
+├── input/
+│   ├── manifest.json
+│   └── papers-*.jsonl
+└── output/
+    ├── manifest.json
+    ├── embeddings-*.parquet
+    └── embeddings-*.complete.json
+</code></pre>
+<p>Buckets themselves are intentionally mutable, so immutability is an application-level rule: a run ID is never overwritten, and every artifact is covered by a manifest and checksum.</p>
+<p>This gives us several useful properties:</p>
+<ul>
+<li><strong>Reproducibility:</strong> we can trace a database generation back to an exact corpus snapshot, model revision, and set of artifacts.</li>
+<li><strong>Safe retries:</strong> Jobs can resume from completed shards in the same run prefix.</li>
+<li><strong>Cheap experiments:</strong> several models or dimensions can reuse one verified input snapshot.</li>
+<li><strong>Controlled rollout:</strong> importing a generation does not activate it. We first validate coverage and build its index.</li>
+<li><strong>Simple rollback:</strong> the previous generation and its artifacts remain available until the new one is proven stable.</li>
+</ul>
+<p>Only after the importer rechecks schemas, checksums, dimensions, normalization, unique paper IDs, and current content hashes do we load the vectors into PostgreSQL. We then build a separate <a href="https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world" rel="nofollow">HNSW</a> index for the new generation and atomically mark it active only when every eligible current paper is covered (HNSW is the graph-based algorithm that enables fast vector search).</p>
+<h2>
+	<a id="inference-endpoints-put-semantic-search-on-the-request-path" href="#inference-endpoints-put-semantic-search-on-the-request-path" rel="nofollow">
+		
+	</a>
+	<span>
+		Inference Endpoints put semantic search on the request path
+	</span>
+</h2>
+<p>Batch embeddings solve the document side of retrieval. A user query still needs to be embedded at request time using the same model contract.</p>
+<p>We deploy the pinned model as an authenticated <a href="https://huggingface.co/docs/inference-endpoints/index">Inference Endpoint</a> backed by <a href="https://github.com/huggingface/text-embeddings-inference" rel="nofollow">Text Embeddings Inference (TEI)</a>. The endpoint accepts the query text and returns a normalized 256-dimensional vector using the model's <code>query</code> prompt. Note that one could also leverage <a href="https://github.com/vllm-project/vllm" rel="nofollow">vLLM</a> or <a href="https://github.com/sgl-project/sglang" rel="nofollow">SGLang</a> here.</p>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/pwc-search/inference-endpoint.png" alt="Hugging Face Inference Endpoint overview for the Papers with Code query embedding model" width="800">
+  <figcaption>Hugging Face Inference Endpoint for the Papers with Code query embedding model.</figcaption>
+</figure>
+
+<p>The API then performs a cosine-distance search over the active pgvector generation:</p>
+<pre><code><span>SELECT</span> paper_id,
+       embedding <span>&lt;=&gt;</span> <span>CAST</span>(:query_vector <span>AS</span> halfvec(<span>256</span>)) <span>AS</span> distance
+<span>FROM</span> paper_embeddings
+<span>WHERE</span> generation_id <span>=</span> :active_generation
+<span>ORDER</span> <span>BY</span> embedding <span>&lt;=&gt;</span> <span>CAST</span>(:query_vector <span>AS</span> halfvec(<span>256</span>))
+LIMIT <span>50</span>;
+</code></pre>
+<p>The HNSW index keeps this lookup fast. On our 5,000-paper pilot, the 256-dimensional Qwen index achieved 0.9955 Recall@20 against exact search, with 1.31 ms p50 and 2.21 ms p95 HNSW lookup latency. Its table and index used about 27% of the storage of the 1024-dimensional version while retaining essentially the same ANN recall in that test.</p>
+<p>The Endpoint is configured with a maximum of one replica and can <a href="https://huggingface.co/docs/inference-endpoints/guides/autoscaling">scale to zero</a> when idle. That is a useful cost lever, as this means you're not paying when there's no usage. However, this also means cold starts must be part of the application design rather than treated as an exceptional event, as it takes some time for the endpoint to spin up and serve traffic.</p>
+<p>Our query client therefore has deliberately strict behavior:</p>
+<ul>
+<li>a one-second production timeout;</li>
+<li>a non-blocking concurrency limit;</li>
+<li>response dimension, finiteness, and norm validation;</li>
+<li>a short cache keyed by the query and embedding generation;</li>
+<li>a circuit breaker after repeated failures; and</li>
+<li>no raw query text in logs, only a normalized fingerprint.</li>
+</ul>
+<p>If the endpoint is scaling up, times out, returns a malformed vector, or has no concurrency available, we skip the semantic branch immediately. Users still receive lexical results instead of waiting for an unreliable dependency.</p>
+<p>Inference Endpoints works really reliably, and includes a nice dashboard so you can quickly see key analytics.</p>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/pwc-search/endpoint-analytics.png" alt="Hugging Face Inference Endpoint analytics dashboard showing request volume, errors, latency, and replica state" width="600">
+  <figcaption>Inference Endpoint analytics showing request volume, errors, latency, and replica state.</figcaption>
+</figure>
+
+<h2>
+	<a id="hybrid-retrieval-is-stronger-than-either-branch-alone" href="#hybrid-retrieval-is-stronger-than-either-branch-alone" rel="nofollow">
+		
+	</a>
+	<span>
+		Hybrid retrieval is stronger than either branch alone
+	</span>
+</h2>
+<p>For every query, the lexical branch retrieves up to 50 candidates using weighted PostgreSQL full-text search. The semantic branch retrieves up to 50 candidates from pgvector.</p>
+<p>We combine their ranks using weighted reciprocal rank fusion (RRF):</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mtext>score</mtext><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo><mo>=</mo><munder><mo>∑</mo><mrow><mi>r</mi><mtext> </mtext><mo>∈</mo><mtext> </mtext><mo stretchy="false">{</mo><mtext>lexical</mtext><mo separator="true">,</mo><mtext> </mtext><mtext>semantic</mtext><mo stretchy="false">}</mo></mrow></munder><mfrac><msub><mi>w</mi><mi>r</mi></msub><mrow><mi>k</mi><mo>+</mo><msub><mtext>rank</mtext><mi>r</mi></msub><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mfrac></mrow>
+\text{score}(d) = \sum_{r \,\in\, \{\text{lexical},\, \text{semantic}\}} \frac{w_r}{k + \text{rank}_r(d)}
+</math></span></span></span></p>
+<p>RRF is simple and robust, because it combines ranks rather than scores from two systems with different scales. Basically, if a paper is ranked high both by the lexical branch and the semantic branch, it has a higher chance of being ranked high by the hybrid search. We currently use equal branch weights and (k=60) (k is the "rank constant", a hyperparameter of the RRF algorithm).</p>
+<p>Dense retrieval improves recall for conceptual queries. Full-text retrieval remains excellent for exact terminology, identifiers, and rare names. We also preserve deterministic identity behavior on top of the fused ranking:</p>
+<ul>
+<li>exact titles and arXiv IDs stay at the top;</li>
+<li>the <a href="https://paperswithcode.co/methods" rel="nofollow">method taxonomy</a> recognizes navigational searches such as “the original BERT paper”;</li>
+<li>incomplete titles and bounded spelling mistakes use conservative trigram candidates; and</li>
+<li>ambiguous fuzzy matches abstain rather than forcing a bad result.</li>
+</ul>
+<p>Note: hybrid search isn't always the best option, it is recommended to start with keyword search as a cheap and fast baseline, and only adding semantic and/or hybrid search when it turns out those give a reasonable boost in retrieval quality. One could further improve the search by adding a reranker after keyword/semantic/hybrid retrieval, using a model like <a href="https://huggingface.co/collections/Qwen/qwen3-reranker">Qwen3-Reranker</a>.</p>
+<h2>
+	<a id="one-endpoint-two-update-paths" href="#one-endpoint-two-update-paths" rel="nofollow">
+		
+	</a>
+	<span>
+		One Endpoint, two update paths
+	</span>
+</h2>
+<p>The large initial corpus is embedded with Jobs, but Papers with Code changes continuously. New papers arrive, abstracts are corrected, and new arXiv versions become current.</p>
+<p>Launching a GPU Job for a handful of changed rows would add unnecessary startup and orchestration overhead. Instead, an hourly incremental process selects missing or content-changed papers and sends a bounded delta to the same TEI Endpoint, this time with the <code>document</code> prompt.</p>
+<p>Each run processes at most 500 papers in batches of 16. Before an embedding is written, the source row is locked and its content hash is checked again. If a paper changed during inference, that vector is discarded and picked up by the next run.</p>
+<p>This gives us a useful division of labor:</p>
+<ul>
+<li><strong>Jobs</strong> handle full rebuilds, new model generations, and large backfills.</li>
+<li><strong>Inference Endpoints</strong> handle interactive query embeddings and small incremental document updates.</li>
+<li><strong>Buckets</strong> preserve the large-build artifacts and make those builds resumable and auditable.</li>
+</ul>
+<p>The hourly path keeps the active index close to the live catalog without turning an online endpoint into an unbounded batch processor.</p>
+<h2>
+	<a id="related-papers-become-almost-free-online" href="#related-papers-become-almost-free-online" rel="nofollow">
+		
+	</a>
+	<span>
+		Related papers become almost free online
+	</span>
+</h2>
+<p>The same document embeddings also power related-paper recommendations on each paper page.</p>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/pwc-search/related_papers.png" alt="Related papers feature" width="400">
+  <figcaption>Related papers for <a href="https://paperswithcode.co/paper/2605.12500" rel="nofollow">SenseNova-U1</a>.</figcaption>
+</figure>
+
+<p>Because the source paper already has a stored vector, related-paper retrieval requires no model call at request time. It is a single nearest-neighbor query over the active generation. If a vector is temporarily missing, the application can use a previous arXiv version or fill results from the existing task- and citation-based fallback. We fetch citation data through the <a href="https://www.semanticscholar.org/product/api" rel="nofollow">Semantic Scholar API</a> and also built <a href="https://github.com/huggingface/s2-cli" rel="nofollow"><code>s2-cli</code></a>, a command-line interface for querying its citation graph. The latter is used by the agent at <a href="https://paperswithcode.co/chat" rel="nofollow">https://paperswithcode.co/chat</a>.</p>
+<h2>
+	<a id="what-we-learned" href="#what-we-learned" rel="nofollow">
+		
+	</a>
+	<span>
+		What we learned
+	</span>
+</h2>
+<h3>
+	<a id="1-separate-throughput-work-from-latency-sensitive-work" href="#1-separate-throughput-work-from-latency-sensitive-work" rel="nofollow">
+		
+	</a>
+	<span>
+		1. Separate throughput work from latency-sensitive work
+	</span>
+</h3>
+<p>Corpus embedding and query embedding use the same model, but they are different infrastructure problems. Jobs optimize for throughput and bounded cost; Inference Endpoints optimize for availability and request latency.</p>
+<h3>
+	<a id="2-make-storage-the-explicit-contract-between-compute-and-production" href="#2-make-storage-the-explicit-contract-between-compute-and-production" rel="nofollow">
+		
+	</a>
+	<span>
+		2. Make storage the explicit contract between compute and production
+	</span>
+</h3>
+<p>Buckets provide an explicit handoff between compute and production. Checksummed artifacts create a reviewable boundary before data enters the production index.</p>
+<h3>
+	<a id="3-pin-more-than-the-model-name" href="#3-pin-more-than-the-model-name" rel="nofollow">
+		
+	</a>
+	<span>
+		3. Pin more than the model name
+	</span>
+</h3>
+<p>The revision, dimension, prompt, normalization, and input formatter all affect retrieval. Store them together and validate them everywhere.</p>
+<h3>
+	<a id="4-design-for-cold-starts" href="#4-design-for-cold-starts" rel="nofollow">
+		
+	</a>
+	<span>
+		4. Design for cold starts
+	</span>
+</h3>
+<p>Scale-to-zero is valuable when traffic is intermittent, but only if the product has a fast fallback. Hybrid search gave us that fallback naturally: lexical search is always useful on its own.</p>
+<h3>
+	<a id="5-smaller-vectors-can-be-a-systems-feature" href="#5-smaller-vectors-can-be-a-systems-feature" rel="nofollow">
+		
+	</a>
+	<span>
+		5. Smaller vectors can be a systems feature
+	</span>
+</h3>
+<p>Matryoshka embeddings let us evaluate quality, memory, index size, and latency as one trade-off. In our pilot, 256 dimensions preserved ANN recall while materially shrinking storage compared with 1024 dimensions.</p>
+<h3>
+	<a id="6-activation-should-be-boring" href="#6-activation-should-be-boring" rel="nofollow">
+		
+	</a>
+	<span>
+		6. Activation should be boring
+	</span>
+</h3>
+<p>New generations are imported beside the current one, indexed independently, checked for complete and current coverage, and then activated atomically. Rollback is a configuration change, not an emergency recomputation.</p>
+<p>Feel free to try out the search at <a href="https://paperswithcode.co" rel="nofollow">https://paperswithcode.co</a> or the chat interface at <a href="https://paperswithcode.co/chat" rel="nofollow">https://paperswithcode.co/chat</a>, and let us know any feedback!</p>
+</div></div>

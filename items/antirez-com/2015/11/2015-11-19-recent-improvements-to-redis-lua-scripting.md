@@ -1,0 +1,182 @@
+---
+title: Recent improvements to Redis Lua scripting
+link: http://antirez.com/news/97
+source: antirez-com
+published: 2015-11-19T11:23:27Z
+updated: 2015-11-19T11:23:27Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+summary: 'Lua scripting is probably the most successful Redis feature, among the ones introduced when Redis was already pretty popular: no surprise that a few of the things users really want are about scripting. The following two features were suggested multiple times over the last two years, and many people tried to focus my attention into one or the other during the Redis developers meeting, a few weeks ago. 1. A proper debugger for Redis Lua scripts. 2. Replication, and storage on the AOF, of Lua scripts as a set of write commands materializing the *effects* of the script, instead of replicating the script itself as we normally do. The second feature is not just a matter of how scripts are replicated, but also touches what you can do with Lua scripting as we will see later. Back from London, I implemented both the features. This blog post describes both, giving a few hints about the design and implementation aspects that may be interesting for the readers. A proper Lua debugger --- Lua scripting was initially conceived in order to write really trivial scripts. Things like: if the key exists do this. A couple of lines in order to avoid bloating Redis with all the possible variations of commands. Of course users did a lot more with it, and started to write complex scripts: from quad-tree implementations to full featured messaging systems with non trivial semantics. Lua scripting makes Redis programmable, and usually programmers can’t resist to programmable things. It helps that all the Lua scripts run using the same interpreter and are cached, so they are very fast. It is most of the time possible to do a lot more with a Redis instance by using Lua scripting, both functionally and in terms of operations per second. So complex scripts totally have their place today. We went from a very cold reception of the scripting feature (something as dynamic as a script sent to a database!), to mass usage, to writing complex scripts in a matter of a few years. However writing simple scripts and writing complex scripts is a completely different matter. Bigger programs become exponentially more complex, and you can feel this even when going from 10 to 200 lines of code. While you can debug by brute force any simple script, just trying a few variants and observing the effects on the data set, or putting a few logging instructions in the middle, with complex scripts you have a bad time without a debugger. My colleague Itamar Haber used a lot of his time to write complex scripts recently. At some point he also wrote some kind of debugger for Redis Lua scripting using the Lua debug library. This debugger no longer works since the debug library is now no longer exposed to scripts, for sandboxing concerns, and in general, what you want in a Redis debugger is an interactive and remote debugger, with a proper client able to work alongside with the server, to provide a good debugging experience. Debugging is already a lot of hard work, to have solid tools is really a must. The only way to accomplish this result, was to add proper debugging support inside Redis itself. So back from London Itamar and I started to talk about what a debugger should export to the user in order to be kinda of useful, and a real upgrade compared to the past. It was also discussed to just add support for the Lua debuggers that already exist outside the Redis ecosystem. However I strongly believe the user experience is enhanced when everything is designed specifically to work well with Redis, so in the end I decided to wrote the debugger from scratch. A few things were sure: we needed a remote debugger where you could attach to Redis, start a debugging session, have good observability of what the script was doing with the Redis dataset. A special concern of mine was to have colorized output, of course ;-) I wanted to make debugging a fun experience, and to have a very fast learning curve, which are related. Now to show how a debugger work, by writing a blog post about it, is surely possible but, even a purist like me writing articles in courier, will resort to a video from time to time. So here is longish video showing the main features of the Redis debugger. I start talking like a bit depressed since this was early in the morning, but after a few minutes coffee fires in and you’ll se me more happy. (Hint: watch the video in full screen to have acceptable font size for the interactive session. Video is high quality enough to make them readable) !~! If you are not into playing videos, a short recap of what you can do with the Lua debugger is provided by the debugger help screen itself: $ ./redis-cli --ldb --eval /tmp/script.lua Lua debugging session started, please use: quit -- End the session. restart -- Restart the script in debug mode again. help -- Show Lua script debugging commands. * Stopped at 1, stop reason = step over -> 1 local src = KEYS[1] lua debugger> help Redis Lua debugger help: [h]elp Show this help. [s]tep Run current line and stop again. [n]ext Alias for step. [c]continue Run till next breakpoint. [l]list List source code around current line. [l]list [line] List source code around [line]. line = 0 means: current position. [l]list [line] [ctx] In this form [ctx] specifies how many lines to show before/after [line]. [w]hole List all source code. Alias for ''list 1 1000000''. [p]rint Show all the local variables. [p]rint Show the value of the specified variable. Can also show global vars KEYS and ARGV. [b]reak Show all breakpoints. [b]reak Add a breakpoint to the specified line. [b]reak - Remove breakpoint from the specified line. [b]reak 0 Remove all breakpoints. [t]race Show a backtrace. [e]eval Execute some Lua code (in a different callframe). [r]edis Execute a Redis command. [m]axlen [len] Trim logged Redis replies and Lua var dumps to len. Specifying zero as means unlimited. [a]abort Stop the execution of the script. In sync mode dataset changes will be retained. Debugger functions you can call from Lua scripts: redis.debug() Produce logs in the debugger console. redis.breakpoint() Stop execution like if there was a breakpoing. in the next line of code. lua debugger> How it works? --- The whole debugger is pretty much a self contained block of code, and consists of 1300 lines of code, mostly inside scripting.c, but a few inside redis-cli.c, in order to implement the CLI special mode acting as a client for the debugger. As already said this is a server-client remote debugger. The Lua C API has a debugging interface that’s pretty useful. Is not a debugger per-se, but offers the primitives you need in order to write a debugger. However writing a debugger in the context of Redis was a bit less trivial that writing a Lua stand-alone debugger. In order to debug the script you have callbacks executed while the script is running. But when Redis is running a script, we are in the context of EVAL, executing a client command. How to do I/O there if we are blocked? Also what happens to the Redis server? Even if debugging must be performed in a development server and not into a production server, to completely hang the instance may not be a good idea. Maybe other developers want to use the instance, or the single developer that is debugging the script wants to create a new parallel debugging session. And finally, what about rolling back the changes so that the same script can be tested again and again with the same Redis data set, regardless of the changes it does while we are debugging? Determinism is gold in the context of debugging. So I needed a complex implementation, apparently. Or I needed to cheat big time, and find a strange solution to the problem involving a lot less code and complexity, but giving 90% of the benefits I was looking for. This odd solution turned out to be the following: * When a debugging session starts, fork() Redis. * Capture the client file descriptor, and do direct, blocking I/O while the debugging session is active. * Use the Redis protocol, but a trivial subset that can be implemented in a couple of lines of code, so that we don’t re-enter the Redis event loop at all. The I/O is part of the debugger. After 400 lines of code I had all the basic working, so the rest was just a matter of adding features and fixing bugs and corner cases. This gives us everything we needed: the server is not blocked since each debugging session is a separated process. We don’t need to re-enter the event loop from within the middle of an EVAL call, and we have rollback for free. However, there is also a synchronous mode available, that blocks the server, in the case you really need to debug something while preserving the changes to the dataset. I’ve the feeling this will not be used much at all but to add this mode was a matter of not forking and handling the cleanup of the client at the end, so I added this mode as well. On top of that it was possible to add everything else using a Lua “line” hook in order to implement stepping and breakpoints. Since the debugger is integrated inside Redis itself, it was trivial to capture all the Redis calls to show the user what was happening. The I/O model is also trivial, we just read input from the user and output appending to a buffer. Every time the debugger stops at some point, the output is flushed to the client as an array of “status replies”. The prefix of each line hints redis-cli about the colorization to provide. Because of this design, the debugger was working after 2 days and was complete after 4 days of work. Moreover this design allowed me to write completely self contained code, so the debugger interacts almost zero with the rest of Redis. This will make possible to release it with Redis 3.2 in December. A simple way to make the debugger much more powerful almost for free was to add two new Redis Lua calls: redis.breakpoint() and redis.debug(), that respectively can simulate a breakpoint inside the debugger (to the next line to be executed), or log Lua objects in the debugger console. This way you can add breakpoints that only fire when something interesting happens: if some_odd_condition then redis.breakpoint() end This effectively replaces a lot of complex features you may add into a debugger. However we also have all the normal features directly inside the debugger, like static breakpoints, the ability to observe the state, and so forth. I’m very interested in what users writing complex scripts will think about it! We’ll see. Script effects replication --- Before understanding why replicating just the *effects* of a script is interesting, it’s better to understand why instead by default replicating the script itself, to be re-executed by slaves, was considered the best option and is anyway the default. The central matter is: bandwidth between the master and the salve, and in general the ability of the slave to “follow” the master (keep in sync without too much delay) and don’t lag behind. Think at this small Redis Lua script: local i; for i=0,1000000 do redis.call(“lpush”,KEYS[1],ARGV[1]) end It appends 1 million elements to the specified list and runs in 0.75 seconds in my testing environment. It’s just a few bytes, and runs inside the server, so replicating this script as script, and not as the 1 million commands resulting from the script execution, makes a lot of sense. There are scripts which are exactly the opposite. At the other side of the spectrum there is a script that calculates the average of 1 million integer elements stored into a list, and stores the result setting some key with SET. The effect of the script could be just: SET somekey 94.29 But the actual execution is maybe 2 seconds of computation. Replicating this script as the resulting command is much better. However there is a difference between replicating scripts and replicating effects: both are optimal or suboptimal depending on the use case, but replicating scripts always work, even when it’s inefficient. It never creates a situation where the replication link has to transfer huge amount of data, nor it creates a situation where the slave has to do a lot more work than the master. This is why so far Redis always used to replicate scripts verbatim. However the most interesting part perhaps is that’s not just a matter of efficiency. When replicating scripts we need that each script is a *pure function*. Scripts executed with the same initial dataset, must produce always the same result. This requirement, prevents users from writing scripts using, for example, the TIME command, or SRANDMEMBER. Redis detects this dangerous condition and stops the script as soon as the first write command is going to be called. Yet there are many use cases for scripts using the current time, random numbers or random elements. Replicating the effects of the script also overcomes this limitation. So finally, and thanks to refactoring performed inside Redis in the previous months, it was possible to implement opt-in support for scripts effects replication. It is as trivial as calling, at the start of the script, the following command: redis.replicate_commands() … do something with the script … The script will be replicated only as a set of write commands. Actually there is no need to call replicate_commands() as the first command. It is enough to call it before any write, so the Lua script may even check the work to do and select the right replication model. If writes were already performed when replicate_commands() is called, it just returns false, and the normal whole script replication will be used, so the command will never prevent the script from running, even when misused. However we did not resisted to the temptation of doing more advanced and possibly dangerous things. I designed this feature with my colleague Yossi Gottleib from Redis Labs, and he had a very compelling use case for a dangerous feature allowing the exclusion of selected commands from the replication stream. The idea is that your script may do something like that: 1) Call certain commands that write temporary values. Think at intersections between sets just to have a mental model. 2) Perform some aggregation. 3) Store a small result as the effect of the script. 4) Discard the temporary values. There are a few legitimate use cases for the above pattern, and guess what, you don’t want to replicate the temporary writes to your AOF and slaves. You want replicate just step “3”. So in the end we decided that, when script effects replication is enabled, it is possible for the brave user, to select what replicate and what not, by using the following API: redis.set_repl(redis.REPL_ALL); -- The default redis.set_repl(redis.REPL_NONE); -- No replication at all redis.set_repl(redis.REPL_AOF); -- Just AOF replication redis.set_repl(redis.REPL_SLAVE); -- Just slaves replication There is a lot of room for misuse, but non expert users are very unlikely to touch this feature at all, and it can benefit who knows what to do with powerful tools. ETA --- Both features will be available into Redis 3.2, that will be out as an RC in mid December 2015. Redis 3.2 is going to have many interesting new features at API level, exposed to users. A big part of the user base asked for this, after a period where we focused more into operations and internals maturity. Feel free to ask questions in the comments if you want to know more or have any doubt. Hacker News thread is here: https://news.ycombinator.com/item?id=10594236 Comments'
+content: extracted
+html: 2015-11-19-recent-improvements-to-redis-lua-scripting.html
+---
+
+[antirez](https://antirez.com/user/antirez) 3957 days ago. 287108 views.
+
+```
+Lua scripting is probably the most successful Redis feature, among the ones introduced when Redis was already pretty popular: no surprise that a few of the things users really want are about scripting. The following two features were suggested multiple times over the last two years, and many people tried to focus my attention into one or the other during the Redis developers meeting, a few weeks ago.
+
+1. A proper debugger for Redis Lua scripts.
+2. Replication, and storage on the AOF, of Lua scripts as a set of write commands materializing the *effects* of the script, instead of replicating the script itself as we normally do.
+
+The second feature is not just a matter of how scripts are replicated, but also touches what you can do with Lua scripting as we will see later.
+
+Back from London, I implemented both the features. This blog post describes both, giving a few hints about the design and implementation aspects that may be interesting for the readers.
+
+A proper Lua debugger
+---
+
+Lua scripting was initially conceived in order to write really trivial scripts. Things like: if the key exists do this. A couple of lines in order to avoid bloating Redis with all the possible variations of commands. Of course users did a lot more with it, and started to write complex scripts: from quad-tree implementations to full featured messaging systems with non trivial semantics. Lua scripting makes Redis programmable, and usually programmers can’t resist to programmable things. It helps that all the Lua scripts run using the same interpreter and are cached, so they are very fast. It is most of the time possible to do a lot more with a Redis instance by using Lua scripting, both functionally and in terms of operations per second. So complex scripts totally have their place today. We went from a very cold reception of the scripting feature (something as dynamic as a script sent to a database!), to mass usage, to writing complex scripts in a matter of a few years.
+
+However writing simple scripts and writing complex scripts is a completely different matter. Bigger programs become exponentially more complex, and you can feel this even when going from 10 to 200 lines of code. While you can debug by brute force any simple script, just trying a few variants and observing the effects on the data set, or putting a few logging instructions in the middle, with complex scripts you have a bad time without a debugger.
+
+My colleague Itamar Haber used a lot of his time to write complex scripts recently. At some point he also wrote some kind of debugger for Redis Lua scripting using the Lua debug library. This debugger no longer works since the debug library is now no longer exposed to scripts, for sandboxing concerns, and in general, what you want in a Redis debugger is an interactive and remote debugger, with a proper client able to work alongside with the server, to provide a good debugging experience. Debugging is already a lot of hard work, to have solid tools is really a must. The only way to accomplish this result, was to add proper debugging support inside Redis itself.
+
+So back from London Itamar and I started to talk about what a debugger should export to the user in order to be kinda of useful, and a real upgrade compared to the past. It was also discussed to just add support for the Lua debuggers that already exist outside the Redis ecosystem. However I strongly believe the user experience is enhanced when everything is designed specifically to work well with Redis, so in the end I decided to wrote the debugger from scratch. A few things were sure: we needed a remote debugger where you could attach to Redis, start a debugging session, have good observability of what the script was doing with the Redis dataset. A special concern of mine was to have colorized output, of course ;-) I wanted to make debugging a fun experience, and to have a very fast learning curve, which are related.
+
+Now to show how a debugger work, by writing a blog post about it, is surely possible but, even a purist like me writing articles in courier, will resort to a video from time to time. So here is longish video showing the main features of the Redis debugger. I start talking like a bit depressed since this was early in the morning, but after a few minutes coffee fires in and you’ll se me more happy.
+
+(Hint: watch the video in full screen to have acceptable font size for the interactive session. Video is high quality enough to make them readable)
+
+
+
+If you are not into playing videos, a short recap of what you can do with the Lua debugger is provided by the debugger help screen itself:
+
+$ ./redis-cli --ldb --eval /tmp/script.lua
+Lua debugging session started, please use:
+quit    -- End the session.
+restart -- Restart the script in debug mode again.
+help    -- Show Lua script debugging commands.
+
+* Stopped at 1, stop reason = step over
+-> 1   local src = KEYS[1]
+lua debugger> help
+Redis Lua debugger help:
+[h]elp               Show this help.
+[s]tep               Run current line and stop again.
+[n]ext               Alias for step.
+[c]continue          Run till next breakpoint.
+[l]list              List source code around current line.
+[l]list [line]       List source code around [line].
+                     line = 0 means: current position.
+[l]list [line] [ctx] In this form [ctx] specifies how many lines
+                     to show before/after [line].
+[w]hole              List all source code. Alias for 'list 1 1000000'.
+[p]rint              Show all the local variables.
+[p]rint <var>        Show the value of the specified variable.
+                     Can also show global vars KEYS and ARGV.
+[b]reak              Show all breakpoints.
+[b]reak <line>       Add a breakpoint to the specified line.
+[b]reak -<line>      Remove breakpoint from the specified line.
+[b]reak 0            Remove all breakpoints.
+[t]race              Show a backtrace.
+[e]eval <code>       Execute some Lua code (in a different callframe).
+[r]edis <cmd>        Execute a Redis command.
+[m]axlen [len]       Trim logged Redis replies and Lua var dumps to len.
+                     Specifying zero as <len> means unlimited.
+[a]abort             Stop the execution of the script. In sync
+                     mode dataset changes will be retained.
+
+Debugger functions you can call from Lua scripts:
+redis.debug()        Produce logs in the debugger console.
+redis.breakpoint()   Stop execution like if there was a breakpoing.
+                     in the next line of code.
+lua debugger>
+
+How it works?
+---
+
+The whole debugger is pretty much a self contained block of code, and consists of 1300 lines of code, mostly inside scripting.c, but a few inside redis-cli.c, in order to implement the CLI special mode acting as a client for the debugger. As already said this is a server-client remote debugger.
+
+The Lua C API has a debugging interface that’s pretty useful. Is not a debugger per-se, but offers the primitives you need in order to write a debugger. However writing a debugger in the context of Redis was a bit less trivial that writing a Lua stand-alone debugger. In order to debug the script you have callbacks executed while the script is running. But when Redis is running a script, we are in the context of EVAL, executing a client command. How to do I/O there if we are blocked? Also what happens to the Redis server? Even if debugging must be performed in a development server and not into a production server, to completely hang the instance may not be a good idea. Maybe other developers want to use the instance, or the single developer that is debugging the script wants to create a new parallel debugging session. And finally, what about rolling back the changes so that the same script can be tested again and again with the same Redis data set, regardless of the changes it does while we are debugging? Determinism is gold in the context of debugging.
+
+So I needed a complex implementation, apparently. Or I needed to cheat big time, and find a strange solution to the problem involving a lot less code and complexity, but giving 90% of the benefits I was looking for. This odd solution turned out to be the following:
+
+* When a debugging session starts, fork() Redis.
+* Capture the client file descriptor, and do direct, blocking I/O while the debugging session is active.
+* Use the Redis protocol, but a trivial subset that can be implemented in a couple of lines of code, so that we don’t re-enter the Redis event loop at all. The I/O is part of the debugger.
+
+After 400 lines of code I had all the basic working, so the rest was just a matter of adding features and fixing bugs and corner cases.
+
+This gives us everything we needed: the server is not blocked since each debugging session is a separated process. We don’t need to re-enter the event loop from within the middle of an EVAL call, and we have rollback for free.
+
+However, there is also a synchronous mode available, that blocks the server, in the case you really need to debug something while preserving the changes to the dataset. I’ve the feeling this will not be used much at all but to add this mode was a matter of not forking and handling the cleanup of the client at the end, so I added this mode as well.
+
+On top of that it was possible to add everything else using a Lua “line” hook in order to implement stepping and breakpoints. Since the debugger is integrated inside Redis itself, it was trivial to capture all the Redis calls to show the user what was happening. The I/O model is also trivial, we just read input from the user and output appending to a buffer. Every time the debugger stops at some point, the output is flushed to the client as an array of “status replies”. The prefix of each line hints redis-cli about the colorization to provide.
+
+Because of this design, the debugger was working after 2 days and was complete after 4 days of work. Moreover this design allowed me to write completely self contained code, so the debugger interacts almost zero with the rest of Redis. This will make possible to release it with Redis 3.2 in December.
+
+A simple way to make the debugger much more powerful almost for free was to
+add two new Redis Lua calls: redis.breakpoint() and redis.debug(), that
+respectively can simulate a breakpoint inside the debugger (to the next line
+to be executed), or log Lua objects in the debugger console. This way you can
+add breakpoints that only fire when something interesting happens:
+
+    if some_odd_condition then redis.breakpoint() end
+
+This effectively replaces a lot of complex features you may add into a debugger.
+However we also have all the normal features directly inside the debugger,
+like static breakpoints, the ability to observe the state, and so forth.
+
+I’m very interested in what users writing complex scripts will think about it!
+We’ll see.
+
+Script effects replication
+---
+
+Before understanding why replicating just the *effects* of a script is interesting, it’s better to understand why instead by default replicating the script itself, to be re-executed by slaves, was considered the best option and is anyway the default. The central matter is: bandwidth between the master and the salve, and in general the ability of the slave to “follow” the master (keep in sync without too much delay) and don’t lag behind.
+
+Think at this small Redis Lua script:
+
+    local i;
+    for i=0,1000000 do
+        redis.call(“lpush”,KEYS[1],ARGV[1])
+    end
+
+It appends 1 million elements to the specified list and runs in 0.75 seconds in my testing environment. It’s just a few bytes, and runs inside the server, so replicating this script as script, and not as the 1 million commands resulting from the script execution, makes a lot of sense.
+
+There are scripts which are exactly the opposite. At the other side of the spectrum there is a script that calculates the average of 1 million integer elements stored into a list, and stores the result setting some key with SET.
+
+The effect of the script could be just: SET somekey 94.29
+
+But the actual execution is maybe 2 seconds of computation. Replicating this script as the resulting command is much better. However there is a difference between replicating scripts and replicating effects: both are optimal or suboptimal depending on the use case, but replicating scripts always work, even when it’s inefficient. It never creates a situation where the replication link has to transfer huge amount of data, nor it creates a situation where the slave has to do a lot more work than the master. This is why so far Redis always used to replicate scripts verbatim.
+
+However the most interesting part perhaps is that’s not just a matter of efficiency. When replicating scripts we need that each script is a *pure function*. Scripts executed with the same initial dataset, must produce always the same result. This requirement, prevents users from writing scripts using, for example, the TIME command, or SRANDMEMBER. Redis detects this dangerous condition and stops the script as soon as the first write command is going to be called.
+
+Yet there are many use cases for scripts using the current time, random numbers or random elements. Replicating the effects of the script also overcomes this limitation.
+
+So finally, and thanks to refactoring performed inside Redis in the previous months, it was possible to implement opt-in support for scripts effects replication. It is as trivial as calling, at the start of the script, the following command:
+
+    redis.replicate_commands()
+    … do something with the script …
+
+The script will be replicated only as a set of write commands.
+Actually there is no need to call replicate_commands() as the first command. It is enough to call it before any write, so the Lua script may even check the work to do and select the right replication model. If writes were already performed when replicate_commands() is called, it just returns false, and the normal whole script replication will be used, so the command will never prevent the script from running, even when misused.
+
+However we did not resisted to the temptation of doing more advanced and possibly dangerous things. I designed this feature with my colleague Yossi Gottleib from Redis Labs, and he had a very compelling use case for a dangerous feature allowing the exclusion of selected commands from the replication stream.
+
+The idea is that your script may do something like that:
+
+1) Call certain commands that write temporary values. Think at intersections between sets just to have a mental model.
+2) Perform some aggregation.
+3) Store a small result as the effect of the script.
+4) Discard the temporary values.
+
+There are a few legitimate use cases for the above pattern, and guess what, you don’t want to replicate the temporary writes to your AOF and slaves. You want replicate just step “3”. So in the end we decided that, when script effects replication is enabled, it is possible for the brave user, to select what replicate and what not, by using the following API:
+
+    redis.set_repl(redis.REPL_ALL); -- The default
+    redis.set_repl(redis.REPL_NONE); -- No replication at all
+    redis.set_repl(redis.REPL_AOF); -- Just AOF replication
+    redis.set_repl(redis.REPL_SLAVE); -- Just slaves replication
+
+There is a lot of room for misuse, but non expert users are very unlikely to touch this feature at all, and it can benefit who knows what to do with powerful tools.
+
+ETA
+---
+
+Both features will be available into Redis 3.2, that will be out as an RC in mid December 2015.
+Redis 3.2 is going to have many interesting new features at API level, exposed to users. A big part of the user base asked for this, after a period where we focused more into operations and internals maturity.
+
+Feel free to ask questions in the comments if you want to know more or have any doubt.
+
+Hacker News thread is here: https://news.ycombinator.com/item?id=10594236
+```

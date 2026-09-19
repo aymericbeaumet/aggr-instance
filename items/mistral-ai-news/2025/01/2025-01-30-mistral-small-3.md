@@ -1,0 +1,220 @@
+---
+title: Mistral Small 3
+link: https://mistral.ai/news/mistral-small-3/
+source: mistral-ai-news
+published: 2025-01-30T12:00:00Z
+updated: 2025-01-30T12:00:00Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+content: extracted
+html: 2025-01-30-mistral-small-3.html
+preview:
+  file: 2025-01-30-mistral-small-3.preview-97f993d1d33e.webp
+  width: 256
+  height: 153
+  color: '#8cb1cf'
+images:
+- source: https://mistral.ai/cms-media/api/media/file/Thumbnail-Model-Small.jpg
+  original:
+    file: 2025-01-30-mistral-small-3.image-05115e0ca6de.jpg
+    width: 1800
+    height: 1074
+  color: '#58b6fa'
+- source: https://mistral.ai/_astro/7ede577c-1f94-4391-ac44-3a54af3d2962_1OBdRR.webp?dpl=6aad049eaf4c2d00095b91e5
+  original:
+    file: 2025-01-30-mistral-small-3.image-4225bf5bc287.webp
+    width: 1920
+    height: 1039
+  variants:
+  - file: 2025-01-30-mistral-small-3.image-950f2b7783d2.webp
+    width: 320
+    height: 173
+  - file: 2025-01-30-mistral-small-3.image-aa020d6f760c.webp
+    width: 640
+    height: 346
+  - file: 2025-01-30-mistral-small-3.image-837893fe73d2.webp
+    width: 960
+    height: 520
+  - file: 2025-01-30-mistral-small-3.image-954a05f79bd9.webp
+    width: 1280
+    height: 693
+  color: '#fdfdfd'
+- source: https://mistral.ai/_astro/00904993-2dad-43ea-983c-70192f32ed31_ZqwQd8.webp?dpl=6aad049eaf4c2d00095b91e5
+  original:
+    file: 2025-01-30-mistral-small-3.image-6e9264dc65b9.webp
+    width: 1812
+    height: 1046
+  variants:
+  - file: 2025-01-30-mistral-small-3.image-95bdb099c476.webp
+    width: 320
+    height: 185
+  - file: 2025-01-30-mistral-small-3.image-0de8baa2ee44.webp
+    width: 640
+    height: 369
+  color: '#fdfdfd'
+- source: https://mistral.ai/_astro/0367aefc-20eb-4182-82f1-e65f22bcb4db_zlHLr.webp?dpl=6aad049eaf4c2d00095b91e5
+  original:
+    file: 2025-01-30-mistral-small-3.image-7c95da782663.webp
+    width: 1920
+    height: 987
+  variants:
+  - file: 2025-01-30-mistral-small-3.image-b753f4a19aad.webp
+    width: 320
+    height: 165
+  - file: 2025-01-30-mistral-small-3.image-ba71cc3d9a14.webp
+    width: 640
+    height: 329
+  - file: 2025-01-30-mistral-small-3.image-2e65fd462c48.webp
+    width: 960
+    height: 494
+  color: '#fdfdfd'
+- source: https://mistral.ai/_astro/907ef262-8ebf-4978-987d-7ac4777097c7_15VfQ5.webp?dpl=6aad049eaf4c2d00095b91e5
+  original:
+    file: 2025-01-30-mistral-small-3.image-15872669f9a4.webp
+    width: 1920
+    height: 1042
+  variants:
+  - file: 2025-01-30-mistral-small-3.image-39d1c052d015.webp
+    width: 320
+    height: 174
+  - file: 2025-01-30-mistral-small-3.image-5ef3b2cc3e5a.webp
+    width: 640
+    height: 347
+  - file: 2025-01-30-mistral-small-3.image-03c2d9e4e462.webp
+    width: 960
+    height: 521
+  color: '#fdfdfd'
+- source: https://mistral.ai/_astro/1a040cb5-7d89-4bf7-9280-5988ff56db82_yQQHM.webp?dpl=6aad049eaf4c2d00095b91e5
+  original:
+    file: 2025-01-30-mistral-small-3.image-ba5072390c95.webp
+    width: 1920
+    height: 1041
+  variants:
+  - file: 2025-01-30-mistral-small-3.image-3ebe5634b4c7.webp
+    width: 320
+    height: 174
+  - file: 2025-01-30-mistral-small-3.image-e65af4f7f494.webp
+    width: 640
+    height: 347
+  - file: 2025-01-30-mistral-small-3.image-d40082e0458a.webp
+    width: 960
+    height: 521
+  color: '#fdfdfd'
+- source: https://mistral.ai/_astro/531e62a7-ef7b-4435-8d67-1a8282e9c3c2_2dR6W9.webp?dpl=6aad049eaf4c2d00095b91e5
+  original:
+    file: 2025-01-30-mistral-small-3.image-f9e002754ed0.webp
+    width: 1920
+    height: 1069
+  variants:
+  - file: 2025-01-30-mistral-small-3.image-34d37cb59733.webp
+    width: 320
+    height: 178
+  - file: 2025-01-30-mistral-small-3.image-3464bce89389.webp
+    width: 640
+    height: 356
+  color: '#fdfdfd'
+- source: https://mistral.ai/_astro/8c06a4cd-e968-48fc-919c-063cb9127948_Z1qwY2G.webp?dpl=6aad049eaf4c2d00095b91e5
+  original:
+    file: 2025-01-30-mistral-small-3.image-57bba2b686d9.webp
+    width: 1920
+    height: 1096
+  variants:
+  - file: 2025-01-30-mistral-small-3.image-db33da2c2a18.webp
+    width: 320
+    height: 183
+  - file: 2025-01-30-mistral-small-3.image-39f89538568c.webp
+    width: 640
+    height: 365
+  color: '#fdfdfc'
+---
+
+Today we’re introducing Mistral Small 3, a latency-optimized 24B-parameter model released under the Apache 2.0 license.
+
+![Up and to the Left](https://mistral.ai/_astro/7ede577c-1f94-4391-ac44-3a54af3d2962_1OBdRR.webp?dpl=6aad049eaf4c2d00095b91e5)
+
+Mistral Small 3 is competitive with larger models such as Llama 3.3 70B or Qwen 32B, and is an excellent open replacement for opaque proprietary models like GPT4o-mini. Mistral Small 3 is on par with Llama 3.3 70B instruct, while being more than 3x faster on the same hardware.
+
+Mistral Small 3 is a pre-trained and instructed model catered to the ‘80%’ of generative AI tasks—those that require robust language and instruction following performance, with very low latency.
+
+We designed this new model to saturate performance at a size suitable for local deployment. Particularly, Mistral Small 3 has far fewer layers than competing models, substantially reducing the time per forward pass. At over 81% accuracy on MMLU and 150 tokens/s latency, Mistral Small is currently the most efficient model of its category.
+
+We’re releasing both a pretrained and instruction-tuned checkpoint under Apache 2.0. The checkpoints can serve as a powerful base for accelerating progress. Note that Mistral Small 3 is neither trained with RL nor synthetic data, so is earlier in the model production pipeline than models like Deepseek R1 (a great and complementary piece of open-source technology!). It can serve as a great base model for building accrued reasoning capacities. We look forward to seeing how the open-source community adopts and customizes it.
+
+### Performance
+
+#### Human Evaluations
+
+![Mistral Small 3 Human Evals](https://mistral.ai/_astro/00904993-2dad-43ea-983c-70192f32ed31_ZqwQd8.webp?dpl=6aad049eaf4c2d00095b91e5)
+
+We conducted side by side evaluations with an external third-party vendor, on a set of over 1k proprietary coding and generalist prompts. Evaluators were tasked with selecting their preferred model response from anonymized generations produced by Mistral Small 3 vs another model. We are aware that in some cases the benchmarks on human judgement starkly differ from publicly available benchmarks, but have taken extra caution in verifying a fair evaluation. We are confident that the above benchmarks are valid.
+
+#### Instruct performance
+
+Our instruction tuned model performs competitively with open weight models three times its size and with proprietary GPT4o-mini model across Code, Math, General knowledge and Instruction following benchmarks.
+
+![Mistral Instruct Knowledge](https://mistral.ai/_astro/0367aefc-20eb-4182-82f1-e65f22bcb4db_zlHLr.webp?dpl=6aad049eaf4c2d00095b91e5)
+
+![Mistral Instruct Code Math](https://mistral.ai/_astro/907ef262-8ebf-4978-987d-7ac4777097c7_15VfQ5.webp?dpl=6aad049eaf4c2d00095b91e5)
+
+![Mistral Instruct If](https://mistral.ai/_astro/1a040cb5-7d89-4bf7-9280-5988ff56db82_yQQHM.webp?dpl=6aad049eaf4c2d00095b91e5)
+
+Performance accuracy on all benchmarks were obtained through the same internal evaluation pipeline - as such, numbers may vary slightly from previously reported performance ([Qwen2.5-32B-Instruct](https://qwenlm.github.io/blog/qwen2.5-llm/), [Llama-3.3-70B-Instruct](https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct), [Gemma-2-27B-IT](https://huggingface.co/google/gemma-2-27b-it)). Judge based evals such as Wildbench, Arena hard and MTBench were based on gpt-4o-2024-05-13.
+
+#### Pretraining performance
+
+![Mistral Base Benchmarks](https://mistral.ai/_astro/531e62a7-ef7b-4435-8d67-1a8282e9c3c2_2dR6W9.webp?dpl=6aad049eaf4c2d00095b91e5)
+
+![Mistral Base Mmlu Int](https://mistral.ai/_astro/8c06a4cd-e968-48fc-919c-063cb9127948_Z1qwY2G.webp?dpl=6aad049eaf4c2d00095b91e5)
+
+Mistral Small 3, a 24B model, offers the best performance for its size class and rivals with models three times larger such as Llama 3.3 70B.
+
+### When to use Mistral Small 3
+
+Across our customers and community, we are seeing several distinct use cases emerge for pre-trained models of this size:
+
+- Fast-response conversational assistance: Mistral Small 3 excels in scenarios where quick, accurate responses are critical. This includes virtual assistants in many scenarios where users expect immediate feedback and near real-time interactions.
+
+- Low-latency function calling: Mistral Small 3 is able to handle rapid function execution when used as part of automated or agentic workflows.
+
+- Fine-tuning to create subject matter experts: Mistral Small 3 can be fine-tuned to specialize in specific domains, creating highly accurate subject matter experts. This is particularly useful in fields like legal advice, medical diagnostics, and technical support, where domain-specific knowledge is essential.
+
+- Local inference: Particularly beneficial for hobbyists and organizations handling sensitive or proprietary information. When quantized, Mistral Small 3 can be run privately on a single RTX 4090 or a Macbook with 32GB RAM.
+
+Our customers are evaluating Mistral Small 3 across multiple industries, including:
+
+- Financial services customers for fraud detection
+
+- Healthcare providers for customer triaging
+
+- Robotics, automotive, and manufacturing companies for on-device command and control
+
+- Horizontal use cases across customers include virtual customer service, and sentiment and feedback analysis.
+
+### Using Mistral Small 3 on your preferred tech stack
+
+Mistral Small 3 is now available on la Plateforme as `mistral-small-latest` or `mistral-small-2501`. Explore our [docs](https://docs.mistral.ai/) to learn how to use our models for text generation.
+
+We are also excited to collaborate with Hugging Face, Ollama, Kaggle, Together AI, and Fireworks AI to make the model available on their platforms starting today:
+
+- [Hugging Face](https://huggingface.co/mistralai/Mistral-Small-24B-Instruct-2501) ([base model](https://huggingface.co/mistralai/Mistral-Small-24B-Base-2501))
+
+- [Ollama](https://ollama.com/library/mistral-small)
+
+- [Kaggle](https://www.kaggle.com/models/mistral-ai/mistral-small-24b)
+
+- [Together AI](https://www.together.ai/models/mistral-small-3)
+
+- [Fireworks AI](https://fireworks.ai/models/fireworks/mistral-small-24b-instruct-2501)
+
+- [IBM Watson X](https://www.ibm.com/products/watsonx-ai)
+
+- Coming soon on NVIDIA NIM, Amazon SageMaker, Groq, Databricks and Snowflake
+
+### The road ahead
+
+It’s been exciting days for the open-source community! Mistral Small 3 complements large open-source reasoning models like the recent releases of DeepSeek, and can serve as a strong base model for making reasoning capabilities emerge.
+
+Among many other things, expect small and large Mistral models with boosted reasoning capabilities in the coming weeks. Join the journey if you’re keen (we’re hiring), or beat us to it by hacking Mistral Small 3 today and making it better!
+
+### Open-source models at Mistral
+
+**We’re renewing our commitment to using Apache 2.0 license for our general purpose models, as we progressively move away from MRL-licensed models**. As with Mistral Small 3, model weights will be available to download and deploy locally, and free to modify and use in any capacity. These models will also be made available through a serverless API on [la Plateforme](https://console.mistral.ai/), through our on-prem and VPC deployments, customisation and orchestration platform, and through our inference and cloud partners. Enterprises and developers that need specialized capabilities (increased speed and context, domain specific knowledge, task-specific models like code completion) can count on additional commercial models complementing what we contribute to the community.

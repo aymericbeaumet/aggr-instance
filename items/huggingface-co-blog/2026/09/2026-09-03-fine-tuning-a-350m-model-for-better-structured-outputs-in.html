@@ -1,0 +1,363 @@
+<div id="readability-page-1" class="page"><div><p>This guide is a fully public, inexpensive recipe for making a small model substantially better at structured-output compliance. We fine-tune <a href="https://huggingface.co/LiquidAI/LFM2.5-350M">LFM2.5-350M</a> with Group Relative Policy Optimization (GRPO) using the <a href="https://huggingface.co/docs/trl/en/index">TRL library</a> and evaluate it on the <a href="https://huggingface.co/datasets/LiquidAI/ifstruct-v1.0">IFStruct benchmark</a>. The full run takes around 500 samples and 100 training steps, small enough for a free-tier Colab or Kaggle GPU, and is available on <a href="https://github.com/Liquid4All/cookbook/blob/main/finetuning/notebooks/grpo_with_trl_ifstruct.ipynb" rel="nofollow">GitHub</a>. The results show that even a light fine-tuning procedure improves performance <strong>from 22.6% to 29.7%</strong> on the IFStruct benchmark.</p>
+<p>Structured output is one of the most common real-world tasks for LLMs, yet most benchmarks fold it into broader reasoning or extraction scores rather than measuring it on its own. Whether a model reliably returns valid, parseable output in the requested format and shape — schema compliance — is often what decides whether it can be wired into a downstream system at all.</p>
+<p><em>Note that the training pipeline described here is not the one used to train the RL model described in the <a href="https://www.liquid.ai/blog/ifstruct-v1.0" rel="nofollow">IFStruct blog</a>. This notebook doesn't aim to recreate the IFStruct benchmark score, but to show how task-specific fine-tuning of smaller models can improve performance and match that of far larger models.</em></p>
+<h2>
+	<a id="prerequisites" href="#prerequisites" rel="nofollow">
+		
+	</a>
+	<span>
+		Prerequisites
+	</span>
+</h2>
+<p>This guide has two halves that run in different places:</p>
+<ul>
+<li><strong>Fine-tuning</strong> runs on a GPU. The accompanying notebook is sized for a free-tier Colab or Kaggle GPU.  </li>
+<li><strong>Evaluation</strong> can run locally on a MacBook (here, a MacBook Pro with an Apple M5 Max and 36 GB of unified memory) through <code>llama.cpp</code>, which exposes an OpenAI-compatible server that the IFStruct evaluator talks to.</li>
+</ul>
+<p>We will need <a href="https://docs.astral.sh/uv/" rel="nofollow"><code>uv</code></a> for the Python tooling and <code>llama.cpp</code> for serving. Following the <a href="https://docs.liquid.ai/deployment/on-device/llama-cpp" rel="nofollow">Liquid AI llama.cpp deployment docs</a>, install <code>llama.cpp</code> with Homebrew and verify that <code>llama-server</code> is available:</p>
+<pre><code>brew install llama.cpp
+llama-server --version
+</code></pre>
+<h2>
+	<a id="ifstruct-evaluation-on-lfm25-350m-base-model" href="#ifstruct-evaluation-on-lfm25-350m-base-model" rel="nofollow">
+		
+	</a>
+	<span>
+		IFStruct Evaluation on LFM2.5-350M (Base model)
+	</span>
+</h2>
+<p>Before we begin, let's evaluate LFM2.5-350M on the <a href="https://huggingface.co/datasets/LiquidAI/ifstruct-v1.0">IFStruct benchmark</a> and see whether we can <strong>reproduce the reported score of 21.1%</strong>.</p>
+<p><strong>IFStruct</strong> is a benchmark for testing the validity of LLM outputs and schema adherence. The benchmark is open-source in <a href="https://github.com/Liquid4All/ifstruct" rel="nofollow">Liquid4All/ifstruct</a>, with the public benchmark dataset available on Hugging Face at <a href="https://huggingface.co/datasets/LiquidAI/ifstruct-v1.0">LiquidAI/ifstruct-v1.0</a>.</p>
+<pre><code>git clone https://github.com/Liquid4All/ifstruct.git
+</code></pre>
+<p>For the eval comparison, we serve the model locally on the MacBook with <code>llama.cpp</code>. We will use the <code>BF16</code> GGUF (<a href="https://huggingface.co/LiquidAI/LFM2.5-350M-GGUF">LiquidAI/LFM2.5-350M-GGUF</a>).</p>
+<p>Then we start the base-model server with the following command:</p>
+<pre><code>llama-server \
+  -hf LiquidAI/LFM2.5-350M-GGUF:BF16 \
+  -c 32768 \
+  -np 4 \
+  -ngl 99 \
+  --alias LiquidAI/LFM2.5-350M \
+  --host 127.0.0.1 \
+  --port 8080
+</code></pre>
+<ul>
+<li><code>--alias</code>: model name IFStruct sends to the OpenAI-compatible endpoint  </li>
+<li><code>-ngl 99</code>: asks <code>llama.cpp</code> to offload all layers to the GPU when available  </li>
+<li><code>-np 4</code>: serves four requests in parallel  </li>
+<li><code>-c 32768</code>: size of the prompt context</li>
+</ul>
+<p>Once the server is running, we can run the full benchmark with 2000 samples:</p>
+<pre><code>uv run ifstruct-eval \
+  --model LiquidAI/LFM2.5-350M \
+  --base-url http://localhost:8080/v1 \
+  --api-key dummy \
+  --dataset data/test.jsonl \
+  --results-file results/lfm2.5-350m-llamacpp-base.json \
+  --n-threads 4 \
+  --max-tokens 2048 \
+  -v
+</code></pre>
+<pre><code>============================================================
+Model: LiquidAI/LFM2.5-350M
+============================================================
+Overall: 452/2000 passed (22.6%)
+Average latency: 1453ms
+
+By format:
+  JSON: 180/1000 passed (18.0%)
+  YAML: 272/1000 passed (27.2%)
+
+By top-level structure:
+  Wrapper key 288/1011 passed (28.5%)
+  Bare list   164/989 passed (16.6%)
+
+By entity type:
+  test__camera_review                 6/83 passed (7.2%)
+  test__clinical_trial                20/104 passed (19.2%)
+  test__conference_schedule           7/87 passed (8.0%)
+  test__escaping__bug_report_batch    24/89 passed (27.0%)
+  test__escaping__config_snippet_audit 15/85 passed (17.6%)
+  test__escaping__customer_email_thread 5/73 passed (6.8%)
+  test__escaping__dialogue_sample     14/95 passed (14.7%)
+  test__escaping__interview_transcript_segment 21/80 passed (26.2%)
+  test__escaping__log_parser_examples 21/72 passed (29.2%)
+  test__escaping__pr_discussion       22/87 passed (25.3%)
+  test__escaping__repro_steps_batch   16/73 passed (21.9%)
+  test__escaping__screenplay_scene    16/92 passed (17.4%)
+  test__escaping__short_story_chapter 15/84 passed (17.9%)
+  test__escaping__support_ticket_batch 27/73 passed (37.0%)
+  test__escaping__terminal_session_notes 20/70 passed (28.6%)
+  test__event_ticket_booking          49/107 passed (45.8%)
+  test__gpu_review                    6/94 passed (6.4%)
+  test__invoice                       28/86 passed (32.6%)
+  test__job_posting                   25/85 passed (29.4%)
+  test__real_estate_listing           31/82 passed (37.8%)
+  test__recipe                        3/70 passed (4.3%)
+  test__rental_car_booking            27/79 passed (34.2%)
+  test__scientific_experiment         13/69 passed (18.8%)
+  test__travel_itinerary              21/81 passed (25.9%)
+
+Common errors:
+  7228x required field missing
+  738x wrong item count
+  540x type mismatch
+  317x Unclosed code block
+  190x extraneous field 'notes'
+  181x extraneous field 'path'
+  175x extraneous field 'constraints'
+  170x extraneous field 'type'
+  170x missing code block
+  100x expected bare list, got wrapper
+</code></pre>
+<p>The <a href="https://www.liquid.ai/blog/ifstruct-v1.0" rel="nofollow">IFStruct release blog reports 21.1% for LFM2.5-350M</a>. Our local llama.cpp/BF16 setup measures 22.6%, close to the 21.1% reported in the IFStruct blog. We use this local result as the baseline for the same serving stack comparison.</p>
+<h2>
+	<a id="grpo-fine-tuning-with-trl-on-structured-outputs" href="#grpo-fine-tuning-with-trl-on-structured-outputs" rel="nofollow">
+		
+	</a>
+	<span>
+		GRPO Fine-tuning with TRL on Structured Outputs
+	</span>
+</h2>
+<p>The full, runnable pipeline lives in the <a href="https://github.com/Liquid4All/cookbook/blob/main/finetuning/notebooks/grpo_with_trl_ifstruct.ipynb" rel="nofollow">accompanying notebook</a>. We will cover only the relevant pieces in this section.</p>
+<h3>
+	<a id="training-data" href="#training-data" rel="nofollow">
+		
+	</a>
+	<span>
+		Training data
+	</span>
+</h3>
+<p>We use <a href="https://huggingface.co/datasets/nvidia/Nemotron-RL-instruction_following-structured_outputs"><code>nvidia/Nemotron-RL-instruction_following-structured_outputs</code></a>, which pairs each prompt with a target JSON Schema and an expected field count. We use about 500 samples for training.</p>
+<p>Because the Nemotron data distribution differs from the IFStruct evaluation, we augment the prompts to close two gaps between them:</p>
+<ul>
+<li><strong>40%</strong> get a "return the output inside a fenced code block" instruction appended, so the model learns to <em>follow</em> the format instruction rather than always emitting raw JSON.  </li>
+<li>A disjoint <strong>20%</strong> are converted into top-level-array tasks (the schema is wrapped in an <code>array</code> with a required item count), which trains bare-list output and item-count compliance.</li>
+</ul>
+<h3>
+	<a id="model-and-lora" href="#model-and-lora" rel="nofollow">
+		
+	</a>
+	<span>
+		Model and LoRA
+	</span>
+</h3>
+<p>We load <code>LiquidAI/LFM2.5-350M</code> and attach a LoRA adapter. Because LFM2.5 uses a hybrid attention/convolution architecture, we target the LFM-specific module names:</p>
+<pre><code>lora_config = LoraConfig(
+    r=<span>16</span>, 
+    lora_alpha=<span>32</span>, 
+    bias=<span>"none"</span>, 
+    task_type=<span>"CAUSAL_LM"</span>,
+    target_modules=[
+        <span>"q_proj"</span>, <span>"k_proj"</span>, <span>"v_proj"</span>, <span>"out_proj"</span>, <span>"in_proj"</span>,
+        <span>"w1"</span>, <span>"w2"</span>, <span>"w3"</span>,
+    ],
+)
+</code></pre>
+<p>This trains ~6M parameters, about 1.66% of the model.</p>
+<h3>
+	<a id="reward-functions" href="#reward-functions" rel="nofollow">
+		
+	</a>
+	<span>
+		Reward functions
+	</span>
+</h3>
+<p>Then we define three reward functions, each on a <code>[0, 1]</code> scale, which score every completion on whether the extracted <em>structure</em> is correct:</p>
+<ul>
+<li><code>json_format_reward</code>: Is the output parseable, and in the requested form? Full credit (<code>1.0</code>) for the requested form (fenced vs. raw), <code>0.2</code> for the wrong-but-parseable form, <code>0.0</code> for unparseable output.  </li>
+<li><code>field_count_reward</code>: Does the object have the expected number of top-level fields? An exact match earns <code>1.0</code>, and the score decays linearly with the miss.  </li>
+<li><code>schema_validation_reward</code>: Does the output validate against the row's JSON Schema? It counts every constraint violation and gates partial credit on required-key coverage.</li>
+</ul>
+<p>We combine the three as a weighted sum with <code>reward_weights=[1.0, 0.5, 2.0]</code>.</p>
+<h3>
+	<a id="training" href="#training" rel="nofollow">
+		
+	</a>
+	<span>
+		Training
+	</span>
+</h3>
+<p>We train for 100 steps with 8 generations per prompt group, sized for a free-tier 16 GB GPU:</p>
+<pre><code><span>from</span> trl <span>import</span> GRPOConfig
+
+training_args = GRPOConfig(
+    output_dir=<span>"./outputs/lfm25-350m-nemotron-schema-grpo"</span>,
+    learning_rate=<span>5e-5</span>,
+    max_steps=<span>100</span>,
+    warmup_steps=<span>10</span>,
+    num_generations=<span>8</span>,              <span># completions sampled per prompt group</span>
+    per_device_train_batch_size=<span>4</span>,
+    gradient_accumulation_steps=<span>8</span>,  <span># 4 prompt groups per optimizer step</span>
+    steps_per_generation=<span>2</span>,
+    max_completion_length=<span>1024</span>,     <span># room for nested JSON</span>
+    mask_truncated_completions=<span>False</span>,
+    temperature=<span>1.1</span>,                <span># hotter sampling keeps groups varied</span>
+    beta=<span>0.01</span>,                      <span># KL penalty toward the reference model</span>
+    reward_weights=[<span>1.0</span>, <span>0.5</span>, <span>2.0</span>], <span># json_format, field_count, schema_validation</span>
+    logging_steps=<span>1</span>,
+    save_steps=<span>100</span>,
+)
+</code></pre>
+<p>As you can see in the notebook, over the run, all three reward components climb, the KL from the reference model lifts off zero after warmup, and the truncated-completion fraction stays near zero.</p>
+<h3>
+	<a id="merging-and-saving-the-model" href="#merging-and-saving-the-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Merging and saving the model
+	</span>
+</h3>
+<p>Finally, we merge the LoRA adapter back into the base weights and save it as a single self-contained checkpoint, ready to convert to GGUF for serving:</p>
+<pre><code>MERGED_DIR = <span>f"<span>{training_args.output_dir}</span>-merged"</span>
+
+merged_model = trainer.model.merge_and_unload()
+merged_model.save_pretrained(MERGED_DIR)
+tokenizer.save_pretrained(MERGED_DIR)
+</code></pre>
+<h2>
+	<a id="ifstruct-evaluation-on-grpo-tuned-lfm25-350m" href="#ifstruct-evaluation-on-grpo-tuned-lfm25-350m" rel="nofollow">
+		
+	</a>
+	<span>
+		IFStruct Evaluation on GRPO Tuned LFM2.5-350M
+	</span>
+</h2>
+<p>After GRPO fine-tuning, we rerun the IFStruct evaluation. For this, we need to convert the merged model checkpoint into a BF16 GGUF. The converter script ships with the llama.cpp source, so we clone the repo once and install the converter's <code>gguf</code> package.</p>
+<pre><code>git clone --depth 1 https://github.com/ggml-org/llama.cpp
+pip install ./llama.cpp/gguf-py
+
+mkdir -p models
+python llama.cpp/convert_hf_to_gguf.py \
+  PATH_TO_YOUR_MERGED_MODEL \
+  --outfile ./models/lfm25-350m-grpo-bf16.gguf \
+  --outtype bf16
+</code></pre>
+<p>Then we serve the merged model with the following command:</p>
+<pre><code>llama-server \
+  -m ./models/lfm25-350m-grpo-bf16.gguf \
+  --alias lfm25-350m-grpo-structured-output \
+  -c 32768 \
+  -np 4 \
+  -ngl 99 \
+  --host 127.0.0.1 \
+  --port 8081
+</code></pre>
+<p>Then, we will run the full IFStruct evaluation again with the fine-tuned model:</p>
+<pre><code>uv run ifstruct-eval \
+  --model lfm25-350m-grpo-structured-output \
+  --base-url http://localhost:8081/v1 \
+  --api-key dummy \
+  --dataset data/test.jsonl \
+  --results-file results/lfm25-350m-grpo.json \
+  --n-threads 4 \
+  --max-tokens 2048 \
+  -v
+</code></pre>
+<pre><code>============================================================
+Model: lfm25-350m-grpo-structured-output
+============================================================
+Overall: 594/2000 passed (29.7%)
+Average latency: 1518ms
+
+By format:
+  JSON: 319/1000 passed (31.9%)
+  YAML: 275/1000 passed (27.5%)
+
+By top-level structure:
+  Wrapper key 300/1011 passed (29.7%)
+  Bare list   294/989 passed (29.7%)
+
+By entity type:
+  test__camera_review                 5/83 passed (6.0%)
+  test__clinical_trial                31/104 passed (29.8%)
+  test__conference_schedule           11/87 passed (12.6%)
+  test__escaping__bug_report_batch    32/89 passed (36.0%)
+  test__escaping__config_snippet_audit 24/85 passed (28.2%)
+  test__escaping__customer_email_thread 9/73 passed (12.3%)
+  test__escaping__dialogue_sample     17/95 passed (17.9%)
+  test__escaping__interview_transcript_segment 13/80 passed (16.2%)
+  test__escaping__log_parser_examples 33/72 passed (45.8%)
+  test__escaping__pr_discussion       26/87 passed (29.9%)
+  test__escaping__repro_steps_batch   23/73 passed (31.5%)
+  test__escaping__screenplay_scene    34/92 passed (37.0%)
+  test__escaping__short_story_chapter 24/84 passed (28.6%)
+  test__escaping__support_ticket_batch 36/73 passed (49.3%)
+  test__escaping__terminal_session_notes 23/70 passed (32.9%)
+  test__event_ticket_booking          62/107 passed (57.9%)
+  test__gpu_review                    7/94 passed (7.4%)
+  test__invoice                       36/86 passed (41.9%)
+  test__job_posting                   33/85 passed (38.8%)
+  test__real_estate_listing           32/82 passed (39.0%)
+  test__recipe                        7/70 passed (10.0%)
+  test__rental_car_booking            37/79 passed (46.8%)
+  test__scientific_experiment         14/69 passed (20.3%)
+  test__travel_itinerary              25/81 passed (30.9%)
+
+Common errors:
+  7331x required field missing
+  890x wrong item count
+  555x type mismatch
+  102x expected bare list, got wrapper
+   62x extraneous field 'metadata.tone'
+   55x 6 is greater than maximum 5
+   49x extraneous field 'speaker_labels'
+   47x extraneous field 'tone'
+   44x 'cups' not in allowed values ['mg', 'g', 'kg', 'oz', 'lb', 'ml', 'l', 'cl', 'dl'
+   44x extraneous field 'notes'
+</code></pre>
+<p>Comparing the two runs on the identical serving stack:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>IFStruct group</th>
+<th>base</th>
+<th>GRPO-tuned</th>
+<th>Δ</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Overall</strong></td>
+<td>22.6%</td>
+<td><strong>29.7%</strong></td>
+<td><strong>+7.1</strong></td>
+</tr>
+<tr>
+<td>JSON</td>
+<td>18.0%</td>
+<td>31.9%</td>
+<td>+13.9</td>
+</tr>
+<tr>
+<td>YAML</td>
+<td>27.2%</td>
+<td>27.5%</td>
+<td>+0.3</td>
+</tr>
+<tr>
+<td>Wrapper key</td>
+<td>28.5%</td>
+<td>29.7%</td>
+<td>+1.2</td>
+</tr>
+<tr>
+<td>Bare list</td>
+<td>16.6%</td>
+<td>29.7%</td>
+<td>+13.1</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The gains land exactly where the training aimed: the JSON pass rate rises by nearly 14 points (18.0% → 31.9%), while YAML stays mostly the same. While this is still below the <a href="https://www.liquid.ai/blog/ifstruct-v1.0" rel="nofollow">Qwen3.5-2B score of 33.15%</a>, it shows that even light task-specific fine-tuning can bring a small model close to a larger one.</p>
+<h2>
+	<a id="conclusion" href="#conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion
+	</span>
+</h2>
+<p>A short GRPO run with about 500 samples and 100 steps can lift a small 350M parameter model from 22.6% to 29.7% on IFStruct. The takeaway is that a cheap, task-specific reward signal can make a small model substantially more reliable about <em>form</em>, closing much of the gap to models several times its size.</p>
+<p>To reproduce or extend this work, see the original <a href="https://www.liquid.ai/blog/ifstruct-v1.0" rel="nofollow">IFStruct v1.0 blog post</a>, the <a href="https://github.com/Liquid4All/ifstruct" rel="nofollow">Liquid4All/ifstruct</a> benchmark repo, and the <a href="https://huggingface.co/datasets/LiquidAI/ifstruct-v1.0">LiquidAI/ifstruct-v1.0</a> dataset.</p>
+</div></div>

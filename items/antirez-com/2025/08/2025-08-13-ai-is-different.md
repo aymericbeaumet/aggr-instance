@@ -1,0 +1,29 @@
+---
+title: AI is different
+link: http://antirez.com/news/155
+source: antirez-com
+published: 2025-08-13T15:59:56Z
+updated: 2025-08-13T15:59:56Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+summary: 'Regardless of their flaws, AI systems continue to impress with their ability to replicate certain human skills. Even if imperfect, such systems were a few years ago science fiction. It was not even clear that we were so near to create machines that could understand the human language, write programs, and find bugs in a complex code base: bugs that escaped the code review of a competent programmer. Since LLMs and in general deep models are poorly understood, and even the most prominent experts in the field failed miserably again and again to modulate the expectations (with incredible errors on both sides: of reducing or magnifying what was near to come), it is hard to tell what will come next. But even before the Transformer architecture, we were seeing incredible progress for many years, and so far there is no clear sign that the future will not hold more. After all, a plateau of the current systems is possible and very credible, but it would likely stimulate, at this point, massive research efforts in the next step of architectures. However, if AI avoids plateauing long enough to become significantly more useful and independent of humans, this revolution is going to be very unlike the past ones. Yet the economic markets are reacting as if they were governed by stochastic parrots. Their pattern matching wants that previous technologies booms created more business opportunities, so investors are polarized to think the same will happen with AI. But this is not the only possible outcome. We are not there, yet, but if AI could replace a sizable amount of workers, the economic system will be put to a very hard test. Moreover, companies could be less willing to pay for services that their internal AIs can handle or build from scratch. Nor is it possible to imagine a system where a few mega companies are the only providers of intelligence: either AI will be eventually a commodity, or the governments would do something, in such an odd economic setup (a setup where a single industry completely dominates all the others). The future may reduce the economic prosperity and push humanity to switch to some different economic system (maybe a better system). Markets don’t want to accept that, so far, and even if the economic forecasts are cloudy, wars are destabilizing the world, the AI timings are hard to guess, regardless of all that stocks continue to go up. But stocks are insignificant in the vast perspective of human history, and even systems that lasted a lot more than our current institutions eventually were eradicated by fundamental changes in the society and in the human knowledge. AI could be such a change. Comments'
+content: extracted
+html: 2025-08-13-ai-is-different.html
+---
+
+## [AI is different](https://antirez.com/news/155)
+
+[antirez](https://antirez.com/user/antirez) 402 days ago. 356453 views.
+
+```
+Regardless of their flaws, AI systems continue to impress with their ability to replicate certain human skills. Even if imperfect, such systems were a few years ago science fiction. It was not even clear that we were so near to create machines that could understand the human language, write programs, and find bugs in a complex code base: bugs that escaped the code review of a competent programmer.
+
+Since LLMs and in general deep models are poorly understood, and even the most prominent experts in the field failed miserably again and again to modulate the expectations (with incredible errors on both sides: of reducing or magnifying what was near to come), it is hard to tell what will come next. But even before the Transformer architecture, we were seeing incredible progress for many years, and so far there is no clear sign that the future will not hold more. After all, a plateau of the current systems is possible and very credible, but it would likely stimulate, at this point, massive research efforts in the next step of architectures.
+
+However, if AI avoids plateauing long enough to become significantly more useful and independent of humans, this revolution is going to be very unlike the past ones. Yet the economic markets are reacting as if they were governed by stochastic parrots. Their pattern matching wants that previous technologies booms created more business opportunities, so investors are polarized to think the same will happen with AI. But this is not the only possible outcome.
+
+We are not there, yet, but if AI could replace a sizable amount of workers, the economic system will be put to a very hard test. Moreover, companies could be less willing to pay for services that their internal AIs can handle or build from scratch. Nor is it possible to imagine a system where a few mega companies are the only providers of intelligence: either AI will be eventually a commodity, or the governments would do something, in such an odd economic setup (a setup where a single industry completely dominates all the others).
+
+The future may reduce the economic prosperity and push humanity to switch to some different economic system (maybe a better system). Markets don’t want to accept that, so far, and even if the economic forecasts are cloudy, wars are destabilizing the world, the AI timings are hard to guess, regardless of all that stocks continue to go up. But stocks are insignificant in the vast perspective of human history, and even systems that lasted a lot more than our current institutions eventually were eradicated by fundamental changes in the society and in the human knowledge. AI could be such a change.
+```
+
+[blog comments powered by Disqus](https://disqus.com)

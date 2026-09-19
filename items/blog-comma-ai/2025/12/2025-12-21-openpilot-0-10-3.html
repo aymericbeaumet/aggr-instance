@@ -1,0 +1,56 @@
+<div id="readability-page-1" class="page"><section itemprop="text">
+        <h2 id="new-driving-model">New driving model<a href="#new-driving-model" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>The Cool People’s Model 😎 (<a href="https://github.com/commaai/openpilot/pull/36249" target="_blank" rel="noopener noreferrer">#36249</a>) comes with two minor changes in the model’s architecture and simulator training conditions.</p>
+<h3 id="a-more-flexible-temporal-policy-architecture">A more flexible temporal policy architecture<a href="#a-more-flexible-temporal-policy-architecture" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>We changed the encoding of the Vision Features, Desire Signal (lane changes, turns, etc.), and Traffic Convention (left-hand drive vs right-hand drive) from a fixed-length non-causal attention layer to a variable-length causal attention layer. While this does not change the behavior of the current training stack, it opens up the possibility to train with variable temporal lengths and makes more sense from an architectural point of view.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0103_release/temporal_policy.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0103_release/temporal_policy.png" alt="Temporal policy">
+  </picture>
+  <figcaption></figcaption>
+</figure>
+<h3 id="a-new-on-policy-training-physics-noise-model">A new on-policy training physics noise model<a href="#a-new-on-policy-training-physics-noise-model" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>In order to make the model robust to real-world physics noise, we introduce a wide array of noise types during on-policy training in the simulator [1]. This release includes a small change in those noise models, making them start at a noise-free initial value, which is a required change to train using the <a href="https://blog.comma.ai/mlsim" target="_blank" rel="noopener noreferrer">World Model Simulation</a>.</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0103_release/noise_models.mp4">
+  </video>
+  <figcaption><p>Left: a simulation rollout using the previous noise model (starts at a deviated state) and the reprojective simulator (tinysim) <br> Right: a simulation rollout using the new noise model (starts at a noise-free state) and the world model simulator (mlsim)</p></figcaption>
+</figure>
+
+<h2 id="new-driver-monitoring-model">New driver monitoring model<a href="#new-driver-monitoring-model" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<h3 id="new-training-dataset">New training dataset<a href="#new-training-dataset" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>We are incrementally adding incoming comma four segments to the driver monitoring training dataset, which will improve the experience overall, but especially for comma four users. The comma four driver-facing camera has a different position compared to the comma three and 3X, which is why training on those segments is important. If you just received your comma four, please consider turning on the “Record and Upload Driver Camera” toggle.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0103_release/dm_device_types.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0103_release/dm_device_types.png" alt="Device type distribution in the new training set">
+  </picture>
+  <figcaption><p>Device type distribution in the new training set</p></figcaption>
+</figure>
+<h2 id="10x-more-memory-efficient-ipc">10x more memory efficient IPC<a href="#10x-more-memory-efficient-ipc" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p><a href="https://github.com/commaai/msgq" target="_blank" rel="noopener noreferrer">MSGQ</a>, openpilot’s custom <a href="https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern" target="_blank" rel="noopener noreferrer">pub-sub IPC</a>, previously allocated a 10MB ring buffer for every service, regardless of the service’s message size. This also meant that tiny low-frequency services, such as <code>clocks</code>, may take weeks of runtime to reach steady state memory usage. While wasteful, this was fine when openpilot had fewer services, however this ballooned to 711MB over the years.</p>
+<p>This PR (<a href="https://github.com/commaai/openpilot/pull/36884" target="_blank" rel="noopener noreferrer">#36884</a>) reduces MSGQ’s memory usage to 90MB by setting up configurable buffer sizes per-service.
+In the future, we’ll explore using the capnproto schema and service frequency definitions to automatically determine suitable buffer sizes.</p>
+<h2 id="refreshed-flashcommaai">Refreshed <a href="https://flash.comma.ai" target="_blank" rel="noopener noreferrer">flash.comma.ai</a><a href="#refreshed-flashcommaai" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>We refreshed our web flasher with a new guided wizard to make it easier to get your device back to a factory state (<a href="https://github.com/commaai/flash/pull/177" target="_blank" rel="noopener noreferrer">flash#177</a>).
+Using our new <a href="https://the-sz.com/products/usbid/index.php?v=0x3801" target="_blank" rel="noopener noreferrer">custom USB Vendor ID</a>, we’re able to cut some steps out of the flashing procedure for comma four.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0103_release/flash.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0103_release/flash.png" alt="Flash">
+  </picture>
+  <figcaption></figcaption>
+</figure>
+
+<p>openpilot is built by comma together with the openpilot community.
+Get involved in the community to push the driving experience forward.</p>
+<ul>
+<li>Join the <a href="https://discord.comma.ai" target="_blank" rel="noopener noreferrer">community Discord</a></li>
+<li>Post your driving feedback in <code>#driving-feedback</code> on Discord</li>
+<li>Upload your driving data with <a href="https://blog.comma.ai/098release#firehose-mode">Firehose Mode</a></li>
+<li>Get started with <a href="https://github.com/commaai/openpilot#to-start-developing-openpilot" target="_blank" rel="noopener noreferrer">openpilot development</a></li>
+</ul>
+<p>Want to build the next release with us? We’re <a href="https://comma.ai/jobs" target="_blank" rel="noopener noreferrer">hiring</a>.</p>
+<hr>
+<p>[1] Peng, Xue Bin, et al. “Sim-to-real transfer of robotic control with dynamics randomization.” 2018 IEEE international conference on robotics and automation (ICRA). IEEE, 2018.</p>
+
+      </section></div>

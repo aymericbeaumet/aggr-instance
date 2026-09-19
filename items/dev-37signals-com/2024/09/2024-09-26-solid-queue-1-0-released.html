@@ -1,0 +1,94 @@
+<div id="readability-page-1" class="page"><div>
+
+<p>We’ve just released <a href="https://rubygems.org/gems/solid_queue/versions/1.0.0">Solid Queue v1.0.0</a>, right before speaking about it at Rails World. This version has come a long way since <a href="https://dev.37signals.com/introducing-solid-queue/">we published the first version, 0.1.1, back in December 2023</a>, with 132 merged pull requests and 126 closed issues, and the help of multiple contributors.</p>
+
+<p>Apart from fixing many bugs and edge cases, we’ve enhanced Solid Queue with the following:</p>
+
+<ul>
+  <li>Safe and atomic batch operations to discard, retry and unblock jobs, used from <a href="https://github.com/rails/mission_control-jobs">Mission Control – Jobs</a>.</li>
+  <li>Enqueueing jobs in bulk (<code>enqueue_all</code> for Active Job’s <code>perform_all_later</code>).</li>
+  <li>Recurring (cron-style) jobs.</li>
+  <li>Proper logging and instrumentation.</li>
+  <li>Lifecycle hooks for the supervisor and workers.</li>
+  <li>A better installation, with a single schema file, separate DB configured by default and a binstub to easily start the supervisor.</li>
+</ul>
+
+<p>More importantly, we’ve completely migrated <a href="https://www.hey.com/">HEY</a>, our email and calendar service, over from Resque. In fact, HEY Calendar was launched in January directly using Solid Queue for all jobs. Some issues we had after that launch is what drove batch operations support. We’ve also started moving jobs in our biggest app, <a href="https://basecamp.com/">Basecamp 4</a>.</p>
+
+<hr>
+
+<h2 id="our-production-setup">Our production setup</h2>
+
+<p>Currently in HEY we’re processing about 20 million jobs per day, using 800 workers, 4 dispatchers and 2 schedulers, spread over 74 VMs running in two datacenters, that we deploy using <a href="https://kamal-deploy.org/">Kamal</a>. Some of the queues are quite overprovisioned from our past Resque setup; we’ll reduce the number of workers, VMs and servers in the future, and reassign them to other work. These 74 VMs are sized differently depending on load and priority, with 2 to 6 cores (we have AMD EPYC 9454 48-Core processors) and 4G to 27G memory allocated for each of them. The physical servers where these live are running a mix of VMs for web, jobs and other apps, we don’t run dedicated machines only for HEY.</p>
+
+<p>We’re running Solid Queue in a separate database from the main app. We also have the tables for Active Storage and Action Text in separate DBs. We run a primary and two replicas for each, and the four databases share the same physical servers. For the Solid Queue database, we’ve allocated 32 CPUs, 64G memory and 350G disk.</p>
+
+<p>This is how our deploy configuration looks like, a bit simplified:</p>
+
+<div><pre><code><span>solid_queue_jobs</span><span>:</span>
+  <span>solid_queue_jobs</span><span>:</span>
+    <span>cmd</span><span>:</span> <span>bin/jobs -c config/solid_queue/&lt;%= ENV.fetch("JOB_POOL", "default") %&gt;.yml --skip_recurring</span>
+  <span>hosts</span><span>:</span>
+    <span>-</span> <span>hey-mail-jobs-101</span><span>:</span> <span>mail_jobs</span>
+    <span>-</span> <span>hey-mail-jobs-102</span><span>:</span> <span>mail_jobs</span>
+    <span>-</span> <span>hey-mail-jobs-103</span><span>:</span> <span>mail_jobs</span>
+    <span>-</span> <span>hey-mail-jobs-104</span><span>:</span> <span>mail_jobs</span>
+
+<span># ...</span>
+
+    <span>mail_jobs</span><span>:</span>
+      <span>JOB_POOL</span><span>:</span> <span>mail</span>
+<span># ...</span>
+</code></pre></div>
+
+<p>We use Mission Control – Jobs to manage the queues and <a href="https://dev.37signals.com/kamal-prometheus/">Prometheus and Yabeda</a> for our monitoring needs. Here’s how some of the metrics we export for alerting look like:</p>
+
+<div><pre><code><span>module</span> <span>Yabeda</span>
+  <span>module</span> <span>SolidQueue</span>
+    <span>def</span> <span>self</span><span>.</span><span>install!</span>
+      <span>Yabeda</span><span>.</span><span>configure</span> <span>do</span>
+        <span>group</span> <span>:solid_queue</span>
+
+        <span>gauge</span> <span>:jobs_failed_count</span><span>,</span> <span>comment: </span><span>"Number of failed jobs"</span>
+        <span>gauge</span> <span>:jobs_scheduled_and_delayed_count</span><span>,</span> <span>comment: </span><span>"Number of scheduled jobs that have over 2 hours delay"</span>
+
+        <span>collect</span> <span>do</span>
+          <span>if</span> <span>::</span><span>SolidQueue</span><span>.</span><span>supervisor?</span>
+            <span>solid_queue</span><span>.</span><span>jobs_failed_count</span><span>.</span><span>set</span><span>({},</span> <span>::</span><span>SolidQueue</span><span>::</span><span>FailedExecution</span><span>.</span><span>count</span><span>)</span>
+            <span>solid_queue</span><span>.</span><span>jobs_scheduled_and_delayed_count</span><span>.</span><span>set</span><span>({},</span> <span>::</span><span>SolidQueue</span><span>::</span><span>ScheduledExecution</span><span>.</span><span>where</span><span>(</span><span>scheduled_at: </span><span>..</span><span>2</span><span>.</span><span>hours</span><span>.</span><span>ago</span><span>).</span><span>count</span><span>)</span>
+          <span>end</span>
+        <span>end</span>
+      <span>end</span>
+    <span>end</span>
+  <span>end</span>
+<span>end</span>
+</code></pre></div>
+
+<p>Then we start the metrics server like this:</p>
+
+<div><pre><code><span>SolidQueue</span><span>.</span><span>on_start</span> <span>do</span>
+  <span>Yabeda</span><span>::</span><span>Prometheus</span><span>::</span><span>Exporter</span><span>.</span><span>start_metrics_server!</span>
+<span>end</span>
+</code></pre></div>
+
+<hr>
+
+<h2 id="postgresql-and-sqlite-big-thanks-to-the-community">PostgreSQL and SQLite: big thanks to the community</h2>
+
+<p>We use MySQL at 37signals so we don’t have as much expertise or visibility on issues involving the other two databases we support, PostgreSQL and SQLite. Thankfully, there are great experts in the community that are helping tremendously with that. Andrew Atkinson, the author of “High Performance PostgreSQL for Rails”, has published <a href="https://andyatkinson.com/solid-queue-mission-control-rails-postgresql">a very informative article about using Solid Queue with PostgresSQL</a> that I recommend you to read if you are using Postgres. Hal Spitz contributed directly to Solid Queue <a href="https://github.com/rails/solid_queue/pull/231">with a very helpful fix</a> for a PostgreSQL-only issue related to concurrency controls. Andy Croll, Marco Roth, Stephen Margheim, Nick Pezza and, especially, Mike Dalessio were of incredible help in <a href="https://github.com/rails/solid_queue/issues/324">diagnosing and fixing a scenario</a> where the SQLite database used for Solid Queue could end up being corrupted. Stephen himself has published a number of articles on using SQLite effectively with Rails, <a href="https://fractaledmind.github.io/2024/04/15/sqlite-on-rails-the-how-and-why-of-optimal-performance/">such as this one</a>, and contributed valuable changes in that direction to the framework. I’m really grateful for all this.</p>
+
+<hr>
+
+<h2 id="whats-next">What’s next</h2>
+
+<p>After Rails World, we plan to focus again on Mission Control – Jobs for a bit, with the goal of releasing v1.0 soon. As for Solid Queue, since we’ll be working on migrating our biggest app, Basecamp 4, where we run about 4 times more jobs than in HEY, we’ll explore sharding support and other scalability improvements that I’m sure we’ll need as we progress with the work.</p>
+
+<p>We hope you find this useful!</p>
+
+
+
+
+            </div><div>
+  <p>Sign up to get posts via email,<br> or <a href="https://dev.37signals.com/feed/posts.xml">grab the RSS feed</a>.</p>
+  
+</div></div>

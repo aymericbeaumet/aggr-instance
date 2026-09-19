@@ -1,0 +1,480 @@
+<div id="readability-page-1" class="page"><div>
+
+<p>Here on the 37signals developer blog, we go deep into technical topics, but some ideas are easier to explain through conversation, a little back-and-forth, and an occasional screen share. That’s why we’re launching <a href="https://dev.37signals.com/series/recordables/">RECORDABLES</a>, a new video series hosted by <a href="https://dev.37signals.com/author/kimberly/">Kimberly Rhodes</a>, who you may know from <a href="https://37signals.com/podcast/">The REWORK podcast</a>, alongside <a href="https://dev.37signals.com/author/fernando-olivares/">Fernando Olivares</a>, Lead Programmer on our Mobile Team.</p>
+
+<p>We couldn’t think of a better way to kickoff <a href="https://dev.37signals.com/series/recordables/">RECORDABLES</a> than exploring recordables! We’ve had many requests over the years to explain how and why we use the delegated types pattern from Rails in our products and we’re finally explaining it in-depth.</p>
+
+<p>Kimberly and Fernando sit down with Principal Programmer Jeffrey Hardy to unpack the recordables architecture that powers <a href="https://basecamp.com">Basecamp</a> and <a href="https://www.hey.com">HEY</a>. Jeffrey explains how delegated types made it possible to scale Basecamp for over a decade without constant rewrites. The discussion explores why this approach makes copying, version history, timelines, and mobile support dramatically easier, along with the tradeoffs and learning curve. We’re sharing a behind-the-scenes look at how <a href="https://37signals.com">37signals</a> builds and evolves complex products with a small team and the Rails pattern that helps make that possible.</p>
+
+
+
+<p><a href="https://youtu.be/m90sl-Uvu0Y">Watch the full video episode on YouTube</a>. And stay tuned for another episode of Recordables with Jeremy Daer in the new year!</p>
+
+<hr>
+
+<h2 id="timestamps">Timestamps</h2>
+
+<ul>
+  <li><strong>00:00</strong> — Introduction</li>
+  <li><strong>01:20</strong> — What “recordables” are and why they matter</li>
+  <li><strong>02:15</strong> — The delegated type hierarchy</li>
+  <li><strong>04:15</strong> — The challenge with single-table inheritance</li>
+  <li><strong>09:05</strong> — Organizing recordables and recordings</li>
+  <li><strong>11:45</strong> — Tracking change history with recordables and events</li>
+  <li><strong>22:40</strong> — Copying and moving content efficiently</li>
+  <li><strong>27:54</strong> — Pagination and querying across content types</li>
+  <li><strong>34:00</strong> — The learning curve with delegated types</li>
+  <li><strong>39:54</strong> — Building new features faster with reusable behavior</li>
+  <li><strong>43:03</strong> — Long-term scalability and performance</li>
+</ul>
+
+<hr>
+
+<h2 id="links--resources">Links &amp; Resources</h2>
+
+<ul>
+  <li><a href="https://api.rubyonrails.org/classes/ActiveRecord/DelegatedType.html">Ruby on Rails API: ActiveRecord::DelegatedType</a></li>
+  <li><a href="https://guides.rubyonrails.org/association_basics.html#delegated-types">Ruby on Rails Guides: Active Record Associations</a></li>
+</ul>
+
+<hr>
+
+<h2 id="transcript">Transcript</h2>
+
+<p><strong>Episode Highlights (00:00:00):</strong>
+You got to think of the recordables as being pretty dumb. They’re just like, in the case of a message, it’s literally just a title and content. That’s it. They have no connection to the outside world. You can build entirely new features that should take months in like a week, two weeks. We’ve been running this architecture for 10 years.</p>
+
+<p><strong>Kimberly (00:00:19):</strong>
+This is Recordables, a place where the 37signals team share some of the technical work behind Basecamp, HEY, and some of our other open source projects. I’m Kimberly from the product team joined by Fernando who’s helping out with some of the technical aspects of today’s discussion. And this one, we’re excited to kick off this series with an episode about recordables. To do that, we have principal programmer Jeffrey Hardy with us today. Jeffrey, thanks for being here.</p>
+
+<p><strong>Jeff (00:00:46):</strong>
+Hey, thank you. This is great.</p>
+
+<p><strong>Kimberly (00:00:47):</strong>
+Before we get started, I know this is a topic people really want to hear about, but tell us a little bit about you and what you do here at 37signals and how long you’ve been here. You’ve been here for a while.</p>
+
+<p><strong>Jeff (00:00:56):</strong>
+Yeah, I’ve been at 37signals for 18 years, so I’ve worked on all our products, all versions of Basecamp, including the most recent version, and HEY, and everything we’ve done. It’s been a really great place to spend 18 years and have the advantage of seeing the evolution of Basecamp through all these different versions. So yeah, I work on the product team.</p>
+
+<p><strong>Kimberly (00:01:20):</strong>
+Amazing. Well, we know people want to hear about recordables. We’re excited to kick off this new series where we’re sharing some of the behind the scenes stuff with this episode. And before we dive in, I think I have to ask kind of the obvious question as the non-technical person here. I always hear people talking about recordings and recordables. Will you just kind of break that down? What does that even mean before we deep dive into the topic?</p>
+
+<p><strong>Jeff (00:01:43):</strong>
+Right, it’s a little bit abstract. Recordings and recordables and buckets and… what is this? So in Basecamp, pretty much all content, things like documents, messages, comments, uploads, these are modeled as a pattern we use called a delegated type. And so in the delegated type pattern, which comes from Rails, you have a primary table. In our case it’s recordings. And recordings reference recordables, and the recordables are like the concrete types. A recordable would be a message, a comment, a document, or an upload. And so with this pattern, we’re able to model all the various content in Basecamp, which is essentially all the same. There’s a bunch of advantages to treating all that content in the same way. And Basecamp’s architecture hinges on this concept, and it’s our third iteration of Basecamp. We call the version of Basecamp, the internal version is three. We call that the chassis, like the architecture on which it’s built.</p>
+
+<p><strong>(00:02:51):</strong>
+It’s our third attempt. And so when building the third version, we came up with this pattern that we use and it’s called a delegated type, which I know it doesn’t make a lot of sense. What does that mean? But I can describe the sort of hierarchy. So you have recordings, and this is a table of records that stores all the metadata and common information between recordable types like messages and documents and uploads, but it doesn’t have any specific information. It doesn’t know the title of a message or the content of a message or the location of a file or other things. It delegates that knowledge to other records. Those records have their own tables in the database, messages, documents, uploads comments, all separate tables. And the advantage here is that you have your single recordings table that delegates its types can be lean and tight.</p>
+
+<p><strong>(00:03:53):</strong>
+It only has metadata. It has references to recordables. So it has a recordable ID and a recordable type. It has timestamps. It has a creator id. It has tiny little columns, no text columns, nothing big and heavy. And so all of the specific information is contained in the recordable tables, which can vary. So to back up a little bit, in Rails and in software architecture patterns in general, there are a few ways to handle this idea of things are mostly the same, but they’re kind of different. And how do you account for the differences without repeating yourself? And one common way is a pattern is called single table inheritance. You have a database table and you have subtypes that also use that same table. That’s where you would have your shared metadata, the things you have in common. Then comments might have a body and messages also have a body.</p>
+
+<p><strong>(00:04:50):</strong>
+And so you’re like, great, I have a body column. I can use the same table to store these. I just have to keep the type in the table. Is this a message row? Is this a comment row that works good for things that are super similar, like maybe messages and comments. But what about things like events? They have a starts at and an ends at column. Now you’ve got to add those to the main single table. And so the table keeps getting bigger widthwise. It has to have all the different kinds of columns that you might have for any type. And adding a new type means you have to modify that single table and that table gets really, really big. It’s just sort of intrinsic to having a single table that does that. The bigger the table is, the harder and slower it is to migrate.</p>
+
+<p><strong>(00:05:38):</strong>
+So that’s one way to do it. Another way is to have just different tables for everything. And then you take the things that are the same and instead of belonging to a specific kind of record, lots of things, for example can be commented on in a system like Basecamp. So you might have a documents table and you might have an uploads table and a messages table and you want comments and all these things. So the comments table could instead of belonging to, having a reference to a specific thing, like having a document ID or an upload ID or a message ID, it can belong to a polymorphic type. It can store a commentable ID and a commentable type. And so now you get this is called polymorphic relationships. That’s another way to model this sort of, everything is the same but slightly different. We need to differentiate. And the delegated type pattern is neither of these, but it’s similar and it’s something that I think we pioneered it at Basecamp. Maybe some other really smart people have come up with this, but it’s possible they haven’t. But that’s what I can talk about today is how this system works. It’s a really neat system and it’s enabled us to scale Basecamp and to use the same version of the chassis of Basecamp version 3 for multiple subsequent versions without having to do a rewrite.</p>
+
+<p><strong>Kimberly (00:07:12):</strong>
+So just to clarify, we’re currently working on Basecamp 5, we said that, but we’re building it on the same platform as 3 was built and 4 was built. And that is because of this recordable situation?</p>
+
+<p><strong>Jeff (00:07:27):</strong>
+Yeah, I mean the main reason we made other versions of Basecamp was because they become too difficult to work with. They’re kind of rigid and we also want to introduce new features or have a different take on how we do something. And that’s hard to change when existing customers are using it. But it’s also been good to sort have a blank slate and start over because you don’t have all this baggage, this big ship that’s hard to turn around. While using this delegated type recording recordables pattern has made the ship less big.</p>
+
+<p><strong>(00:08:03):</strong>
+I was talking about single table inheritance and how you’ve constantly got to modify that single table and migrate it every time you want to add a new kind of thing. You don’t have that with the delegated type recordable pattern. Your recordings table basically never changes. You just add new types, which are their own fresh tables. And so there’s no penalty to adding a new type, deciding that you want to add comments or messages or documents or any other thing that we can imagine. You just make a new table and you’ll have new recording rows that reference it, but you don’t have to modify recordings. So it’s been much easier to scale than other versions of Basecamp. And consequently, we don’t start hating the effort of doing a small thing. You want to be able to iterate on your product easily. And I think that in the past, making a new version of Basecamp was the best way to do that brand new, and we just haven’t felt that pain with the version 3 architecture.</p>
+
+<p><strong>(00:09:05):</strong>
+And it goes entirely to this recordings recordable pattern. Now, there are a few things about the, it’s not just the delegated type. So for those that don’t know delegated type, it’s available in Rails. The documentation in the Rails docs is pretty good, but I think a lot of people don’t quite understand when they would use it or why to use it. Hopefully we can clarify that today. But there are a few other patterns that we use in addition to the delegated type with recordings that make this content system possible. One is that the recordables themselves, we treat them as immutable, so we don’t modify them in place. We create new ones. And another thing that we do is the recordings are organized in a tree, like a parent child relationship. So I’ll go back to the messages example because it’s the most intuitive. We have a message board, and a message board’s children are messages. And a messages children are comments. And a comments children are like attachments. If you’ve uploaded a file to your comment.</p>
+
+<p><strong>Kimberly (00:10:17):</strong>
+What about a boost? Would a boost be a child?</p>
+
+<p><strong>Jeff (00:10:20):</strong>
+Ah. No, boosts are different. Boost actually used that other pattern I was describing called polymorphic relationships where boosts belongs to a boostable thing. And that’s because we want to boost things that aren’t necessarily recordings. You might want to boost a status notification or an event. Events are another key part of the pattern. So that helps me tie into events. So we have the delegated type recording recordable pattern. We have the arrangement of recordings as a tree, we have immutable recordables, and then we have an event system. And the event system can tie a recording to a recordable at a particular moment in time. And so this is why said the recordables themselves are immutable. So we never change them, but we can move the pointers to them around. And at any given time, a recording only points to one recordable. But if you want to have a history of what are all the recordables that it ever pointed to, we track that in an event model. The event has a reference to the recording and it has a reference to a recordable. This means we can look at the history of a recording and see all of its changes and look at that recordable that is immutable at any moment in time to see how it looked.</p>
+
+<p><strong>Kimberly (00:11:43):</strong>
+Yeah, here’s a good example here.</p>
+
+<p><strong>Jeff (00:11:44):</strong>
+Yes, yes, I know what you’re going to show here. This is great.</p>
+
+<p><strong>Kimberly (00:11:49):</strong>
+Do you want to walk us through this change log?</p>
+
+<p><strong>Jeff (00:11:53):</strong>
+Yes, this is a document in Basecamp and what enables this, what we have the change log here, and what enables this is this combination of immutable recordables and events. So what you’re seeing here in this history of changes is really a listing of all the events for this particular recording. And so where you see save to change to this document and you can say, see what changed, what we’re able to do is find the document recordable instance at that moment in time. This is how it looked, this is what its content was, and compare it to the previous version. And we can only do that because we didn’t update the document in place. We created a new one. Now we can compare version A to version B, and you’ll see there’s a button there. Make this the current version. When you click that button, all we’re going to do is update the recording record to point to this version of the document instead of the current version.</p>
+
+<p><strong>Fernando (00:12:49):</strong>
+So recordings are not immutable,</p>
+
+<p><strong>Jeff (00:12:51):</strong>
+No recordings are fully mutable. We change them. It’s the recordables, the type that we delegate to,</p>
+
+<p><strong>Fernando (00:12:57):</strong>
+But what are we changing in a recording? We’re only changing the point of reference to the recordable, right? Yes.</p>
+
+<p><strong>Jeff (00:13:05):</strong>
+There are a few other things that can change. One is its timestamp, like it’s updated at timestamp.</p>
+
+<p><strong>Fernando (00:13:09):</strong>
+Oh, of course.</p>
+
+<p><strong>Jeff (00:13:11):</strong>
+Or if… most other things won’t change. We store a color value on the recording so you can change its color, presentational, things like that, but…</p>
+
+<p><strong>Fernando (00:13:24):</strong>
+Oh, that makes sense.</p>
+
+<p><strong>Jeff (00:13:26):</strong>
+Yeah, you’re right. The recording is mutable, but many things about it don’t change. All of the meat, like all of the action is in the recordables themselves.</p>
+
+<p><strong>Fernando (00:13:36):</strong>
+And you mentioned, for example, a document can have comments. And so the logic I have in my mind here is I want to get to this document. I have the recording. The recording has a reference to the recordable document. When I fetch that recordable, that document, which is a recordable, are the reference to its children… are the references to its children recordings.</p>
+
+<p><strong>Jeff (00:14:08):</strong>
+Yeah, so it’s only the recordings that have children. So you look up a recording by primary key, that would be the ID that you see in the URL. And then you ask for its recordable. And the thing is you don’t care often. You don’t care what kind of recordable it is, if it’s a document or a message. When you do care, the pattern that Rails exposes lets you ask for that type of recordable by name. So if you know want a document, you’re expecting a document to be the recordable, you wouldn’t just ask for the recordable, the generic recordable. You would say recording.document or recording.comment. Another convenience that Rails is delegated, type provides is the ability to query and filter for the type of recordable, the type of delegated type. So you would say recordings.messages would only return recordings that have a type of message. Or recordings.comments would only return recordings that have a type of comment.</p>
+
+<p><strong>Fernando (00:15:09):</strong>
+And if I do like recordings.messages.children, I would get back an array of recordings.</p>
+
+<p><strong>Jeff (00:15:16):</strong>
+Yes. That were messages, right?</p>
+
+<p><strong>Fernando (00:15:20):</strong>
+No, no, no. The children of messages. Let’s say comments.</p>
+
+<p><strong>Jeff (00:15:24):</strong>
+Yes.</p>
+
+<p><strong>Fernando (00:15:25):</strong>
+Okay.</p>
+
+<p><strong>Jeff (00:15:25):</strong>
+Yeah, you’re always going to get recordings. So the children and the parent, they’re always recordings.</p>
+
+<p><strong>Fernando (00:15:28):</strong>
+Always?</p>
+
+<p><strong>Jeff (00:15:30):</strong>
+Yeah, this is a good point to clarify.</p>
+
+<p><strong>Kimberly (00:15:33):</strong>
+Is this something we can show? Or no?</p>
+
+<p><strong>Jeff (00:15:34):</strong>
+I kind of can. Yeah, I can show this. It might help to see how the code is organized. Let me share my screen. So here I’m on my Mac. I have been using Omarchy on a Framework 13 laptop, but my camera is not working great right now. Now it’s probably configuration, I don’t want to say anything bad about Framework. It’s an excellent device, but I didn’t want to risk it for this presentation yet. But ok, so this is the recording class in Basecamp. So what you’re seeing is a whole bunch of concerns. Basically, you see there’s very little, the main model in Basecamp is 42 lines long. It’s kind of incredible. But you can see a few things immediately that are important about a recording. It belongs to a bucket. And I’ll talk about, I can just introduce the bucket briefly. The bucket is just a container for recordings. Buckets are how we control access in Basecamp. So buckets have accesses. You add people to a bucket. If you can have access to the bucket, you can see all the recordings that are in the bucket. Buckets are also a delegated type. A kind of bucket is a project, a template, a ping. Anything that can contain a distinct set of recordings is a bucket.</p>
+
+<p><strong>Fernando (00:16:55):</strong>
+So is a bucket a recordable?</p>
+
+<p><strong>Jeff (00:16:58):</strong>
+No. A bucket is a delegated type, which creates a bucketable. So have the recordable is just the name we’ve given to the target of the delegated type. So in HEY we use the same pattern except in HEY we’ve called them entries. Entry has a delegated type, which we’ve named entryable and in HEY those are things like messages, replies, notes on a message, and these represent emails. So the naming can be whatever you want, but the pattern is the same. So buckets have bucketables. Bucket is the thing that delegates to a bucketable.</p>
+
+<p><strong>Fernando (00:17:36):</strong>
+Oh, okay, perfect, yes.</p>
+
+<p><strong>Jeff (00:17:37):</strong>
+A recording is a thing that delegates to a recordable. And in HEY, an entry delegates to an entryable.</p>
+
+<p><strong>Fernando (00:17:44):</strong>
+And so a bucketable can be a recordable depending on the context, right?</p>
+
+<p><strong>Jeff (00:17:48):</strong>
+I mean technically, but no, you wouldn’t do that. Bucketable would be a different thing. But there’s no reason, they’re just classes. They can reference any kind of thing they want, but we want all of our recordables to behave the same or have a similar interface. And you would want that of all the types you intended to delegate to. So you want all bucket things to quack like buckets.</p>
+
+<p><strong>Fernando (00:18:14):</strong>
+To bucket buckets.</p>
+
+<p><strong>Jeff (00:18:16):</strong>
+Right? As containers of recordings in this case. Or in HEY, as things that are like email messages. Or in Basecamp, recordables, things that are like our chunks of content, documents, messages, uploads. So mixing the types while it would be technically possible would be kind of confusing. So the thing I want to point out here in the recording class is right here, this little inclusion of a Ruby module called recordables, and I have that up here. This is what the recordables concern looks like. And right here on line 5, this is what does all this work. So we say, imagine that this is mixed into recording. So we say that recording has a delegated type called recordable. All the types that it can have are named in this constant, which is in another file, which I’ll show you later. And this does all of the work. And so these are by mixing this into recording, these are all the things that a recording can do.</p>
+
+<p><strong>(00:19:24):</strong>
+But you see this is also a really small file. It’s like a hundred lines long. It doesn’t do a whole lot. It doesn’t even include a lot of other behavior. So where does all this come from? And so this is sort of the key. So this is the recordable class. This is what every individual recordable class, like a message, a comment or whatever includes, and this is where all the types are defined. So all of these, an attachment, an auto link image, a bulletin message, a bulletin link, all the chat things, like a chat, everything from a chat line to a chat transcript, a cloud file, a comment, a doc, a document, a door. All of these things are recordables. So every one of these content types, which is tons are all modeled in the same way as far as recordings and recordables go. And then all of the things that recordables have in common are listed here.</p>
+
+<p><strong>(00:20:23):</strong>
+So I’ll scroll down a bit. These are things that they can do. Are they auto subscribable? Are they subscribable in general? So this is where the type that we delegate to defines its capabilities. So by default, no recordables are subscribable, but if we go to a document and we look like, oh, it enables subscribable. Here it includes the recordable class, the recordable mix in, and now it overrides the subscribable method to say, yes, I can be subscribed to. I can be exported. I can be commented on. I’m auto positioned when I’m placed inside a list. So all of these things you can kind of like, respondable, backlinking, like when one recording references another, we can create a link to that so you can navigate it easy in Basecamp. If something’s copyable or movable, if it’s recurrable or recurring, if it repeats. These are things that you can ask of any kind of recordable.</p>
+
+<p><strong>Kimberly (00:21:25):</strong>
+Jeff, is there something in here we have public links that we can make, is that part of this?</p>
+
+<p><strong>Jeff (00:21:30):</strong>
+Yeah, it probably would be as publishable.</p>
+
+<p><strong>Kimberly (00:21:34):</strong>
+Publishable.</p>
+
+<p><strong>Jeff (00:21:36):</strong>
+Yeah.</p>
+
+<p><strong>Kimberly (00:21:37):</strong>
+Publicly linkable.</p>
+
+<p><strong>Jeff (00:21:37):</strong>
+I’m looking for it. Right? Is it memorizable? But I think… do we have it? I think all recordings we’ve defined as are publishable, so we tend to list only the things that might need to vary. So if some things are commentable, but some things aren’t, then we define a commentable capability and let other recordable types define it, override it. You can see some of our comments here too. There’s lifecycle events that happen. A recordable is recorded, meaning we’ve created a recording that references this recordable. And often you have specific behavior that isn’t going to apply unless you… it only applies to specific types. You might want to do something with a comment being recorded that you wouldn’t want to do when a document is recorded. And so this is one of the challenges of the delegated type and type pattern in general is that where do you stick that specific behavior?</p>
+
+<p><strong>(00:22:41):</strong>
+You’re mostly working with your type that does the delegating, the recording, but you’ve got specific behavior that should only apply to certain recordable types. And in that case, we pass in the context of the recording because recordables themselves, they don’t know they don’t belong to any particular recording. They can be referenced by many recordings. And in fact, that’s how copying works, and that’s how we make copying really efficient. Instead of actually copying the content of a message, we just create a new recording row and point to the same message recordable that already exists. We don’t need to copy it at all, and it’s super fast and storage efficient for that reason. But it means that a message doesn’t know, it doesn’t have any particular recording that owns it, so it can be owned by many or none. And so sometimes when you need to work with a recording, we pass it in. So here we can say the comment reads overwrite to perform recordable specific actions after making a recording. So comment uses this to compose its title based on the parent of its recording. So…</p>
+
+<p><strong>Fernando (00:23:56):</strong>
+That’s the whole purpose of buckets then. Recordables have no understanding of access control. So if you’re in a private project, you have your own document there and you want to copy it over to a public, it’s just referencing the same recordable. The recordable, there’s no change in access to that recordable because access goes through the bucket.</p>
+
+<p><strong>Jeff (00:24:18):</strong>
+Yes, right. They’re sort of orthogonal in that sense though. It’s more that the recordable is, it doesn’t even need to, we don’t even keep things like timestamps on our recordable records because they’re just chunks of content.</p>
+
+<p><strong>Fernando (00:24:34):</strong>
+Yes.</p>
+
+<p><strong>Jeff (00:24:36):</strong>
+Know what I mean? Some recordables don’t even have any row, any columns. They’re just a table that has an ID, their rows just have an ID. They sort of act as a placeholder, if they don’t have any distinct content to store, or they might just have a title, you know?</p>
+
+<p><strong>Fernando (00:24:56):</strong>
+Right. That makes sense. So they can be as small or as large as they need to be.</p>
+
+<p><strong>Jeff (00:25:02):</strong>
+They can be, yeah, they could be as smaller as large as they need to be, and you get to modify them without having to modify all of the recordings, which becomes the big table. The table with billions and billions of rows. I know it’s a little abstract even when I’m showing the code, it’s kind of like…</p>
+
+<p><strong>Fernando (00:25:20):</strong>
+No, no, no, I think it makes perfect sense. You have the recordings, which themselves are just fixed point. They’re the latest pointer to a recordable.</p>
+
+<p><strong>Jeff (00:25:30):</strong>
+Yes, they reference usually the latest version.</p>
+
+<p><strong>Fernando (00:25:34):</strong>
+Yeah, usually. And then, however, if you needed to go through the history of how that recording got to a certain recordable, you go to the events table, right?</p>
+
+<p><strong>Jeff (00:25:44):</strong>
+Yes. You ask the recording for its events. And you could go over each event and say, what was your recordable when this event was created?</p>
+
+<p><strong>Fernando (00:25:53):</strong>
+Now for example, if I’m in a project, what is the algorithm? What are the steps? If I’m opening a tool and I want to see the messages.</p>
+
+<p><strong>Jeff (00:26:06):</strong>
+Right. So the bucket has recordings. The bucket is the project. A bucket delegates its type. Buckets are just things that have recordings. And so if you were in a project, we would be looking for buckets that have a type of project. Then from the bucket record, you can ask a bucket for all of its recordings. You would want to filter those recordings to just those that are messages. Your call would look like bucket.recordings.messages. Now you’re going to get a list of recordings that all point to message recordables, right? So in Basecamp, the messages themselves because of the tree structure, are owned by a message board. So every bucket has one or more message… every project bucket has one or more message boards. You would find a message board — bucket.recordings.messageboards.first. This would give you a recording of type message board, and you would ask for its children.</p>
+
+<p><strong>(00:27:04):</strong>
+Now in Basecamp, the only children of a message board are going to be messages, but you could have different types. So you would want to filter that down and say, just show me the messages. So you would say message board, your message board recording. You would say children.messages. Now you’ll only get its children that have a type of message, still recordings, it’s recordings all the way down. When you finally get to the message recording that you want, you would ask for the recordable. That’s where the title is and where the content is and where other message specific things are.</p>
+
+<p><strong>Fernando (00:27:40):</strong>
+So how do you enforce that? I am coming from a very compiler part of the programming world, and all I’m hearing is let’s make a message board hold pings and chats.</p>
+
+<p><strong>Jeff (00:27:54):</strong>
+Right? You don’t enforce it, right? There’s no method to enforce that. It’s just how you do it. I guess you could say it’s convention, and that’s why the conveniences the delegated type provides like the ability to filter on type are useful. You probably wouldn’t want to just ask for any child because it could contain mixed types. Let’s think about in Basecamp, you have documents, but you can have Google documents and uploads, and all of these go into a container, a parent that we call a vault. A vault is a thing that holds document like things. So you wouldn’t want to just, if you ask a vault for its documents, you’re only going to get documents. So there’s an instance where you do just want to ask for children. All of the things that this might contain, you want the mixed result. So this actually brings me to another cool thing.</p>
+
+<p><strong>(00:28:50):</strong>
+This is one of the reasons we have this pattern is this mixed use case. Let’s say you have a timeline. We have a timeline in Basecamp. We want to see everything that’s happened at a global level. How do you do that and paginate it if all of your records are in different tables? You have to select from the comments table and the documents table and the uploads table and the messages table. Like everything, it’s super hard. But with recordings, you’re just querying for recordings. You can say recordings where recordable type is message, document, comment. You’re going to get all the ones that are that type in one query that you can paginate with a limit and an offset. Super handy. And that query itself is cheap because you’ve only asked for recordings rows that are not big. They don’t have any text columns.</p>
+
+<p><strong>(00:29:50):</strong>
+It’s sort of n plus one by design. But as you iterate over those, then you go and fetch the recordable records. And to improve performance, you can preload them, get them all in one batch for each type. But the key thing that you’re able to do is work with just recordings as if they’re all the same. So I’ll give you another example, unless this is too much, but another example where this uniformity matters. Copying, right? Or any, actually just think not just copying, but any generic process that you’d like to do with a recording. We can export recordings, right? We have an HTML export feature in Basecamp. It’s nice to be able to write the exporter service that doesn’t care about its individual types. All of these, the stuff that would apply to exporting a recording is common to any recordable type, you know? It knows how to write itself… it knows that it has to write something, some output, and then it can delegate the what to do to its recordable.</p>
+
+<p><strong>(00:30:53):</strong>
+So we basically say recordable, write out your export format. Thank you. It means that you don’t need to change the exporter when you add new recordable types, right? Each recordable type just has to define the format that it exports as. Same thing, the copying and moving. You write a copier that works with recordings. That’s it. It doesn’t need to care about what kinds of recordings it’s copying as it iterates over each recording that it’s copying, that recording sends a message to its recordable that says, I would like to, you’ve been requested. A copy has been requested of you, and it just does its thing. So again, adding new types, there’s no penalty. You just add them and the system can work with them. So any of those, what we have in Basecamp, like a bunch of controllers, these are what field requests that come in over HTTP.</p>
+
+<p><strong>(00:31:50):</strong>
+So instead of having to have, like if you want to trash a document or archive a document, we don’t need a separate documents controller for this. We have a recordings controller that knows how to trash things and archive things and restore things. We just need one. It works with any kind of recording. Same thing, that’s how copying and moving works too. We don’t need a document copier and a message copier and an upload copier. We have a recording copier, one controller. It takes the recording that you want to copy and a destination and the copier itself and the controller that orchestrates it doesn’t care what kinds of recordables it’s working with. It just works with recordings. So I think that’s another one of the reasons why Basecamp 3, that architecture has been so easy to maintain and scale. When you decide like, oh, we’re going to add Hill Charts. Oh, we’re going to add, I don’t know, templates. You don’t have to change or migrate the existing system. It adapts well to change. You just insert new types and the system knows how to deal with them.</p>
+
+<p><strong>Fernando (00:32:52):</strong>
+Are you at any point worried that the recording stable is massive? Billions of entries?</p>
+
+<p><strong>Jeff (00:33:00):</strong>
+I mean, it is billions of entries. Not really because its size on disc is small, so it doesn’t take much to index it. But I mean, and if it did, let’s say it did get too big and we had to shard it or break it into pieces, it would be much easier to do because it’s an inherently lightweight table. It really just has foreign key references in it. That’s it. By contrast, the messages table can have many megabytes of text, and these are big on disc. And so the way copying or making an index on disc works is that you’ve got to copy the table. It’s still an entity on disc that you need to copy, and the bigger it is, the slower. So yeah, there is a danger that recordings gets too big, but if it does, it’s much easier to deal with than if it was storing content.</p>
+
+<p><strong>Kimberly (00:33:50):</strong>
+Jeffrey, you’ve made it sound like this recordables pattern that we’re using is much simpler, makes things a lot easier. Are there any downsides?</p>
+
+<p><strong>Jeff (00:34:02):</strong>
+Yeah, I think probably the main downside is familiarity and with the way you would quote unquote normally do this in Rails. Normally you would have a message class, a document class, and everything it knows about being a message or a document would be encoded in that class. I would call that a rich class. It has all the functionality in it. This is what the active record pattern is about. It’s backed by a database table, but you never interact with the database table directly. You interact with your message model. And so if there’s specific things that a message would do that are not generic, you would write those methods right inside the message class or the comment class. And with the delegated type pattern, you kind of want all of your types to be generic and you’re not working with them directly, ever. We never look up just a message because the message on its own is it’s not linked to anything.</p>
+
+<p><strong>(00:35:01):</strong>
+It’s not useful. So in order for a message to implement its specific work, it often needs a reference to a particular recording. If a comment wants to know, you saw in that one comment when I was showing the code where it said comments can set their title based on the parent that created them. Well, a comment doesn’t have a parent. A recording can have a parent. So in order for the comment to be able to do this, it needs to be given a recording to work with. Now it can ask for, it’s that recording’s parent and be like, oh, okay, great. Now I can change myself based on some context. You got to think of the recordables as being pretty dumb. They’re just like in the case of a message, it’s literally just a title and content. That’s it. They have no connection to the outside world.</p>
+
+<p><strong>(00:35:53):</strong>
+They don’t have any associations and nothing points to them directly except for recordings and events. So I think some of that richness gets a little bit lost. You don’t do things quite in the Rails standard way, where you tend to think more abstractly, like how is this a generic concern? How if I want something to be commentable, do I make this work with any kind of recording? So it means that you would have to add some facility to the recording class that helps it stay generic. That’s where more delegation comes in. So you would never just add a comment to a recording. You would ask, is this recording commentable? The recording can’t answer this itself, but it can ask it’s recordable and pass the message along. So it can say like, document, what do you say when I ask are you commentable? And document says yes. But something like, I don’t know, message board. The message board container itself says, no, I’m not commentable. You can’t put comments on me directly. So in the generic comments controller, one of the preconditions is is that the recording has to be commentable. Now you can have one generic controller that handles comments and you can pass it any kind of recording, and it just asks that recording, are you commentable? Can I work with you? And if the recording says, yes, you’re good. And if it says no, it’s an error.</p>
+
+<p><strong>Fernando (00:37:21):</strong>
+Speaking of drawbacks, is that, I mean, I think I know the answer to this, but is that slower? Are you trading speed for clarity?</p>
+
+<p><strong>Jeff (00:37:31):</strong>
+I mean like development speed?</p>
+
+<p><strong>Fernando (00:37:33):</strong>
+Yes.</p>
+
+<p><strong>Jeff (00:37:34):</strong>
+Maybe a little upfront. There’s a higher learning curve cost, right? So when we onboard new developers, it can be non-intuitive. It’s like, ah, I want to add some behavior to the messages. I just opened the message file and there’s nothing in it. Where’s all this behavior? And we’re like, oh, yes, it wouldn’t go here because…</p>
+
+<p><strong>Fernando (00:37:57):</strong>
+Rails magic.</p>
+
+<p><strong>Jeff (00:37:59):</strong>
+But it’s like, no, you wouldn’t put it here. You sort of have to define it in a more abstract, generic way. And then I think that then it becomes a huge net benefit. Once you’ve learned the pattern, now you start to get, because then you’re like, well, I want my message to be copyable. And it’s like, oh, that already works. I want it to be commentable. Oh, just add a def commentable method and return true, done. All the commenting works. I want it to be exportable. Done. Just add an exportable method. So you start to realize, oh, what I’ve sacrificed in being able to make changes to message directly and add some richness to that… I’ll give you an example. Messages can be categorized in Basecamp. You can make categories. It’s useful, but it’s not really useful for other types, maybe documents, but we don’t have that feature enabled.</p>
+
+<p><strong>(00:38:55):</strong>
+So I think in a standard Rails app, you would say that a message belongs to a category and categories have many messages, but in the delegated type recordable pattern, you’ve got to make it so all recordings have the potential to be categorizable and only message opts in. So that cost is there upfront, but then a month later when someone’s like, hey, can we have comments or categories on documents? It’s like, yes, that’s easy, no problem. And so we’ve gotten a ton of leverage out of that. It allows you to build a lot of things that should be hard, just are not hard. They come down to a matter of configuration. You have the system behaves in a uniform way. And where I think this works best, ‘cause this won’t work in all application domains, and we don’t use a delegated type for every kind of model.</p>
+
+<p><strong>(00:39:54):</strong>
+But in Basecamp where you have basically the same chunks of content, like you would have in a content management system or a Wiki or something Notion, what these chunks of content have in common is the operations you can perform on them and with them. And so their ability to just participate in that system just by being defined is incredible. We added the Card Table, our Kanban board system, we call the Card Table, and it was super easy to do because we’re just like, all right, we have a board. It’s got children, you can watch a column. Well, that’s just a subscription. So we’ll make those columns are a kind of recording. Their children are the cards themselves. Each of the cards can have comments. The column itself can be watched, the board itself can also be watched. You’re sort of mixing and matching behavior that already exists.</p>
+
+<p><strong>(00:40:58):</strong>
+And then when it’s like, well, how would I move a column to another column? It’s just a move operation. All recordings are movable. They can move to different containers. So that just works. How do I get a reminder about a due date I’ve given myself on the card? Oh, that just works because all recordings are remindable. And so you’re like, you can build entirely new features that should take months in a week, two weeks, I mean excluding the design, but the software modeling part. And it’s all uniform. So once you’ve figured out how this works, you understand the whole system. It doesn’t scale up with the number of types. It behaves the same whether you have one kind of recordable or 200.</p>
+
+<p><strong>Kimberly (00:41:46):</strong>
+It kind of sounds like, Jeff, I’m imagining as you’re describing this, a whole bunch of Legos or puzzle pieces that are just being redone in a different way. You’re taking elements that you guys already have and reconfiguring them to make a new feature.</p>
+
+<p><strong>Jeff (00:42:02):</strong>
+And if you think about Legos in particular….</p>
+
+<p><strong>Kimberly (00:42:03):</strong>
+I’m probably grossly, oversimplifying that.</p>
+
+<p><strong>Jeff (00:42:06):</strong>
+No, no, but Legos are a good example. If the Legos didn’t fit together, if they didn’t have the same hole and bump pattern, it wouldn’t work. What you get is being able to say, okay, here’s all the Legos, and they’re all interchangeable. Every Lego works with every other Lego and that’s why it works. So there were all these things that motivated the pattern, and what I don’t think we could have anticipated was how well it worked out in the long term, right? From being able to query efficiently to query across types with pagination, to be able to copy and move things really efficiently because we are not having to recreate the message content every time. If a message gets copied 100 times, there’s still only one message recordable. That’s it. Whereas in earlier versions of Basecamp, we would have 100 different rows that each had a copy of that content.</p>
+
+<p><strong>(00:43:03):</strong>
+So things like this adds up. Whenever you start a new Basecamp account, you get a demo project. So with thousands and thousands of Basecamp accounts that all have the same starting content, and we would need thousands and thousands, tens of thousands of rows to represent this. And so you get a really, really big database. Basecamp is the majestic monolith. We don’t use microservices. It’s one app with one big database, and there’s a lot of efficiency in terms of workflow that you get from just having one database. And this is one of the patterns. This delegated immutable types in particular make that possible. Stay in the majestic monolith as long as you can. We’ve been running this architecture for 10 years. Other versions of Basecamp didn’t make it quite that long before we created a new version, and then therefore they’re still growing, but it really reduced the rate that the content is growing in those systems.</p>
+
+<p><strong>(00:44:05):</strong>
+But Basecamp has just been going up and up and up for over 10 years, version 3. So this architecture scales really well. We’re totally confident to build Basecamp 5 on it. It’s just a little bit different maybe than what you’re used to. So once you, and I don’t know how widely used it is because of that. So David is going to do a talk on and a code demonstration of the mechanics, but that’s useful. But we sort of already have that too in documentation and still people miss the big picture. So I’m hoping that that’s what I am able to convey here is why would you do this? Why not just have messages and documents and separate records like the universe intended? And that’s why. I mean, it is fine for a lot of purposes. There is a cost to this level of abstraction, but it’s not as great as you might think and it pays dividends once you’ve made the investment.</p>
+
+<p><strong>Kimberly (00:45:05):</strong>
+I mean, I’m fascinated by this.</p>
+
+<p><strong>Fernando (00:45:08):</strong>
+Oh, I agree. I’ve been trying to think…</p>
+
+<p><strong>Jeff (00:45:10):</strong>
+Well, Fernando, you work on the mobile team and think about the API. We’re able to expose a single recordings, JSON API. Pretty great.</p>
+
+<p><strong>(00:45:19):</strong>
+You can just ask for recordings and you can provide filters between this time and that time. You’re going to get all different types, but this is really easy to implement. And you can do things like your native code can do things and not… It means that things just work. So we add a new type and we don’t need to issue a new, create a new build of the mobile apps. It’s going to get a new kind of recording and it can deal with it in a generic way. It knows that all recordings have titles, all recordings might have a position. All recordings can be archived or active or trashed. It’s not like, oh, everything breaks because we introduced a new type. And that’s one of the other ways because we also are super small team. I mean super small at times. There’s only a handful of people working on any of this stuff, and you would need way more people if you had to coordinate these sorts of changes.</p>
+
+<p><strong>(00:46:15):</strong>
+It means that we just deploy Basecamp whenever and we’re confident that nothing is going to break even as we had new things. You can’t do that for everything. But as far as recordings go, which is the bread and butter of Basecamp, these different kinds of content, these content blocks that are fundamentally content oriented, all behave in the same way. And it means that we ship new stuff and we don’t have to wake Fernando up at night or anybody on his team to say, you need to do a release because we busted something. That’s the kind of efficiency I think you get, and that’s the kinds of things we’re looking for so that we can stay a small team.</p>
+
+<p><strong>Kimberly (00:46:54):</strong>
+If someone is like, yes, this is a better way to work or this is a better way to do this programming with the delegated types, all of this, is it something that you can incorporate into something you’re already doing or do you have to start from scratch?</p>
+
+<p><strong>Jeff (00:47:09):</strong>
+You can incorporate it into what you’re doing. It is a little hard though. It’s definitely better to start from scratch. The migration path would look like it would be a little bit complicated. You would introduce your main table, we’ll call it recordings that delegates its types, and you would either create new types, so if you already had comments, you would need to name it something else, like recordable comments and migrate your content into that. Create recordings as you go. Because the way you create a recording is you create a recording record and you pass it a new recordable, and then when we save the recording, that’s when we update the reference and persist the recordable. So you would sort of do that process and move your content into it. So we’ve done this before when we worked on the HEY calendar. The HEY calendar also uses the delegated type pattern for all of its calendary things. Think of all the things that can appear on a calendar day. You’ve got the event itself. You might want to circle the event. You can have a countdown.</p>
+
+<p><strong>Kimberly (00:48:11):</strong>
+You might want to name it.</p>
+
+<p><strong>Jeff (00:48:12):</strong>
+Name it, it has a title, right.</p>
+
+<p><strong>Kimberly (00:48:14):</strong>
+You can add a picture.</p>
+
+<p><strong>Jeff (00:48:15):</strong>
+Yes, all of these things are implemented as… a calendar is the bucket, and the bucket has recordings. And the recordings are things that are eventlike. Now I talked about how the recordings table, the main table, stores like the metadata, the stuff that all of the types have in common. So in an application like HEY calendar, they have… everything that can appear on a calendar has to have a starts at and an ends at timestamp. You can’t put it on a calendar unless it has knowledge of when it exists.</p>
+
+<p><strong>(00:48:49):</strong>
+So in that case starts at and ends at aren’t delegated to an event type, they’re on the recordings table. That means we can query for any kind of thing that might be on the calendar and any moment in time from one place. That’s what allows us to in one query, fetch all the things that we need to display on a given day or in a given week or month. So part of it is, it’s that you find the stuff that never changes, the things that all of the types would need, and that becomes your main class, your main table. And then you’ve got it when you can just query that one table to get everything you need. Our first iteration of HEY had us going through the different tables, so we had to query for events and we had to query when they’re like, oh, we’re going to add other things to the calendar. I forget, even just being able to circle a certain day or something. And they were all slightly different.</p>
+
+<p><strong>Kimberly (00:49:51):</strong>
+And it’s like tasks. Sometimes this week tasks.</p>
+
+<p><strong>Jeff (00:49:54):</strong>
+That’s another great example. And so we did this and then we had to migrate into that. This was still while we were developing, but we didn’t do it by deleting everything. We were able to transition to it. But that’s a great question. It is the kind of pattern you want to start with. The single table inheritance pattern and the polymorphic pattern are similar. Yes, you can migrate into them, but it’s a pain. It’s better to identify upfront that this is something you might want to use. And similarly, you could go the other way. You could start a delegated type and turn these all into concrete types that have their own tables. You would iterate over the recordings. For each recording you would create a new record, you know. Take its recordable content, take the recording metadata, stick them together and insert that in a new table. So there’s migration paths to and from. But you’re right, you want to start with something like this.</p>
+
+<p><strong>Fernando (00:50:53):</strong>
+Jeff. I’m skeptical. I have to say, I work at 37signals. I work with Basecamp all the time. It is very fast. Why is this not more popular? Is it like obscurity? Is it like, what? Because like, come on, we’ve been talking about this for however long the episode has been going on and it’s like, I keep trying to, I’ve been thinking about poking holes at it. There’s like very few…</p>
+
+<p><strong>Jeff (00:51:25):</strong>
+I don’t know. I think it’s just familiarity, which is why I’m glad we’re doing this and sort of educating people. I think it would be a lot more used if people understood its strengths. The Rails documentation on it is good, but it’s kind of terse. It’s kind of like describes a shallow version of the benefits. But you talked about fast, speed. That’s another great example. Caching. We don’t cache at the recordable level.</p>
+
+<p><strong>Fernando (00:51:50):</strong>
+Oh my. That’s right.</p>
+
+<p><strong>Jeff (00:51:52):</strong>
+We cache at the recording level. It means that the way caching works for any kind of content type is identical across content types, across recordable types. We cache on the recording. When you want to expire the cache, you touch the recording. In the tree pattern, if the tree needs to touch its children, it can, but it’s more common for a child to touch up its tree. But then we have like, we call it the Russian doll caching pattern, where it doesn’t matter, you can invalidate a child way down the tree and not need to invalidate the parent. The parent can still render itself, and then when it gets to this child, it’s like, oh, this part I need to change. But yeah, you don’t get to use the same caching scheme for everything when you don’t have a uniform thing like a recording. So what you’ll see in our views is like “cache (recording) do…end”. Everything is wrapped in a cache block keyed only on the recording. So you get to share a ton of stuff in terms of, it’s not just the, I’ve been mostly talking about the domain model, but this also this cascades to the controllers and the views. It’s all the same. It’s recordings all the way down.</p>
+
+<p><strong>Fernando (00:53:05):</strong>
+You mentioned something about Rails. Is this pattern in Rails somehow? Or part of Rails?</p>
+
+<p><strong>Jeff (00:53:14):</strong>
+Yeah, it’s part of Rails. So it started life in Basecamp as, you know, just in our application code. And then once we realized how good it was, David packaged it up and wrote documentation for it and tests and extracted it to Rails. That’s another reason we know it works. It sounds very abstract, but it’s not ivory tower sort of theory thing. This is what we’re actually using and we’ve proven it out over a decade. So it really, really works. And it’s replaced our use of single table inheritance and even polymorphic relationships. We almost don’t… when you’re going to reach for one of those, you should give delegated type a look and be like, could I do the same thing with the delegated type? Because you get the same sort of sharing, but I think that it’s sort of inverted, right? It’s particularly an inversion of the polymorphic type. In a polymorphic pattern, you have a record that can belong to any kind of record right?</p>
+
+<p><strong>(00:54:16):</strong>
+And in the delegated type pattern, it’s the other way. It’s like, so it’s not your child record that can belong to any kind of thing. It’s the parent record that can have any kind of thing, but it means you get to work with those parents. You’re starting at the top because if you think about something like a comment can have any kind of commentable, when are you ever working from the comment? When do you want to start with the comment table and find all the things? No, it’s at the wrong end of the relationship. You want to start at the top or that’s why the tree pattern works really well too. So I think that it just needs more people once they try it, would realize this is really cool and this can change a lot.</p>
+
+<p><strong>Kimberly (00:55:02):</strong>
+Okay. Jeff, I have a question for you. So you’re clearly an expert at all this recordings, recordables, all of the things. What would you say, if you had to give someone advice, like someone who is using this, what do you think are some of the biggest mistakes people have? I know I didn’t prep you for that question.</p>
+
+<p><strong>Jeff (00:55:22):</strong>
+No, it’s okay. I don’t know if there’s any mistakes so much as… maybe the mistake is not taking it far enough. You know what I mean? You can model all the things that you have in common in this way and you can go pretty far with it. We did Hill Charts in Basecamp, like how do you model those as recordings and recordables? But there’s a way, and you need other patterns. Or how do you take, lilke you want document history or event history. The event stream is another thing. Not only do we want to show you events, but we want the events that we’re listing to be accurate. So you have a timeline and it’s like, Kimberly saved a new document called this. Well, then you went and renamed it, but when you created it, it had the original name. And so when I’m scrolling back, I’m like, Kimberly didn’t name this…</p>
+
+<p><strong>(00:56:16):</strong>
+It says new features March, but I’m reading this, I’ve scrolled back to February. That doesn’t make sense. Does she have a time machine? No. You want accurate history and that’s another way to get it is with this. So I think it’s combining the delegate pattern, the delegate type pattern with other patterns and they really can build off of each other. So once you have this concept of the type doesn’t matter, you can do interesting things with the type. Like, don’t change them, keep a log of them, right, so that you can easily move between them. Move pointers around. It gives you ideas for how you could copy and move things efficiently. So I think that people don’t realize where, it’s not that they use it wrong, it’s that they don’t realize in how many places it’s actually applicable. Not nearly as rigid as STI or polymorphism. It’s super, super flexible.</p>
+
+<p><strong>Fernando (00:57:11):</strong>
+Were you a part of the…. or was this David’s invention?</p>
+
+<p><strong>Jeff (00:57:17):</strong>
+It was a big part of David… David came up with the original idea and it was out of the frustration of how expensive and slow it had gotten to copy things in Basecamp 2, and how every time you introduced a new thing, you also had to introduce changes to the copier. And so yeah, David had the first idea for this. Typical David thing, like how can I invent a brand new pattern that nobody is using? That’s why I think it originated here. And it’s sort of like it has a lot in common with STI, but it’s flipped on its head. And I think also a thing that only David can do is that it was unproven when he introduced it. It was like, eh, this might work. It’s harder to get away with the speculative, let’s give it a shot, unless you’re David, but it’s David and he can just do that.</p>
+
+<p><strong>(00:58:11):</strong>
+And then it was like, let’s see how this works. Because at the time, we hadn’t been designing Basecamp like that. It was very Basecamp 2 like, and then we just, from there, it became a shared thing we could iterate on. And we didn’t extract it for several years after it was in use, maybe a year or two years after it was in use in Basecamp before it proved itself to be a viable pattern. It went through a bunch of iterations. But yeah, the kernel of that idea that you have one row of one table that holds most of the information about the records, but none of the specifics came from David motivated by copying efficiency and the need to paginate, the need to have a timeline of different types that we could paginate with one query. Because the other way to do something like that is to sort of create a table of copies that you insert different records in the table that you’re going to paginate, but now you have a copying system. And we do have a version of that in Basecamp, but it’s a performance optimization. It’s not the main way that we query for recordings. Think of it like caching. We can relay events into another table so that we can very efficiently be like, here’s all the events that apply to just this person. Everybody can see different things in Basecamp. My timeline doesn’t look exactly like your timeline because we’re on different projects.</p>
+
+<p><strong>Fernando (00:59:42):</strong>
+No, I could see how that would be a nightmare to implement if you had different types. I can imagine it in my head like a PM going like, okay, I want you to give me a timeline of things that are happening and the programmers going, oof! That’s going to be rough.</p>
+
+<p><strong>Jeff (01:00:01):</strong>
+And you pay that cost every time you add a new thing. And even when we’re doing work in beta, that’s the one time… so we do work in beta. We’ll modify the database, we’ll add new types and production needs to know how to deal with these new types. In most cases, it just can, because we’ve programmed it in a way that if they don’t know how to deal with a particular recordable, it just deals with it in a generic way. It displays the generic icon. It asks for things that it knows that all recordables have — a title, possibly content, subscribers. And so nothing breaks.</p>
+
+<p><strong>Fernando (01:00:41):</strong>
+Nothing breaks</p>
+
+<p><strong>Jeff (01:00:42):</strong>
+Yeah.</p>
+
+<p><strong>(01:00:43):</strong>
+And so that was another key element of the design. How can we have something that’s flexible? What we found with Basecamp 2 is that, yeah, it works, but it’s slow. And every time we’re like, hey, we want to add a new thing, we’re like, eh, that’s expensive. That’s going to be a pain in the ass. How do you make it not a pain in the ass? And I think good patterns emerge when that’s your criteria. We come up with something to make it easier. What would make this easier? And then so you find the specific problems we had and then correct for those. And David is basically an expert at that.</p>
+
+<p><strong>Fernando (01:01:17):</strong>
+And he hates when things break.</p>
+
+<p><strong>Jeff (01:01:19):</strong>
+And he hates friction…</p>
+
+<p><strong>Fernando (01:01:21):</strong>
+He does, yeah.</p>
+
+<p><strong>Jeff (01:01:22):</strong>
+When the common thing is hard, the common thing should be easy. The common thing we do is introduce new features, new kinds of content. The common thing we do is, and with those content, that content, we need it to work on our mobile apps with no extra effort without having to hire new mobile developers. This is why we have Hotwire and why we have Hotwire native, why we have Rails. Make these super common things easy. The uncommon things just need to be possible. You don’t do them that often. It’s okay to have friction there. Look at deploying apps, right? Everyone was deploying apps with Docker before using Docker and production before we were, but David looks at it and is like, this is a pain. Why is it like this? And so he even invents Kamal. It’s that response. He has a low tolerance for friction on the critical path, and I think people just, they become oblivious to that friction. They sort of ramp up slowly with it and they’re like, this is just the way it is. David never accepts that this is just the way it is. He’s got a real eye for like, this could be different. And he’s not just going to complain about it. He’ll do something. He’ll disappear for a week or two and then be like, here. I fixed it. It’s great.</p>
+
+<p><strong>Kimberly (01:02:47):</strong>
+Jeff, you mentioned some documentation, some Rails documentation over delegated types. We’ll link to that in the notes for this episode. Are there any other places people should go for information about all of this?</p>
+
+<p><strong>Jeff (01:02:58):</strong>
+I mean, right now there’s not a ton of places. There are a few people who have written articles that are pretty good, and they’re sort of the exploratory kind of article. They’re like, hey, you know, I haven’t found a lot of documentation about this cool feature of Rails. And so they’ve written about it, so that’s really good. The Rails documentation, while terse, is also very good, and I think that what we’re doing right now is adding to the growing body of documentation on this pattern. And what David’s going to do is also going to help that. But yeah, if I can find any, I’ll send you the links and we can add that to the show notes because yeah, I think that’s the main thing we’re trying to correct by doing an episode like this is to share the benefits of this underrepresented pattern.</p>
+
+<p><strong>Kimberly (01:03:45):</strong>
+Awesome. Well, with that, we’re going to wrap it up. This has been a production of Recordables by the 37signals team. To hear more from our technical team about their behind the scenes work, visit our developer’s blog at dev.37signals.com.</p>
+
+
+
+
+              <hr>
+
+              <div>
+                <ul>
+
+  
+
+    
+
+                  <li><a href="https://dev.37signals.com/series/recordables/">Other posts in the “RECORDABLES” series</a></li>
+
+  
+
+  
+
+  
+
+                </ul>
+              </div>
+
+
+
+            </div></div>

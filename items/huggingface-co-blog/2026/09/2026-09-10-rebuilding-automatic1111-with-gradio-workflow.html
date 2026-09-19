@@ -1,0 +1,222 @@
+<div id="readability-page-1" class="page"><div>
+<p>In our <a href="https://huggingface.co/blog/gradio-workflow-guide">last post</a>, we built five small <code>gr.Workflow</code> graphs and hinted at what it would take to build something as complex as AUTOMATIC1111's <a href="https://github.com/AUTOMATIC1111/stable-diffusion-webui" rel="nofollow">stable-diffusion-webui</a>. In this post we walk you through <strong>Workflow1111</strong>, where we have rebuilt most of AUTOMATIC1111's feature set as a single workflow canvas.</p>
+<p>Workflow1111 is a graph of <strong>eleven media pipelines</strong> built using <strong>seventy-three nodes</strong>. It brings together SOTA models for text-to-image, hi-resolution fix, image-to-image, prompt-matrix grids, VLM interrogate, detection-to-inpaint masks, ControlNet-style annotators, background removal, PNG Info storing, and image-to-video.</p>
+<p>You can run any of these pipelines by signing in with your Hugging Face account or providing an access token. Once you sign in, the model calls use your own quota.</p>
+<p>👉 <strong><a href="https://huggingface.co/spaces/ysharma/Workflow1111">Try Workflow1111</a></strong>, or duplicate the Space and start rewiring it for your own use case.</p>
+<p>Let's walk the canvas.</p>
+<h2>
+	<a id="whats-on-the-canvas" href="#whats-on-the-canvas" rel="nofollow">
+		
+	</a>
+	<span>
+		What's on the canvas
+	</span>
+</h2>
+<p>All the media pipelines are built from the same four operator kinds covered in our last post and the <a href="https://gradio.app/guides/workflows#operator-kinds" rel="nofollow">official guide</a>. Each node on the canvas wraps one operator, and the operator's inputs and outputs become the ports you connect edges to. As a quick reference on our four operator kinds: <code>fn</code> is a Python function, <code>model</code> is a model called through <code>InferenceClient</code>, <code>space</code> is another Gradio Space, and <code>dataset</code> is a row from a Hub dataset.</p>
+<p>Let's go through the pipelines one by one.</p>
+<h3>
+	<a id="text-to-image" href="#text-to-image" rel="nofollow">
+		
+	</a>
+	<span>
+		Text-to-image
+	</span>
+</h3>
+
+<p>This is the core pipeline. It has the controls you'd expect from A1111's txt2img tab: negative prompt, steps, CFG, seed, width and height, plus a <code>model_id</code> field for choosing the checkpoint. The prompt goes through a prompt-builder <code>fn</code> node first, which appends the selected style preset and cleans up the text, then into a <code>model</code> node that calls the checkpoint through Inference Providers. A post-process <code>fn</code> node writes the generation parameters into the PNG's metadata on the way out, which is what the PNG Info pipeline reads back later.</p>
+<h3>
+	<a id="hi-resolution-fix" href="#hi-resolution-fix" rel="nofollow">
+		
+	</a>
+	<span>
+		Hi-resolution fix
+	</span>
+</h3>
+
+<p>In Automatic1111, hi-resolution fix first upscales the txt2img output and then runs a second denoising pass. Here it's a two-node detour instead. The text-to-image result goes into a <a href="https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev">FLUX.1-Kontext</a> <code>model</code> node with a refine instruction ("enhance fine detail and micro-texture, keep the composition identical") and comes back sharper and larger.</p>
+<h3>
+	<a id="image-to-image" href="#image-to-image" rel="nofollow">
+		
+	</a>
+	<span>
+		Image-to-image
+	</span>
+</h3>
+
+<p>That same Kontext node doubles as the image-to-image tab. Upload an image, describe the change you want, and it returns the edited image.</p>
+<h3>
+	<a id="let-an-llm-write-the-prompt" href="#let-an-llm-write-the-prompt" rel="nofollow">
+		
+	</a>
+	<span>
+		Let an LLM write the prompt
+	</span>
+</h3>
+
+<p>Start with a rough prompt like "A lighthouse in a storm." This pipeline sends it to a <a href="https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507">Qwen3-4B</a> <code>model</code> node, and a small <code>fn</code> node turns the reply into a clean list of tags, capped at forty: "stormy sea, wet rocks, dramatic composition, low angle shot, volumetric lighting, ominous tone." You can connect any diffusion model node to this output to render the image.</p>
+<p>There's no custom node involved, unlike in ComfyUI. In a Gradio workflow the LLM and the diffusion model are both ordinary <code>model</code> operators on the same canvas.</p>
+<h3>
+	<a id="read-an-image-back-into-a-prompt" href="#read-an-image-back-into-a-prompt" rel="nofollow">
+		
+	</a>
+	<span>
+		Read an image back into a prompt
+	</span>
+</h3>
+
+<p>This is like AUTOMATIC1111's Interrogate button, with a VLM doing the interrogating instead of CLIP. <a href="https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct">Qwen2.5-VL</a> looks at a night-market photo and writes a prompt that could have produced it. A <a href="https://huggingface.co/google/vit-base-patch16-224">ViT</a> classifier node reads the same image and returns labels: restaurant 51.9%, tobacco shop 15.6%, toyshop 9.1%.</p>
+<p>Both nodes use the same image input, so <code>gr.Workflow</code> runs them in parallel and you get both answers in roughly the time it takes to run one.</p>
+<h3>
+	<a id="detection-to-inpaint-mask" href="#detection-to-inpaint-mask" rel="nofollow">
+		
+	</a>
+	<span>
+		Detection to inpaint mask
+	</span>
+</h3>
+
+<p>AUTOMATIC1111 makes you paint an inpaint mask by hand. This pipeline generates one from a detector instead. <a href="https://huggingface.co/facebook/detr-resnet-50">DETR</a> finds six objects in a street photo (three people, a dog, a bicycle, and a car), and from there the workflow splits into two branches: one draws the detected boxes on the original image, the other turns them into a mask you can feed into an inpaint pipeline downstream.</p>
+<p>The drawing and the mask creation both happen locally with Pillow and NumPy. Only the detection call leaves the machine.</p>
+<h3>
+	<a id="prompt-matrix" href="#prompt-matrix" rel="nofollow">
+		
+	</a>
+	<span>
+		Prompt matrix
+	</span>
+</h3>
+
+<p>This is like AUTOMATIC1111's prompt matrix. A base prompt, "a lone oak tree," gets combined with four suffixes (at sunrise, in a thunderstorm, under the Milky Way, in autumn fog) by a <code>fn</code> node, and each variant goes to its own text-to-image node. A final node stitches the four results into one contact sheet.</p>
+<p><code>gr.Workflow</code> has no loop operator, so the four text-to-image nodes sit side by side on the canvas. Since they're at the same dependency depth they run in parallel, and all four images start generating at once.</p>
+<h3>
+	<a id="upscale-and-background-removal" href="#upscale-and-background-removal" rel="nofollow">
+		
+	</a>
+	<span>
+		Upscale and background removal
+	</span>
+</h3>
+
+<p>This is like the Extras tab in Automatic1111. There are two upscaler nodes, and they take different routes. The first is a local <a href="https://en.wikipedia.org/wiki/Lanczos_resampling" rel="nofollow">Lanczos</a> resample in an <code>fn</code> node, which needs no network call and finishes as fast as Pillow can resize. The second is <a href="https://huggingface.co/spaces/gokaygokay/AuraSR-v2">AuraSR ×4</a>, and it's the first <code>space</code> node on the canvas: it calls a <a href="https://huggingface.co/spaces/gokaygokay/AuraSR-v2">Space</a> on the Hub and treats the result like any other node output.</p>
+
+<p>Background removal works the same way. <a href="https://huggingface.co/spaces/briaai/BRIA-RMBG-2.0">BRIA RMBG-2.0</a> is another <code>space</code> node, so the whole model lives in its own Space and this canvas just calls it in.</p>
+<h3>
+	<a id="annotators" href="#annotators" rel="nofollow">
+		
+	</a>
+	<span>
+		Annotators
+	</span>
+</h3>
+
+<p>Canny, line art, sketch, luma-depth, and posterize are the preprocessors you'd normally get from the ControlNet extension in Automatic1111. Here, each one is a <code>fn</code> node written in plain NumPy, with no model behind it. On a pre-loaded example photo of a building facade, each annotator takes about half a second on CPU.</p>
+<p>There are 36 operator nodes in the app, 32 are <code>fn</code> nodes, and 22 of those run entirely in-process without a network call. Roughly two-thirds of the canvas keeps working if you lose your connection. Since these are regular Python functions, you can also test them directly, with no canvas, server, or GPU involved.</p>
+<h3>
+	<a id="png-info" href="#png-info" rel="nofollow">
+		
+	</a>
+	<span>
+		PNG Info
+	</span>
+</h3>
+
+<p>AUTOMATIC1111 stores generation details in the PNG's <code>parameters</code> text chunk, and the PNG Info tab reads them back. Workflow1111 does the same. The post-process node on the text-to-image pipeline writes the metadata, and this pipeline reads it back out, including the prompt, negative prompt, steps, CFG, seed, image size, and model.</p>
+<h3>
+	<a id="image-to-video" href="#image-to-video" rel="nofollow">
+		
+	</a>
+	<span>
+		Image-to-video
+	</span>
+</h3>
+
+<p>The image node that PNG Info reads from also feeds a <a href="https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B">Wan 2.2 I2V A14B</a> node, which animates it; in the demo example a sleeping fox wakes up and starts moving. There's no second upload box because one reference node can feed as many downstream pipelines as you need, so a single upload gets its metadata read and gets animated on the same canvas.</p>
+<h2>
+	<a id="running-models-on-your-own-gpu" href="#running-models-on-your-own-gpu" rel="nofollow">
+		
+	</a>
+	<span>
+		Running models on your own GPU
+	</span>
+</h2>
+
+<p>So far every model call has gone to someone else's hardware, through Inference Providers or a Space. That's why you can build and run something like Workflow1111 without a GPU of your own.</p>
+<p>A <code>fn</code> node is just Python, though, so it can equally load a model locally and run it on your own GPU. <a href="https://huggingface.co/spaces/FastVideo/fastvideo-fasth3-preview">FastVideo/fastvideo-fasth3-preview</a> is a <code>gr.Workflow</code> app that does exactly that. It runs <a href="https://huggingface.co/FastVideo/FastVideo-FastH3-4-step-Preview-v1-VSA-DataFree">FastH3</a>, a four-step distillation of <a href="https://huggingface.co/MiniMaxAI/MiniMax-H3">MiniMax-H3</a>, and generates video with a soundtrack on ZeroGPU.</p>
+<p>The whole app comes down to one bound function:</p>
+<pre><code><span>@spaces.GPU(<span>duration=get_duration, size=GPU_SIZE</span>)</span>
+<span>def</span> <span>_generate</span>(<span>prompt_embeds, text_token_tags, height, width, num_frames, seed</span>):
+    ...
+
+gr.Workflow(bind={<span>"generate"</span>: generate, <span>"status"</span>: status}).launch()
+</code></pre>
+<p><a href="https://huggingface.co/docs/hub/spaces-zerogpu">ZeroGPU</a> gives the function a GPU when it needs one, then releases it when the call is done. <code>gr.Workflow</code> doesn't need to know about any of that. It just calls the <code>fn</code> node.</p>
+<p>This isn't specific to Spaces either. Point <code>bind=</code> to a function that loads a local checkpoint, run <code>.launch()</code> on your own machine, and the Workflow1111 canvas can drive your own GPU.</p>
+<h2>
+	<a id="every-output-is-an-api" href="#every-output-is-an-api" rel="nofollow">
+		
+	</a>
+	<span>
+		Every output is an API
+	</span>
+</h2>
+<p>Every output node on the canvas becomes a REST endpoint, with no routes written by hand. Workflow1111 exposes nine of them: <code>/image</code>, <code>/edited_image</code>, <code>/generated_prompt</code>, <code>/recovered_prompt</code>, <code>/detected_objects</code>, <code>/x_y_grid</code>, <code>/upscaled_local</code>, <code>/annotator_map</code>, and <code>/png_info</code>.</p>
+<pre><code><span>from</span> gradio_client <span>import</span> Client
+
+client = Client(<span>"ysharma/Workflow1111"</span>, oauth_token=<span>"hf_..."</span>)
+
+image, params, hires = client.predict(
+    <span>"a red fox in a snowy pine forest"</span>,  <span># Prompt</span>
+    <span>""</span>,                                  <span># Negative prompt</span>
+    <span>"Cinematic"</span>,                         <span># Style preset</span>
+    <span>"enhance fine detail"</span>,               <span># Hires refine instruction</span>
+    api_name=<span>"/image"</span>,
+)
+</code></pre>
+<p>The same endpoints are also <a href="https://modelcontextprotocol.io" rel="nofollow">MCP</a> tools. Launch with <code>mcp_server=True</code> (<a href="https://www.gradio.app/guides/building-mcp-server-with-gradio" rel="nofollow">guide</a>) and every output node shows up as a tool an AI assistant can call. Point Claude Code, Cursor, or any MCP client at the server URL:</p>
+<pre><code><span>{</span>
+  <span>"mcpServers"</span><span>:</span> <span>{</span>
+    <span>"workflow1111"</span><span>:</span> <span>{</span>
+      <span>"url"</span><span>:</span> <span>"https://ysharma-workflow1111.hf.space/gradio_api/mcp/"</span><span>,</span>
+      <span>"headers"</span><span>:</span> <span>{</span> <span>"X-HF-Token"</span><span>:</span> <span>"hf_..."</span> <span>}</span>
+    <span>}</span>
+  <span>}</span>
+<span>}</span>
+</code></pre>
+<p>Now an agent can generate an image, read a prompt back out, or run detection as steps in a larger task, with no glue code. Each caller sends their own token in the <code>X-HF-Token</code> header, so the Space holds none of its own.</p>
+<h2>
+	<a id="where-this-sits-next-to-comfyui" href="#where-this-sits-next-to-comfyui" rel="nofollow">
+		
+	</a>
+	<span>
+		Where this sits next to ComfyUI
+	</span>
+</h2>
+<p>AUTOMATIC1111 gave us the feature list, but the tool Gradio Workflow really gets compared to is ComfyUI, since both are node graphs. For a lot of what people want to build and ship, <code>gr.Workflow</code> covers the same ground.</p>
+<ul>
+<li><strong>A node can be hardware you don't own.</strong> It can run through <a href="https://huggingface.co/docs/inference-providers/index">Inference Providers</a>, call any Space on the Hub or any API, or pull from a dataset. That's how Workflow1111 runs without a GPU of its own.</li>
+<li><strong>Every output becomes a typed REST endpoint.</strong> The endpoints are generated from the graph.</li>
+<li><strong>Visitors can run workflows under their own identity.</strong> Turn on <a href="https://huggingface.co/docs/hub/spaces-oauth">OAuth</a>, share the public URL, and anyone can sign in and use the app without installing anything.</li>
+<li><strong>Mix models and modalities on the same canvas.</strong> Diffusion models, LLMs, VLMs, detectors, and video models can all be part of the same workflow.</li>
+<li><strong>Need something custom? Write a function.</strong> A custom node is a Python function, so it can do whatever Python can.</li>
+</ul>
+<p>The result is a multi-model pipeline that people can open in a browser, sign into, use right away, and call from code.</p>
+<h2>
+	<a id="build-your-own" href="#build-your-own" rel="nofollow">
+		
+	</a>
+	<span>
+		Build your own
+	</span>
+</h2>
+<p>Workflow1111 has 73 nodes, but it started with just this:</p>
+<pre><code><span>import</span> gradio <span>as</span> gr
+
+<span>def</span> <span>your_function</span>(<span>text: <span>str</span></span>) -&gt; <span>str</span>:
+    <span>pass</span>
+
+gr.Workflow(bind=[your_function]).launch()
+</code></pre>
+<p><code>bind=</code> turns your functions into nodes, <code>edges=</code> connects them, and <code>.launch()</code> opens the canvas in your browser so you can keep editing there. When it's ready, <code>gradio deploy</code> puts the whole thing on a Space. The <a href="https://gradio.app/guides/workflows" rel="nofollow">gr.Workflow guide</a> has the full details, including the JSON schema and every operator type.</p>
+<p>If you'd rather start from something that already works, open <a href="https://huggingface.co/spaces/ysharma/Workflow1111">Workflow1111</a>, hit <strong>Duplicate</strong>, and pick one of the eleven pipelines to change: delete nodes, swap models, rewire the flow. If you'd rather start smaller, the <a href="https://huggingface.co/blog/gradio-workflow-guide">previous post</a> has five workflows you can get running in about a minute each.</p>
+<p>Whatever you build, post it on X and tag <a href="https://x.com/Gradio" rel="nofollow">@gradio</a>. We'd be happy to amplify your workflows.</p>
+</div></div>

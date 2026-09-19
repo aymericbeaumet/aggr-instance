@@ -1,0 +1,82 @@
+<div id="readability-page-1" class="page"><div>
+
+<p>We’ve just released <a href="https://github.com/basecamp/thruster">Thruster</a> as open source!</p>
+
+<p>Thruster is a minimal HTTP/2 proxy server that we wrote to make it easier to serve a Rails application with great performance and security.
+It runs alongside your existing Puma process, and adds:</p>
+
+<ul>
+  <li>HTTP/2 support</li>
+  <li>SSL (via <a href="https://letsencrypt.org">Let’s Encrypt</a>, for automatic certificate management)</li>
+  <li>HTTP caching, for public assets</li>
+  <li>Efficient static file serving via <code>X-Sendfile</code> and compression</li>
+</ul>
+
+<p>Puma already does a great job of serving Rails applications.
+Thruster is designed to give it an extra little boost, so you’ll have all you need for your application to perform well on the open Internet.</p>
+
+<hr>
+
+<h2 id="why-we-built-thruster">Why we built Thruster</h2>
+
+<p>The idea for Thruster came about when we started working on the <a href="https://once.com/">ONCE</a> project last year.
+We needed a way to package Rails applications that customers could run simply, by themselves.
+The applications should require very little effort to set up, and no ongoing maintenance, but they still need to be fast and secure.</p>
+
+<p>We realized that – out of the box – Rails with Puma actually gets you pretty close, but on its own it’s not quite enough.
+To reach the performance you’d expect, you’d typically need to deploy Puma along with additional web servers, CDNs, and the like.
+You usually end up with a few moving parts to set up and maintain.</p>
+
+<p>At a certain scale that’s still the right thing to do, but for a lot of applications, it feels like more complexity than you should need.
+And for our ONCE project, since our customers would be running the software themselves, it was more complexity than we could afford.</p>
+
+<p>So we designed Thruster to be a simple, zero-config answer to those missing pieces we weren’t yet getting from Rails &amp; Puma.
+Something that we could just drop in to a project, but otherwise not have to think about.</p>
+
+<p>Although we initially designed it for the ONCE project, we’ve since found it useful when deploying other Rails applications too.</p>
+
+<hr>
+
+<h2 id="how-thruster-works">How Thruster works</h2>
+
+<p>Thruster wraps your Puma process so that you don’t have to worry about running multiple processes or configuring them to know about each other.</p>
+
+<p>Typically you’d start your Rails application with something like:</p>
+
+<div><pre><code>rails server
+</code></pre></div>
+
+<p>To run the same command with Thruster, you’d use:</p>
+
+<div><pre><code>thrust rails server
+</code></pre></div>
+
+<p>This starts the Thruster process, which in turn starts your Rails application.
+If your application quits, Thruster will quit too.
+Their lifetimes are tied together.
+This is particularly useful when running in a container environment, since you can simply prefix your existing <code>CMD</code> with <code>thrust</code>, and still get the same container restart behavior that you had before.</p>
+
+<p>To enable automatic SSL, you just need to tell Thruster which domain it should accept traffic for.
+You do that with the <code>SSL_DOMAIN</code> environment variable.
+For example:</p>
+
+<div><pre><code><span>SSL_DOMAIN</span><span>=</span>example.com thrust rails server
+</code></pre></div>
+
+<p>As long as you have a valid DNS record pointing that domain to your application, Thruster will take care of provisioning and renewing the SSL certificates as needed.</p>
+
+<p>You can also use Thruster in an environment where you only need some of its features.
+For example, if you already have SSL termination taken care of, you can still use Thruster for its caching.
+Or if you’re already using a CDN, you can still use Thruster to get rapid serving of private static files via <code>X-Sendfile</code>.</p>
+
+<p>You can install Thruster by adding <a href="https://rubygems.org/gems/thruster">its gem</a> to your Gemfile, and you can dive into the code on <a href="https://github.com/basecamp/thruster">GitHub</a>.</p>
+
+<p>We hope you find it useful!</p>
+
+
+
+
+            </div><div>
+  <p>Sign up to get posts via email,<br> or <a href="https://dev.37signals.com/feed/posts.xml">grab the RSS feed</a>.</p>
+  
+</div></div>

@@ -1,0 +1,202 @@
+<div id="readability-page-1" class="page"><div>
+<p>The last two years have seen NVIDIA's content safety stack grow from a focused English text classifier into a family of specialized models—each extending coverage to new modalities, languages, and inference modes. <a href="https://huggingface.co/nvidia/Nemotron-3-Content-Safety">Nemotron 3 Content Safety</a>, released in March 2026, combined multimodal and multilingual capabilities for the first time in a single 4B-parameter model. Today, we are releasing <a href="https://huggingface.co/nvidia/Nemotron-3.5-Content-Safety">Nemotron 3.5 Content Safety</a>, which completes that arc: a single model that unifies multimodal input, multilingual reach, custom enterprise policy enforcement, and auditable reasoning into one inference call.</p>
+<p>This post covers what changes in 3.5, the design decisions behind each new capability, and how to integrate the model into production safety pipelines.</p>
+<h2>
+	<a id="whats-new-in-nemotron-35-content-safety" href="#whats-new-in-nemotron-35-content-safety" rel="nofollow">
+		
+	</a>
+	<span>
+		What's New in Nemotron 3.5 Content Safety
+	</span>
+</h2>
+<h3>
+	<a id="1-unified-multimodal-evaluation" href="#1-unified-multimodal-evaluation" rel="nofollow">
+		
+	</a>
+	<span>
+		1. Unified Multimodal Evaluation
+	</span>
+</h3>
+<p>Nemotron 3 introduced image understanding; Nemotron 3.5 deepens the multimodal integration. The model takes a <strong>user prompt, an optional image, and an optional assistant response</strong> as a single context window and produces a coherent safety verdict over the combined input. Evaluating all three together—rather than scoring each independently—closes a well-known gap in multimodal safety scenarios: policy violations that only emerge from the <em>interaction</em> between text and image, or between request and response, are now caught in a single pass.</p>
+<h3>
+	<a id="2-global-language-coverage" href="#2-global-language-coverage" rel="nofollow">
+		
+	</a>
+	<span>
+		2. Global Language Coverage
+	</span>
+</h3>
+<p>Nemotron 3.5 maintains the 12-language explicit training coverage of its predecessors—<strong>English, French, Spanish, German, Chinese, Japanese, Korean, Arabic, Hindi, Russian, Portuguese, and Italian</strong>—while also inheriting strong zero-shot generalization across approximately 140 languages from the Gemma 3 base model. This means deployments in markets where training data is sparse (e.g., Southeast Asian languages, Scandinavian languages, less-resourced African languages) benefit from base-model multilingual transfer without requiring separate fine-tuning.</p>
+<h3>
+	<a id="3-custom-policy-enforcement" href="#3-custom-policy-enforcement" rel="nofollow">
+		
+	</a>
+	<span>
+		3. Custom Policy Enforcement
+	</span>
+</h3>
+<p>This is the most significant architectural addition in 3.5 relative to Nemotron 3. Production deployments rarely operate under a single universal safety taxonomy. A healthcare platform has a different risk profile than a financial services chatbot, a developer tools IDE, or a children's education app. Nemotron 3.5 accepts a custom policy specification alongside the input. The model reasons over that policy when producing its verdict rather than deferring entirely to the built-in taxonomy. This extends the work first introduced in <a href="https://huggingface.co/nvidia/Nemotron-Content-Safety-Reasoning-4B">Nemotron Content Safety Reasoning 4B</a> to the full multimodal, multilingual setting.</p>
+<h3>
+	<a id="4-reasoning-traces-think-mode" href="#4-reasoning-traces-think-mode" rel="nofollow">
+		
+	</a>
+	<span>
+		4. Reasoning Traces (THINK Mode)
+	</span>
+</h3>
+<p>Every safety verdict in Nemotron 3.5 can be accompanied by an auditable reasoning trace via an optional <strong>think mode</strong>. When enabled, the model outputs its step-by-step reasoning before delivering a final <code>safe</code> / <code>unsafe</code> label and, optionally, the violated categories.</p>
+<pre><code>&lt;think&gt;
+The user prompt asks for guidance on acquiring a controlled substance without a prescription.
+The assistant response provides specific sourcing steps and references an online marketplace.
+This interaction violates the Criminal Planning/Confessions and Controlled Substances categories.
+The image (a pharmacy exterior) provides locational context but does not alter the verdict.
+&lt;/think&gt;
+
+User Safety: unsafe
+Response Safety: unsafe
+Safety Categories: Criminal Planning/Confessions, Controlled Substances
+</code></pre>
+<p>When latency is the primary constraint, THINK mode can be disabled to return to the same low-latency binary verdict available in Nemotron 3.</p>
+<h3>
+	<a id="5-safety-dataset" href="#5-safety-dataset" rel="nofollow">
+		
+	</a>
+	<span>
+		5. Safety Dataset
+	</span>
+</h3>
+<p>With Nemotron 3.5, we are releasing our safety dataset. This is an important milestone since most OSS safety models don't generally provide the training or evaluation sets. This problem is worse for the multimodal space where artifacts such as images or videos are often derived from resources with restrictive licensing terms. The Nemotron 3.5 Content Safety Dataset is multimodal, multilingual, and includes safety reasoning traces that were used to train the model. These reasoning traces were generated in a 2-step manner to make them concise, similar to the <a href="https://huggingface.co/nvidia/Nemotron-Content-Safety-Reasoning-4B">Nemotron Content Safety Reasoning 4B</a> model.</p>
+<hr>
+<h2>
+	<a id="model-architecture" href="#model-architecture" rel="nofollow">
+		
+	</a>
+	<span>
+		Model Architecture
+	</span>
+</h2>
+<p>Nemotron 3.5 Content Safety is built on <strong>Google Gemma 3 4B IT</strong> (4B parameters), providing a 128K context window, strong vision-language reasoning, and broad multilingual coverage. NVIDIA fine-tunes this base with a LoRA adapter that installs targeted safety classification behavior while keeping the model compact enough for real-time deployment on 8GB+ VRAM GPUs.</p>
+<p>The inference interface supports three output modes:</p>
+<p><strong>Mode 1 — Low-latency binary verdict:</strong></p>
+<pre><code>User Safety: safe
+Response Safety: unsafe
+</code></pre>
+<p><strong>Mode 2 — Binary verdict with categories:</strong></p>
+<pre><code>User Safety: safe
+Response Safety: unsafe
+Safety Categories: Violence, Criminal Planning/Confessions
+</code></pre>
+<p><strong>Mode 3 — THINK mode (reasoning + verdict):</strong></p>
+<pre><code>&lt;think&gt;
+[step-by-step reasoning trace]
+&lt;/think&gt;
+
+User Safety: unsafe
+Response Safety: unsafe
+Safety Categories: [categories]
+</code></pre>
+<p>The safety taxonomy follows the <strong>Aegis 2.0</strong> framework: 13 core categories aligned with the MLCommons safety taxonomy, plus 10 fine-grained subcategories. This alignment allows direct comparison with other open and closed guard systems benchmarked on Aegis-taxonomy datasets.</p>
+<hr>
+<h2>
+	<a id="reasoning" href="#reasoning" rel="nofollow">
+		
+	</a>
+	<span>
+		Reasoning
+	</span>
+</h2>
+<p>Reasoning is a supercharger for content safety classification because it provides the necessary context, customization, and accountability required for production AI systems, especially in enterprise and regulated environments.</p>
+<p><strong>Enables Custom and Contextual Policy Enforcement</strong></p>
+<p>Reasoning allows a content safety model to dynamically interpret and enforce custom, domain-specific policies defined in natural language at the time of inference. This is necessary because production deployments rarely operate under a single, universal safety taxonomy. A financial services chatbot has a different risk profile than a children's education app which may have a lower tolerance for profanity. This capability supports:</p>
+<ul>
+<li><strong>Category Suppression:</strong> Disabling irrelevant categories, such as preventing a "violence" category trigger when a DevOps tool handles the phrase "terminate a process".</li>
+<li><strong>Custom Category Injection:</strong> Defining proprietary risk categories specific to an organization's regulatory or product policies.</li>
+</ul>
+<p><strong>Provides Auditable and Documented Justification</strong></p>
+<p>The reasoning traces show the model's step-by-step logic before it delivers a final safe or unsafe verdict. This documented justification serves several purposes:</p>
+<ul>
+<li><strong>Compliance and Audit Logging:</strong> Regulated industries often require documented justifications for content moderation decisions.</li>
+<li><strong>Human Review:</strong> Reviewers can audit <em>why</em> a verdict was reached to identify systematic model errors.</li>
+<li><strong>Policy Iteration:</strong> The traces reveal how the model interprets edge cases, allowing teams to iteratively refine and improve custom policy language.</li>
+</ul>
+<p><strong>Latency</strong></p>
+<p>While reasoning can introduce latency, the Nemotron model addresses this by condensing reasoning chains into concise summaries to limit output tokens and increase efficiency. This is done in a 2-step process similar to what was done in the predecessor model <a href="https://huggingface.co/nvidia/Nemotron-Content-Safety-Reasoning-4B">Nemotron-Content-Safety-Reasoning-4B</a>. In the first step, we use larger, more powerful models such as Qwen 397B to generate chain-of-thought reasoning traces based upon provided prompts, images, and responses. We also provided the ground-truth labels of the samples to avoid any misclassification that can find its way into the reasoning traces. In step 2, we make these reasoning traces more concise by using another large model such as Qwen 80B. We specifically instruct this model to rephrase the original traces (from step 1) so that it fits in no more than 3 sentences. Based on our experiments, most reasoning traces generated are under 3 sentences.</p>
+<p>The efficient reasoning traces optimization allows for low-latency custom policy enforcement. Furthermore, the reasoning traces provide a valuable training signal that can be used for training specialized moderator models. Developers can choose a dual-mode operation, disabling reasoning for minimal latency in generic tasks or enabling it for complex policies.</p>
+<hr>
+<h2>
+	<a id="training-data" href="#training-data" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Data
+	</span>
+</h2>
+<p>The dataset driving Nemotron 3.5 is an evolution of the multimodal, multilingual blends used for Nemotron 3, with additions targeting the reasoning and custom-policy capabilities. We have used the following sources of data:</p>
+<ul>
+<li><strong>Multilingual text safety data</strong> from <a href="https://huggingface.co/datasets/nvidia/Nemotron-Safety-Guard-Dataset-v3">Nemotron Safety Guard Dataset v3</a>, sampled from culturally nuanced subsets with proportional representation across safety categories and safe/unsafe splits.</li>
+<li><strong>Human-annotated multimodal data</strong> collected in English by NVIDIA, translated into 12 languages. Critically, <strong>99% of training images are real photographs</strong>—not synthetic generations. This directly addresses a known weakness in the multimodal safety benchmark landscape, where existing datasets like VLGuard and MM-SafetyBench rely heavily on SDXL-generated images that lack the cultural texture and adversarial complexity of production content. While not all of these real images could be released due to licensing constraints, we are still able to release a subset of images from Wikimedia and synthetic generation.</li>
+<li><strong>Safe multimodal data</strong> from <a href="https://huggingface.co/datasets/nvidia/Nemotron-VLM-Dataset-v2">Nemotron VLM Dataset v2</a>, covering scanned documents, charts, papers, and diagrams with associated queries—ensuring the model does not over-flag benign professional content.</li>
+<li><strong>Reasoning traces</strong> derived from chain-of-thought outputs produced by larger teacher models—Qwen 397B and then shortened using Qwen 80B—are used to teach the model how to reason.</li>
+<li><strong>Topic following data</strong> from the <a href="https://huggingface.co/datasets/nvidia/CantTalkAboutThis-Topic-Control-Dataset">CantTalkAboutThis</a> dataset consisting of policy-specification/verdict pairs across a range of enterprise deployment scenarios (healthcare, finance, banking, education, etc.).</li>
+<li><strong>Synthetic data</strong> accounting for roughly 10% of total training volume, used primarily to diversify jailbreak patterns, generate rare policy violation examples, and produce multimodal adversarial cases.</li>
+</ul>
+<hr>
+<h2>
+	<a id="benchmarking" href="#benchmarking" rel="nofollow">
+		
+	</a>
+	<span>
+		Benchmarking
+	</span>
+</h2>
+<p>Nemotron 3.5 Content Safety was evaluated across multilingual, multimodal, and custom-policy safety benchmarks, including VLGuard, MM-SafetyBench, PolyGuard, RTP-LX, Aya Redteaming, XSafety, MultiJail, Aegis, Dynaguardrail, and CoSA. These evaluations reflect the core production challenge for enterprise safety: applying consistent guardrails across global languages, text and image inputs, and domain-specific policies without adding significant latency.</p>
+<p>Nemotron 3 set a strong baseline with 84% average accuracy on multimodal harmful-content tests and roughly half the latency of LlamaGuard-4-12B. Nemotron 3.5 maintains that compact 4B efficiency while adding custom policy support and reasoning traces.</p>
+<p>Across multilingual and multimodal safety benchmarks, Nemotron 3.5 delivers strong harmful-content classification accuracy while maintaining a compact footprint. This matters because many safety models remain English-first, text-only, or too costly to run repeatedly in production pipelines. Nemotron 3.5 is designed to combine multilingual coverage, multimodal classification, custom-policy support, and low-latency deployment in one model.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/644c4b804ef896a09019a5b4/uomUY8i9DOEdH9YfOCCB0.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/644c4b804ef896a09019a5b4/uomUY8i9DOEdH9YfOCCB0.png" alt="figure1"></a></p>
+<p><em>Figure 1. Nemotron 3.5 Content Safety delivers strong harmful-content classification accuracy across multilingual and multimodal safety benchmarks, averaging about 85% across the evaluated benchmark set.</em></p>
+<p>The language-level results highlight why multilingual safety matters for global enterprise AI. On Multilingual Aegis, Nemotron 3.5 averages 96.5% harmful-content classification accuracy across 12 languages. On RTP-LX, it averages 88.8%, for a combined Aegis and RTP-LX average of 92.7%. This consistency helps teams apply the same safety posture across customer, employee, and partner-facing workflows instead of relying on English-only moderation or separate regional safety models.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/644c4b804ef896a09019a5b4/6vntaUhBuotVodz-9BkaX.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/644c4b804ef896a09019a5b4/6vntaUhBuotVodz-9BkaX.png" alt="figure2"></a>
+<em>Figure 2. Nemotron 3.5 Content Safety averages 97% harmful-content classification accuracy on Multilingual Aegis Cultural + Adapted (prompt classification) (harmful-f1) across 12 languages.</em></p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/644c4b804ef896a09019a5b4/w8u_dXJ_iRg3GDRzq5I3-.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/644c4b804ef896a09019a5b4/w8u_dXJ_iRg3GDRzq5I3-.png" alt="figure3"></a>
+<em>Figure 3. Nemotron 3.5 Content Safety averages 89% harmful-content classification accuracy on RTPLX (prompt classification) (harmful-f1) across 12 languages.</em></p>
+<p>Accuracy alone is not enough for production guardrails. Safety models must also be efficient enough to run before content is processed, returned, or routed downstream. Nemotron 3.5 Content Safety's compact 4B design helps reduce the cost and latency of repeated safety checks, making multilingual and multimodal guardrails practical for real-world AI applications.</p>
+<h2>
+	<a id="latency" href="#latency" rel="nofollow">
+		
+	</a>
+	<span>
+		Latency
+	</span>
+</h2>
+<p>The latency profile is unchanged from Nemotron 3 in the default (no THINK) mode. THINK mode adds inference time proportional to trace length, but this overhead is predictable and can be budgeted separately from the synchronous moderation loop—for instance, by running THINK-mode evaluation asynchronously as part of an audit pipeline while the default mode handles real-time decisions.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/644c4b804ef896a09019a5b4/5drKmlTOcLxVobY03RJ7_.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/644c4b804ef896a09019a5b4/5drKmlTOcLxVobY03RJ7_.png" alt="figure4"></a>
+<em>Figure 4. Nemotron 3.5 Content Safety achieves 3x lower end-to-end latency on a multimodal benchmark compared to an alternative multimodal safety model.</em></p>
+<p>Compared to another reasoning safety model, our model generated up to 50% fewer tokens when reasoning is enabled, making it efficient in terms of cost and latency.</p>
+<hr>
+<h2>
+	<a id="addressing-the-benchmark-gap" href="#addressing-the-benchmark-gap" rel="nofollow">
+		
+	</a>
+	<span>
+		Addressing the Benchmark Gap
+	</span>
+</h2>
+<p>A recurring theme in multimodal safety research is the gaps in existing evaluation infrastructure. Nemotron 3.5's development encountered the same gaps documented in the broader literature:</p>
+<ul>
+<li><strong>Text-only coverage</strong>: The most widely cited safety benchmarks (WildGuard, XSTest, HarmBench) are text-only. Multimodal performance cannot be inferred from text-benchmark results.</li>
+<li><strong>Synthetic image quality</strong>: Most multimodal benchmarks that exist use AI-generated images (typically SDXL) rather than real photographs, understating the difficulty of real production content.</li>
+<li><strong>Real-image licensing</strong>: Stock photo licenses prohibit redistribution in AI datasets, creating a structural gap between research and production conditions.</li>
+</ul>
+<p>NVIDIA's multimodal training data—with real images and culturally nuanced multilingual prompts—is designed to fill some of these gaps for model training. The benchmark gap for evaluation remains an open problem for the broader safety research community.</p>
+<h2>
+	<a id="getting-started" href="#getting-started" rel="nofollow">
+		
+	</a>
+	<span>
+		Getting Started
+	</span>
+</h2>
+<p>Nemotron 3.5 Content Safety is available on <a href="https://huggingface.co/nvidia/Nemotron-3.5-Content-Safety">Hugging Face</a> under the NVIDIA Open Model License for research and commercial use, along with the training <a href="https://huggingface.co/datasets/nvidia/Nemotron-3.5-Content-Safety-Dataset">dataset</a>. It supports transformers, vLLM, and SGLang, and is available as a production-grade <a href="https://nvcr.io/nim/nvidia/nemotron-3.5-content-safety:2.0.5-variant" rel="nofollow">NVIDIA NIM</a> on build.nvidia.com for teams that need a pre-packaged, GPU-optimized inference microservice.</p>
+<p>Developers can also access the model through inference platforms including <a href="https://www.baseten.co/library/nemotron-3-5-content-safety/" rel="nofollow">Baseten</a>, <a href="https://www.eigenai.com/blog/2026-06-04-eigenai-delivers-day-0-inference-nvidia-nemotron-3-x-family-ultra-asr-content-safety" rel="nofollow">Eigen AI</a>, <a href="https://deepinfra.com/nvidia/Nemotron-Content-Safety-3.5" rel="nofollow">DeepInfra</a>, <a href="https://openrouter.ai/nvidia/nemotron-3.5-content-safety:free" rel="nofollow">OpenRouter</a>, and <a href="https://blogs.vultr.com/nemotron-3-5-content-safety" rel="nofollow">Vultr</a>.</p>
+<p>For custom policy workflows, NVIDIA provides a Claude- and Codex-compatible <a href="https://github.com/NVIDIA-NeMo/Nemotron/tree/main/skills/nemotron-policy-generator" rel="nofollow">skill for generating custom policies</a>, along with <a href="https://github.com/NVIDIA-NeMo/Nemotron/tree/main/usage-cookbook/Nemotron-3.5-Content-Safety" rel="nofollow">cookbooks showing how to use the model</a>. Custom policies and reasoning traces help teams adapt safety behavior to domain-specific rules while keeping decisions auditable.</p>
+</div></div>

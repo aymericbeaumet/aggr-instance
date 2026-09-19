@@ -1,0 +1,329 @@
+---
+title: 'PRX Part 4: Our Data Strategy'
+link: https://huggingface.co/blog/Photoroom/prx-part4-data
+source: huggingface-co-blog
+published: 2026-07-06T15:30:55Z
+updated: 2026-07-06T15:30:55Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+content: extracted
+html: 2026-07-06-prx-part-4-our-data-strategy.html
+preview:
+  file: 2026-07-06-prx-part-4-our-data-strategy.preview-1e321c6467c7.webp
+  width: 256
+  height: 144
+  color: '#280f4d'
+images:
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/hJldzOsDg5kYWJC_vyj09.png
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-3fce6aea64ff.png
+    width: 1672
+    height: 941
+  color: '#010326'
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/5QIAhbRR2s_0sSyiBniF-.jpeg
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-8f23a186761e.jpg
+    width: 1000
+    height: 400
+  color: '#fbfaf9'
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/hM9_KCDbZhuGuDtvAc0bF.jpeg
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-135d3691fa45.jpg
+    width: 1000
+    height: 563
+  color: '#fafbf9'
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/IkEGCBEUtXF-x9lY3rjvW.jpeg
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-b7c9f6d1d6ef.jpg
+    width: 1000
+    height: 563
+  color: '#fbfaf9'
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/azqOCm90EDc2EkXiO2tTy.jpeg
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-8c6af5188be1.jpg
+    width: 1000
+    height: 632
+  color: '#f8f7f7'
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/DTRMDylmVp1dfdSaL7Epu.jpeg
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-f9622eb4afc9.jpg
+    width: 1000
+    height: 234
+  color: '#fcfbfc'
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/4wLXv1ICfgVBA1_nAQn_C.jpeg
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-0397e515975c.jpg
+    width: 1000
+    height: 671
+  color: '#040404'
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/5lfN6mZXLK6XvoGZYNAeL.jpeg
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-d3798f688234.jpg
+    width: 1000
+    height: 234
+  color: '#fcfcfc'
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/OYSqm4DoFjLyRS97O9gG-.jpeg
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-cd27d0f8d567.jpg
+    width: 1000
+    height: 563
+  color: '#fbfafa'
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/rYCQhSfWBd9mMSiGy-28d.jpeg
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-2a8c20c1b386.jpg
+    width: 1000
+    height: 387
+  color: '#faf9f7'
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/uhCtFxqSbyY1b3QFPinLK.jpeg
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-567a1dbf434a.jpg
+    width: 1000
+    height: 700
+  color: '#111113'
+- source: https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/yMF9iatdukIM9-3Pnu4kL.jpeg
+  original:
+    file: 2026-07-06-prx-part-4-our-data-strategy.image-353dd99fa899.jpg
+    width: 1000
+    height: 500
+  color: '#fbfaf8'
+---
+
+Welcome back! This is Part 4 of the PRX series. Parts 1 to 3 covered [model architectures](https://huggingface.co/blog/Photoroom/prx-part1-architectures), [training design](https://huggingface.co/blog/Photoroom/prx-part2), and a [24-hour speedrun](https://huggingface.co/blog/Photoroom/prx-part3). This time we're pulling back the curtain on the part that quietly underpins all of it: the data. Of all the things that shaped PRX's quality, the data pipeline was one of the least glamorous parts to build but nevertheless an important piece to get right. Here's what we did, what we'd do differently, and a few things we only learned the slow way.
+
+In one sentence: we assemble training data from a mix of public and internal datasets, re-caption the images with a VLM, and turn the result into the streamable corpus we trained PRX on.
+
+At a high level, the data pipeline looks like this:
+
+![Data pipeline: source datasets, prepare images, re-caption with a VLM, write Mosaic Data Shards](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/5QIAhbRR2s_0sSyiBniF-.jpeg)
+
+In the following we will dive into it in detail.
+
+## [](https://huggingface.co/blog/Photoroom/prx-part4-data#1-guiding-principles) 1. Guiding principles
+
+### [](https://huggingface.co/blog/Photoroom/prx-part4-data#a-diverse-dataset-for-pre-training) A diverse dataset for pre-training
+
+The goal was to assemble a large, diverse dataset for pre-training. At this stage the model is learning how the world looks: the visual concepts, the objects and scenes, how things are composed and lit, and the sheer range of what images can contain. That is a problem of coverage and diversity, not of per-image perfection. A broad, representative corpus teaches the model far more about the structure of the visual world than a smaller, prettier one would, even if many of the individual images are ordinary snapshots or slightly compressed. Over-filtering for aesthetics at this stage would actually hurt, narrowing the distribution and costing the model concepts and compositional variety it cannot recover later. Making generations look polished is a separate, later concern, which we leave to fine-tuning and preference alignment on small, ruthlessly curated sets. Pre-training is for breadth; fine-tuning is for taste.
+
+### [](https://huggingface.co/blog/Photoroom/prx-part4-data#a-mix-of-data-sources) A mix of data sources
+
+We assemble our pre-training data from a mix of public and internal datasets. The priority at this stage is breadth, diversity, and standing on curation that already exists rather than redoing it ourselves. Where a source already comes quality-filtered, deduplicated, and filtered for NSFW content and personal information, we build on that work instead of repeating it at scale. Sources arrive in different shapes: some come with the image data itself, others as metadata plus baseline captions that we bring into a common form. We took a pragmatic approach: rather than build a corpus entirely from scratch, we leaned on existing datasets and our own tooling to assemble one quickly. In hindsight it is not necessarily the absolute best dataset one could build, but it was a solid and lightweight starting point for pre-training a 7B model.
+
+### [](https://huggingface.co/blog/Photoroom/prx-part4-data#our-captions-philosophy) Our captions philosophy
+
+In our experience, what matters most for pre-training is to use long captions that accurately describe everything in the image. We saw this directly in [Part 2](https://huggingface.co/blog/Photoroom/prx-part2), where switching from short captions to long ones substantially improved sample quality. If captioning is faithful, we don't need to worry about the occasional screenshot, advertisement, logo, or bit of text in an image, because those things get described in the caption too, so the model learns them as conditioned, controllable attributes rather than reproducing them unconditionally. Accurate captioning turns "noise" into something you can prompt for, or prompt away. This is precisely why the filtering we do later is deliberately light. We remove what is genuinely unusable, not everything that is imperfect.
+
+### [](https://huggingface.co/blog/Photoroom/prx-part4-data#data-formats) Data formats
+
+We have been using [Mosaic Streaming](https://github.com/mosaicml/streaming) and Mosaic Data Shards (MDS) as a dataset format for distributed training for a while now. In combination with [Mosaic Composer](https://docs.mosaicml.com/projects/composer/en/latest/index.html) we found it to be a very low-maintenance, flexible, and well-performing framework for distributed training. Furthermore, MDS datasets can easily and effectively be mixed and shuffled and also allow for distributed training directly from object storage like S3 or GCS.
+
+However, MDS datasets are very rigid. Adding a column or creating a subset for a given filter basically means that one has to scan and rewrite the whole dataset. That's why we use [Lance](https://lance.org) for this kind of feature engineering and dataset curation. Lance is a columnar data format with cheap predicate pushdown, scalar indexes, and vector search, the right tool for building and exploring datasets with billions of rows.
+
+![Lance to build and explore, MDS to stream to training](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/hM9_KCDbZhuGuDtvAc0bF.jpeg)
+
+These two formats play off each other throughout this post and the PRX data pipeline: Lance to build, MDS to stream.
+
+### [](https://huggingface.co/blog/Photoroom/prx-part4-data#on-text-latents) On text latents
+
+For previous training runs, we used [T5Gemma](https://deepmind.google/models/gemma/t5gemma/) as the text encoder and pre-computed the text latents, storing them in MDS as bytes. This time around, after switching the text encoder to [Qwen3-VL](https://huggingface.co/collections/Qwen/qwen3-vl), we decided to compute text latents on the fly during training instead. Running the text encoder inside the training loop costs throughput, but how much depends on the model: for a small denoiser it can be significant, whereas at PRX's 7B scale the text encoder's compute is negligible next to the denoiser, and we measured only a roughly 3–4% throughput cost (about 1 extra day on a 30-day run). In return we get two things. Skipping pre-computation keeps our MDS shards much smaller, small enough to store the full pre-training dataset on the SSD-backed shared filesystem of our SLURM cluster rather than streaming it over the network from object storage. And it keeps us free to change the text encoder later without rewriting terabytes of stored latents, which is exactly the kind of switch we made when moving to Qwen3-VL.
+
+### [](https://huggingface.co/blog/Photoroom/prx-part4-data#on-image-encoding) On image encoding
+
+We encoded all images as JPEG at quality 92, instead of a lossless format such as PNG. We did not just assume quality 92 was safe, we measured it. Real-world images have usually already been JPEG-compressed several times, so the real question is whether one more re-encode hurts. Across repeated decode/encode cycles on both high-resolution (1–2 MP) and lower-resolution (0.25–0.5 MP) real images, the first re-encode at quality 92 is essentially imperceptible. Each further cycle adds almost nothing, because JPEG quickly converges to a stable state, and even after 10 cycles the images stay well within the imperceptible range, while PNG would be 3–10× larger for no perceptual gain. The numbers, averaged over 100 images at quality 92 and measured against the original (higher PSNR and lower LPIPS are better):
+
+| Image resolution | PSNR after 1× (dB) ↑ | LPIPS after 1× ↓ | PSNR after 10× (dB) ↑ | LPIPS after 10× ↓ |
+| ---------------- | -------------------- | ---------------- | --------------------- | ----------------- |
+| 1–2 MP           | 48.7                 | 0.004            | 45.4                  | 0.008             |
+| 0.25–0.5 MP      | 45.1                 | 0.005            | 42.2                  | 0.010             |
+
+Since most source images already arrive JPEG-compressed, storing them losslessly as PNG buys little, so we convert everything to JPEG at high quality (quality 92).
+
+We also checked what matters most: whether training on JPEGs changes what the model produces. Our corpus is mostly JPEG anyway, so the only advantage PNG could offer is not introducing new artifacts. We deliberately drew the comparison from high-resolution sources, on the expectation that even originally-JPEG images carry few artifacts at high resolution. We trained two identical PRX models at 1024px on the same images, one stored as PNG and one as JPEG at quality 92. Both trained equally well on our metrics, and their generations were practically indistinguishable, including when we estimated how JPEG-compressed the outputs look using a [known technique for estimating JPEG quality by matching quantization tables](https://www.bitsgalore.org/2024/10/30/jpeg-quality-estimation-using-simple-least-squares-matching-of-quantization-tables.html):
+
+| Model trained on  | Detection rate | Mean est. JPEG quality | Median est. JPEG quality |
+| ----------------- | -------------- | ---------------------- | ------------------------ |
+| JPEG (quality 92) | 12.0%          | 39.6                   | 34.0                     |
+| PNG               | 10.8%          | 42.1                   | 45.0                     |
+
+The detection rate is the fraction of generations in which any quantization structure is found at all. The mean and median estimated JPEG quality are taken over only those flagged images. The two models are practically indistinguishable: only about one generation in ten from either shows any detectable quantization structure, and the differences are small enough that we are confident the training image format has a minimal effect on output quality. So high-quality JPEG storage adds nothing measurable on top of what the sources already carry. For large-scale text-to-image training that is more than good enough. For artifact-sensitive data used to train other Photoroom models, such as our custom [AI Shadows](https://docs.photoroom.com/image-editing-api-plus-plan/ai-shadows) model, we still rely on PNGs.
+
+## [](https://huggingface.co/blog/Photoroom/prx-part4-data#2-building-the-dataset-in-lance) 2. Building the dataset in Lance
+
+You cannot interactively explore Parquet tables with hundreds of millions or even billions of rows. We therefore store the data in Lance, where we can index, query, and browse it. We run the ingest with [Ray Data](https://docs.ray.io/en/latest/data/data.html), reading the source tables in parallel and writing many fragments of a Lance table across the cluster.
+
+One lesson worth sharing is about fragmentation. A Lance table is split into fragments, and several operations scale with the total number of fragments rather than the row count: a scan opens the files of every fragment, and some metadata operations are O(number of fragments). A table broken into too many small fragments therefore queries slowly no matter its size. The [Lance performance guidance](https://lance.org/guide/performance/) is to keep that count low (the rule of thumb is on the order of a hundred fragments even for a billion-row table) and to run compaction periodically to merge small fragments into larger ones.
+
+We learned this the slow way. Our first ingest targeted only 100,000 rows per fragment, which left thousands of tiny fragments and made even simple filters and full-text queries crawl. After compacting up to roughly a million rows per fragment, which for our tables of several hundred million rows meant on the order of a thousand fragments, queries were fast and we stopped worrying about it. The right target depends on row width, query patterns, and how the data is written, and in hindsight fewer, larger fragments might have been a better default. Lance supports distributed compaction (for example via the [Lance-Ray](https://lance.org/integrations/ray/#lance-ray-integration) integration), so it is easy to adjust after the fact, but it pays not to over-fragment in the first place.
+
+![Lance fragment compaction: many small fragments (slow) compacted into fewer, larger fragments (fast)](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/IkEGCBEUtXF-x9lY3rjvW.jpeg)
+
+### [](https://huggingface.co/blog/Photoroom/prx-part4-data#existing-captions-and-embeddings-for-exploration) Existing captions and embeddings for exploration
+
+We chose to re-caption every image ourselves rather than rely on the captions some of the datasets happened to ship with. The reason is consistency: across a mix of sources, caption length, style, and quality vary a lot, and we wanted a single uniform standard across the whole corpus (more on the captioner in Section 3).
+
+The metadata a dataset already carries is still valuable, though, just for a different purpose. Pre-existing captions, and the vector embeddings that sometimes come alongside them (for example [CLIP](https://arxiv.org/abs/2103.00020) embeddings), are what make a dataset explorable in Lance right away: full-text search over the captions and nearest-neighbor search over an embedding column let us navigate the data and quickly judge its quality and the filtering it will need, well before we have run our own captioning over it. So we keep both, joining them in when they live in a separate table, and lean on them for the browsing we describe next.
+
+### [](https://huggingface.co/blog/Photoroom/prx-part4-data#profiling-and-exploring-the-data) Profiling and exploring the data
+
+With the data queryable, we could quickly profile it. The resolution distribution, for example, told us where to set cutoffs. Our smallest training bucket is 512² pixels, and we cap upscaling into a bucket at 4/3 (about 33%), so the effective cutoff is 384² ≈ 147k pixels plus an aspect ratio in \[0.5, 2.0\]. Everything below that we discard.
+
+Lance tables support full-text search on text columns as well as nearest-neighbor similarity search on vector embedding columns out of the box, and both can be accelerated by building indexes. We did exactly that for the caption and embedding columns, then built a small UI to browse the dataset: real-time text search over the captions as well as navigating clusters of visually similar images via vector search.
+
+[![explorer_text](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/azqOCm90EDc2EkXiO2tTy.jpeg)](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/azqOCm90EDc2EkXiO2tTy.jpeg)
+
+Browsing the data this way let us assess its diversity and quality qualitatively and spot issues early, simply by looking at it. We found uninformative baseline captions, a surprising amount of non-photographic content (screenshots, slides, documents, infographics), and some near-duplicate images. These observations shaped the rest of the pipeline directly: re-caption everything (longer, accurate captions describe even imperfect images well, and guarantee that the caption matches the exact image we train on), and add light filtering and deduplication passes later. In general, we believe this sort of exploration tool is invaluable for getting a feel for a dataset before committing to it.
+
+## [](https://huggingface.co/blog/Photoroom/prx-part4-data#3-re-captioning-everything-with-a-vlm) 3. Re-captioning everything with a VLM
+
+We found that long, detailed captions are a very strong lever on output quality. In an early benchmark we trained a small diffusion model twice on the same images, once on captions we generated with [Qwen2.5-VL-7B](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct) and once on much shorter captions (produced with [LLaVA-1.5-LLaMA3-8B](https://huggingface.co/xtuner/llava-llama-3-8b-v1_1)), and scored both over training. The long captions generated with Qwen2.5-VL-7B won across the board, with lower FID, CMMD, and DINO-MMD at every checkpoint (lower is better on all three).
+
+[![vlm_vs_llava_metrics](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/DTRMDylmVp1dfdSaL7Epu.jpeg)](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/DTRMDylmVp1dfdSaL7Epu.jpeg) *A small diffusion model trained on Qwen2.5-VL-7B captions (red) versus the baseline LLaVA-1.5-LLaMA3-8B captions (blue), scored every 10k steps up to 100k. Lower is better on all three metrics.*
+
+Final metrics (around 100k steps):
+
+| Captions            | FID ↓ | CMMD ↓ | DINO-MMD ↓ |
+| ------------------- | ----- | ------ | ---------- |
+| Qwen2.5-VL-7B       | ≈13   | ≈0.32  | ≈0.22      |
+| LLaVA-1.5-LLaMA3-8B | ≈21   | ≈0.52  | ≈0.35      |
+
+Here is an example image with both our long, VLM-generated caption as well as the shorter caption used as the baseline: [![captions](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/4wLXv1ICfgVBA1_nAQn_C.jpeg)](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/4wLXv1ICfgVBA1_nAQn_C.jpeg)
+
+Our captioning runs as a streaming pipeline built on Ray Data: it reads the data from Lance, prepares each image, captions it on the GPU, and writes the caption back as a new column we can query and filter on. We prompt for a single dense, visually grounded paragraph rather than a one-line caption.
+
+### [](https://huggingface.co/blog/Photoroom/prx-part4-data#choosing-the-captioner) Choosing the captioner
+
+A tight schedule and limited resources meant that we couldn't spend too much time on ablations of different captioning models and system prompts.
+
+We used the following prompts to generate the captions.
+
+System prompt:
+
+```
+You are an expert image captioning model specialized in producing highly detailed, visually grounded descriptions. Write a single, flowing paragraph of approximately 100–200 words that precisely describes the given image. The caption should be written in natural prose, without bullet points, headings, or labeled sections. Describe exactly and only what is visible in the image, without speculation, interpretation of intent, or assumptions beyond visual evidence. Your description should naturally integrate the following aspects: the type of image; the main subjects and objects with appearance, materials, colors, shapes, and details; positions and spatial relationships (left/right, foreground/background, depth, overlaps, scale, framing); composition and layout (centering, balance, negative space, perspective, viewpoint); lighting and color palette; style/aesthetic qualities when supported by visual cues; and any visible text transcribed exactly as it appears, stating whether it is part of the depicted scene or a graphic overlay (watermark/UI). Do not translate or interpret the text. Maintain a neutral, precise, and descriptive tone. Avoid repetition, metaphor, emotional projection, or narrative embellishment. The goal is a dense, accurate, visually faithful caption.
+```
+
+User prompt:
+
+```
+Write the caption for this image.
+```
+
+We shortlisted three VLMs as captioner candidates:
+
+- [Qwen2.5-VL-7B-Captioner-Relaxed](https://huggingface.co/Ertugrul/Qwen2.5-VL-7B-Captioner-Relaxed) (fine-tuned for captioning)
+- [Qwen3-VL-8B](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct)
+- [Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B)
+
+We benchmarked caption quality indirectly: we trained a small diffusion model for 100k steps on each caption variant and scored its generations with [FID](https://arxiv.org/abs/1706.08500), [CMMD](https://arxiv.org/abs/2401.09603), and [DINO-MMD](https://arxiv.org/abs/2304.07193). Alongside the three candidates we scored two reference captioners, to connect this comparison to the first benchmark: the base Qwen2.5-VL-7B (the same model as in the benchmark above) and a set of Gemini 1.5 Flash captions we had generated earlier for the 1M-image internal test set used here. The Gemini captions are a similar length but were produced with a different prompt (all others use the system prompt above), so its curve is indicative rather than a like-for-like comparison.
+
+[![qwen_captioner_metrics](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/5lfN6mZXLK6XvoGZYNAeL.jpeg)](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/5lfN6mZXLK6XvoGZYNAeL.jpeg) *FID, CMMD, and DINO-MMD over training for the three captioner candidates and two reference captioners, scored every 10k steps up to 100k. Lower is better on all three.*
+
+Final metrics (around 100k steps):
+
+| Captioner                       | FID ↓ | CMMD ↓ | DINO-MMD ↓ |
+| ------------------------------- | ----- | ------ | ---------- |
+| Qwen2.5-VL-7B-Captioner-Relaxed | 13.95 | 0.306  | 0.185      |
+| Qwen3-VL-8B (our pick)          | 10.98 | 0.351  | 0.182      |
+| Qwen3.5-9B                      | 10.51 | 0.278  | 0.162      |
+| Qwen2.5-VL-7B (reference)       | 15.86 | 0.393  | 0.285      |
+| Gemini 1.5 Flash (reference)    | 13.46 | 0.316  | 0.234      |
+
+Among the candidates, Qwen3.5-9B is best on all three metrics, with Qwen3-VL-8B close behind on FID and DINO-MMD (though weaker on CMMD) and the Relaxed captioner trailing on FID but competitive elsewhere. The clearest result is that the base Qwen2.5-VL-7B — the same model that beat the baseline in the first benchmark — is now the weakest of the five, which is exactly why we didn't just keep it: a caption-tuned or newer model measurably helps. (Gemini 1.5 Flash lands mid-pack, but with the different-prompt caveat above.)
+
+We put less weight on throughput than quality, but at hundreds of millions of images it still matters, since it sets how much the captions cost to generate. We measured it only for the three candidates, all served through [vLLM](https://github.com/vllm-project/vllm) with no quantization or custom kernels. The tuning was at the pipeline level: one vLLM replica per GPU, with enough Ray Data pool workers to keep all eight GPUs on a node saturated. We first found Qwen3-VL-8B to be the fastest (20 img/s per H200) and chose it, for its speed, quality, and stable, release-grade vLLM support. Only later did we find that the Qwen2.5-VL "Relaxed" captioner reaches the same 20 img/s once fixed: it had been saved with the wrong architecture class, which broke vLLM's `torch.compile` hashing and forced slow eager mode until we re-saved it as `Qwen2_5_VLForConditionalGeneration`. Qwen3.5-9B produces great captions but ran slower (~6.5 img/s) and needed unstable nightly dependency builds at the time. A few months on, it is probably a great choice too.
+
+## [](https://huggingface.co/blog/Photoroom/prx-part4-data#4-writing-mosaic-data-shards) 4. Writing Mosaic Data Shards
+
+At the end of the pipeline, we turn the captioned, bucketed stream into MDS, the format the trainer streams.
+
+### [](https://huggingface.co/blog/Photoroom/prx-part4-data#what-mds-is-and-why-we-use-it-over-lance) What MDS is, and why we use it over Lance
+
+The Mosaic Streaming library packs samples into ~128MB shards streamed during training from object storage or a local filesystem. Lance does support simple distributed training as well, but we found that converting to MDS is the lower friction path for us. Mosaic Streaming gives us, for free, the distributed-training machinery we'd otherwise have to build ourselves:
+
+- **deterministic, resumable shuffling**: with a choice of algorithms that trade shuffle quality against host memory.
+- **elastic mid-epoch checkpoint resume**: change the number of nodes/ranks and resume without re-seeing or skipping samples.
+- **weighted mixing of multiple streams**: different datasets/subsets at chosen ratios while keeping the shuffling and resumption guarantees intact.
+
+### [](https://huggingface.co/blog/Photoroom/prx-part4-data#resolution--aspect-ratio-bucketing) Resolution + aspect-ratio bucketing
+
+Diffusion training runs on fixed-size tensors, so every image in a batch must share one width and height. Rather than crop everything square (losing the sides of portraits and landscapes) or pad (wasting compute), we use aspect-ratio bucketing: a small set of allowed (w, h) shapes, with each image snapped to the nearest one and only same-shape images batched together.
+
+We bucket in two steps. First by resolution tier (pixel count): a 512px and a 1024px tier for most of the corpus, plus 2048px and 4096px tiers for high-resolution data. An image goes into the largest tier it can reach without upscaling by more than 4/3 (~33%), so each tier's floor is (size × 3/4)² (≈384² for the 512 tier, 768² for 1024); anything below the smallest floor is dropped. Then by aspect ratio within the tier: we enumerate the patch-aligned (w, h) shapes (both divisible by 16, AR in \[0.5, 2.0\]) that keep a roughly constant ~256-patch token budget, giving 13 buckets per tier, from 0.5 (tall) through 1.0 (square) to 2.0 (wide). At 512px that's 352×704 … 512×512 … 704×352; at 1024px the same 13 ratios scaled up. Constant patch count keeps per-image compute flat across shapes.
+
+![Aspect-ratio bucketing: images of different shapes snapped into fixed 512px and 1024px buckets](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/OYSqm4DoFjLyRS97O9gG-.jpeg)
+
+Each image is then resized to its bucket with a Lanczos filter and encoded as JPEG at quality 92, and Mosaic Data Shards are written into a tree keyed by resolution and aspect ratio so the trainer can stream buckets separately:
+
+```
+output_dir/
+  512/
+    0.500/  shard.00000.mds, ...
+    ...
+    1.000/  ...
+    ...
+    2.000/  ...
+  1024/
+    0.500/  ...
+    1.000/  ...
+```
+
+## [](https://huggingface.co/blog/Photoroom/prx-part4-data#5-data-filtering) 5. Data filtering
+
+The exploration in Section 2 relied on whatever captions a dataset shipped with. Once our own detailed captions were in place, the same full-text search became far more powerful, and a few passes over the captions turned up things the sparser original metadata had hidden: more text-heavy images (screenshots, slides, documents, infographics) than we had estimated, and some NSFW content that had slipped through.
+
+To turn those approximate searches into a filter, we ran a quick classification pass with [Qwen3-8B](https://huggingface.co/Qwen/Qwen3-8B) in text-only mode: it reads each caption (never the image) and labels the sample visual, text, or nsfw. The whole heuristic is essentially one question, *"Would you look at this image, or read it?"* Classifying from the caption rather than the pixels is cheap (around 200 captions/s per GPU) and reuses work we had already done. A pixel-level image classifier would likely be more accurate, but this was good enough to remove the obvious cases at moderate cost and without having to annotate data and train a custom classifier.
+
+Rather than rewrite the whole corpus to drop these samples, we added a skip-list feature to the MDS data loader: a small sidecar file per shard lists the sample indices to skip, and the loader unions them and skips those samples at training time. Nothing is deleted or rewritten. This turned out to be a flexible mechanism well beyond this one filter. We can exclude any set of examples identified after the fact, whether a newly discovered quality issue, a blacklist, or, importantly, data from users who later opt out of having their content used for training, simply by extending the skip list before the next run. It is also convenient for ablations: to measure a filter's effect, train once with the skip list and once without, off the same dataset, instead of storing two copies. The one limit is scale. Skip lists add a little per-sample work at load time, so once the skipped fraction grows large (we would estimate somewhere around 10%, though we have not measured the crossover), it becomes worth rewriting the MDS dataset without the skipped samples rather than carrying an ever-growing skip list.
+
+[![skip_lists](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/rYCQhSfWBd9mMSiGy-28d.jpeg)](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/rYCQhSfWBd9mMSiGy-28d.jpeg)
+
+## [](https://huggingface.co/blog/Photoroom/prx-part4-data#6-deduplication) 6. Deduplication
+
+The same explorer surfaced a fair number of duplicates: large image collections tend to accumulate exact and near-duplicate copies, which waste training compute and skew the distribution. We mainly targeted near-duplicates and exact copies, so we added a quick deduplication pass using perceptual hashes. If the goal is to identify duplicate concepts and balance them in a dataset, deduplication based on clusters of image embeddings is a more suitable approach.
+
+[![explorer_duplicates](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/uhCtFxqSbyY1b3QFPinLK.jpeg)](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/uhCtFxqSbyY1b3QFPinLK.jpeg)
+
+We could have done an exact dedup on a byte hash like SHA-256, but a perceptual hash already subsumes that (it matches byte-identical images too) while also catching re-encoded or resized copies, so we used only the perceptual hash. It is a standard [DCT-based perceptual hash](https://www.hackerfactor.com/blog/index.php?/archives/432-Looks-Like-It.html) (downscale to a small grayscale thumbnail, 2D DCT, threshold the low-frequency coefficients into a compact fingerprint), implemented in a few lines on top of [OpenCV](https://opencv.org/) and [SciPy](https://scipy.org/). We consider two hashes a match if their Hamming distance is zero, so we only remove near-pixel-identical copies. Genuinely different shots of the same subject have different fingerprints (and different captions) and are kept on purpose.
+
+Once every image has a perceptual hash (fingerprint), the dedup itself is just a hash-map lookup: scanning each aspect-ratio bucket across resolutions, we keep one entry per fingerprint, so any image whose fingerprint we have already seen is a duplicate of the one we kept, and when a cluster spans resolutions we keep the highest-resolution copy. The duplicates are written out as a per-shard skip list that the loader unions and skips at load time, so nothing is deleted and the dataset is never rewritten.
+
+![Perceptual-hash deduplication: near-identical images reduced to fingerprints, duplicates grouped, keep highest resolution](https://cdn-uploads.huggingface.co/production/uploads/680a58121b2c7c159d2bd481/yMF9iatdukIM9-3Pnu4kL.jpeg)
+
+Across the corpus, deduplication removed on the order of a few percent of images, the caption-based text filter a few percent more, and the NSFW pass a small fraction of a percent.
+
+* * *
+
+## [](https://huggingface.co/blog/Photoroom/prx-part4-data#whats-next) What's next?
+
+The dataset described here is the pre-training corpus, where breadth and scale matter most. For supervised fine-tuning and preference alignment the trade flips entirely: quality matters far more than quantity, and the problem becomes finding and curating small, high-signal subsets out of this large corpus. To do that we have been building more powerful curation tooling, including a richer explorer that tags images with structured attributes predicted by a VLM so we can assemble highly targeted subsets for fine-tuning. We plan to dig into topics like fine-tuning and preference alignment as well as the data tooling we use for these in a future post.
+
+**Build something with PRX, or find a bug in our pipeline?** PRX is Apache 2.0 and the model code lives at [github.com/Photoroom/PRX](https://github.com/Photoroom/PRX). We integrated PRX into the [diffusers](https://github.com/huggingface/diffusers) library and there is a [Hugging Face Space](https://huggingface.co/spaces/Photoroom/PRX-Pixel) to try out our latest version [PRX Pixel](https://huggingface.co/Photoroom/prxpixel-t2i).
+
+Come talk diffusion models and data with us on [Discord](https://discord.gg/ZRwdpBSyyC).
+
+## [](https://huggingface.co/blog/Photoroom/prx-part4-data#references) References
+
+Tooling
+
+1. [Lance](https://lance.org)
+2. [Mosaic Streaming (MDS)](https://github.com/mosaicml/streaming)
+3. [Ray Data](https://docs.ray.io/en/latest/data/data.html)
+4. [vLLM](https://github.com/vllm-project/vllm)
+
+Models
+
+5. [Qwen2.5-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct)
+6. [LLaVA-1.5-LLaMA3-8B](https://huggingface.co/xtuner/llava-llama-3-8b-v1_1)
+7. [Qwen2.5-VL-7B-Captioner-Relaxed](https://huggingface.co/Ertugrul/Qwen2.5-VL-7B-Captioner-Relaxed)
+8. [Qwen3-VL-8B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct)
+9. [Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B)
+
+Evaluation metrics
+
+10. [FID (Heusel et al., 2017)](https://arxiv.org/abs/1706.08500)
+11. [CMMD, "Rethinking FID" (Jayasumana et al., 2024)](https://arxiv.org/abs/2401.09603)
+12. [DINOv2 (Oquab et al., 2023), the features behind DINO-MMD](https://arxiv.org/abs/2304.07193)
+
+PRX
+
+13. [PRX model code](https://github.com/Photoroom/PRX)
+14. [PRX Pixel model](https://huggingface.co/Photoroom/prxpixel-t2i)
+15. [PRX Pixel demo (Hugging Face Space)](https://huggingface.co/spaces/Photoroom/PRX-Pixel)

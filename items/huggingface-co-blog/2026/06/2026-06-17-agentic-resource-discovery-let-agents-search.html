@@ -1,0 +1,127 @@
+<div id="readability-page-1" class="page"><div>
+<p>If you build with agents today, you probably know three protocols. MCP gives agents a standard way to call tools. Skills give agents a way of consuming instructions. A2A gives agents a way to call other agents. All three assume the user already knows which tool, instruction, or agent they need. The user is still responsible for discovering, integrating, and maintaining those capabilities.</p>
+<p>The Agentic Resource Discovery (ARD) specification is the discovery layer that sits in front of them. It is a draft, open specification developed by contributors from Microsoft, Google, GoDaddy, Hugging Face, and others, with broad participation across the industry. It defines how agents and tools are cataloged, indexed, and searched across federated registries, so an agent can find capabilities at runtime instead of needing them pre-installed. It is not a product or a marketplace. It is a shared standard that any company can implement independently, and that any agent or tool can participate in.</p>
+<p>In this post, we'll explore the specification, how Hugging Face has implemented it, and how you can start building on ARD.</p>
+<h2>
+	<a id="the-discovery-problem" href="#the-discovery-problem" rel="nofollow">
+		
+	</a>
+	<span>
+		The discovery problem
+	</span>
+</h2>
+<p>The current model for agent capabilities is install-first, use-later. A developer hardcodes an MCP server URL into a config file. A user connects a service to their AI app via a plugin and reuses it. This works for the handful of tools an agent uses every day, but it doesn't scale to thousands of ad-hoc surfaces.</p>
+<p>The fallback is to dump every available tool description into the LLM's context window and let the model pick. This is limited by the context budget. There are search-based strategies here too, but the descriptions are often too thin to disambiguate well.</p>
+<p>ARD moves selection outside the LLM. A registry indexes capabilities with richer signals such as publisher identity, representative queries, compliance attestations, and tags. It exposes a REST endpoint. The client searches in natural language, and the model invokes whatever the search returns. The shift is from manually installed, static catalogs to intent-based search that lets an agent find the right capability dynamically, and reach a growing ecosystem of MCP tools, A2A agents, and other services without pre-configuring each one.</p>
+<p>The specification defines two things:</p>
+<ul>
+<li>A static manifest format called <code>ai-catalog.json</code> lets publishers host their capabilities at a well-known URL.  </li>
+<li>A dynamic registry API at <code>POST /search</code> provides live, ranked discovery.</li>
+</ul>
+<h2>
+	<a id="ard-on-the-hugging-face-hub" href="#ard-on-the-hugging-face-hub" rel="nofollow">
+		
+	</a>
+	<span>
+		ARD on the Hugging Face Hub
+	</span>
+</h2>
+<p>The Hugging Face <a href="https://github.com/huggingface/hf-discover" rel="nofollow">Discover Tool</a> is our reference implementation of ARD. It provides search access to thousands of Skills, ML applications, and MCP Servers — on Hugging Face and across other ARD discovery services.</p>
+<p>It works by combining the Hub's existing semantic search over Spaces, alongside our Agent Skills, and serving the results as ARD catalog entries. The Hub already hosts a catalog of Spaces running Gradio apps, MCP servers, and demos. Its semantic search supports an <code>agents=true</code> flag that returns Spaces ranked by agent-oriented metadata, and Discover translates that search into the ARD specification.</p>
+<p>The adapter applies two filters. First, the response includes only Spaces whose runtime stage is <code>RUNNING</code>. Second, the response media type is driven by the request. Three media types are supported:</p>
+<ul>
+<li><code>application/ai-skill</code>: the default. A generated <code>SKILL.md</code> wrapping the Space's <code>agents.md</code>.  </li>
+<li><code>application/mcp-server+json</code>: an MCP server catalog entry for Spaces tagged <code>mcp-server</code>.  </li>
+<li><code>application/vnd.huggingface.space+json</code>: raw Space metadata for clients that want to handle it themselves.</li>
+</ul>
+<p>The skill type involves an additional transformation. Many Spaces ship an <code>agents.md</code> file describing how an agent should interact with them. Discover reads that file and wraps it with the frontmatter a skill consumer expects: <code>name</code>, <code>description</code>, and source metadata covering the Space ID, Hub URL, app URL, and original <code>agents.md</code> URL. The result is a skill any skill-aware client can install or load through its normal skill flow.</p>
+<p>For MCP-tagged Spaces, the adapter generates a catalog entry pointing at the Space's Gradio MCP endpoint over HTTP transport. The URL uses the Space's runtime domain when the Hub provides one, otherwise the standard <code>.hf.space</code> slug convention.</p>
+<h2>
+	<a id="using-it" href="#using-it" rel="nofollow">
+		
+	</a>
+	<span>
+		Using it
+	</span>
+</h2>
+<p><code>discover</code> is built into the <a href="https://github.com/huggingface/huggingface_hub" rel="nofollow">Hugging Face CLI</a> (<code>hf</code>). To get started and give you or your agent access:</p>
+<pre><code><span># Install the Hugging Face CLI tool:</span>
+uv tool install huggingface_hub
+
+<span># Search for resources to train a model</span>
+hf discover search <span>"Fine tune a language model"</span>
+
+<span># Find MCP Servers to generate an image</span>
+hf discover search <span>"Generate an image"</span> --json --kind mcp
+
+<span># Search other registries</span>
+hf discover search <span>"Purchase aeroplane tickets"</span> --registry-url &lt;catalog-url&gt;
+</code></pre>
+<h3>
+	<a id="rest-api-and-mcp-tool" href="#rest-api-and-mcp-tool" rel="nofollow">
+		
+	</a>
+	<span>
+		REST API and MCP Tool
+	</span>
+</h3>
+<p>You can also Search the catalog directly using either the REST API or an MCP Server. </p>
+<p> The Hugging Face catalog is published at its well-known URL:</p>
+<pre><code>https://huggingface.co/.well-known/ai-catalog.json
+</code></pre>
+<p>To call search directly:</p>
+<pre><code>POST https://huggingface-hf-discover.hf.space/search
+</code></pre>
+<pre><code>curl -s https://huggingface-hf-discover.hf.space/search \
+  -H <span>"Content-Type: application/json"</span> \
+  -d <span>'{</span>
+<span>    "query": {</span>
+<span>      "text": "fine tune a sentence transformer",</span>
+<span>      "filter": {</span>
+<span>        "type": ["application/ai-skill"]</span>
+<span>      }</span>
+<span>    },</span>
+<span>    "pageSize": 5</span>
+<span>  }'</span>
+</code></pre>
+<p>Search for MCP servers</p>
+<pre><code>curl -s https://huggingface-hf-discover.hf.space/search \
+  -H <span>"Content-Type: application/json"</span> \
+  -d <span>'{</span>
+<span>    "query": {</span>
+<span>      "text": "transcribe some audio",</span>
+<span>      "filter": {</span>
+<span>        "type": ["application/mcp-server-card+json"]</span>
+<span>      }</span>
+<span>    },</span>
+<span>    "pageSize": 5</span>
+<span>  }'</span>
+</code></pre>
+<p>Alternatively, connect any MCP Client to search via MCP endpoint using <a href="https://huggingface-hf-discover.hf.space/mcp" rel="nofollow">https://huggingface-hf-discover.hf.space/mcp</a> to search the catalog. </p>
+<h2>
+	<a id="what-this-means-for-the-specification" href="#what-this-means-for-the-specification" rel="nofollow">
+		
+	</a>
+	<span>
+		What this means for the specification
+	</span>
+</h2>
+<p>ARD separates discovery from execution. The static manifest format is driven by media type, so any artifact protocol can ride the same envelope without specification-level changes. The registry API is plain HTTP REST, so any client can federate against it. Discover is one of several reference implementations of the specification across the ecosystem, and because federation is built into the protocol, a search through one service can surface capabilities hosted by another.</p>
+<p>The Discover Tool is a working test of that design. It does not invent a new artifact format. It wraps an existing search backend, the Hub, in the specification's envelope, and lets the same Spaces surface as skills or MCP servers depending on what the client asked for.</p>
+<p>Next steps are tighter integration with the specification's federation modes (<code>auto</code>, <code>referrals</code>, <code>none</code>) and Hub-side support for static <code>ai-catalog.json</code> manifests on user and organization profiles. Once that lands, any Space publisher will be able to advertise their capabilities through the standard well-known URI mechanism.</p>
+<h2>
+	<a id="learn-more" href="#learn-more" rel="nofollow">
+		
+	</a>
+	<span>
+		Learn more
+	</span>
+</h2>
+<ul>
+<li>The Agentic Resource Discovery Specification: <a href="https://agenticresourcediscovery.org/" rel="nofollow">https://agenticresourcediscovery.org/</a></li>
+<li>The Hugging Face Discover Tool: <a href="https://github.com/huggingface/hf-discover" rel="nofollow">https://github.com/huggingface/hf-discover</a>  </li>
+<li>The Hugging Face CLI: <a href="https://github.com/huggingface/huggingface_hub" rel="nofollow">https://github.com/huggingface/huggingface_hub</a>  </li>
+<li>Agent Skills on the Hub: <a href="https://huggingface.co/docs/hub/agents-skills">https://huggingface.co/docs/hub/agents-skills</a>  </li>
+<li>Hugging Face Spaces: <a href="https://huggingface.co/spaces">https://huggingface.co/spaces</a></li>
+</ul>
+</div></div>

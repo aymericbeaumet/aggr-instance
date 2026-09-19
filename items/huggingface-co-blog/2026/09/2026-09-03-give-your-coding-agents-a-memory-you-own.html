@@ -1,0 +1,206 @@
+<div id="readability-page-1" class="page"><div>
+<p>I work across several machines, and I switch coding agents depending on the task.
+Every one of them meets my projects as a stranger. The reasoning from “last Tuesday”
+disappears when the session ends. Each new agent, on each new host, starts from zero.</p>
+<p>Earlier this year, <a href="https://huggingface.co/blog/huggingface/agent-traces-as-memory"><em>Software Forgets: Agent Traces Are the
+Memory</em></a> made the case
+that coding agents already produce the record we keep losing. As they search a
+codebase, try approaches, hit errors, read documentation, and change direction, they
+leave behind a dense account of not just <em>what</em> changed, but <em>why</em>.</p>
+<p>While the diagnosis is correct, traces are only potential memory. The session logs of
+an agent are still just an archive. You cannot <code>grep</code> your way to <em>“why did we move
+off the streaming parser?”</em> across ten thousand turns. For an agent to use those traces
+while it works, they need indexing, retrieval, ranking, and exact provenance.</p>
+<p>That is what <a href="https://github.com/huggingface/funes" rel="nofollow">funes</a> provides. It is a durable
+memory layer for your agents (Claude Code, Codex, pi, and Hermes). It is built from the
+sessions already on your machine. It works locally and becomes part of your agent's
+normal workflow with one command. When you want it to, it can also travel to a Hugging
+Face dataset you own, private by default.</p>
+<h2>
+	<a id="add-memory-to-the-agent-you-already-use" href="#add-memory-to-the-agent-you-already-use" rel="nofollow">
+		
+	</a>
+	<span>
+		Add memory to the agent you already use
+	</span>
+</h2>
+<p>funes is a single binary. Its default inference backend has no ML runtime dependency,
+and embedding and reranking happen <em>on your machine</em>. Install it:</p>
+<pre><code>curl -fsSL https://huggingface.co/buckets/huggingface/funes/resolve/install.sh | sh
+</code></pre>
+<p>Then add it to an agent:</p>
+<pre><code>funes add claude    <span># or: codex, pi, hermes</span>
+</code></pre>
+<p>That one <code>add</code> command builds the first index, gives the agent <code>recall</code> and <code>get</code>
+tools, and installs the automation that indexes each completed turn. Indexing is
+incremental, with new runs adding new turns rather than embedding the whole history
+ again. The older and deeper content can backfill in bounded steps.</p>
+<p>From there, you just work. When a task touches a past decision, rationale, or finding,
+the agent can reach for <code>recall</code> itself. You do not need to remember the old session or
+paste its context into the new one.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/funes/recall.gif" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/funes/recall.gif" alt="A coding agent reaches for funes on its own, recalls an earlier decision, and grounds its answer in the retrieved session"></a></p>
+<blockquote>
+<p>With funes added, recall happens inside the conversation. The agent reaches for its
+memory on its own and names the session behind its answer.</p>
+</blockquote>
+<p><code>recall</code> returns the original text, not a summary, and shows exactly where it came from
+(the agent, timestamp, session, and turn). Each result includes a <code>get</code> command that
+opens the full turn and its surrounding context.</p>
+<p>Underneath, one deterministic pipeline parses every supported trace into the same
+turn-and-block shape, chunks it, embeds it with a pinned local model, and writes it to
+a local <strong>Lance</strong> dataset. A query combines vector and BM25 search, fuses their
+rankings, reranks the candidates with a cross-encoder, reweights them by recency, and
+attaches neighboring chunks.</p>
+<p>That design gives funes three important properties:</p>
+<ul>
+<li><strong>One memory across agents:</strong> Claude Code, Codex, pi, and Hermes all write to the
+same shape. <code>recall</code> spans their histories, and every hit says which agent produced
+it.</li>
+<li><strong>Raw evidence stays intact:</strong> Nothing is distilled into a fact at write time. A
+result can always lead back to the turn that produced it.</li>
+<li><strong><code>recall</code> is local by default:</strong> No account or Hub repository is required. A hosted
+model does not process your sessions for indexing; embedding and reranking run on
+your machine, and your coding agent does the reasoning.</li>
+</ul>
+<p>The <em>agent as a stranger</em> problem is already solved on one machine. But memory gets
+more useful when the next agent is running somewhere else.</p>
+<h2>
+	<a id="a-memory-is-a-dataset-not-a-service" href="#a-memory-is-a-dataset-not-a-service" rel="nofollow">
+		
+	</a>
+	<span>
+		A memory is a dataset, not a service
+	</span>
+</h2>
+<p>To make a memory follow your work, bind one when you add funes to an agent:</p>
+<pre><code>funes add codex acme/funes-memory
+</code></pre>
+<p>The bind publishes your current memory there. funes then keeps it current, indexing
+each turn locally and publishing at session boundaries. The agent recalls from it
+throughout. Run the same command on another machine and the memory follows you there.</p>
+<p>Underneath, the local memory is a Lance dataset, and the shared memory is a Hugging
+Face dataset (private by default) you own.</p>
+<p>Before anything reaches the Hub, credentials have already been redacted during
+indexing. Publishing then scans every chunk again and withholds anything that still
+looks like a secret. The scanner behind this is documented in
+<a href="https://github.com/huggingface/funes/blob/main/SECURITY.md" rel="nofollow"><code>SECURITY.md</code></a>, including
+what it does and doesn't cover.</p>
+<p>When an agent reads a remote memory, funes caches the dataset files locally, so warm
+queries return to local speed. The Hub supplies the ownership, access control,
+versioning, and distribution it already supplies for other datasets. Your memory does
+not become an account in a separate memory service, and you do not rent it back
+through an API.</p>
+<h2>
+	<a id="ask-first-wire-later" href="#ask-first-wire-later" rel="nofollow">
+		
+	</a>
+	<span>
+		Ask first, wire later
+	</span>
+</h2>
+<p><code>recall</code> is shaped for agents. When you want to put a question to a memory yourself,
+use <code>ask</code>. It reads your local memory by default:</p>
+<pre><code>funes ask claude <span>"what did we decide about the streaming parser"</span>
+</code></pre>
+<p>Or point it at a shared memory. We published a
+<a href="https://huggingface.co/datasets/huggingface/funes-memory">memory</a> of funes development,
+so you can ask why funes works the way it does without creating a memory of your own:</p>
+<pre><code>funes ask claude <span>"why is funes append-only"</span> --memory huggingface/funes-memory
+</code></pre>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/funes/ask.gif" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/funes/ask.gif" alt="Asking the published funes memory why it is append-only; funes retrieves the relevant sessions and a coding agent answers from them"></a></p>
+<blockquote>
+<p><code>funes ask</code> is the read-only, one-question sibling of <code>funes add</code>. It recalls the
+passages, hands them to a coding agent, and returns a grounded answer that names its
+sources. It does not install an integration or change the agent's persistent setup.</p>
+</blockquote>
+<p>A retrieval miss is not papered over. If the passages do not support an answer, the
+agent says so. You can rephrase the question or add funes to the agent so it can search
+the memory iteratively during normal work.</p>
+<h2>
+	<a id="switching-agents-without-losing-the-thread" href="#switching-agents-without-losing-the-thread" rel="nofollow">
+		
+	</a>
+	<span>
+		Switching agents without losing the thread
+	</span>
+</h2>
+<p>A shared memory is not tied to the agent or model that created it. Start a task in
+Claude Code, continue it in Codex next week, and the second agent can recall the first
+agent's reasoning. Use pi with a local model or one served through the Hugging Face
+router, then return to Claude.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/funes/cross-agents.gif" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/funes/cross-agents.gif" alt="Claude Code chooses an embedding model, then Codex recalls that decision in a separate session"></a></p>
+<p><em>Claude makes a decision; a hook indexes it; Codex recalls it in another session. The
+older hits in the demo are earlier recordings of the same experiment: an append-only
+memory remembered the rehearsals too.</em></p>
+<p>This matters in a few different scopes:</p>
+<ul>
+<li><strong>Across your machines:</strong> Bind each agent to one memory and recall the history from
+whichever host you are using.</li>
+<li><strong>Across a team:</strong> A new teammate's agent can retrieve months of decisions on day
+one, including dead ends and rationale that never made it into a pull request.</li>
+<li><strong>Alongside an open-source project:</strong> A maintainer can publish the sessions behind a
+release, naming them on the push. Think of it as a searchable <code>CLAUDE.md</code> that holds
+the history of why the project is the way it is, instead of a page someone must keep
+rewriting. Anyone can read a public memory with <code>--memory</code>.</li>
+</ul>
+<p>Published memories carry a dataset card and the funes tag, making them recognizable
+and <a href="https://huggingface.co/datasets?other=funes">discoverable on the Hub</a>. The Hub
+already hosts open weights and datasets. funes adds open working memory. It holds
+the decisions, failed approaches, and rationale behind a project, queryable by another
+agent and traceable to the sessions that produced them.</p>
+<h2>
+	<a id="the-cheapest-way-out-of-a-long-session" href="#the-cheapest-way-out-of-a-long-session" rel="nofollow">
+		
+	</a>
+	<span>
+		The cheapest way out of a long session
+	</span>
+</h2>
+<p>A long investigation bloats a session until each turn costs more to carry the context
+than to do the work. The usual answers are to let the agent compact and carry on, or to
+write a handoff and start fresh. Recall is a third, so we measured them against each
+other on the <a href="https://huggingface.co/datasets/dacorvo/funes-handoff-recall-benchmark/blob/main/results/README.md">handoff-vs-recall
+benchmark</a>:
+two tasks whose answer cannot be reconstructed without the session prior knowledge.</p>
+<p>Compaction is what most agents do by default, and it was the only one of the three whose
+result divided: it arrived on one task and never arrived on the other. Where it failed,
+its summary had flattened the findings that mattered. Recall returns the passages
+themselves, so a finding does not have to survive summarization.</p>
+<p>Recall was the cheapest of the three on both tasks, 8x cheaper than a written handoff on
+one and 4x on the other.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/funes/handoff-recall-cost.jpg" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/funes/handoff-recall-cost.jpg" alt="Weighted tokens per successful task for five channels across two tasks, with recall the shortest bar on both"></a></p>
+<p><em>The lighter segment of each bar is the one-time charge for preparing the channel, the
+handoff or the compaction, paid before the first question is asked and counted once. A
+cross marks a channel that never arrives, and so has no cost per success.</em></p>
+<h2>
+	<a id="stop-starting-from-zero" href="#stop-starting-from-zero" rel="nofollow">
+		
+	</a>
+	<span>
+		Stop starting from zero
+	</span>
+</h2>
+<blockquote>
+<p><em>“To think is to forget differences, generalize, make abstractions.”</em>
+— Jorge Luis Borges, <em>Funes the Memorious</em></p>
+</blockquote>
+<p>Your agents already wrote the record. funes lives at
+<a href="https://github.com/huggingface/funes" rel="nofollow"><code>github.com/huggingface/funes</code></a>, one command away
+from turning that record into a memory the next agent can read, on whichever machine you
+happen to be on.</p>
+<h2>
+	<a id="built-on-open-source" href="#built-on-open-source" rel="nofollow">
+		
+	</a>
+	<span>
+		Built on open source
+	</span>
+</h2>
+<p>funes invents little of this. It leans on open-source embedding models good enough to
+run locally, on <a href="https://github.com/lancedb/lance" rel="nofollow">Lance</a>'s append-only datasets with
+cheap incremental writes, and on the Hub's caching and content-dedup for datasets. The
+work is in fitting them into a memory an agent can actually use.</p>
+<p>funes is open source too. <a href="https://github.com/huggingface/funes/issues" rel="nofollow">Open an issue</a>
+for anything from an install snag to a recall that missed, or an agent you'd like
+supported.</p>
+</div></div>

@@ -1,0 +1,202 @@
+<div id="readability-page-1" class="page"><div>
+<p>When a field evolves quickly, its vocabulary often evolves faster than its shared understanding. Terms start to blur, get reused in different contexts, or become shorthand for ideas that are never fully explained. We are currently seeing this happen in the field of AI Agents, where concepts are getting mixed together, some are renamed, and others are widely used for a few months before quietly disappearing.</p>
+<p>This can be overwhelming for newcomers, and even for practitioners trying to keep up with the latest developments. After ICLR 2026, one of us (<a href="https://x.com/ariG23498/status/2049668725511737663" rel="nofollow">@ariG23498</a>) posted a question that captured this confusion well:</p>
+<blockquote>
+<p><em>"What do you mean by the terms 'harness' and 'scaffold' in the context of agents? I have heard a lot of explanations while I was at ICLR, but I could not understand why they did not converge to a single explanation."</em></p>
+</blockquote>
+<p>This glossary is our attempt to ground the terms that keep coming up without clear, consistent explanations. It is not meant to be a comprehensive dictionary of every term in the field. Instead, we focus on the concepts that are often mixed up, reused in different ways, or assumed to be obvious when they are not.</p>
+<p>Most of these terms come up whether you're building an agent, deploying one, or just using tools like Claude Code, Codex, or Hermes Agent. The last section covers concepts specific to training models, which is more relevant if you work on that side of things.</p>
+<blockquote>
+<p>Many of these terms don't have universally accepted definitions yet, and different frameworks use the same word differently. The goal here is not to enforce one correct vocabulary, but to provide a practical mental model that makes discussions easier to follow.</p>
+</blockquote>
+<p>Let's get started.</p>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#model" rel="nofollow">Model</a></li>
+<li><a href="#scaffolding" rel="nofollow">Scaffolding</a></li>
+<li><a href="#harness" rel="nofollow">Harness</a></li>
+<li><a href="#agent" rel="nofollow">Agent</a></li>
+<li><a href="#context-engineering" rel="nofollow">Context Engineering</a></li>
+<li><a href="#policy" rel="nofollow">Policy</a></li>
+<li><a href="#tool-use" rel="nofollow">Tool Use</a></li>
+<li><a href="#skills" rel="nofollow">Skills</a></li>
+<li><a href="#sub-agents" rel="nofollow">Sub-agents</a></li>
+<li><a href="#training" rel="nofollow">Training</a><ul>
+<li><a href="#rl-environment" rel="nofollow">RL Environment</a></li>
+<li><a href="#trainer" rel="nofollow">Trainer</a></li>
+<li><a href="#rollout" rel="nofollow">Rollout</a></li>
+<li><a href="#reward" rel="nofollow">Reward</a></li>
+</ul>
+</li>
+<li><a href="#learn-more" rel="nofollow">Learn More</a></li>
+</ul>
+<h2>
+	<a id="model" href="#model" rel="nofollow">
+		
+	</a>
+	<span>
+		Model
+	</span>
+</h2>
+<p>The model is the LLM: it takes text in and produces text out (e.g., Claude, Qwen, GPT, Kimi, DeepSeek…). On its own, it has no memory between calls, and no loop. The model can express the intent to call a tool, but it needs a harness to actually execute it. It answers one prompt and stops. Wrap it in scaffolding and a harness and it becomes an agent.</p>
+<h2>
+	<a id="scaffolding" href="#scaffolding" rel="nofollow">
+		
+	</a>
+	<span>
+		Scaffolding
+	</span>
+</h2>
+<p>The behavior-defining layer around the model: system prompt, tool descriptions, how the model's responses get parsed, what it remembers across steps (context management). It shapes how the model sees the world and acts in it, whether during training or at inference.</p>
+<p>Products like Claude Code, Codex, and Antigravity CLI call the whole thing a harness. Claude Code's <a href="https://code.claude.com/docs/en/how-claude-code-works" rel="nofollow">own docs</a> say it directly: "Claude Code serves as the agentic harness around Claude." That's the broad use: harness means everything that isn't the model. The scaffold/harness distinction matters most when you need to reason about them separately, as in a training pipeline. You'll also hear "scaffold" used more broadly to cover any infrastructure the harness relies on: hooks, runtime configuration, even directory structure.</p>
+<p>Some products like Claude Code and Codex are tightly coupled to their provider's models. Others like Antigravity CLI and Hermes Agent let you plug in any model.</p>
+<h2>
+	<a id="harness" href="#harness" rel="nofollow">
+		
+	</a>
+	<span>
+		Harness
+	</span>
+</h2>
+<p>The execution layer inside the agent: it calls the model, handles its tool calls, decides when to stop. The harness is what makes the agent run. Scaffolding, defined above, is what the model works from: its instructions, its tools, its format.</p>
+<p><strong>Harness engineering</strong> is the discipline of designing this layer well: deciding when the agent should stop, how errors get handled, and what guardrails keep it on track. It applies at both training and inference. <a href="https://www.oreilly.com/radar/agent-harness-engineering/" rel="nofollow">Addy Osmani's piece</a> and <a href="https://openai.com/index/harness-engineering/" rel="nofollow">OpenAI's account of building with Codex</a> both cover this from the inference side.</p>
+<p>At evaluation time, the same pattern shows up as an <strong>eval harness</strong>: instead of collecting training data, it runs a fixed set of scenarios at a model checkpoint and records metrics rather than updating weights.</p>
+<p>Some frameworks use <strong>orchestrator</strong> for a higher-level controller that coordinates work across multiple agents. Unlike a harness, which drives a model through its execution loop, an orchestrator manages agents as units, each running their own harness (see Sub-agents below).</p>
+<h2>
+	<a id="agent" href="#agent" rel="nofollow">
+		
+	</a>
+	<span>
+		Agent
+	</span>
+</h2>
+<p>The term comes from reinforcement learning, where an agent is simply a function that takes an observation and returns an action. The environment takes that action and returns a new observation, and the loop repeats. That loop is still at the core of how LLM agents work.</p>
+<p>In the LLM world, the term has expanded. An agent is a model plus everything around it that lets it act, not just respond. It turns raw text generation into something that can act in a loop: taking in information, deciding what to do, and acting on the results.</p>
+<p>Take a coding agent as a concrete example. The system prompt, tool descriptions, and the output format the model follows form the scaffolding. The loop that calls the model, handles its tool calls, and decides when to stop is the harness. At training time, the harness also runs many of these loops in parallel and feeds the results back to update the model.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/agent-glossary/agent-diagram.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/agent-glossary/agent-diagram.png" alt="Agent diagram showing Harness, Scaffold, and Model as components inside Agent, with Sub-agent below"></a></p>
+<p>In the community, it's usually put as <strong>Agent = Model + Harness</strong> (<a href="https://x.com/Vtrivedy10/status/2031408954517971368" rel="nofollow">@Vtrivedy10</a> and <a href="https://x.com/willccbb/status/2049844685095715289" rel="nofollow">Will Brown's tweet</a> for reference). If you're not the model, you're the harness. The subtle distinction between harness and scaffold that creates most of the confusion is what the two sections above address.</p>
+<p>When people talk about products like Claude Code, Codex, or Cursor, they're referring to a specific harness built on top of a specific model, designed and optimized together. Two products using the same underlying model can feel completely different because their harnesses make different choices. And swapping a better model into the same harness also changes the experience. The model, the harness, and the product are three different things.</p>
+<h2>
+	<a id="context-engineering" href="#context-engineering" rel="nofollow">
+		
+	</a>
+	<span>
+		Context Engineering
+	</span>
+</h2>
+<p>Designing what goes into the agent's context window: what the model sees at each step, system prompt, tool descriptions, conversation history, retrieved knowledge. It's not a one-time decision: as the model runs, previous turns shape what goes into future calls, and the harness actively manages this throughout the run. It applies at both training and inference, but the cost of getting it wrong is very different. At training, what the model sees shapes what gets learned. Get it wrong and you're retraining. At inference, it's just text: change a prompt and redeploy. The <a href="https://huggingface.co/learn/context-course/en/unit0/introduction">HF Context Engineering Course</a> covers this in depth.</p>
+<p>Memory is part of this picture. <strong>Short-term memory</strong> is what stays in the context window during a single run: conversation history, tool results, previous reasoning. <strong>Long-term memory</strong> persists across sessions, stored externally and retrieved on demand, then injected back into context when relevant.</p>
+<h2>
+	<a id="policy" href="#policy" rel="nofollow">
+		
+	</a>
+	<span>
+		Policy
+	</span>
+</h2>
+<p>A policy is the behavior an agent follows: given any situation, it defines the probability of taking each possible action. In LLM systems, part of that policy is learned in the model weights, but the behavior also depends on the surrounding scaffolding and harness. The same model can behave very differently depending on its prompts, tools, memory, and execution loop.</p>
+<p>A policy is not an agent. The policy defines behavior; the agent is the full system that acts in an environment. Wrap a checkpoint in scaffolding and a harness and deploy it, and you get an agent whose behavior is the policy.</p>
+<h2>
+	<a id="tool-use" href="#tool-use" rel="nofollow">
+		
+	</a>
+	<span>
+		Tool Use
+	</span>
+</h2>
+<p>How agents reach outside themselves: APIs, code interpreters, databases, web search, file systems. The model expresses the intent to use a tool in a structured format. Modern inference APIs surface this as a first-class object: the harness receives the call directly and routes it to the right function. The result gets fed back into context and the loop continues.</p>
+<h2>
+	<a id="skills" href="#skills" rel="nofollow">
+		
+	</a>
+	<span>
+		Skills
+	</span>
+</h2>
+<p>Reusable, structured packages of knowledge that enable multi-step tasks. Where a <strong>tool</strong> is an action ("run this command"), a <strong>skill</strong> bundles everything needed to accomplish a goal ("investigate this bug, form a hypothesis, write a fix"). They are portable across agents and loaded on demand. The line between tool, skill, and sub-agent shifts across frameworks. The <a href="https://huggingface.co/learn/context-course/en/unit1/introduction">HF Context Engineering Course</a> covers skills in depth.</p>
+<h2>
+	<a id="sub-agents" href="#sub-agents" rel="nofollow">
+		
+	</a>
+	<span>
+		Sub-agents
+	</span>
+</h2>
+<p>An agent called by another agent to handle a specific subtask. It has its own model and scaffold, reasons independently, and returns a result. The calling agent doesn't need to know how it works internally. This is what separates a <strong>sub-agent</strong> from a <strong>tool</strong> (a function call) or a <strong>skill</strong> (packaged knowledge): a sub-agent can itself reason, use tools, and call further sub-agents. The calling agent is sometimes called an <strong>orchestrator</strong>.</p>
+<h2>
+	<a id="training" href="#training" rel="nofollow">
+		
+	</a>
+	<span>
+		Training
+	</span>
+</h2>
+<p>The terms above apply whether you're training or deploying. These four are specific to training, where the agent runs through tasks, gets scored, and its model's weights get updated. Every RL training system for LLMs is built around the same pipeline:</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/agent-glossary/rl-pipeline.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/agent-glossary/rl-pipeline.png" alt="RL training pipeline showing RL Environment, Trainer, and Reward connected by rollout and updated policy"></a></p>
+<h3>
+	<a id="rl-environment" href="#rl-environment" rel="nofollow">
+		
+	</a>
+	<span>
+		RL Environment
+	</span>
+</h3>
+<p>The environment is anything you can interact with: a stateful object that takes an action as input, updates its internal state, and returns an observation. In the LLM context, actions are typically tool calls. A filesystem is a simple example: the action <code>touch foo.txt</code> updates the state by creating the file, and the observation might be the updated file listing. Definitions vary across frameworks.</p>
+<p>We recently published a dedicated guide on this, so rather than compress it here, see <a href="https://huggingface.co/spaces/AdithyaSK/rl-environments-guide">The Ultimate Guide to RL Environments</a> for a complete breakdown of types, frameworks, and examples.</p>
+<h3>
+	<a id="trainer" href="#trainer" rel="nofollow">
+		
+	</a>
+	<span>
+		Trainer
+	</span>
+</h3>
+<p>The trainer is what makes the agent better: it runs many agent episodes, scores the results and uses them to update the inner model's weights. <a href="https://huggingface.co/docs/trl/main/en/grpo_trainer">TRL's GRPOTrainer</a> is a concrete example: a single class that handles episode generation, reward scoring, and weight updates.</p>
+<h3>
+	<a id="rollout" href="#rollout" rel="nofollow">
+		
+	</a>
+	<span>
+		Rollout
+	</span>
+</h3>
+<p>A rollout is one full agent run from start to finish: what the agent saw, what it did, and what reward it got at each step. It's also called a <em>trajectory</em> or a <em>trace</em>, depending on the context. This is the raw data RL algorithms learn from.</p>
+<h3>
+	<a id="reward" href="#reward" rel="nofollow">
+		
+	</a>
+	<span>
+		Reward
+	</span>
+</h3>
+<p>The score that tells the training algorithm whether the model is getting better. It can be <em>verifiable</em> (tests pass/fail, answer matches), or <em>learned</em> (human preferences, LLM-as-judge), <em>sparse</em> (one score at the end of an episode), or <em>dense</em> (a score at each step). This is what the trainer uses to actually update the inner model's weights. For a thorough breakdown of each type, see the <a href="https://huggingface.co/spaces/AdithyaSK/rl-environments-guide#dimension-4-reward-architecture">Reward Architecture</a> section in <a href="https://huggingface.co/AdithyaSK">Adithya</a>'s guide.</p>
+<p><strong>Rubrics</strong> break the reward into explicit dimensions with weights, rather than a single number. <a href="https://github.com/meta-pytorch/OpenEnv" rel="nofollow">OpenEnv</a> and <a href="https://github.com/willccbb/verifiers" rel="nofollow">Verifiers</a> implement rubrics as objects you can combine (<code>WeightedSum</code>, <code>Sequential</code>, <code>Gate</code>).</p>
+<h2>
+	<a id="learn-more" href="#learn-more" rel="nofollow">
+		
+	</a>
+	<span>
+		Learn More
+	</span>
+</h2>
+<ul>
+<li><a href="https://x.com/Vtrivedy10/status/2031408954517971368" rel="nofollow">@Vtrivedy10: The Anatomy of an Agent Harness</a>: detailed breakdown of harness components and why each exists</li>
+<li><a href="https://www.oreilly.com/radar/agent-harness-engineering/" rel="nofollow">Agent Harness Engineering</a>: convergent framing on Agent = Model + Harness, with coding agent examples</li>
+<li><a href="https://openai.com/index/harness-engineering/" rel="nofollow">Harness Engineering: leveraging Codex in an agent-first world</a>: real-world account of building a product entirely with Codex agents, covering scaffolding, feedback loops, and context management at inference</li>
+<li><a href="https://huggingface.co/spaces/evalstate/tool-research">Tool Schema Rendering Atlas</a> (evalstate): how tool schemas become prompt text across models, showing what each model actually sees after provider templates are applied</li>
+<li><a href="https://simonwillison.net/guides/agentic-engineering-patterns/how-coding-agents-work/" rel="nofollow">Simon Willison's How coding agents work blog</a>: how a coding agent works as a harness</li>
+<li><a href="https://www.youtube.com/watch?v=C_GG5g38vLU" rel="nofollow">AI Engineer talks like Harnesses in AI: A Deep Dive</a>: what a harness is and how to build one.</li>
+<li><a href="https://huggingface.co/spaces/AdithyaSK/rl-environments-guide">The Ultimate Guide to RL Environments</a>: framework-by-framework comparison and vocabulary translation</li>
+<li><a href="https://cursor.com/blog/continually-improving-agent-harness" rel="nofollow">Continually improving our agent harness</a>: how Cursor iterates on its harness as a product.</li>
+<li><a href="https://github.com/EleutherAI/lm-evaluation-harness" rel="nofollow">lm-evaluation-harness</a>: the canonical eval harness</li>
+</ul>
+<p><em>If any definition feels imprecise or you've encountered a term we've missed, we'd love to hear from you.</em></p>
+<p><em>Thanks to <a href="https://huggingface.co/pcuenq">Pedro Cuenca</a>, <a href="https://huggingface.co/qgallouedec">Quentin Gallouédec</a>, <a href="https://huggingface.co/evalstate">Shaun Smith</a>, and <a href="https://huggingface.co/AdithyaSK">Adithya S Kolavi</a> for reviewing this post.</em></p>
+</div></div>

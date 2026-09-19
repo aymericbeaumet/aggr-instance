@@ -1,0 +1,221 @@
+<div id="readability-page-1" class="page"><div>
+<p>The <a href="https://huggingface.co/blog/Dharma-AI/gpu-management">previous post</a> argued that utilization, not intelligence, is where the next real constraint in enterprise AI is forming, and it closed by noting that no playbook has emerged yet for what a mature GPU Management practice looks like. This is ours.</p>
+<p>We built a constraint-aware GPU allocator and benchmarked it against a FIFO scheduler across seven benchmark scenarios. On identical hardware, running identical workloads, GPU utilization rose by as much as 33 percentage points, and priority-weighted output rose in every one of them, by as much as 105%. Nothing about the hardware changed. What changed was the order in which allocation decisions get made.</p>
+<p>One note on measurement before the numbers start. Every gain below is expressed as improvement over the FIFO result on the same scenario. Utilization is reported in percentage points; value is reported as a percentage increase in priority-weighted output.</p>
+<hr>
+<h2>
+	<a id="the-decision-stated-precisely" href="#the-decision-stated-precisely" rel="nofollow">
+		
+	</a>
+	<span>
+		The decision, stated precisely
+	</span>
+</h2>
+<p>"Keep the GPUs busy" is not a decision a system can execute. The decision is narrower and much harder: which GPU runs which job, in which timestep, at what priority. Formally it is one binary choice per combination of GPU, job and timestep, and the output is a grid — every GPU, across the whole scheduling horizon, with a job name in each cell or nothing at all.</p>
+<p>Four workload types compete for that grid: training, real-time inference, batch inference, and quantization. They split into two allocation shapes, and the split is where the difficulty lives. Training, batch inference and quantization are batch-like: once started, each needs a contiguous block of GPUs held without interruption until the job finishes. Real-time inference is the opposite: elastic, driven by a demand curve that changes every timestep, growing and shrinking as traffic does.</p>
+<p>Two incompatible shapes competing for the same hardware in the same timestep is the core problem. A second heterogeneity sits inside a single type: for the same base model, training jobs range from a few hours to several days, and from one GPU to dozens.</p>
+<hr>
+<h2>
+	<a id="what-fifo-costs-under-contention" href="#what-fifo-costs-under-contention" rel="nofollow">
+		
+	</a>
+	<span>
+		What FIFO costs under contention
+	</span>
+</h2>
+<p>The comparison point throughout is a FIFO-based scheduler: real-time inference served from a fixed reservation, and every other job placed in arrival order, without regard for priority.</p>
+<p>Under the right conditions, that is a reasonable policy. When the cluster has slack, allocation order costs nothing in utilization, everything fits regardless of sequence, so FIFO and anything more sophisticated fill the same fraction of the pool. Contention is where that ordering cost stops being invisible and starts costing capacity too. It then becomes expensive in two separate ways, and they are worth taking one at a time.</p>
+<p><strong>The reservation.</strong> Real-time inference cannot wait for capacity; the GPUs have to be there the moment traffic needs them. A scheduler that places jobs in arrival order has no mechanism for releasing GPUs during a trough and reclaiming them before the next peak, so the only way to guarantee availability is to take each real-time application's maximum demand for the day and reserve that many GPUs for the whole day. The cost lands in every hour that is not the peak. An application needing six GPUs at midday and two at 4am holds all six for twenty-four hours, and the four idle GPUs are unavailable to any batch job for the entire day. They are not being used, and they are not free either. It is why the baseline sits near half the cluster in the two scenarios where reservation dominates: 51.6% in the mixed control and 53.6% in the training-heavy case. Roughly half a pool, with much of the idle half reserved rather than free. This cost is paid whether the cluster is contended or not — contention only makes it visible.</p>
+<p><strong>The ordering.</strong> Under real contention, which jobs fit at all depends on the order you place them, not just on how much capacity exists. Order is not a tiebreaker applied after the capacity question is settled. Order <em>is</em> a capacity decision. FIFO places each job as it arrives, without weighing what that job is worth and without checking what else still has to fit inside the horizon, so high-priority work waits behind whatever asked first and capacity gets committed in placements that later jobs cannot use.</p>
+<p>The two compound. The block held for the day's maximum real-time demand is off the table for every batch job in the queue, in every hour, and whatever remains is handed out in the order the requests happened to arrive.</p>
+<p>It is the GPU equivalent of an airline assigning aircraft to whichever charter called first, then finding nothing left to fly the route that actually pays. And GPUs reserved all day for a peak lasting a couple of hours are the grounded aircraft from the previous piece in the most literal sense: on standby, earning nothing, unavailable to anyone else.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6825e93ede3594c18b8d97ac/OZn_vdP4F-2NZ0jvaKnQC.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6825e93ede3594c18b8d97ac/OZn_vdP4F-2NZ0jvaKnQC.png" alt="allocation_annotated-1"></a></p>
+<p><em>[Figure: side-by-side allocation grids — allocator above, FIFO below, same scenario]</em></p>
+<p>Across five benchmark scenarios built for genuine contention, the allocator improved both axes at once. Utilization moved from a 52–85% band to a 72–88% band. Priority-weighted value rose between 24.6% and 105.1%, averaging 52%. Every scenario, both metrics, no tradeoff to explain away.</p>
+<p>The strongest single case was a training-heavy workload on 8 GPUs: utilization went from 53.6% to 87.0%, and value more than doubled, up 105%. Thirty-three points of a fixed, already-depreciating asset, recovered by reclaiming reserved standby capacity and placing the rest in priority order. (This figure reflect a single baseline ordering.)</p>
+<p>The allocator removes both behaviors. Real-time demand is treated as a curve rather than a ceiling, allocated against demand at each timestep, with batch-like work occupying the troughs, bounded by the cap on how many GPUs a real-time job may swap between consecutive timesteps. And batch-like jobs are placed by priority across the whole horizon instead of in the order they arrived. The rest of this piece is how.</p>
+<hr>
+<h2>
+	<a id="utilization-is-necessary-priority-is-what-turns-it-into-value" href="#utilization-is-necessary-priority-is-what-turns-it-into-value" rel="nofollow">
+		
+	</a>
+	<span>
+		Utilization is necessary. Priority is what turns it into value.
+	</span>
+</h2>
+<p>Utilization measures occupancy: what fraction of available GPU-time is allocated to something. It carries no information about what that something is worth. One scenario pulls the two apart completely, and the gap runs in a direction that is easy to miss.</p>
+<p>In the scale test, 30 jobs across 64 GPUs, FIFO and the allocator produced <strong>identical utilization</strong>,  44.9% each, and <strong>identical throughput</strong>, 27 of 30 jobs completed. The allocator delivered 15.9% more priority-weighted value. Every dashboard reads the same. The cluster produced materially different output.</p>
+<p>An objective that does not price priority can fill the cluster to exactly the same level, finish exactly as many jobs, and still deliver less. The previous piece argued that occupancy is a poor read on whether a cluster is earning; this is the measured version of that claim.</p>
+<hr>
+<h2>
+	<a id="writing-the-problem-down" href="#writing-the-problem-down" rel="nofollow">
+		
+	</a>
+	<span>
+		Writing the problem down
+	</span>
+</h2>
+<p>The alternative is not a longer list of heuristic rules. Some constraints only mean anything globally, and no local rule can express them: contiguous blocks, a budget for how much GPU churn is acceptable across the entire horizon, a guarantee that running work is never preempted. To honor those, the problem has to be written down as one thing.</p>
+<p>Five constraints define a legal allocation:</p>
+<ul>
+<li>A GPU serves at most one job per timestep.</li>
+<li>Every job respects its demand range, and whatever is already running is inherited and held.</li>
+<li>Batch-like jobs occupy contiguous blocks of GPUs, sized to a power of two.</li>
+<li>Real-time jobs have a hard cap on how many GPUs they may swap between consecutive timesteps.</li>
+<li>A job that has started cannot be interrupted.</li>
+</ul>
+<p>The objective function has two terms. Allocating a GPU to a batch-like job earns a reward equal to its priority multiplied by a time-decay weight. Failing to meet real-time demand incurs a penalty proportional to the size of the shortfall.</p>
+<p>The relative size of those weights is the entire service-level policy, expressed as one number. The real-time penalty weight is 5 to 10 times greater than the allocation weight. One unit of unmet real-time demand therefore costs what 5 to 10 GPU-timesteps of equal-priority batch work costs. The asymmetry is deliberate, and it means latency obligations are enforced <em>inside</em> the same optimization that places batch work, rather than by a separate autoscaler competing with the scheduler for the same GPUs.</p>
+<p>It is also what makes the elastic treatment of real-time demand safe. The allocator can hand a GPU to batch work during a trough because underserving real-time demand later is priced so far above whatever that batch work earns — the penalty, not a static reservation, is what protects availability.</p>
+<p>The time weight decays across the horizon for a reason that only makes sense in an online system: by the next scheduling run, new jobs will have arrived. Capacity used now is worth more than capacity promised later.</p>
+<hr>
+<h2>
+	<a id="the-allocator-that-already-knows-the-constraints" href="#the-allocator-that-already-knows-the-constraints" rel="nofollow">
+		
+	</a>
+	<span>
+		The allocator that already knows the constraints
+	</span>
+</h2>
+<p>The formal model defines what a legal, well-scored allocation looks like. Answering an incoming request is a separate job, and it belongs to a separate component. This is NP-hard combinatorial allocation, and the scheduler is re-invoked every time a job arrives, so the decision has to come back in the gap between two API requests. That latency budget is the fixed constraint the architecture is designed around, which is why a heuristic sits on the hot path and the formal model sits behind it as the specification the heuristic is built to satisfy.</p>
+<p>That heuristic is not a generic greedy allocator. Its rules <em>are</em> the formal model's structural constraints, which means every grid it produces is a legal allocation by construction. Not usually valid. Valid by design.</p>
+<p>That design, applied across the whole horizon rather than one arrival at a time, is what produces the utilization gain. The allocator sees every queued job before it places any of them, it can hold the free pool in shapes the remaining work can actually occupy, a batch job needing a contiguous block of a given size still has room when its turn comes. Priority decides who gets first claim on that room. FIFO has neither view: it commits capacity to whichever job asked first, and a job that arrives later and needs a specific shape may find nothing left that fits, so it goes unscheduled and the GPU-hours it would have consumed go unclaimed.</p>
+<p>It runs in 1 to 2 milliseconds on the five contended scenarios, and 15 milliseconds at 64 GPUs and 30 jobs — fast enough to run on every incoming request.</p>
+<p>The system exposes two modes. Fast mode runs the allocator alone and returns its grid; this is the hot path. Full mode uses that grid as a starting point for the formal model, which attempts to improve on it — suited to periodic review rather than per-request decisions.</p>
+<hr>
+<h2>
+	<a id="results" href="#results" rel="nofollow">
+		
+	</a>
+	<span>
+		Results
+	</span>
+</h2>
+<div>
+	<table>
+		<thead><tr>
+<th>Scenario</th>
+<th>Utilization</th>
+<th>Value</th>
+<th>Value gain</th>
+<th>Latency</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Mixed control (8 GPUs, 10 jobs)</td>
+<td>51.6% → 72.4%</td>
+<td>7,093 → 10,980</td>
+<td>+54.8%</td>
+<td>1 ms</td>
+</tr>
+<tr>
+<td>Real-time contention (8 GPUs, 8 jobs)</td>
+<td>75.0% → 80.2%</td>
+<td>3,233 → 4,029</td>
+<td>+24.6%</td>
+<td>1 ms</td>
+</tr>
+<tr>
+<td>Training-heavy (8 GPUs, 16 jobs)</td>
+<td>53.6% → 87.0%</td>
+<td>8,553 → 17,545</td>
+<td>+105.1%</td>
+<td>2 ms</td>
+</tr>
+<tr>
+<td>Large mixed (14 GPUs, 16 jobs)</td>
+<td>76.8% → 82.7%</td>
+<td>13,977 → 20,101</td>
+<td>+43.8%</td>
+<td>2 ms</td>
+</tr>
+<tr>
+<td>Oversubscribed (8 GPUs, 9 jobs)</td>
+<td>85.4% → 87.5%</td>
+<td>4,311 → 5,760</td>
+<td>+33.6%</td>
+<td>1 ms</td>
+</tr>
+<tr>
+<td>Scale test (64 GPUs, 30 jobs)</td>
+<td>44.9% → 44.9%</td>
+<td>44,233 → 51,248</td>
+<td>+15.9%</td>
+<td>15 ms</td>
+</tr>
+<tr>
+<td>Uniform priority (14 GPUs, 16 jobs)</td>
+<td>76.8% → 87.5%</td>
+<td>25,219 → 31,052</td>
+<td>+23.1%</td>
+<td>2 ms</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Utilization improved in every scenario but one, where it tied exactly. Value improved in all seven.</p>
+<p>The scale test matters because it holds at size: 64 GPUs, 30 jobs, 15 milliseconds, 15.9% more value.</p>
+<p>The uniform-priority test matters because it addresses the obvious skeptical reading. Override every job to identical priority, so that no priority signal distinguishes any of them, and the allocator still moves utilization from 76.8% to 87.5% and value up 23.1%. The gain is not purely an artifact of ordering by priority. Planning placements across the horizon contributes on its own.</p>
+<hr>
+<h2>
+	<a id="none-of-it-works-if-the-demand-numbers-are-wrong" href="#none-of-it-works-if-the-demand-numbers-are-wrong" rel="nofollow">
+		
+	</a>
+	<span>
+		None of it works if the demand numbers are wrong
+	</span>
+</h2>
+<p>Everything above assumes the scheduler knows how many GPU-hours each job needs and how much real-time traffic is coming. Both are predictions, not inputs, and a scheduler is only as good as they are.</p>
+<p>A single generic estimator does not work, because the four workload types have qualitatively different cost drivers. This is where the specialization argument from the previous piece reconnects: the same logic that makes a task-specific model outperform a generalist applies to the estimators feeding the scheduler.</p>
+<p><strong>Training is not one workload.</strong> It varies along two independent, freely combinable axes. Strategy determines how much of the model is updated (full fine-tuning against parameter-efficient methods like LoRA). Technique determines the optimization objective and the training loop (SFT, DPO, RLHF, RLVR, CPT). The differences are not marginal: LoRA cuts trainable parameters by up to 10,000× and GPU memory roughly 3× against full fine-tuning, on the same base model. DPO removes both the reward model and the sampling loop of RLHF. Estimating from model size alone averages across runs that differ by orders of magnitude, in exactly the two quantities the scheduler decides on, duration and GPU count. Our training forecaster conditions on 22 features, including a categorical variable distinguishing 10 concrete training variants.</p>
+<p><strong>Quantization is a schedulable job, not a background chore.</strong> Quantizing a single large model can consume hours of GPU time on hardware that other work is waiting for. It gets its own forecast, built from calibration tiers by parameter count, with distinct handling per algorithm (bitsandbytes, AWQ, GPTQ) and a safety margin before rounding up to whole GPU-hours. Prior work in this area places quantization outside scheduling scope entirely.</p>
+<p><strong>Real-time inference is not estimated per job at all.</strong> It is forecast as a continuously recalibrated weekly demand profile, rebuilt from hourly traffic history and mapped to GPU counts under the same swap cost the formal model enforces. Forecast and optimizer therefore agree on what churn costs, rather than disagreeing and fighting each other. This forecast is what replaces peak reservation. A per-timestep demand curve is the only thing that lets the scheduler release GPUs during a trough with any confidence that they can be reclaimed before the next peak.</p>
+<p>This closes back to the ordering argument. Better demand estimates are what make priority-aware placement possible in the first place, you cannot sequence jobs well without knowing what they will consume.</p>
+<hr>
+<h2>
+	<a id="optimize-the-day-commit-the-hour" href="#optimize-the-day-commit-the-hour" rel="nofollow">
+		
+	</a>
+	<span>
+		Optimize the day, commit the hour
+	</span>
+</h2>
+<p>The obvious objection to all of this is that forecasts are wrong. What happens then?</p>
+<p>The failure mode to avoid has a name worth borrowing: the end-of-world effect. An optimizer that cannot see past the end of its horizon makes present decisions that wreck the timesteps immediately outside it, because as far as the model is concerned, nothing exists after the horizon ends.</p>
+<p>The architecture answers both problems at once. The scheduler optimizes a 24-hour horizon, but commits only the current timestep, and re-runs every 30 to 60 minutes. Run at 9am, and the 9am allocation is real; the plan for 10am through 5pm exists only so that the 9am decision is made by a model that knows a future exists. The real 10am allocation comes from the 10am run, against fresh data.</p>
+<p>The consequence is that forecast error is absorbed by re-optimization instead of compounding. Each run inherits what is actually running and pins it in place, so successive plans update rather than thrash.</p>
+<p>There is a secondary payoff. The horizon plan is itself a forecasting product: it surfaces real-time coverage risk and predictable idle windows before they arrive, which is useful whether or not those specific allocations are ever committed.</p>
+<p>This is also why the time-decay weight exists. By the next run, the workload mix will have changed.</p>
+<hr>
+<h2>
+	<a id="what-this-generalizes-to" href="#what-this-generalizes-to" rel="nofollow">
+		
+	</a>
+	<span>
+		What this generalizes to
+	</span>
+</h2>
+<p>Airlines did not solve utilization by computing an optimal schedule. They solved it by encoding operational discipline into the order things happen (turnaround sequence, maintenance windows, crew rostering) and letting that discipline compound.</p>
+<p>The same thing happened here. Thirty-three points of utilization in the hardest-packed scenario, and 52% more priority-weighted output on average, on the same hardware, with the same workloads, in a couple of milliseconds, came from encoding what the cluster physically permits into the order decisions get made. Structure beat sophistication.</p>
+<p>The previous piece argued that specialization and orchestration are two halves of one problem: specialization shrinks what each workload needs, and orchestration decides where the difference goes. Neither lever pays off alone. This is what the second half looks like when it is built.</p>
+<p>The GPUs were already installed, already committed, already depreciating. The gain was in how we chose to spend them.</p>
+<hr>
+<h3>
+	<a id="further-reading" href="#further-reading" rel="nofollow">
+		
+	</a>
+	<span>
+		<strong>Further Reading</strong>
+	</span>
+</h3>
+<ul>
+<li><a href="https://huggingface.co/blog/Dharma-AI/gpu-management">GPU Management: Why Idle GPUs Are the New Grounded Aircraft</a></li>
+<li><a href="https://huggingface.co/blog/Dharma-AI/newer-models-same-advantages">Newer Models, Same Advantage</a></li>
+<li><a href="https://huggingface.co/blog/Dharma-AI/why-specialization-is-inevitable">Why Specialization Is Inevitable</a></li>
+<li><a href="https://huggingface.co/blog/Dharma-AI/specialization-beats-scale">Specialization Beats Scale: A Strategic Variable Most AI Procurement Decisions Overlook</a></li>
+<li><a href="https://huggingface.co/blog/Dharma-AI/text-degeneration-a-production-failure-mode">Text Degeneration: A Production Failure Mode That Most Benchmarks Do Not Track</a></li>
+<li><a href="https://huggingface.co/blog/Dharma-AI/direct-preference-optimization-beyond-chatbots">Direct Preference Optimization Beyond Chatbots</a></li>
+</ul>
+<p>---</p>
+<p><em>Explore</em> <a href="https://huggingface.co/Dharma-AI"><em>Dharma AI on Hugging Face</em></a> <em>to</em> <a href="https://huggingface.co/spaces/Dharma-AI/DharmaOCR-demo"><em>try our interactive demos</em></a><em>,</em> <a href="https://huggingface.co/Dharma-AI/Dharma-OCR-LITE"><em>download our open-source models</em></a><em>, and discover how specialized AI systems outperform general-purpose models in real enterprise applications.</em></p>
+</div></div>

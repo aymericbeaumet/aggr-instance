@@ -1,0 +1,84 @@
+<div id="readability-page-1" class="page"><div id="content">
+<section id="newslist"><article data-news-id="103"><h2><a href="https://antirez.com/news/103">100 more of those BITFIELDs</a></h2></article></section><topcomment><article data-comment-id="103-" id="103-"><span><span><a href="https://antirez.com/user/antirez">antirez</a></span> 3858 days ago. 270302 views.  </span><pre>Today Redis is 7 years old, so to commemorate the event a bit I passed the latest couple of days doing a fun coding marathon to implement a new crazy command called BITFIELD.
+
+The essence of this command is not new, it was proposed in the past by me and others, but never in a serious way, the idea always looked a bit strange. We already have bit operations in Redis: certain users love it, it’s a good way to represent a lot of data in a compact way. However so far we handle each bit separately, setting, testing, getting bits, counting all the bits that are set in a range, and so forth.
+
+What about implementing bitfields? Short or large, arbitrary sized integers, at arbitrary offsets, so that I can use a Redis string as an array of 5 bits signed integers, without losing a single bit of juice.
+
+A few days ago, Yoav Steinberg from Redis Labs, proposed a set of commands on arbitrary sized integers stored at bit offsets in a more serious way. I smiled when I read the email, since this was kinda of a secret dream. Starting from Yoav proposal and with other feedbacks from Redis Labs engineers, I wrote an initial specification of a single command with sub-commands, using short names for types definitions, and adding very fine grained control on the overflow semantics.
+
+I finished the first implementation a few minutes ago, since the plan was to release it for today, in the hope Redis appreciates we do actual work in its bday.
+
+The resulting BITFIELD command supports different subcommands:
+
+SET &lt;type&gt; &lt;offset&gt; &lt;value&gt; — Set the specified value and return its previous value.
+GET &lt;type&gt; &lt;offset&gt; — Get the specified value.
+INCRBY &lt;type&gt; &lt;offset&gt; &lt;increment&gt; — Increment the specified counter.
+
+There is an additional meta command called OVERFLOW, used to set (guess what) the overflow semantics of the commands that will follow (so OVERFLOW can be specified multiple times):
+
+OVERFLOW SAT — Saturation, so that overflowing in one direction or the other, will saturate the integer to its maximum value in the direction of the overflow.
+OVERFLOW WRAP — This is usual wrap around, but the interesting thing is that this also works for signed integers, by wrapping towards the most negative or most positive values.
+OVERFLOW FAIL — In this mode the operation is not performed at all if the value would overflow.
+
+The integer types can be specified using the “u” or “i” prefix followed by the number of bits, so for example u8, i5, u20 and i53 are valid types. There is a limitation: u64 cannot be specified since the Redis protocol is unable to return 64 bit unsigned integers currently.
+
+It's time for a few examples: in order to increment an unsigned integer of 8 bits I could use:
+
+127.0.0.1:6379&gt; BITFIELD mykey incrby u8 100 1
+1) (integer) 3
+
+This is incrementing an unsigned integer, 8 bits, at offset 100 (101th bit in the bitmap).
+
+However there is a different way to specify offsets, that is by prefixing the offset with “#”, in order to say: "handle the string as an array of counters of the specified size, and set the N-th counter". Basically this just means that if I use #10 with an 8 bits type, the offset is obtained by multiplying 8*10, this way I can address multiple counters independently without doing offsets math:
+
+127.0.0.1:6379&gt; BITFIELD mykey incrby u8 #0 1
+1) (integer) 1
+127.0.0.1:6379&gt; BITFIELD mykey incrby u8 #0 1
+1) (integer) 2
+127.0.0.1:6379&gt; BITFIELD mykey incrby u8 #1 1
+1) (integer) 1
+127.0.0.1:6379&gt; BITFIELD mykey incrby u8 #1 1
+1) (integer) 2
+
+The ability to control the overflow is also interesting. For example an unsigned counter of 1 bit will actually toggle between 0 and 1 with the default overflow policy of “wrap”:
+
+127.0.0.1:6379&gt; BITFIELD mykey incrby u1 100 1
+1) (integer) 1
+127.0.0.1:6379&gt; BITFIELD mykey incrby u1 100 1
+1) (integer) 0
+127.0.0.1:6379&gt; BITFIELD mykey incrby u1 100 1
+1) (integer) 1
+127.0.0.1:6379&gt; BITFIELD mykey incrby u1 100 1
+1) (integer) 0
+
+As you can see it alternates 0 and 1.
+
+Saturation can also be useful:
+
+127.0.0.1:6379&gt; bitfield mykey overflow sat incrby i4 100 -3
+1) (integer) -3
+127.0.0.1:6379&gt; bitfield mykey overflow sat incrby i4 100 -3
+1) (integer) -6
+127.0.0.1:6379&gt; bitfield mykey overflow sat incrby i4 100 -3
+1) (integer) -8
+127.0.0.1:6379&gt; bitfield mykey overflow sat incrby i4 100 -3
+1) (integer) -8
+
+As you can see, decrementing 3 never goes under -8.
+
+Note that you can carry multiple operations in a single command. It always returns an array of results:
+
+127.0.0.1:6379&gt; BITFIELD mykey get i4 100 set u8 200 123 incrby u8 300 1
+1) (integer) -8
+2) (integer) 123
+3) (integer) 7
+
+The intended usage for this command is real time analytics, A/B testing, showing slightly different things to users every time by using the overflowing of integers. Packing so many small counters in a shared and memory efficient way can be exploited in many ways, but that’s left as an exercise for the talented programmers of the Redis community.
+
+The command will be backported into the stable version of Redis in the next weeks, so this will be usable very soon.
+
+Curious about the implementation? It's more complex you could expect probably: <a rel="nofollow" href="https://github.com/antirez/redis/commit/70af626d613ebd88123f87a941b0dd3570f9e7d2">https://github.com/antirez/redis/commit/70af626d613ebd88123f87a941b0dd3570f9e7d2</a></pre></article></topcomment>
+
+
+<p><a href="https://disqus.com">blog comments powered by <span>Disqus</span></a></p></div></div>

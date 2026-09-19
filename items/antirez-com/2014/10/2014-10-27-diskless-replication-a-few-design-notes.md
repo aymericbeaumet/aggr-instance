@@ -1,0 +1,137 @@
+---
+title: 'Diskless replication: a few design notes.'
+link: http://antirez.com/news/81
+source: antirez-com
+published: 2014-10-27T16:34:15Z
+updated: 2014-10-27T16:34:15Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+summary: 'Almost a month ago a number of people interested in Redis development met in London for the first Redis developers meeting. We identified together a number of features that are urgent (and are now listed in a Github issue here: https://github.com/antirez/redis/issues/2045), and among the identified issues, there was one that was mentioned multiple times in the course of the day: diskless replication. The feature is not exactly a new idea, it was proposed several times, especially by EC2 users that know that sometimes it is not trivial for a master to provide good performances during slaves synchronization. However there are a number of use cases where you don’t want to touch disks, even running on physical servers, and especially when Redis is used as a cache. Redis replication was, in short, forcing users to use disk even when they don’t need or want disk durability. When I returned back home I wanted to provide a quick feedback to the developers that attended the meeting, so the first thing I did was to focus on implementing the feature that seemed the most important and non-trivial among the list of identified issues. In the next weeks the attention will be moved to the Redis development process as well: the way issues are handled, how new ideas can be proposed to the Redis project, and so forth. Sorry for the delay about these other important things, for now what you can get is, some code at least ;-) Diskless replication provided a few design challenges. It looks trivial but it is not, so since I want to blog more, I thought about documenting how the internals of this feature work. I’m sure that a blog post may make the understanding and adoption of the new feature simpler. How replication used to work === Newer versions of Redis are able, when the connection with the master is lost, to reconnect with the master, and continue the replication process in an incremental way just fetching the differences accumulated so far. However when a slave is disconnected for a long time, or restarted, or it is a new slave, Redis requires it to perform what is called a “full resynchronization”. It is a trivial concept, and means: in order to setup this slave, let’s transfer *all* the master data set to the slave. It will flush away its old data, and reload the new data from scratch, making sure it is running an exact copy of master’s data. Once the slave is an exact copy of the master, successive changes are streamed as a normal Redis commands, in an incremental way, as the master data set itself gets modified because of write commands sent by clients. The problem was the way this initial “bulk transfer” needed for a full resynchronization was performed. Basically a child process was created by the master, in order to generate an RDB file. When the child was done with the RDB file generation, the file was sent to slaves, using non blocking I/O from the parent process. Finally when the transfer was complete, slaves could reload the RDB file and go online, receiving the incremental stream of new writes. However this means that from the master point of view, in order to perform a full sync, we need: 1) To write the RDB on disk. 2) To load back the RDB from disk in order to send it to slaves. “2” is not great but “1” is much worse. If AOF is active at the same time, for example, the AOF fsync() can be delayed a lot by the child writing to the disk as fast as possible. With the wrong setup, especially with non-local disks, but sometimes even because of a non perfect kernel parameters tuning, the disk pressure was cause of latency spikes that are hard to deal with. Partial resynchronizations introduced with Redis 2.8 mitigated this problem a bit, but from time to time you have to restart your slaves, or they go offline for too much time, so it is impossible to avoid full resynchronizations. At the same time, this process had a few advantages. The RDB saving code was reused for replication as well, making the replication code simpler. Moreover while the child was producing the RDB file, new slaves could attach, and put in a queue: when the RDB was ready, we could feed multiple slaves at the same time. All in all in many setups it works great and allows to synchronize a number of slaves at the same time. Also many users run with RDB persistence enabled in the master side, but not AOF, so anyway to persist on disk was happening from time to time. Most bare-metal users don’t have any latency at all while Redis is persisting, moreover disks, especially local disks, have easy to predict performances: once the child starts to save, you don’t really need to check for timeouts or if it is taking too much time, it will end eventually, and usually within a reasonable amount time. For this reasons, disk-backed replication is *still* the default replication strategy, and there are no plans to remove it so far, but now we have an alternative in order to serve the use cases where it was not great. So what is diskless replication? It is the idea that you can write directly from the child process to the slaves, via socket, without any intermediate step. Sockets are not disks === The obvious problem about diskless replication is that writing to disks is different than writing to sockets. To start the API is different, since the RDB code used to write to C FILE pointers, while to write to sockets is a matter of writing to file descriptors. Moreover disk writes don’t fail if not for hard I/O errors (for example if the disk is full), so when a write fails, you can consider the process aborted. For sockets it is different since writes can be delayed since the receiver is slow and the local kernel buffer is full. Another interesting issue is that there is to deal with timeouts: what about the receiving side to experience a failure so that it stops reading from us? Or just the TCP connection is dead but we don’t get resets, and so forth. We can’t take the child sending the RDB file to slaves active forever, there must be a way to detect timeouts. Fortunately modifying the RDB code to write to file descriptors was trivial, because for an entirely different problem (MIGRATE/RESTORE for Redis Cluster) the code was already using an abstraction called “rio” (redis I/O), that abstracts the serialization and deserialization of Redis values in RDB format, so you can write a value to the disk, or to an in memory buffer. What I did was to support a new “rio” target, called fdset: a set of file descriptors. This is because as I’ll write later, we need to write to multiple file descriptors at the same time. However this was not enough. One of the main design tradeoffs was to understand if the in memory RDB transfer would happen in one of the following two ways: 1) Way #1: produce a full RDB file in memory inside a buffer, than transfer it. 2) Way #2: directly write to slaves sockets, incrementally, as the RDB was created. Way #1 is a lot simpler since it is basically like the on-disk writing stuff, but in a kind of RAM disk. However the obvious risk is using too much memory. Way #2 is a bit more risky, because you have to transfer while the child producing the RDB file is active. However the essence of the feature was to target environments with slow disks perhaps, but *with fast networks*, without requiring too much additional memory, otherwise the feature risks to be useless. So Way #2 was selected. However if you stream an RDB file like this, there is a new problem to solve… how will the slave understand that EOF is reached? We don’t know, when we start the transfer, how big the transfer will be. With on-disk replication instead the size was known, so the transfer happened using just a Redis protocol “bulk” string, with prefixed length. Something like: $92384923423\r\n … data follows … I was too lazy to implement some complex chunked protocol to announce incremental blocks sizes, so went for a more brute force approach. The master generates an unguessable and unlikely to collide 160 bits random string, and sends something like that to the slave: $EOF:796f255829a040e80168f94c9fe7eda16b35e5df\r\n … data follows … 796f255829a040e80168f94c9fe7eda16b35e5df So basically this string, which is guaranteed (just because of infinitesimal probability) to never collide with anything inside the file, is used as the end of file mark. Trivial but works very well, and is simple. For timeouts, since it is a blocking write process (since we are in the context of the saving child process), I just used the SO_SNDTIMEO socket option. This way we are sure that we need to make progresses, otherwise the replication process is aborted. So for now there is no way to have an hard time limit for the child lifespan, and there are in theory pathological conditions where the slave would accept just one byte every timeout-1 seconds, to create a very slow transfer setup. Probably in the future the child will monitor the transfer rate, and if it drops under a reasonable figure, will exit with an error. Serving multiple slaves at the same time === Another goal of this implementation was to be able to serve multiple slaves at the same time. At first this looks impossible since once the RDB transfer starts, new slaves can’t attach, but need to wait for the current child to stop and a new one to start. However there is a very simple trick that covers a lot of use cases, which is, once the first slave want to replicate, we wait a few seconds for others to arrive as well. This covers the obvious case of a mass resync from multiple slaves for example. Because of this, the I/O code was designed in order to write to multiple file descriptors at the same time. Moreover in order to parallelize the transfer even if blocking I/O is used, the code tries to write a small amount of data to each fd in a loop, so that the kernel will send the packets in the background to multiple slaves at the same time. Probably the code itself is pretty easy to understand: while(len) { size_t count = len < 1024 ? len : 1024; int broken = 0; for (j = 0; j < r->io.fdset.numfds; j++) { … error checking removed … /* Make sure to write ''count'' bytes to the socket regardless * of short writes. */ size_t nwritten = 0; while(nwritten != count) { retval = write(r->io.fdset.fds[j],p+nwritten,count-nwritten); if (retval <= 0) { … error checkign removed … } nwritten += retval; } } p += count; len -= count; r->io.fdset.pos += count; … more error checking removed … } Note that writes are bufferized by the rio.c write target, since we want to write only when a given amount of data is available, otherwise we risk to send TCP packets with 5 bytes of data inside. Handling partial failures === Handling multiple slaves is not just writing to multiple FDs, which is quite simple. A big part of the story is actually to handle a few slaves failing without requiring to block the process for all the other slaves. File descriptors in error are marked with the related error code, and no attempt is made to write to them again. Also the code detects if all the FDs are in error, and abort the process at all. However when the RDB writing is terminated, the child needs to report what are the slaves that received the RDB and can continue the replication process. For this task, a unix pipe is used between the processes. The child returns an array of slave IDs and associated error state, so that the parent can do a decent job at logging errors as well. How this changes Redis is a more deep way I thought === Diskless replication finally allows for a totally disk-free experience in Redis master-slaves sets. This means we need to support this use case better. Currently replication is dangerous to run with persistence disabled, since I thought there was not a case for turning off persistence when anyway replication was going to trigger it. But now this changed… and as a result, there are already plans to support better replication in a non-disk backed environment. The same will be applied to Redis Cluster as well… which is also a good candidate for diskless operations, especially for caching use cases, where replicas can do a good job to provide data redundancy, but where it may not be too critical if crash-restart of multiple instances cause data loss of a subset of hash slots in the cluster. ETA === The code is already available in beta here: https://github.com/antirez/redis/commits/memsync It will be merged into unstable in the next days, but the plan is to wait a bit for feedbacks and bug reports, and later merge into 3.0 and 2.8 as well. The feature is very useful and it has little interactions with the rest of the Redis core when it is turned off. The plan is to just back port it everywhere and release it as “experimental” for some time. Comments'
+content: extracted
+html: 2014-10-27-diskless-replication-a-few-design-notes.html
+---
+
+[antirez](https://antirez.com/user/antirez) 4345 days ago. 298340 views.
+
+```
+Almost a month ago a number of people interested in Redis development met in London for the first Redis developers meeting. We identified together a number of features that are urgent (and are now listed in a Github issue here: https://github.com/antirez/redis/issues/2045), and among the identified issues, there was one that was mentioned multiple times in the course of the day: diskless replication.
+
+The feature is not exactly a new idea, it was proposed several times, especially by EC2 users that know that sometimes it is not trivial for a master to provide good performances during slaves synchronization. However there are a number of use cases where you don’t want to touch disks, even running on physical servers, and especially when Redis is used as a cache. Redis replication was, in short, forcing users to use disk even when they don’t need or want disk durability.
+
+When I returned back home I wanted to provide a quick feedback to the developers that attended the meeting, so the first thing I did was to focus on implementing the feature that seemed the most important and non-trivial among the list of identified issues. In the next weeks the attention will be moved to the Redis development process as well: the way issues are handled, how new ideas can be proposed to the Redis project, and so forth. Sorry for the delay about these other important things, for now what you can get is, some code at least ;-)
+
+Diskless replication provided a few design challenges. It looks trivial but it is not, so since I want to blog more, I thought about documenting how the internals of this feature work. I’m sure that a blog post may make the understanding and adoption of the new feature simpler.
+
+How replication used to work
+===
+
+Newer versions of Redis are able, when the connection with the master is lost, to reconnect with the master, and continue the replication process in an incremental way just fetching the differences accumulated so far. However when a slave is disconnected for a long time, or restarted, or it is a new slave, Redis requires it to perform what is called a “full resynchronization”.
+
+It is a trivial concept, and means: in order to setup this slave, let’s transfer *all* the master data set to the slave. It will flush away its old data, and reload the new data from scratch, making sure it is running an exact copy of master’s data. Once the slave is an exact copy of the master, successive changes are streamed as a normal Redis commands, in an incremental way, as the master data set itself gets modified because of write commands sent by clients.
+
+The problem was the way this initial “bulk transfer” needed for a full resynchronization was performed. Basically a child process was created by the master, in order to generate an RDB file. When the child was done with the RDB file generation, the file was sent to slaves, using non blocking I/O from the parent process. Finally when the transfer was complete, slaves could reload the RDB file and go online, receiving the incremental stream of new writes.
+
+However this means that from the master point of view, in order to perform a full sync, we need:
+
+1) To write the RDB on disk.
+2) To load back the RDB from disk in order to send it to slaves.
+
+“2” is not great but “1” is much worse. If AOF is active at the same time, for example, the AOF fsync() can be delayed a lot by the child writing to the disk as fast as possible. With the wrong setup, especially with non-local disks, but sometimes even because of a non perfect kernel parameters tuning, the disk pressure was cause of latency spikes that are hard to deal with. Partial resynchronizations introduced with Redis 2.8 mitigated this problem a bit, but from time to time you have to restart your slaves, or they go offline for too much time, so it is impossible to avoid full resynchronizations.
+
+At the same time, this process had a few advantages. The RDB saving code was reused for replication as well, making the replication code simpler. Moreover while the child was producing the RDB file, new slaves could attach, and put in a queue: when the RDB was ready, we could feed multiple slaves at the same time.
+
+All in all in many setups it works great and allows to synchronize a number of slaves at the same time. Also many users run with RDB persistence enabled in the master side, but not AOF, so anyway to persist on disk was happening from time to time. Most bare-metal users don’t have any latency at all while Redis is persisting, moreover disks, especially local disks, have easy to predict performances: once the child starts to save, you don’t really need to check for timeouts or if it is taking too much time, it will end eventually, and usually within a reasonable amount time.
+
+For this reasons, disk-backed replication is *still* the default replication strategy, and there are no plans to remove it so far, but now we have an alternative in order to serve the use cases where it was not great.
+
+So what is diskless replication? It is the idea that you can write directly from the child process to the slaves, via socket, without any intermediate step.
+
+Sockets are not disks
+===
+
+The obvious problem about diskless replication is that writing to disks is different than writing to sockets. To start
+the API is different, since the RDB code used to write to C FILE pointers, while to write to sockets is a matter of writing to file descriptors. Moreover disk writes don’t fail if not for hard I/O errors (for example if the disk is full), so when a write fails, you can consider the process aborted. For sockets it is different since writes can be delayed since the receiver is slow and the local kernel buffer is full. Another interesting issue is that there is to deal with timeouts: what about the receiving side to experience a failure so that it stops reading from us? Or just the TCP connection is dead but we don’t get resets, and so forth. We can’t take the child sending the RDB file to slaves active forever, there must be a way to detect timeouts.
+
+Fortunately modifying the RDB code to write to file descriptors was trivial, because for an entirely different problem (MIGRATE/RESTORE for Redis Cluster) the code was already using an abstraction called “rio” (redis I/O), that abstracts the serialization and deserialization of Redis values in RDB format, so you can write a value to the disk,
+or to an in memory buffer. What I did was to support a new “rio” target, called fdset: a set of file descriptors.
+This is because as I’ll write later, we need to write to multiple file descriptors at the same time.
+
+However this was not enough. One of the main design tradeoffs was to understand if the in memory RDB transfer would happen in one of the following two ways:
+
+1) Way #1: produce a full RDB file in memory inside a buffer, than transfer it.
+2) Way #2: directly write to slaves sockets, incrementally, as the RDB was created.
+
+Way #1 is a lot simpler since it is basically like the on-disk writing stuff, but in a kind of RAM disk. However the obvious risk is using too much memory. Way #2 is a bit more risky, because you have to transfer while the child producing the RDB file is active. However the essence of the feature was to target environments with slow disks perhaps, but *with fast networks*, without requiring too much additional memory, otherwise the feature risks to be useless. So Way #2 was selected.
+
+However if you stream an RDB file like this, there is a new problem to solve… how will the slave understand that EOF is reached? We don’t know, when we start the transfer, how big the transfer will be. With on-disk replication instead the size was known, so the transfer happened using just a Redis protocol “bulk” string, with prefixed length. Something like:
+
+$92384923423\r\n
+… data follows …
+
+I was too lazy to implement some complex chunked protocol to announce incremental blocks sizes, so went for a more brute force approach. The master generates an unguessable and unlikely to collide 160 bits random string, and sends something like that to the slave:
+
+$EOF:796f255829a040e80168f94c9fe7eda16b35e5df\r\n
+… data follows …
+796f255829a040e80168f94c9fe7eda16b35e5df
+
+So basically this string, which is guaranteed (just because of infinitesimal probability) to never collide with anything inside the file, is used as the end of file mark. Trivial but works very well, and is simple.
+
+For timeouts, since it is a blocking write process (since we are in the context of the saving child process), I just used the SO_SNDTIMEO socket option. This way we are sure that we need to make progresses, otherwise the replication process is aborted. So for now there is no way to have an hard time limit for the child lifespan, and there are in theory pathological conditions where the slave would accept just one byte every timeout-1 seconds, to create a very slow transfer setup. Probably in the future the child will monitor the transfer rate, and if it drops under a reasonable figure, will exit with an error.
+
+Serving multiple slaves at the same time
+===
+
+Another goal of this implementation was to be able to serve multiple slaves at the same time. At first this looks impossible since once the RDB transfer starts, new slaves can’t attach, but need to wait for the current child to stop and a new one to start.
+
+However there is a very simple trick that covers a lot of use cases, which is, once the first slave want to replicate, we wait a few seconds for others to arrive as well. This covers the obvious case of a mass resync from multiple slaves for example.
+
+Because of this, the I/O code was designed in order to write to multiple file descriptors at the same time. Moreover
+in order to parallelize the transfer even if blocking I/O is used, the code tries to write a small amount of data to each fd in a loop, so that the kernel will send the packets in the background to multiple slaves at the same time.
+
+Probably the code itself is pretty easy to understand:
+
+    while(len) {
+        size_t count = len < 1024 ? len : 1024;
+        int broken = 0;
+        for (j = 0; j < r->io.fdset.numfds; j++) {
+            … error checking removed …
+
+            /* Make sure to write 'count' bytes to the socket regardless
+             * of short writes. */
+            size_t nwritten = 0;
+            while(nwritten != count) {
+                retval = write(r->io.fdset.fds[j],p+nwritten,count-nwritten);
+                if (retval <= 0) {
+                     … error checkign removed …
+                }
+                nwritten += retval;
+            }
+        }
+        p += count;
+        len -= count;
+        r->io.fdset.pos += count;
+        … more error checking removed …
+    }
+
+Note that writes are bufferized by the rio.c write target, since we want to write only when a given amount of data is available, otherwise we risk to send TCP packets with 5 bytes of data inside.
+
+Handling partial failures
+===
+
+Handling multiple slaves is not just writing to multiple FDs, which is quite simple. A big part of the story is actually to handle a few slaves failing without requiring to block the process for all the other slaves.
+File descriptors in error are marked with the related error code, and no attempt is made to write to them again.
+Also the code detects if all the FDs are in error, and abort the process at all.
+
+However when the RDB writing is terminated, the child needs to report what are the slaves that received the RDB and can continue the replication process. For this task, a unix pipe is used between the processes. The child returns an array of slave IDs and associated error state, so that the parent can do a decent job at logging errors as well.
+
+How this changes Redis is a more deep way I thought
+===
+
+Diskless replication finally allows for a totally disk-free experience in Redis master-slaves sets.
+This means we need to support this use case better. Currently replication is dangerous to run with persistence disabled, since I thought there was not a case for turning off persistence when anyway replication was going to trigger it. But now this changed… and as a result, there are already plans to support better replication in a non-disk backed environment. The same will be applied to Redis Cluster as well… which is also a good candidate for diskless operations, especially for caching use cases, where replicas can do a good job to provide data redundancy, but where it may not be too critical if crash-restart of multiple instances cause data loss of a subset of hash slots in the cluster.
+
+ETA
+===
+
+The code is already available in beta here: https://github.com/antirez/redis/commits/memsync
+It will be merged into unstable in the next days, but the plan is to wait a bit for feedbacks and bug reports, and later merge into 3.0 and 2.8 as well. The feature is very useful and it has little interactions with the rest of the Redis core when it is turned off. The plan is to just back port it everywhere and release it as “experimental” for some time.
+```

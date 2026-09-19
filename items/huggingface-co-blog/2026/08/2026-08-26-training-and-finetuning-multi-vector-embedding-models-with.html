@@ -1,0 +1,1113 @@
+<div id="readability-page-1" class="page"><div>
+<p><a href="https://sbert.net/" rel="nofollow">Sentence Transformers</a> is a Python library for using and training embedding and reranker models for a wide range of applications, such as retrieval augmented generation, semantic search, semantic textual similarity, and more. Its v6.0 update introduces a fourth model type: <code>MultiVectorEncoder</code>, for ColBERT-style late interaction retrieval, alongside a complete training approach for it. In this blogpost, I'll show you how to use it to finetune a multi-vector model that outperforms general-purpose retrievers on your data. This method can also train strong new multi-vector models from scratch. Everything below runs on <code>pip install -U "sentence-transformers[train]"</code>.</p>
+<p>Finetuning multi-vector models involves several components: the model itself, datasets, loss functions, training arguments, evaluators, and the trainer class. I'll have a look at each of these components, accompanied by practical examples of how they can be used for finetuning strong multi-vector models.</p>
+<p>Lastly, in the <a href="#evaluation" rel="nofollow">Evaluation</a> section, I'll show you that my finetuned <a href="https://huggingface.co/multi-vector-encoder/mLateOn-medical">multi-vector-encoder/mLateOn-medical</a> model, trained in 14.5 hours on a single RTX 3090 alongside this blogpost, easily outperforms every general-purpose retrieval model I could find on my medical retrieval evaluation: dense, sparse, lexical, and multi-vector alike.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/train-multi-vector-encoder/mve_medical_model_size_ndcg.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/train-multi-vector-encoder/mve_medical_model_size_ndcg.png" alt="NDCG@10 on MIRIAD versus active parameters: the finetuned mLateOn-medical reaches the top at a fraction of the size of the strongest general-purpose models"></a></p>
+<p>If you're interested in finetuning dense embedding models, sparse embedding models, or rerankers instead, then consider reading through my prior <a href="https://huggingface.co/blog/train-sentence-transformers">Training and Finetuning Embedding Models</a>, <a href="https://huggingface.co/blog/train-sparse-encoder">Training and Finetuning Sparse Embedding Models</a>, and <a href="https://huggingface.co/blog/train-reranker">Training and Finetuning Reranker Models</a> blogposts.</p>
+<blockquote>
+<p>This blogpost is about <em>training</em> multi-vector models. If you want to learn how to <em>use</em> them, from loading and encoding to indexing in vector databases, see the companion <a href="https://huggingface.co/blog/multi-vector-encoder">Multi-Vector (Late Interaction) Embedding Models with Sentence Transformers</a> blogpost.</p>
+</blockquote>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#what-are-multi-vector-models" rel="nofollow">What are Multi-Vector models?</a></li>
+<li><a href="#why-finetune" rel="nofollow">Why Finetune?</a></li>
+<li><a href="#training-components" rel="nofollow">Training Components</a></li>
+<li><a href="#model" rel="nofollow">Model</a><ul>
+<li><a href="#finetuning-an-existing-multi-vector-model" rel="nofollow">Finetuning an existing multi-vector model</a></li>
+<li><a href="#building-one-from-a-base-transformer" rel="nofollow">Building one from a base transformer</a></li>
+<li><a href="#which-starting-point-should-you-pick" rel="nofollow">Which starting point should you pick?</a></li>
+</ul>
+</li>
+<li><a href="#dataset" rel="nofollow">Dataset</a><ul>
+<li><a href="#data-on-the-hugging-face-hub" rel="nofollow">Data on the Hugging Face Hub</a></li>
+<li><a href="#local-data" rel="nofollow">Local Data</a></li>
+<li><a href="#dataset-format" rel="nofollow">Dataset Format</a></li>
+</ul>
+</li>
+<li><a href="#loss-function" rel="nofollow">Loss Function</a></li>
+<li><a href="#training-arguments" rel="nofollow">Training Arguments</a></li>
+<li><a href="#evaluator" rel="nofollow">Evaluator</a></li>
+<li><a href="#trainer" rel="nofollow">Trainer</a><ul>
+<li><a href="#callbacks" rel="nofollow">Callbacks</a></li>
+<li><a href="#multi-dataset-training" rel="nofollow">Multi-Dataset Training</a></li>
+</ul>
+</li>
+<li><a href="#evaluation" rel="nofollow">Evaluation</a><ul>
+<li><a href="#optimizing-the-index" rel="nofollow">Optimizing the index</a></li>
+</ul>
+</li>
+<li><a href="#acknowledgements" rel="nofollow">Acknowledgements</a></li>
+<li><a href="#additional-resources" rel="nofollow">Additional Resources</a><ul>
+<li><a href="#training-examples" rel="nofollow">Training Examples</a></li>
+<li><a href="#documentation" rel="nofollow">Documentation</a></li>
+</ul>
+</li>
+</ul>
+<h2>
+	<a id="what-are-multi-vector-models" href="#what-are-multi-vector-models" rel="nofollow">
+		
+	</a>
+	<span>
+		What are Multi-Vector models?
+	</span>
+</h2>
+<p>A dense embedding model compresses a whole text into a single vector, and similarity is one dot product between two such summaries. A multi-vector model (also called a late-interaction or ColBERT-style model) skips that compression. It keeps <strong>one small vector per token</strong> and scores a query against a document with the MaxSim operator, where every query token finds its best-matching document token and the scores are summed. Token-level matching preserves exactly the fine-grained signals that a single vector has to average away, which usually means stronger retrieval, at the cost of a bigger index.</p>
+<p>The companion <a href="https://huggingface.co/blog/multi-vector-encoder">Multi-Vector Embedding Models</a> blogpost covers the architecture, encoding, scoring, and indexing in detail, so I'll keep this section short and get to the training.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/multi-vector-encoder/maxsim_explainer.gif" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/multi-vector-encoder/maxsim_explainer.gif" alt="Dense embedding versus multi-vector late interaction"></a></p>
+<h2>
+	<a id="why-finetune" href="#why-finetune" rel="nofollow">
+		
+	</a>
+	<span>
+		Why Finetune?
+	</span>
+</h2>
+<p>Finetuning multi-vector models significantly improves their retrieval performance on your specific domain: the vocabulary, the query style, and the notion of relevance all differ between web search, legal discovery, code search, and scientific literature review. Because queries and documents are matched token by token, multi-vector models pick up fine-grained domain signals that single-vector models tend to average away, and they respond very well to even modest amounts of in-domain finetuning data.</p>
+<p>Beyond that, most released retrieval models were configured for short passages. The classic ColBERT checkpoints truncate documents at 180 or 300 tokens, and many popular dense models at 256 or 512, because their MS MARCO-style training data rarely goes beyond that. If your documents are long, these models silently discard most of every document before scoring it. On my medical evaluation with passages averaging 941 tokens, I measured that this truncation costs up to 0.24 NDCG@10, considerably more than any difference between model architectures. When you train your own model, you configure the document length that <em>your</em> data needs.</p>
+<p>LightOn ran into this same dynamic with code retrieval, where general <a href="https://huggingface.co/lightonai/LateOn">LateOn</a> wasn't enough and they trained <a href="https://huggingface.co/lightonai/LateOn-Code">LateOn-Code</a>. Your domain, whether that's medical, legal, financial, or your company's internal documents, is not getting an official model. This blogpost shows you how to build it yourself, in a matter of hours, on a single consumer GPU.</p>
+<h2>
+	<a id="training-components" href="#training-components" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Components
+	</span>
+</h2>
+<p>Training MultiVectorEncoder models involves the following components:</p>
+<ol>
+<li><a href="#model" rel="nofollow"><strong>Model</strong></a>: The model to finetune or the architecture to build fresh.</li>
+<li><a href="#dataset" rel="nofollow"><strong>Dataset</strong></a>: The data used for training and evaluation.</li>
+<li><a href="#loss-function" rel="nofollow"><strong>Loss Function</strong></a>: A function that measures the model's performance and guides the optimization process.</li>
+<li><a href="#training-arguments" rel="nofollow"><strong>Training Arguments</strong></a> (optional): Parameters that impact training performance, tracking, and debugging.</li>
+<li><a href="#evaluator" rel="nofollow"><strong>Evaluator</strong></a> (optional): A class for evaluating the model before, during, or after training.</li>
+<li><a href="#trainer" rel="nofollow"><strong>Trainer</strong></a>: Brings together all training components.</li>
+</ol>
+<p>Let's take a closer look at each component.</p>
+<h2>
+	<a id="model" href="#model" rel="nofollow">
+		
+	</a>
+	<span>
+		Model
+	</span>
+</h2>
+<p>Multi-vector training gives you a real choice of starting point, and it matters more than you might expect.</p>
+<h3>
+	<a id="finetuning-an-existing-multi-vector-model" href="#finetuning-an-existing-multi-vector-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Finetuning an existing multi-vector model
+	</span>
+</h3>
+<p>If you want to further finetune an existing multi-vector model, you don't have to worry about the architecture at all:</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> MultiVectorEncoder
+
+<span># Loading in fp32 is preferred for training if your memory can handle it</span>
+model = MultiVectorEncoder(
+    <span>"lightonai/mLateOn-unsupervised"</span>,
+    model_kwargs={<span>"torch_dtype"</span>: <span>"float32"</span>},
+    processor_kwargs={<span>"model_max_length"</span>: <span>8192</span>},  <span># the tokenizer-level token limit</span>
+)
+</code></pre>
+<p>The checkpoint brings its own recipe along: its query and document marker tokens, its projection head, its scoring skiplist. For finetuning, you generally want to keep all of that and change only what your data demands. The first thing to check is the length configuration, since many released checkpoints cap documents at 180 to 512 tokens (see <a href="#why-finetune" rel="nofollow">Why Finetune?</a>), and my medical passages run to 1,400 tokens. The mLateOn family already serves the backbone's full 8192 token context, but if your starting checkpoint carries caps, lift them:</p>
+<pre><code><span># Let the model read full documents instead of the caps it was trained with,</span>
+<span># e.g. GTE-ModernColBERT-v1 ships with query_length=48 and document_length=300</span>
+model[<span>0</span>].query_length = <span>None</span>
+model[<span>0</span>].document_length = <span>None</span>
+</code></pre>
+<p>With the per-task caps unset, truncation falls back to the tokenizer's <code>model_max_length</code>, which is why I configure that limit at load time above.</p>
+<p>I made one more change, adding a punctuation skiplist that excludes punctuation tokens from document-side scoring and storage. In a 4-way ablation (none, punctuation, stopwords, both) it modestly won on quality, and it shrinks the document index by 9.6% on this data for free:</p>
+<pre><code><span>import</span> string
+
+<span># model[2] is the MultiVectorMask module</span>
+model[<span>2</span>].skiplist_words = <span>list</span>(string.punctuation)
+model[<span>2</span>].resolve_with_tokenizer(model.tokenizer)  <span># token ids are cached, so re-resolve after changing</span>
+</code></pre>
+<h3>
+	<a id="building-one-from-a-base-transformer" href="#building-one-from-a-base-transformer" rel="nofollow">
+		
+	</a>
+	<span>
+		Building one from a base transformer
+	</span>
+</h3>
+<p>You can also point <code>MultiVectorEncoder</code> at any base transformer, and a fresh, randomly initialized token-level projection is appended for you:</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> MultiVectorEncoder
+
+model = MultiVectorEncoder(<span>"answerdotai/ModernBERT-base"</span>, model_kwargs={<span>"torch_dtype"</span>: <span>"float32"</span>})
+<span># MultiVectorEncoder(</span>
+<span>#   (0): Transformer({..., 'architecture': 'ModernBertModel'})</span>
+<span>#   (1): Dense({'in_features': 768, 'out_features': 128, 'bias': False, ...})</span>
+<span>#   (2): MultiVectorMask({'skiplist_words': [], 'skiplist_tasks': ['document'], ...})</span>
+<span>#   (3): Normalize({...})</span>
+<span># )</span>
+</code></pre>
+<p>That's the classic ColBERT pipeline: a <code>Transformer</code> producing contextualized token embeddings, a token-level <code>Dense</code> projecting each of them down to 128 dimensions, a <code>MultiVectorMask</code> deciding which tokens count during scoring, and a token-level <code>Normalize</code>. The projection starts random, so training is required before this model is useful. Interestingly, this works with strong dense embedding backbones too. A fresh projection on <a href="https://huggingface.co/Alibaba-NLP/gte-modernbert-base">Alibaba-NLP/gte-modernbert-base</a> reached within 0.03 of the existing-checkpoint starting points in my experiments, from nothing but the projection and 25k training pairs.</p>
+<p>The classic ColBERT tokenization tricks (<code>[MASK]</code> query expansion, <code>[Q]</code> / <code>[D]</code> prefix tokens, a document length cap, a punctuation skiplist) are all off by default and configurable. See <a href="https://sbert.net/docs/multi_vector_encoder/usage/custom_models.html" rel="nofollow">Creating Custom Models</a> for the full set. For what it's worth, I tested <code>[MASK]</code> query expansion in four configurations for my domain finetune and none of them made a measurable difference, so don't feel obliged to reach for the classic recipe.</p>
+<h3>
+	<a id="which-starting-point-should-you-pick" href="#which-starting-point-should-you-pick" rel="nofollow">
+		
+	</a>
+	<span>
+		Which starting point should you pick?
+	</span>
+</h3>
+<p>I measured this directly while preparing this blogpost, taking six starting points and training each with the identical recipe on 25k medical question-passage pairs from <a href="https://huggingface.co/datasets/tomaarsen/miriad-4.4M-split">MIRIAD</a>, then evaluating on 1,000 held-out questions against a 50,000 passage corpus:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Starting point</th>
+<th>Zero-shot NDCG@10</th>
+<th>After 25k pairs</th>
+<th>Delta</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/lightonai/mLateOn-unsupervised">lightonai/mLateOn-unsupervised</a></td>
+<td>0.9087</td>
+<td><strong>0.9398</strong></td>
+<td><strong>+0.0311</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/mLateOn">lightonai/mLateOn</a></td>
+<td>0.9277</td>
+<td>0.9319</td>
+<td>+0.0042</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/LateOn-unsupervised">lightonai/LateOn-unsupervised</a></td>
+<td>0.9026</td>
+<td><strong>0.9206</strong></td>
+<td><strong>+0.0180</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/LateOn">lightonai/LateOn</a></td>
+<td>0.9185</td>
+<td>0.9105</td>
+<td>-0.0080</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/GTE-ModernColBERT-v1">lightonai/GTE-ModernColBERT-v1</a></td>
+<td>0.9198</td>
+<td>0.9007</td>
+<td>-0.0191</td>
+</tr>
+<tr>
+<td>Fresh head on <a href="https://huggingface.co/Alibaba-NLP/gte-modernbert-base">gte-modernbert-base</a></td>
+<td>-</td>
+<td>0.9177</td>
+<td>-</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The result surprised me, and it replicated across two model families. *The <code>-unsupervised</code> checkpoints adapt to a new domain far better than their finished siblings, overtaking them despite starting lower. These checkpoints sit after large-scale contrastive pretraining but before supervised finetuning on general retrieval, so they carry all the late-interaction structure with none of the general-purpose tuning that domain training then has to undo. The finished checkpoints, by contrast, barely moved or even regressed, at every learning rate I tried.</p>
+<p>So, if the model family you like publishes a pre-supervised checkpoint, start there. If not, a fresh projection on a strong retrieval-pretrained backbone is a close runner-up. Continuing from a fully finished checkpoint is the weakest option for domain adaptation, despite being the most natural-feeling one.</p>
+<h2>
+	<a href="#dataset" rel="nofollow">
+		
+	</a>
+	<span>
+		Dataset
+	</span>
+</h2>
+<p>The <a href="https://sbert.net/docs/package_reference/multi_vector_encoder/trainer.html" rel="nofollow"><code>MultiVectorEncoderTrainer</code></a> uses <a href="https://huggingface.co/docs/datasets/main/en/package_reference/main_classes#datasets.Dataset"><code>datasets.Dataset</code></a> or <a href="https://huggingface.co/docs/datasets/main/en/package_reference/main_classes#datasets.DatasetDict"><code>datasets.DatasetDict</code></a> instances for training and evaluation. You can load data from the <a href="https://huggingface.co/datasets">Hugging Face Datasets Hub</a> or use local data in whatever format you prefer (e.g. CSV, JSON, Parquet, Arrow, or SQL).</p>
+<p><strong>Note:</strong> Lots of public datasets that work out of the box with Sentence Transformers have been tagged with <code>sentence-transformers</code> on the Hugging Face Hub, so you can easily find them on <a href="https://huggingface.co/datasets?other=sentence-transformers">https://huggingface.co/datasets?other=sentence-transformers</a>. Consider browsing through these to find ready-to-go datasets that might be useful for your tasks, domains, or languages.</p>
+<h3>
+	<a id="data-on-the-hugging-face-hub" href="#data-on-the-hugging-face-hub" rel="nofollow">
+		
+	</a>
+	<span>
+		Data on the Hugging Face Hub
+	</span>
+</h3>
+<p>You can use the <a href="https://huggingface.co/docs/datasets/main/en/package_reference/loading_methods#datasets.load_dataset"><code>load_dataset</code></a> function to load data from datasets on the Hub:</p>
+<pre><code><span>from</span> datasets <span>import</span> load_dataset
+
+train_dataset = load_dataset(<span>"tomaarsen/miriad-4.4M-split"</span>, split=<span>"train"</span>)
+
+<span>print</span>(train_dataset)
+<span>"""</span>
+<span>Dataset({</span>
+<span>    features: ['question', 'passage_text'],</span>
+<span>    num_rows: 4467542</span>
+<span>})</span>
+<span>"""</span>
+</code></pre>
+<p>This is the dataset I'll train on in this blogpost: 4.4 million medical questions from <a href="https://huggingface.co/datasets/miriad/miriad-4.4M">MIRIAD</a>, each paired with the source passage that contains its answer (averaging 941 tokens). Simple (query, relevant passage) pairs like these are the easiest retrieval training data to collect for your own domain, and as you'll see, they're all you need.</p>
+<h3>
+	<a id="local-data" href="#local-data" rel="nofollow">
+		
+	</a>
+	<span>
+		Local Data
+	</span>
+</h3>
+<p>You can also use <a href="https://huggingface.co/docs/datasets/main/en/package_reference/loading_methods#datasets.load_dataset"><code>load_dataset</code></a> for loading local data in common file formats:</p>
+<pre><code><span>from</span> datasets <span>import</span> load_dataset
+
+dataset = load_dataset(<span>"csv"</span>, data_files=<span>"my_file.csv"</span>)
+<span># or</span>
+dataset = load_dataset(<span>"json"</span>, data_files=<span>"my_file.json"</span>)
+</code></pre>
+<p>And if your local data requires pre-processing, you can use <a href="https://huggingface.co/docs/datasets/main/en/package_reference/main_classes#datasets.Dataset.from_dict"><code>datasets.Dataset.from_dict</code></a> to initialize your dataset with a dictionary of lists:</p>
+<pre><code><span>from</span> datasets <span>import</span> Dataset
+
+queries = []
+documents = []
+<span># Open a file, perform preprocessing, filtering, cleaning, etc.</span>
+<span># and append to the lists</span>
+
+dataset = Dataset.from_dict({
+    <span>"query"</span>: queries,
+    <span>"document"</span>: documents,
+})
+</code></pre>
+<h3>
+	<a id="dataset-format" href="#dataset-format" rel="nofollow">
+		
+	</a>
+	<span>
+		Dataset Format
+	</span>
+</h3>
+<p>It is important that your dataset format matches your loss function (or that you choose a loss function that matches your dataset format). Verifying whether a dataset format works with a loss function involves two steps:</p>
+<ol>
+<li>If your loss function requires a <em>Label</em> according to the <a href="https://sbert.net/docs/multi_vector_encoder/loss_overview.html" rel="nofollow">Loss Overview</a> table, then your dataset must have a <strong>column named "label" or "score"</strong>. This column is automatically taken as the label.</li>
+<li>All columns not named "label" or "score" are considered <em>Inputs</em> according to the <a href="https://sbert.net/docs/multi_vector_encoder/loss_overview.html" rel="nofollow">Loss Overview</a> table. The number of remaining columns must match the number of valid inputs for your chosen loss. The names of these columns are <strong>irrelevant</strong>, only the <strong>order matters</strong>.</li>
+</ol>
+<p>There are two multi-vector specific conventions on top of this:</p>
+<ul>
+<li>Positional query and document assignment: the first column is embedded as the <em>query</em> and all following columns as <em>documents</em>, regardless of the column names. This default can be overridden per column via the standard <code>router_mapping</code> training argument.</li>
+<li>Knowledge distillation format: one column per candidate document, i.e. <code>(query, document_1, ..., document_N, scores)</code> where <code>scores</code> is a list of N teacher scores per row. For KD datasets that store query and document <em>IDs</em> alongside separate text datasets (e.g. <a href="https://huggingface.co/datasets/lightonai/ms-marco-en-bge">lightonai/ms-marco-en-bge</a>), you can use <a href="https://sbert.net/docs/package_reference/util.html#sentence_transformers.util.dataset.resolve_ids" rel="nofollow"><code>resolve_ids</code></a> to resolve the IDs to texts on the fly.</li>
+</ul>
+<h2>
+	<a id="loss-function" href="#loss-function" rel="nofollow">
+		
+	</a>
+	<span>
+		Loss Function
+	</span>
+</h2>
+<p>Loss functions quantify how well a model performs for a given batch of data, allowing an optimizer to update the model weights to produce more favourable (i.e., lower) loss values. The right loss function for your task depends on the data you have and what you're trying to achieve. You can find a full list of options in the <a href="https://sbert.net/docs/multi_vector_encoder/loss_overview.html" rel="nofollow">Loss Overview</a>.</p>
+<p>For the common case of question-answer or question-passage pairs, the workhorse is in-batch negatives training with <a href="https://sbert.net/docs/package_reference/multi_vector_encoder/losses.html#multivectormultiplenegativesrankingloss" rel="nofollow"><code>MultiVectorMultipleNegativesRankingLoss</code></a>, where every other document in the batch acts as a negative for each query. Bigger batches mean more negatives and stronger training, so in practice you'll want its GradCache variant, <a href="https://sbert.net/docs/package_reference/multi_vector_encoder/losses.html#cachedmultivectormultiplenegativesrankingloss" rel="nofollow"><code>CachedMultiVectorMultipleNegativesRankingLoss</code></a>, which decouples the effective batch size from what fits on your GPU:</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> MultiVectorEncoder
+<span>from</span> sentence_transformers.multi_vector_encoder.losses <span>import</span> CachedMultiVectorMultipleNegativesRankingLoss
+
+model = MultiVectorEncoder(<span>"lightonai/mLateOn-unsupervised"</span>, model_kwargs={<span>"torch_dtype"</span>: <span>"float32"</span>})
+
+loss = CachedMultiVectorMultipleNegativesRankingLoss(
+    model=model,
+    mini_batch_size=<span>16</span>,  <span># how many documents to encode per chunk: bounds memory, not quality</span>
+)
+</code></pre>
+<p>The <code>mini_batch_size</code> parameter bounds the memory by encoding documents in chunks of this size, while the effective contrastive batch size (128 in my run below, and in my ablations bigger batches bought nothing further) stays a free choice. GradCache guarantees identical results regardless of the chunk size, so lower it for smaller GPUs at only a wall-clock cost. When your document lengths vary a lot, consider its sibling <code>mini_batch_num_tokens</code>, which packs each chunk to a total token budget instead of a document count, so a chunk of unusually long documents can never spike your memory (my <code>mini_batch_size=16</code> at roughly 940 tokens per document corresponds to <code>mini_batch_num_tokens=15_000</code>).</p>
+<p>One multi-vector specific trap is that the contrastive losses default to <code>scale=1.0</code>, unlike the dense embedding equivalent which defaults to <code>scale=20.0</code>. That 20.0 exists because a cosine similarity is a single value in [-1, 1], too narrow a range for a sharp softmax. A MaxSim score instead sums one best-match similarity per query token, so it already spans roughly [0, query_length]: a 32-token query can score up to 32. So don't copy <code>scale=20.0</code> over from a dense training script, since it would saturate the softmax and kill your gradients.</p>
+<p>For distillation from a stronger teacher, which is how the strongest general-purpose late-interaction models are trained, see <a href="https://sbert.net/docs/package_reference/multi_vector_encoder/losses.html#multivectordistillkldivloss" rel="nofollow"><code>MultiVectorDistillKLDivLoss</code></a> and the Knowledge Distillation tab in the <a href="https://sbert.net/docs/multi_vector_encoder/training_overview.html#trainer" rel="nofollow">Training Overview</a> documentation.</p>
+<h2>
+	<a id="training-arguments" href="#training-arguments" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Arguments
+	</span>
+</h2>
+<p>You can customize the training process using the <a href="https://sbert.net/docs/package_reference/multi_vector_encoder/training_args.html" rel="nofollow"><code>MultiVectorEncoderTrainingArguments</code></a> class. This class lets you adjust parameters that can impact training speed and help you understand what's happening during training.</p>
+<p>For more information on the most useful training arguments, check out the <a href="https://sbert.net/docs/multi_vector_encoder/training_overview.html#training-arguments" rel="nofollow">Multi-Vector Encoder &gt; Training Overview &gt; Training Arguments</a>. It's worth reading to get the most out of your training.</p>
+<p>Here's an example, using the values from my actual training run:</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> MultiVectorEncoderTrainingArguments
+<span>from</span> sentence_transformers.base.sampler <span>import</span> BatchSamplers
+
+args = MultiVectorEncoderTrainingArguments(
+    <span># Required parameter:</span>
+    output_dir=<span>"models/mLateOn-medical"</span>,
+    <span># Optional training parameters:</span>
+    num_train_epochs=<span>1</span>,
+    per_device_train_batch_size=<span>128</span>,  <span># the effective contrastive batch, thanks to GradCache</span>
+    per_device_eval_batch_size=<span>16</span>,
+    learning_rate=<span>1e-4</span>,
+    warmup_steps=<span>0.05</span>,
+    prompts={<span>"question"</span>: <span>"[Q] "</span>, <span>"passage_text"</span>: <span>"[D] "</span>},  <span># the checkpoint's markers, keyed by training column</span>
+    fp16=<span>False</span>,  <span># Set to True if you have a GPU that supports FP16</span>
+    bf16=<span>True</span>,  <span># Set to True if you have a GPU that supports BF16</span>
+    batch_sampler=BatchSamplers.NO_DUPLICATES,  <span># in-batch negatives benefit from no duplicates</span>
+    <span># Optional tracking/debugging parameters:</span>
+    eval_strategy=<span>"steps"</span>,
+    eval_steps=<span>0.1</span>,
+    save_strategy=<span>"steps"</span>,
+    save_steps=<span>0.05</span>,
+    logging_steps=<span>0.01</span>,
+    run_name=<span>"mLateOn-medical"</span>,  <span># Will be used in e.g. Trackio, W&amp;B, etc.</span>
+)
+</code></pre>
+<p>A few of these deserve a comment:</p>
+<ul>
+<li><code>prompts</code>: training does not automatically apply the prompts stored in the model, so map them onto your training columns explicitly. Here that is the checkpoint's <code>[Q] </code> marker for the question column and <code>[D] </code> for the passage column, keeping training consistent with inference.</li>
+<li><code>max_length</code> (deliberately not set): this argument caps tokenization during <em>training only</em>, for when you want cheaper training than the model's full serving length. I measured what that shortcut costs on this data. Training at 512 tokens lost about 0.015 NDCG@10 for about 2x the speed, and the deficit did not shrink with more data, because the model simply never sees what got cut off. Leave it unset so training matches inference, unless you need the speedup more than the quality.</li>
+<li><code>learning_rate=1e-4</code>: after a sweep from 5e-6 to 2e-4, I had the best luck with this higher-than-usual learning rate.</li>
+</ul>
+<h2>
+	<a id="evaluator" href="#evaluator" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluator
+	</span>
+</h2>
+<p>To track your model's performance during training, you can pass an <code>eval_dataset</code> to the trainer for evaluation loss, but concrete retrieval metrics are much more informative. Sentence Transformers includes the following built-in evaluators for multi-vector models:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Evaluator</th>
+<th>Required Data</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://sbert.net/docs/package_reference/multi_vector_encoder/evaluation.html#multivectorinformationretrievalevaluator" rel="nofollow"><code>MultiVectorInformationRetrievalEvaluator</code></a></td>
+<td>Queries, corpus, and relevant document mappings</td>
+</tr>
+<tr>
+<td><a href="https://sbert.net/docs/package_reference/multi_vector_encoder/evaluation.html#multivectornanobeirevaluator" rel="nofollow"><code>MultiVectorNanoBEIREvaluator</code></a></td>
+<td>No data required</td>
+</tr>
+<tr>
+<td><a href="https://sbert.net/docs/package_reference/multi_vector_encoder/evaluation.html#multivectortripletevaluator" rel="nofollow"><code>MultiVectorTripletEvaluator</code></a></td>
+<td>(anchor, positive, negative) triplets</td>
+</tr>
+<tr>
+<td><a href="https://sbert.net/docs/package_reference/multi_vector_encoder/evaluation.html#multivectorrerankingevaluator" rel="nofollow"><code>MultiVectorRerankingEvaluator</code></a></td>
+<td>List of <code>{'query': '...', 'positive': [...], 'negative': [...]}</code> dictionaries</td>
+</tr>
+<tr>
+<td><a href="https://sbert.net/docs/package_reference/multi_vector_encoder/evaluation.html#multivectordistillationevaluator" rel="nofollow"><code>MultiVectorDistillationEvaluator</code></a></td>
+<td>Queries with candidate documents and teacher scores</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>For domain finetuning, the <a href="https://sbert.net/docs/package_reference/multi_vector_encoder/evaluation.html#multivectorinformationretrievalevaluator" rel="nofollow"><code>MultiVectorInformationRetrievalEvaluator</code></a> built from your own held-out data is the one that matters. One tip on constructing it is that the corpus should be hard enough that models can be told apart. In my case the MIRIAD questions are generated from their own source passages, which makes retrieval unusually easy. Against just the 10k gold passages, nearly every model scored above 0.97 NDCG@10. If your evaluation saturates like that, add <em>distractor</em> passages (I use deduplicated passages from the training split) until the scores spread out:</p>
+<pre><code><span>from</span> datasets <span>import</span> load_dataset
+<span>from</span> sentence_transformers.multi_vector_encoder.evaluation <span>import</span> MultiVectorInformationRetrievalEvaluator
+
+dataset = load_dataset(<span>"tomaarsen/miriad-4.4M-split"</span>)
+
+<span># Gold: 1,000 evaluation questions, each mapping to its own passage, with the</span>
+<span># eval split's full ~10k unique passages as the initial corpus</span>
+corpus = {}
+queries = {}
+relevant_docs = {}
+passage_to_id = {}
+<span>for</span> idx, row <span>in</span> <span>enumerate</span>(dataset[<span>"eval"</span>]):
+    <span>if</span> row[<span>"passage_text"</span>] <span>not</span> <span>in</span> passage_to_id:
+        passage_to_id[row[<span>"passage_text"</span>]] = <span>f"p<span>{<span>len</span>(passage_to_id)}</span>"</span>
+        corpus[passage_to_id[row[<span>"passage_text"</span>]]] = row[<span>"passage_text"</span>]
+    <span>if</span> idx &lt; <span>1_000</span>:
+        queries[<span>f"q<span>{idx}</span>"</span>] = row[<span>"question"</span>]
+        relevant_docs[<span>f"q<span>{idx}</span>"</span>] = {passage_to_id[row[<span>"passage_text"</span>]]}
+
+<span># Distractors: unique train passages that make the haystack realistic</span>
+seen = <span>set</span>(passage_to_id)
+<span>for</span> row <span>in</span> dataset[<span>"train"</span>]:
+    <span>if</span> <span>len</span>(corpus) &gt;= <span>200_000</span>:
+        <span>break</span>
+    <span>if</span> row[<span>"passage_text"</span>] <span>not</span> <span>in</span> seen:
+        seen.add(row[<span>"passage_text"</span>])
+        corpus[<span>f"d<span>{<span>len</span>(corpus)}</span>"</span>] = row[<span>"passage_text"</span>]
+
+evaluator = MultiVectorInformationRetrievalEvaluator(
+    queries=queries,
+    corpus=corpus,
+    relevant_docs=relevant_docs,
+    name=<span>"miriad-dev"</span>,
+    batch_size=<span>16</span>,
+)
+<span># results = evaluator(model)</span>
+</code></pre>
+<h2>
+	<a id="trainer" href="#trainer" rel="nofollow">
+		
+	</a>
+	<span>
+		Trainer
+	</span>
+</h2>
+<p>The <a href="https://sbert.net/docs/package_reference/multi_vector_encoder/trainer.html" rel="nofollow"><code>MultiVectorEncoderTrainer</code></a> is where all previous components come together. Here is the complete script that trained <a href="https://huggingface.co/multi-vector-encoder/mLateOn-medical">multi-vector-encoder/mLateOn-medical</a>, the model from the introduction:</p>
+<pre><code><span>import</span> logging
+<span>import</span> string
+<span>import</span> traceback
+
+<span>from</span> datasets <span>import</span> load_dataset
+
+<span>from</span> sentence_transformers <span>import</span> (
+    MultiVectorEncoder,
+    MultiVectorEncoderModelCardData,
+    MultiVectorEncoderTrainer,
+    MultiVectorEncoderTrainingArguments,
+)
+<span>from</span> sentence_transformers.base.sampler <span>import</span> BatchSamplers
+<span>from</span> sentence_transformers.multi_vector_encoder.evaluation <span>import</span> MultiVectorInformationRetrievalEvaluator
+<span>from</span> sentence_transformers.multi_vector_encoder.losses <span>import</span> CachedMultiVectorMultipleNegativesRankingLoss
+
+logging.basicConfig(<span>format</span>=<span>"%(asctime)s - %(message)s"</span>, datefmt=<span>"%Y-%m-%d %H:%M:%S"</span>, level=logging.INFO)
+
+
+<span>def</span> <span>main</span>():
+    <span># 1. Load the starting checkpoint: contrastively pretrained, not yet supervised</span>
+    <span># Loading in fp32 is preferred for training if your memory can handle it</span>
+    model = MultiVectorEncoder(
+        <span>"lightonai/mLateOn-unsupervised"</span>,
+        model_kwargs={<span>"torch_dtype"</span>: <span>"float32"</span>},
+        processor_kwargs={<span>"model_max_length"</span>: <span>8192</span>},
+        model_card_data=MultiVectorEncoderModelCardData(
+            language=<span>"en"</span>,
+            license=<span>"apache-2.0"</span>,
+            model_name=<span>"mLateOn finetuned on MIRIAD medical retrieval"</span>,
+        ),
+    )
+
+    <span># 2. Lift the per-task length caps so training and inference see full medical passages</span>
+    model[<span>0</span>].query_length = <span>None</span>
+    model[<span>0</span>].document_length = <span>None</span>
+
+    <span># 3. Skip punctuation tokens during scoring: a small quality win and a 9.6% smaller index</span>
+    model[<span>2</span>].skiplist_words = <span>list</span>(string.punctuation)
+    model[<span>2</span>].resolve_with_tokenizer(model.tokenizer)
+
+    <span># 4. Load 1 million medical question-passage pairs</span>
+    train_dataset = load_dataset(<span>"tomaarsen/miriad-4.4M-split"</span>, split=<span>"train"</span>).select(<span>range</span>(<span>1_000_000</span>))
+
+    <span># 5. In-batch negatives with GradCache: large effective batch, memory-bounded chunks</span>
+    loss = CachedMultiVectorMultipleNegativesRankingLoss(model=model, mini_batch_size=<span>16</span>)
+
+    <span># 6. A light dev evaluator to watch progress during training: 500 held-out questions</span>
+    <span># against the eval split's ~10k unique passages. The full 200k protocol runs afterwards.</span>
+    eval_split = load_dataset(<span>"tomaarsen/miriad-4.4M-split"</span>, split=<span>"eval"</span>)
+    corpus, queries, relevant_docs, passage_to_id = {}, {}, {}, {}
+    <span>for</span> idx, row <span>in</span> <span>enumerate</span>(eval_split):
+        <span>if</span> row[<span>"passage_text"</span>] <span>not</span> <span>in</span> passage_to_id:
+            passage_to_id[row[<span>"passage_text"</span>]] = <span>f"p<span>{<span>len</span>(passage_to_id)}</span>"</span>
+            corpus[passage_to_id[row[<span>"passage_text"</span>]]] = row[<span>"passage_text"</span>]
+        <span>if</span> idx &lt; <span>500</span>:
+            queries[<span>f"q<span>{idx}</span>"</span>] = row[<span>"question"</span>]
+            relevant_docs[<span>f"q<span>{idx}</span>"</span>] = {passage_to_id[row[<span>"passage_text"</span>]]}
+    dev_evaluator = MultiVectorInformationRetrievalEvaluator(
+        queries=queries, corpus=corpus, relevant_docs=relevant_docs, name=<span>"miriad-dev"</span>, batch_size=<span>16</span>
+    )
+
+    <span># 7. Training arguments, as discussed above</span>
+    run_name = <span>"mLateOn-medical"</span>
+    args = MultiVectorEncoderTrainingArguments(
+        output_dir=<span>f"models/<span>{run_name}</span>"</span>,
+        num_train_epochs=<span>1</span>,
+        per_device_train_batch_size=<span>128</span>,
+        per_device_eval_batch_size=<span>16</span>,
+        learning_rate=<span>1e-4</span>,
+        warmup_steps=<span>0.05</span>,
+        prompts={<span>"question"</span>: <span>"[Q] "</span>, <span>"passage_text"</span>: <span>"[D] "</span>},
+        fp16=<span>False</span>,  <span># Set to True if you have a GPU that supports FP16</span>
+        bf16=<span>True</span>,  <span># Set to True if you have a GPU that supports BF16</span>
+        batch_sampler=BatchSamplers.NO_DUPLICATES,
+        eval_strategy=<span>"steps"</span>,
+        eval_steps=<span>0.1</span>,
+        save_strategy=<span>"steps"</span>,
+        save_steps=<span>0.05</span>,
+        logging_steps=<span>0.01</span>,
+        run_name=run_name,
+    )
+
+    <span># 8. Create a trainer &amp; train</span>
+    trainer = MultiVectorEncoderTrainer(
+        model=model,
+        args=args,
+        train_dataset=train_dataset,
+        loss=loss,
+        evaluator=dev_evaluator,
+    )
+    trainer.train()
+
+    <span># 9. Save the trained model</span>
+    model.save_pretrained(<span>f"models/<span>{run_name}</span>/final"</span>)
+
+    <span># 10. (Optional) Push it to the Hugging Face Hub</span>
+    <span>try</span>:
+        model.push_to_hub(run_name)
+    <span>except</span> Exception:
+        logging.error(<span>f"Error uploading model to the Hugging Face Hub:\n<span>{traceback.format_exc()}</span>"</span>)
+
+
+<span>if</span> __name__ == <span>"__main__"</span>:
+    main()
+</code></pre>
+<p>That's the whole recipe: a pre-supervised checkpoint, a million domain pairs, in-batch negatives, full document length, and a higher-than-usual learning rate. The run took 14.5 hours on my single RTX 3090 at a peak of 17.5 GB VRAM, and every one of those choices was the winner of a measured comparison rather than a guess.</p>
+<p>For readers on smaller budgets, my scaling experiments put 100k pairs (75 minutes of training) within 0.012 NDCG@10 of the full million-pair run. Most of the gain comes in the first hour.</p>
+<h3>
+	<a id="callbacks" href="#callbacks" rel="nofollow">
+		
+	</a>
+	<span>
+		Callbacks
+	</span>
+</h3>
+<p>The MultiVectorEncoder trainer supports various <a href="https://huggingface.co/docs/transformers/main_classes/callback#transformers.TrainerCallback"><code>transformers.TrainerCallback</code></a> subclasses, including:</p>
+<ul>
+<li><a href="https://huggingface.co/docs/transformers/en/main_classes/callback#transformers.integrations.WandbCallback"><code>WandbCallback</code></a> for logging training metrics to W&amp;B if <code>wandb</code> is installed</li>
+<li><a href="https://huggingface.co/docs/transformers/en/main_classes/callback#transformers.integrations.TensorBoardCallback"><code>TensorBoardCallback</code></a> for logging training metrics to TensorBoard if <code>tensorboard</code> is accessible</li>
+<li><a href="https://huggingface.co/docs/transformers/en/main_classes/callback#transformers.integrations.CodeCarbonCallback"><code>CodeCarbonCallback</code></a> for tracking carbon emissions during training if <code>codecarbon</code> is installed</li>
+</ul>
+<p>Enable these via the <code>report_to</code> training argument, e.g. <code>report_to=["wandb", "codecarbon"]</code>, with the required dependencies installed. It defaults to <code>"none"</code>, and <code>report_to="all"</code> activates every integration whose dependency is installed.</p>
+<p>Refer to the <a href="https://huggingface.co/docs/transformers/en/main_classes/callback">Transformers Callbacks documentation</a> for more information on these callbacks and how to create your own.</p>
+<h3>
+	<a id="multi-dataset-training" href="#multi-dataset-training" rel="nofollow">
+		
+	</a>
+	<span>
+		Multi-Dataset Training
+	</span>
+</h3>
+<p>Typically, top-performing general-purpose models are trained on multiple datasets simultaneously. However, this approach can be challenging due to the varying formats of each dataset. Fortunately, the <a href="https://sbert.net/docs/package_reference/multi_vector_encoder/trainer.html" rel="nofollow"><code>MultiVectorEncoderTrainer</code></a> allows you to train on multiple datasets without requiring a uniform format. Additionally, it provides the flexibility to apply different loss functions to each dataset. Here are the steps to train with multiple datasets at once:</p>
+<ul>
+<li>Use a dictionary of <a href="https://huggingface.co/docs/datasets/main/en/package_reference/main_classes#datasets.Dataset"><code>datasets.Dataset</code></a> instances (or a <a href="https://huggingface.co/docs/datasets/main/en/package_reference/main_classes#datasets.DatasetDict"><code>datasets.DatasetDict</code></a>) as the <code>train_dataset</code> (and optionally also <code>eval_dataset</code>).</li>
+<li>(Optional) Use a dictionary of loss functions mapping dataset names to losses. Only required if you wish to use different loss functions for different datasets.</li>
+</ul>
+<p>Each training/evaluation batch will only contain samples from one of the datasets. The order in which batches are sampled from the multiple datasets is defined by the <a href="https://sbert.net/docs/package_reference/sentence_transformer/sampler.html#sentence_transformers.training_args.MultiDatasetBatchSamplers" rel="nofollow"><code>MultiDatasetBatchSamplers</code></a> enum, which can be passed to the <a href="https://sbert.net/docs/package_reference/multi_vector_encoder/training_args.html" rel="nofollow"><code>MultiVectorEncoderTrainingArguments</code></a> via <code>multi_dataset_batch_sampler</code>. Valid options are:</p>
+<ul>
+<li><code>MultiDatasetBatchSamplers.ROUND_ROBIN</code>: Round-robin sampling from each dataset until one is exhausted. With this strategy, it's likely that not all samples from each dataset are used, but each dataset is sampled from equally.</li>
+<li><code>MultiDatasetBatchSamplers.PROPORTIONAL</code> (default): Sample from each dataset in proportion to its size. With this strategy, all samples from each dataset are used and larger datasets are sampled from more frequently.</li>
+</ul>
+<h2>
+	<a id="evaluation" href="#evaluation" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation
+	</span>
+</h2>
+<p>To find out where the finetuned model stands, I evaluated it against over 50 retrieval model configurations across four architecture families on the MIRIAD evaluation set, built exactly as in the <a href="#evaluator" rel="nofollow">Evaluator</a> section above, with 1,000 held-out medical questions searching 200,000 unique passages (the 10k gold passages hidden among 190k deduplicated distractors from the training split). This corpus is four times the size of the 50,000-passage one from <a href="#which-starting-point-should-you-pick" rel="nofollow">Which starting point should you pick?</a>, so scores are not comparable between the two tables.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/train-multi-vector-encoder/mve_medical_model_size_ndcg.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/train-multi-vector-encoder/mve_medical_model_size_ndcg.png" alt="NDCG@10 versus active parameters on the MIRIAD 200k benchmark, with an arrow marking the finetuning jump from mLateOn-unsupervised to mLateOn-medical"></a></p>
+<p>The headline results, with the full table in the collapsible below:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Family</th>
+<th>NDCG@10</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/multi-vector-encoder/mLateOn-medical"><strong>multi-vector-encoder/mLateOn-medical (mine)</strong></a></td>
+<td><strong>Multi-vector, finetuned</strong></td>
+<td><strong>0.9139</strong></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/mLateOn">lightonai/mLateOn</a></td>
+<td>Multi-vector, zero-shot</td>
+<td>0.8520</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/GTE-ModernColBERT-v1">lightonai/GTE-ModernColBERT-v1</a> (cap lifted)</td>
+<td>Multi-vector, zero-shot</td>
+<td>0.8502</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Qwen/Qwen3-Embedding-4B">Qwen/Qwen3-Embedding-4B</a></td>
+<td>Dense, zero-shot</td>
+<td>0.7817</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/voyageai/voyage-4-nano">voyageai/voyage-4-nano</a></td>
+<td>Dense, zero-shot</td>
+<td>0.7563</td>
+</tr>
+<tr>
+<td>BM25</td>
+<td>Lexical</td>
+<td>0.7501</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/naver/splade-v3">naver/splade-v3</a></td>
+<td>Sparse, zero-shot</td>
+<td>0.6853</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The finetuned model tops the table, beating the strongest zero-shot model of any architecture by +0.062 NDCG@10. In other words, the strongest zero-shot model returns the right passage as the very first hit for 75.8% of the queries, while the finetuned model does so for 84.9%, cutting the rank-1 error by more than a third.</p>
+<p>The architecture pattern is just as clear, with the top of the table exclusively late interaction. On long documents, one vector per token beats one vector per document, even at matched training and matched backbones. DenseOn and LateOn share training data and architecture except for the head, and the late-interaction sibling wins by +0.12, with the multilingual pair (mDenseOn and mLateOn) replicating this at +0.13. Scale doesn't rescue single vectors either. <a href="https://huggingface.co/Qwen/Qwen3-Embedding-4B">Qwen3-Embedding-4B</a>, the strongest dense model with roughly 33x the active (non-embedding) parameters of mine, still stops 0.13 short, and the 8B version scores lower than the 4B.</p>
+<p>BM25 also performs surprisingly well, beating every sparse model, every truncation-capped multi-vector model, and all but three dense models: the multi-billion <a href="https://huggingface.co/Qwen/Qwen3-Embedding-4B">Qwen3-Embedding-4B</a> and <a href="https://huggingface.co/Qwen/Qwen3-Embedding-8B">8B</a>, and <a href="https://huggingface.co/voyageai/voyage-4-nano">voyage-4-nano</a>, which reads its full 32k token context to edge past by just 0.006. Don't expect that to transfer to your own data though. MIRIAD's questions are generated from the passages, so the lexical overlap between a query and its gold passage is far larger than in typical retrieval, and BM25's unlimited context length lets it use every one of those overlapping words while most neural checkpoints truncate. A BM25 baseline is cheap and always worth running, just don't count on this margin.</p>
+<p>The full field at a glance, sorted by score and colored by architecture family.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/train-multi-vector-encoder/mve_medical_ndcg_by_model.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/train-multi-vector-encoder/mve_medical_ndcg_by_model.png" alt="Sorted NDCG@10 on the MIRIAD 200k benchmark for every evaluated model, colored by architecture family"></a></p>
+<details><summary>Click to see the full evaluation table</summary>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Family</th>
+<th>NDCG@10</th>
+<th>acc@1</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/multi-vector-encoder/mLateOn-medical"><strong>multi-vector-encoder/mLateOn-medical (mine)</strong></a></td>
+<td>Multi-vector, finetuned</td>
+<td><strong>0.9139</strong></td>
+<td>0.849</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/mLateOn">lightonai/mLateOn</a></td>
+<td>Multi-vector</td>
+<td>0.8520</td>
+<td>0.758</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/GTE-ModernColBERT-v1">lightonai/GTE-ModernColBERT-v1</a> @1024</td>
+<td>Multi-vector</td>
+<td>0.8502</td>
+<td>0.763</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/LateOn">lightonai/LateOn</a> @1024</td>
+<td>Multi-vector</td>
+<td>0.8485</td>
+<td>0.760</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/mLateOn-unsupervised">lightonai/mLateOn-unsupervised</a></td>
+<td>Multi-vector</td>
+<td>0.8304</td>
+<td>0.733</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-edge-colbert-v0-32m">mixedbread-ai/mxbai-edge-colbert-v0-32m</a> @1024</td>
+<td>Multi-vector</td>
+<td>0.8186</td>
+<td>0.727</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Qwen/Qwen3-Embedding-4B">Qwen/Qwen3-Embedding-4B</a></td>
+<td>Dense</td>
+<td>0.7817</td>
+<td>0.669</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Qwen/Qwen3-Embedding-8B">Qwen/Qwen3-Embedding-8B</a></td>
+<td>Dense</td>
+<td>0.7747</td>
+<td>0.654</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/perplexity-ai/pplx-embed-v1-late-0.6b">perplexity-ai/pplx-embed-v1-late-0.6b</a> @1024</td>
+<td>Multi-vector</td>
+<td>0.7702</td>
+<td>0.632</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/ColBERT-Zero">lightonai/ColBERT-Zero</a></td>
+<td>Multi-vector</td>
+<td>0.7613</td>
+<td>0.675</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/LiquidAI/LFM2.5-ColBERT-350M">LiquidAI/LFM2.5-ColBERT-350M</a></td>
+<td>Multi-vector</td>
+<td>0.7582</td>
+<td>0.664</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/voyageai/voyage-4-nano">voyageai/voyage-4-nano</a></td>
+<td>Dense</td>
+<td>0.7563</td>
+<td>0.638</td>
+</tr>
+<tr>
+<td>BM25</td>
+<td>Lexical</td>
+<td>0.7501</td>
+<td>0.641</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/jinaai/jina-embeddings-v5-text-small-retrieval">jinaai/jina-embeddings-v5-text-small-retrieval</a></td>
+<td>Dense</td>
+<td>0.7470</td>
+<td>0.620</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Qwen/Qwen3-Embedding-0.6B">Qwen/Qwen3-Embedding-0.6B</a></td>
+<td>Dense</td>
+<td>0.7408</td>
+<td>0.620</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/perplexity-ai/pplx-embed-v1-0.6b">perplexity-ai/pplx-embed-v1-0.6b</a></td>
+<td>Dense</td>
+<td>0.7384</td>
+<td>0.615</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-edge-colbert-v0-32m">mixedbread-ai/mxbai-edge-colbert-v0-32m</a></td>
+<td>Multi-vector</td>
+<td>0.7350</td>
+<td>0.639</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-edge-colbert-v0-17m">mixedbread-ai/mxbai-edge-colbert-v0-17m</a></td>
+<td>Multi-vector</td>
+<td>0.7271</td>
+<td>0.631</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/answerdotai/answerai-colbert-small-v1">answerdotai/answerai-colbert-small-v1</a> @512</td>
+<td>Multi-vector</td>
+<td>0.7264</td>
+<td>0.615</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/DenseOn">lightonai/DenseOn</a> @1024</td>
+<td>Dense</td>
+<td>0.7239</td>
+<td>0.597</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/mDenseOn">lightonai/mDenseOn</a> @1024</td>
+<td>Dense</td>
+<td>0.7227</td>
+<td>0.585</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/jinaai/jina-embeddings-v5-text-nano-retrieval">jinaai/jina-embeddings-v5-text-nano-retrieval</a></td>
+<td>Dense</td>
+<td>0.7206</td>
+<td>0.587</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/microsoft/harrier-oss-v1-0.6b">microsoft/harrier-oss-v1-0.6b</a></td>
+<td>Dense</td>
+<td>0.7126</td>
+<td>0.572</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Alibaba-NLP/gte-modernbert-base">Alibaba-NLP/gte-modernbert-base</a></td>
+<td>Dense</td>
+<td>0.7102</td>
+<td>0.582</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Snowflake/snowflake-arctic-embed-l-v2.0">Snowflake/snowflake-arctic-embed-l-v2.0</a></td>
+<td>Dense</td>
+<td>0.7068</td>
+<td>0.568</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/perplexity-ai/pplx-embed-v1-late-0.6b">perplexity-ai/pplx-embed-v1-late-0.6b</a></td>
+<td>Multi-vector</td>
+<td>0.7008</td>
+<td>0.570</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/google/embeddinggemma-300m">google/embeddinggemma-300m</a></td>
+<td>Dense</td>
+<td>0.7000</td>
+<td>0.563</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/DenseOn">lightonai/DenseOn</a></td>
+<td>Dense</td>
+<td>0.6943</td>
+<td>0.570</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/naver/splade-v3">naver/splade-v3</a></td>
+<td>Sparse</td>
+<td>0.6853</td>
+<td>0.574</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-embedding-small-english-r2">ibm-granite/granite-embedding-small-english-r2</a></td>
+<td>Dense</td>
+<td>0.6813</td>
+<td>0.546</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/naver/splade-v3-distilbert">naver/splade-v3-distilbert</a></td>
+<td>Sparse</td>
+<td>0.6806</td>
+<td>0.567</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/codefuse-ai/F2LLM-v2-0.6B">codefuse-ai/F2LLM-v2-0.6B</a></td>
+<td>Dense</td>
+<td>0.6799</td>
+<td>0.536</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/colbert-ir/colbertv2.0">colbert-ir/colbertv2.0</a> @512</td>
+<td>Multi-vector</td>
+<td>0.6785</td>
+<td>0.571</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/prithivida/Splade_PP_en_v1">prithivida/Splade_PP_en_v1</a></td>
+<td>Sparse</td>
+<td>0.6755</td>
+<td>0.577</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/LateOn">lightonai/LateOn</a></td>
+<td>Multi-vector</td>
+<td>0.6713</td>
+<td>0.561</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/tomaarsen/embeddinggemma-300m-miriad-unsloth">tomaarsen/embeddinggemma-300m-miriad-unsloth</a></td>
+<td>Dense, finetuned</td>
+<td>0.6705</td>
+<td>0.530</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/LateOn-regularized">lightonai/LateOn-regularized</a></td>
+<td>Multi-vector</td>
+<td>0.6673</td>
+<td>0.554</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/LateOn-unsupervised">lightonai/LateOn-unsupervised</a></td>
+<td>Multi-vector</td>
+<td>0.6672</td>
+<td>0.553</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/lightonai/GTE-ModernColBERT-v1">lightonai/GTE-ModernColBERT-v1</a></td>
+<td>Multi-vector</td>
+<td>0.6612</td>
+<td>0.555</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/opensearch-project/opensearch-neural-sparse-encoding-v2-distill">opensearch-project/opensearch-neural-sparse-encoding-v2-distill</a></td>
+<td>Sparse</td>
+<td>0.6518</td>
+<td>0.531</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5">nomic-ai/nomic-embed-text-v1.5</a> (prompted)</td>
+<td>Dense</td>
+<td>0.6387</td>
+<td>0.498</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-embed-large-v1">mixedbread-ai/mxbai-embed-large-v1</a></td>
+<td>Dense</td>
+<td>0.6355</td>
+<td>0.502</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-large-en-v1.5">BAAI/bge-large-en-v1.5</a></td>
+<td>Dense</td>
+<td>0.6308</td>
+<td>0.498</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/jinaai/jina-colbert-v2">jinaai/jina-colbert-v2</a> @1024</td>
+<td>Multi-vector</td>
+<td>0.6218</td>
+<td>0.504</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5">nomic-ai/nomic-embed-text-v1.5</a></td>
+<td>Dense</td>
+<td>0.6203</td>
+<td>0.487</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/answerdotai/answerai-colbert-small-v1">answerdotai/answerai-colbert-small-v1</a></td>
+<td>Multi-vector</td>
+<td>0.6184</td>
+<td>0.514</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/tomaarsen/splade-modernbert-base-miriad">tomaarsen/splade-modernbert-base-miriad</a></td>
+<td>Sparse, finetuned</td>
+<td>0.6142</td>
+<td>0.473</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/NeuML/biomedbert-base-colbert">NeuML/biomedbert-base-colbert</a></td>
+<td>Multi-vector</td>
+<td>0.5963</td>
+<td>0.463</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-base-en-v1.5">BAAI/bge-base-en-v1.5</a></td>
+<td>Dense</td>
+<td>0.5930</td>
+<td>0.454</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/BAAI/bge-small-en-v1.5">BAAI/bge-small-en-v1.5</a></td>
+<td>Dense</td>
+<td>0.5881</td>
+<td>0.457</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/sentence-transformers/all-mpnet-base-v2">sentence-transformers/all-mpnet-base-v2</a></td>
+<td>Dense</td>
+<td>0.5159</td>
+<td>0.396</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/jinaai/jina-colbert-v2">jinaai/jina-colbert-v2</a></td>
+<td>Multi-vector</td>
+<td>0.4992</td>
+<td>0.401</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mixedbread-ai/mxbai-colbert-large-v1">mixedbread-ai/mxbai-colbert-large-v1</a></td>
+<td>Multi-vector</td>
+<td>0.4690</td>
+<td>0.358</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/sentence-transformers/static-retrieval-mrl-en-v1">sentence-transformers/static-retrieval-mrl-en-v1</a></td>
+<td>Dense</td>
+<td>0.4614</td>
+<td>0.323</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2">sentence-transformers/all-MiniLM-L6-v2</a></td>
+<td>Dense</td>
+<td>0.4458</td>
+<td>0.321</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/colbert-ir/colbertv2.0">colbert-ir/colbertv2.0</a></td>
+<td>Multi-vector</td>
+<td>0.4347</td>
+<td>0.346</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Models marked <code>@N</code> are evaluated with their document length cap lifted to N tokens, since their native caps (180 to 512 tokens) would otherwise truncate the 941-token average passages. For every multi-vector model this lift was worth +0.08 to +0.24 NDCG@10 over the as-served row, and even the dense DenseOn gained +0.03 from the same treatment.</p>
+</details>
+
+<p>Note that this does not mean that <a href="https://huggingface.co/multi-vector-encoder/mLateOn-medical">multi-vector-encoder/mLateOn-medical</a> is the strongest model on <em>all</em> domains. It's simply the strongest in <em>my</em> domain. This is totally fine, as I just need this model to work well on my data.</p>
+<p>Don't underestimate the power of finetuning multi-vector models on your domain. Fourteen and a half hours on a single consumer GPU produced a model that no general-purpose retriever comes close to on this data, and the recipe is a single script with no teacher model and no mined negatives!</p>
+<h3>
+	<a id="optimizing-the-index" href="#optimizing-the-index" rel="nofollow">
+		
+	</a>
+	<span>
+		Optimizing the index
+	</span>
+</h3>
+<p>The fair objection to multi-vector retrieval is index size, and this domain is close to the worst case for it. Storing one vector per token, my model needs about 878 vectors per passage, so the 200,000-passage corpus takes roughly 45 GB at fp16, where a dense model needs well under 1 GB. Document length is what makes that gap so wide. The Natural Questions passages in the <a href="https://huggingface.co/blog/multi-vector-encoder">companion post</a> average about 125 token vectors each, seven times fewer, so a corpus of short passages starts from a far smaller index than this one does. The <a href="https://sbert.net/docs/package_reference/multi_vector_encoder/modules.html#hierarchicaltokenpooling" rel="nofollow"><code>HierarchicalTokenPooling</code></a> module compresses exactly this by clustering each document's token embeddings and storing the cluster means, keeping roughly <code>1 / pool_factor</code> of the vectors:</p>
+<pre><code><span>from</span> sentence_transformers.multi_vector_encoder.modules <span>import</span> HierarchicalTokenPooling
+
+pooling = HierarchicalTokenPooling(pool_factor=<span>4</span>)
+document_embeddings = model.encode_document(passages, token_pooling=pooling)
+</code></pre>
+<p>I measured it post-hoc on the finished model, with no pooling-aware training, and on long documents it is remarkably cheap.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/train-multi-vector-encoder/mve_medical_index_size_ndcg.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/train-multi-vector-encoder/mve_medical_index_size_ndcg.png" alt="Embedding size for the 200,000-passage corpus versus NDCG@10, with the token pooling trajectory sweeping the multi-vector index into dense-model territory"></a></p>
+<p>The solid points are uncompressed embeddings, so that every family is counted the same way and scored with exact search. You would not deploy any of them like that, though. Dense indexes routinely use int8 or binary quantization with rescoring, sparse indexes compress their postings, and multi-vector indexes use PLAID-style residual compression. Don't read those points as the disk you need to buy, but as relative storage cost.</p>
+<p>Token pooling is the solid line. Halving the vector count costs 0.0033 NDCG@10 and leaves rank-1 accuracy untouched, and keeping only a quarter of them, at 11.2 GB, still scores 0.8991. The curve keeps going (I measured out to a tenth of the vectors, still at 0.8765) but there is little reason to push pooling that far once quantization is on the table, which is what the dashed line below is about.</p>
+<p>The dashed line is what a real deployment might look like. I gave Omar Khattab early access to the model and the benchmark, and he measured these configurations with <a href="https://github.com/lightonai/fast-plaid" rel="nofollow">fast-plaid</a> at 1-bit residual quantization, using compact 17-bit centroid ids and 18-bit document ids instead of its ordinary unpacked 64-bit integers, plus document-side pruning:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>configuration</th>
+<th>vectors kept</th>
+<th>index</th>
+<th>NDCG@10</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>1-bit PLAID, all vectors</td>
+<td>100%</td>
+<td>3.37 GB</td>
+<td>0.8984</td>
+</tr>
+<tr>
+<td>1-bit PLAID + pruning</td>
+<td>65%</td>
+<td>2.23 GB</td>
+<td>0.8830</td>
+</tr>
+<tr>
+<td>1-bit PLAID + pruning</td>
+<td>42%</td>
+<td>1.45 GB</td>
+<td>0.8642</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>That first row is 13x smaller than the raw embeddings, for 0.0155 NDCG@10. That is a far better trade than anywhere on the pooling curve. Quantization shrinks each vector while pooling and pruning cut how many you keep, so they compose, and quantization is the one to reach for first. Push further and the last row lands at 1.45 GB, <em>smaller</em> than the fp16 embeddings of <a href="https://huggingface.co/Qwen/Qwen3-Embedding-8B">Qwen3-Embedding-8B</a> (1.64 GB), while scoring 0.0895 higher. The objection that multi-vector indexes are too big does not survive a properly configured index.</p>
+<p>The pruning here is naive, meant only to establish that token reduction works on top of quantization, so read the bottom two rows as a floor rather than the frontier. If you would rather not hand-tune quantization at all, the <a href="https://huggingface.co/blog/multi-vector-encoder#indexing">Indexing</a> section of the companion post covers fast-plaid, Qdrant, Weaviate, and Vespa.</p>
+<p>Multi-vector retrieval is only as expensive as its index. The raw embeddings for this corpus are 45 GB, and a properly configured index is at least 7x smaller at nearly the same accuracy. The index deserves as much of your attention as the checkpoint.</p>
+<h2>
+	<a id="acknowledgements" href="#acknowledgements" rel="nofollow">
+		
+	</a>
+	<span>
+		Acknowledgements
+	</span>
+</h2>
+<p>Thanks to <a href="https://github.com/okhat" rel="nofollow">Omar Khattab</a> for measuring the quantized and pruned index configurations in <a href="#optimizing-the-index" rel="nofollow">Optimizing the index</a>, and for the discussions around late-interaction index costs.</p>
+<h2>
+	<a id="additional-resources" href="#additional-resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Additional Resources
+	</span>
+</h2>
+<h3>
+	<a id="training-examples" href="#training-examples" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Examples
+	</span>
+</h3>
+<p>These pages have training examples with explanations as well as links to training scripts. You can use them to get familiar with the multi-vector training loop:</p>
+<ul>
+<li><a href="https://sbert.net/examples/multi_vector_encoder/training/miriad/README.html" rel="nofollow">MIRIAD</a>: domain-specific training on medical retrieval, an earlier and simpler cousin of this blogpost's recipe</li>
+<li><a href="https://sbert.net/examples/multi_vector_encoder/training/msmarco/README.html" rel="nofollow">MS MARCO</a>: contrastive and knowledge distillation recipes</li>
+<li><a href="https://sbert.net/examples/multi_vector_encoder/training/multimodal/README.html" rel="nofollow">Multimodal</a>: ColPali-style visual document retrieval training</li>
+<li><a href="https://sbert.net/examples/multi_vector_encoder/training/peft/README.html" rel="nofollow">PEFT Adapters</a>: parameter-efficient finetuning with LoRA</li>
+</ul>
+<h3>
+	<a id="documentation" href="#documentation" rel="nofollow">
+		
+	</a>
+	<span>
+		Documentation
+	</span>
+</h3>
+<p>For further learning, you may also want to explore the following resources on Sentence Transformers:</p>
+<ul>
+<li><a href="https://sbert.net/docs/installation.html" rel="nofollow">Installation</a></li>
+<li><a href="https://sbert.net/docs/quickstart.html" rel="nofollow">Quickstart</a></li>
+<li><a href="https://sbert.net/docs/multi_vector_encoder/usage/usage.html" rel="nofollow">Usage</a></li>
+<li><a href="https://sbert.net/docs/multi_vector_encoder/usage/custom_models.html" rel="nofollow">Creating Custom Models</a></li>
+<li><a href="https://sbert.net/docs/multi_vector_encoder/pretrained_models.html" rel="nofollow">Pretrained Models</a></li>
+<li><a href="https://sbert.net/docs/multi_vector_encoder/training_overview.html" rel="nofollow">Training Overview</a> (This blogpost is a distillation of the Training Overview documentation)</li>
+<li><a href="https://sbert.net/docs/multi_vector_encoder/loss_overview.html" rel="nofollow">Loss Overview</a></li>
+<li><a href="https://sbert.net/docs/package_reference/multi_vector_encoder/index.html" rel="nofollow">API Reference</a></li>
+</ul>
+<p>And here is an advanced page that might interest you:</p>
+<ul>
+<li><a href="https://sbert.net/docs/sentence_transformer/training/distributed.html" rel="nofollow">Distributed Training</a></li>
+</ul>
+<p>And the companion blogpost, covering everything about <em>using</em> these models:</p>
+<ul>
+<li><a href="https://huggingface.co/blog/multi-vector-encoder">Multi-Vector (Late Interaction) Embedding Models with Sentence Transformers</a></li>
+</ul>
+</div></div>

@@ -1,0 +1,171 @@
+<div id="readability-page-1" class="page"><div>
+<p>PaddleOCR 3.5 brings OCR and document parsing tasks closer to the Hugging Face ecosystem. With this release, supported PaddleOCR models can run with <strong>Hugging Face Transformers as an inference backend</strong> by setting:</p>
+<pre><code>engine=<span>"transformers"</span>
+</code></pre>
+<p>PaddleOCR continues to provide OCR model series such as <strong>PP-OCRv5</strong> and document parsing model series such as <strong>PaddleOCR-VL 1.5</strong>, while Transformers becomes one of the supported backends for running them.</p>
+<p>Try the live demo on Hugging Face Spaces:
+<a href="https://huggingface.co/spaces/PaddlePaddle/paddleocr-3.5-transformers-demo">https://huggingface.co/spaces/PaddlePaddle/paddleocr-3.5-transformers-demo</a></p>
+<h2>
+	<a id="what-changed" href="#what-changed" rel="nofollow">
+		
+	</a>
+	<span>
+		What changed?
+	</span>
+</h2>
+<p>PaddleOCR 3.5 introduces a more flexible inference-engine interface. Developers can select the backend through the <code>engine</code> parameter and pass backend-specific options through <code>engine_config</code>.</p>
+<p>In practice, this means:</p>
+<ul>
+<li>The pipelines behind these tasks are managed by PaddleOCR, so developers do not need to manually call each internal component.</li>
+<li>Transformers becomes one of the supported inference backends for running supported PaddleOCR models.</li>
+<li>Developers can configure backend-related options such as <code>dtype</code>, device placement, and attention implementation through <code>engine_config</code>.</li>
+</ul>
+<p>A simple way to understand the stack:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Layer</th>
+<th>What it means</th>
+<th>Examples</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Application layer</strong></td>
+<td>Applications that use OCR and document parsing outputs</td>
+<td>RAG, agents, Document AI...</td>
+</tr>
+<tr>
+<td><strong>Model layer</strong></td>
+<td>OCR and document parsing capabilities</td>
+<td>PP-OCRv5, PaddleOCR-VL 1.5...</td>
+</tr>
+<tr>
+<td><strong>Inference backend layer</strong></td>
+<td>Runtime used to run supported models</td>
+<td>Paddle static graph, Paddle dynamic graph, Transformers</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>This release is mainly about the inference backend layer: PaddleOCR continues to provide OCR and document parsing capabilities, while Transformers gives supported PaddleOCR models another backend option that fits naturally into Hugging Face-centered environments. The larger Document AI workflow remains in the hands of developers and application builders.</p>
+<h2>
+	<a id="why-this-matters" href="#why-this-matters" rel="nofollow">
+		
+	</a>
+	<span>
+		Why this matters
+	</span>
+</h2>
+<p>For RAG, Document AI, and document agent applications, the hard part often starts before the LLM.</p>
+<p>Developers first need to turn PDFs, scanned documents, screenshots, tables, charts, formulas, and complex page layouts into reliable structured data. If this ingestion step is weak, the downstream LLM workflow may miss key information, retrieve the wrong context, or produce unreliable answers.</p>
+<p>PaddleOCR helps address this document ingestion challenge by providing OCR series models such as PP-OCRv5 and document parsing series models such as PaddleOCR-VL-1.5.</p>
+<p>With PaddleOCR 3.5, these capabilities are now easier to connect with Transformers-centered stacks. Supported PaddleOCR models can run with a Transformers backend, while PaddleOCR continues to manage the OCR or document parsing pipeline behind the scenes.</p>
+<p>For developers, this means less integration friction and a more natural path from documents to downstream RAG, agent, search, analytics, or automation workflows.</p>
+<h2>
+	<a id="quick-start" href="#quick-start" rel="nofollow">
+		
+	</a>
+	<span>
+		Quick start
+	</span>
+</h2>
+<p>Install PaddleOCR 3.5, PaddleX, Transformers, and a compatible PyTorch build for your hardware.</p>
+<p>For example, on a CUDA 12.6 environment:</p>
+<pre><code>python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+python -m pip install <span>"paddleocr==3.5.0"</span> <span>"paddlex==3.5.2"</span> <span>"transformers&gt;=5.4.0"</span>
+</code></pre>
+<p>For CPU, ROCm, or other environments, install the PyTorch build that matches your target hardware.</p>
+<p>Run from the command line:</p>
+<pre><code>paddleocr ocr \
+  -i https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_ocr_002.png \
+  --device gpu:0 \
+  --engine transformers
+</code></pre>
+<p>Or use the Python API:</p>
+<pre><code><span>from</span> paddleocr <span>import</span> PaddleOCR
+
+pipeline = PaddleOCR(
+    device=<span>"gpu:0"</span>,
+    engine=<span>"transformers"</span>,
+    use_doc_orientation_classify=<span>False</span>,
+    use_doc_unwarping=<span>False</span>,
+    use_textline_orientation=<span>False</span>,
+    engine_config={
+        <span>"dtype"</span>: <span>"float32"</span>,
+    },
+)
+
+results = pipeline.predict(
+    <span>"https://paddle-model-ecology.bj.bcebos.com/paddlex/imgs/demo_image/general_ocr_002.png"</span>
+)
+
+<span>for</span> result <span>in</span> results:
+    <span>print</span>(result)
+</code></pre>
+<p>The Hugging Face Space uses <code>float32</code> for broad compatibility. For your own hardware, you can tune backend-specific options through <code>engine_config</code>:</p>
+<pre><code>engine_config = {
+    <span>"dtype"</span>: <span>"bfloat16"</span>,
+    <span>"device_type"</span>: <span>"gpu"</span>,
+    <span>"device_id"</span>: <span>0</span>,
+    <span>"attn_implementation"</span>: <span>"sdpa"</span>,
+}
+</code></pre>
+<p>The best configuration depends on your model, hardware, and deployment environment.</p>
+<h2>
+	<a id="when-should-you-use-the-transformers-backend" href="#when-should-you-use-the-transformers-backend" rel="nofollow">
+		
+	</a>
+	<span>
+		When should you use the Transformers backend?
+	</span>
+</h2>
+<p>Use the Transformers backend when you want PaddleOCR’s OCR and document parsing capabilities to fit more naturally into a Hugging Face-centered stack.</p>
+<p>This is especially useful if you are building RAG, Document AI, search, analytics, or agent applications and already rely on PyTorch / Transformers infrastructure for model loading, experimentation, deployment, or model artifact management.</p>
+<p>The Transformers backend is a good fit when you want:</p>
+<ul>
+<li>a more familiar development experience for teams already using Transformers,</li>
+<li>Hub-compatible model discovery and distribution for supported PaddleOCR models,</li>
+<li>easier integration with existing PyTorch / Transformers services.</li>
+</ul>
+<p>When maximizing OCR or document parsing throughput is the priority, PaddleOCR’s default <code>paddle_static</code> backend is usually the recommended choice.</p>
+<p>This release is not about replacing one backend with another. It is about giving developers more flexibility: use PaddleOCR for OCR and document parsing capabilities, and choose the inference backend that best fits your stack.</p>
+<h2>
+	<a id="try-it-now" href="#try-it-now" rel="nofollow">
+		
+	</a>
+	<span>
+		Try it now
+	</span>
+</h2>
+<p>Try the PaddleOCR 3.5 Transformers demo on Hugging Face Spaces:</p>
+<p><a href="https://huggingface.co/spaces/PaddlePaddle/paddleocr-3.5-transformers-demo">https://huggingface.co/spaces/PaddlePaddle/paddleocr-3.5-transformers-demo</a></p>
+<p>Explore PaddleOCR models on the Hub:</p>
+<p><a href="https://huggingface.co/PaddlePaddle/models">https://huggingface.co/PaddlePaddle/models</a></p>
+<p>PaddleOCR 3.5 brings OCR and document parsing capabilities closer to Transformers-centered workflows, while giving developers the freedom to build the larger Document AI applications around them.</p>
+<h2>
+	<a id="resources" href="#resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Resources
+	</span>
+</h2>
+<ul>
+<li>PaddleOCR documentation: <a href="https://www.paddleocr.ai/" rel="nofollow">https://www.paddleocr.ai/</a></li>
+<li>PaddleOCR on GitHub: <a href="https://github.com/PaddlePaddle/PaddleOCR" rel="nofollow">https://github.com/PaddlePaddle/PaddleOCR</a></li>
+<li>PaddlePaddle organization on Hugging Face: <a href="https://huggingface.co/PaddlePaddle">https://huggingface.co/PaddlePaddle</a></li>
+<li>PaddleOCR 3.5 Transformers demo on Spaces: <a href="https://huggingface.co/spaces/PaddlePaddle/paddleocr-3.5-transformers-demo">https://huggingface.co/spaces/PaddlePaddle/paddleocr-3.5-transformers-demo</a></li>
+</ul>
+<h2>
+	<a id="acknowledgements" href="#acknowledgements" rel="nofollow">
+		
+	</a>
+	<span>
+		Acknowledgements
+	</span>
+</h2>
+<p>We sincerely thank the Hugging Face engineers who supported the PaddleOCR 3.5 Transformers integration.</p>
+<p>Special thanks to <a href="https://huggingface.co/AntonV">Anton Vlasjuk</a> for his end-to-end involvement, including reviewing and merging all related pull requests.</p>
+<p>We also appreciate <a href="https://huggingface.co/RaushanTurganbay">Raushan Turganbay</a> and <a href="https://huggingface.co/yonigozlan">Yoni Gozlan</a> for their valuable PR reviews and feedback.</p>
+<p>Their guidance helped improve the integration quality, documentation, and developer experience for the Hugging Face community.</p>
+</div></div>

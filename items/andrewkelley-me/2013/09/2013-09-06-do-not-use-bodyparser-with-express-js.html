@@ -1,0 +1,171 @@
+<div id="readability-page-1" class="page"><div>
+
+<p>
+Note: this post has
+<a href="https://github.com/andrewrk/andrewkelley.me/commit/a5cbf4a7815391dbcc57d6f30f8d330a67487167">been edited</a>
+to take into account
+<a href="https://github.com/visionmedia/">TJ</a>'s
+<a href="https://groups.google.com/forum/#!topic/express-js/iP2VyhkypHo">diligent work</a>
+in response to this.
+</p>
+<p>
+I came across
+<a href="https://plus.google.com/106706438172517329683/posts/4kQiD8L1D36">this Google+ post</a>
+mentioning
+<a href="http://stackoverflow.com/questions/14612143/node-js-express-framework-security-issues">this StackOverflow post</a>
+in which someone is quite wisely asking whether the
+<a href="http://expressjs.com/">express.js framework</a> is secure
+enough to use for production applications.
+</p>
+<p>
+This reminds me of one "gotcha" in particular that you could be bitten by if
+you're not careful.
+</p>
+<p>
+All servers using
+<a href="http://expressjs.com/api.html#bodyParser">express.bodyParser</a>
+are vulnerable to an attack which creates an unlimited number of temp files
+on the server, potentially filling up all the disk space, which is likely
+to cause the server to hang.
+</p>
+<h2>Demonstration</h2>
+<p>
+This problem is extremely easy to demonstrate. Here's a simple express app:
+</p>
+<pre><code>var express = require('express');
+var app = express();
+
+app.use(express.bodyParser());
+app.post('/test', function(req, resp) {
+  resp.send('ok');
+});
+
+app.listen(9001);</code>
+</pre>
+<p>
+Seems pretty innocuous right?
+</p>
+<p>
+Now check how many temp files you have with something like this:
+</p>
+<pre>$ ls /tmp | wc -l
+33
+</pre>
+<p>
+Next simulate uploading a multipart form:
+</p>
+<pre>$ curl -X POST -F foo=@tmp/somefile.c http://localhost:9001/test
+ok
+</pre>
+<p>
+Go back and check our temp file count:
+</p>
+<pre>$ ls /tmp | wc -l
+34
+</pre>
+<p>
+That's a problem.
+</p>
+<h2>Solutions</h2>
+<h3>Always delete the temp files when you use bodyParser or multipart middleware</h3>
+<p>
+  You can prevent this attack by always checking whether <code>req.files</code>
+  is present for endpoints in which you use
+  <code>bodyParser</code> or <code>multipart</code>, and then
+  deleting the temp files. Note that this
+  is <em>every POST endpoint</em> if you did something like
+  <code>app.use(express.bodyParser())</code>.
+</p>
+<p>
+This is suboptimal for several reasons:
+</p>
+<ol>
+  <li>It is too easy to forget to do these checks.</li>
+  <li>It requires a bunch of ugly cleanup code. Why have code when you could not have code?</li>
+  <li>Your server is still, for every POST endpoint that you use bodyParser, processing
+    every multipart upload that comes its way, creating a temp file, writing it to disk,
+    and then deleting the temp file. Why do all that when you don't want to accept uploads?
+  </li>
+  <li>
+  As of express 3.4.0 (connect 2.9.0) bodyParser is deprecated.
+  It goes without saying that deprecated things should be avoided.
+  </li>
+</ol>
+<h3>Use a utility such as tmpwatch or reap</h3>
+<p>
+<a href="https://github.com/jfromaniello">jfromaniello</a>
+<a href="https://groups.google.com/d/msg/nodejs/6KOlfk5cpcM/SCJ9jZZfP-UJ">pointed out</a>
+that using a utility such as
+<a href="http://linux.die.net/man/8/tmpwatch">tmpwatch</a>
+can help with this issue.
+The idea here is to, for example, schedule tmpwatch as a cron job.
+It would remove temp files that have not been accessed in a long enough
+period of time.
+</p>
+<p>
+It's usually a good idea to do this for all servers, just in case.
+But relying on this to clean up bodyParser's mess still suffers from issue #3
+outlined above. Plus, server hard drives are often small, especially when you
+didn't realize you were going to have temp files in the first place.
+</p>
+<p>
+If you ran your cron job every 8 hours for instance, given a hdd with 4 GB
+of free space, an attacker would need an Internet connection with
+145 KB/s upload bandwidth to crash your server.
+</p>
+<p>
+TJ pointed out that he also has a utility for this purpose called
+<a href="https://github.com/visionmedia/reap">reap</a>.
+</p>
+<h3>Avoid bodyParser and explicitly use the middleware that you need</h3>
+<p>
+If you want to parse json in your endpoint, use <code>express.json()</code> middleware.
+If you want json and urlencoded endpoint, use <code>[express.json(), express.urlencoded()]</code>
+for your middleware.
+</p>
+<p>
+If you want users to upload files to your endpoint, you could use <code>express.multipart()</code> and be
+sure to clean up all the temp files that are created.
+This would still stuffer from problem #3 previously mentioned.
+</p>
+<h3>Use the defer option in the multipart middleware</h3>
+<p>
+When you create your multipart middleware, you can use the <code>defer</code>
+option like this:
+</p>
+<pre><code>express.multipart({defer: true})</code>
+</pre>
+<p>
+According to the documentation:
+</p>
+<blockquote>
+  defers processing and exposes the multiparty form object as `req.form`.<br>
+  `next()` is called without waiting for the form's "end" event.<br>
+  This option is useful if you need to bind to the "progress" or "part" events, for example.<br>
+</blockquote>
+<p>
+So if you do this you will use <a href="https://github.com/andrewrk/node-multiparty/blob/master/README.md#api">multiparty's API</a> assuming that <code>req.form</code>
+is an instantiated <code>Form</code> instance.
+</p>
+<h3>Use an upload parsing module directly</h3>
+<p>
+<code>bodyParser</code> depends on <code>multipart</code>, which behind the
+scenes uses 
+<a href="https://github.com/andrewrk/node-multiparty">multiparty</a> to
+parse uploads.
+</p>
+<p>
+You can use this module directly to handle the request. In this case you can
+look at 
+<a href="https://github.com/andrewrk/node-multiparty/blob/master/README.md#api">multiparty's API</a>
+and do the right thing.
+</p>
+<p>
+There are also alternatives such as
+<a href="https://github.com/mscdex/busboy">busboy</a>,
+<a href="https://github.com/chjj/parted">parted</a>,
+and
+<a href="https://github.com/felixge/node-formidable">formidable</a>.
+</p>
+
+</div><p>Thanks for reading my blog post.</p></div>

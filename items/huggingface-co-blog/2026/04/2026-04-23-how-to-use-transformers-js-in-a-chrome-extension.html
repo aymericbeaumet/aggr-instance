@@ -1,0 +1,313 @@
+<div id="readability-page-1" class="page"><div>
+<p>We recently released a Transformers.js demo browser extension powered by <a href="https://huggingface.co/google/gemma-4-E2B">Gemma 4 E2B</a> to help users navigate the web.</p>
+<p>While building it, we ran into several practical observations about Manifest V3 runtimes, model loading, and messaging that are worth sharing.</p>
+<h2>
+	<a id="who-this-is-for" href="#who-this-is-for" rel="nofollow">
+		
+	</a>
+	<span>
+		Who this is for
+	</span>
+</h2>
+<p>This guide is for developers who want to run local AI features in a Chrome extension with Transformers.js under Manifest V3 constraints.</p>
+<p>By the end, you will have the same architecture used in this project: a background service worker that hosts models, a side panel chat UI, and a content script for page-level actions.</p>
+<h2>
+	<a id="what-we-will-build" href="#what-we-will-build" rel="nofollow">
+		
+	</a>
+	<span>
+		What we will build
+	</span>
+</h2>
+<p>In this guide, we will recreate the core architecture of <strong>Transformers.js Gemma 4 Browser Assistant</strong>, using the published extension as a reference and the open-source codebase as the implementation map.</p>
+<ul>
+<li>Live extension: <a href="https://chromewebstore.google.com/detail/transformerjs-gemma-4-bro/dhaknnnkcdkjhcclchmnfdhddoehoool" rel="nofollow">Chrome Web Store</a></li>
+<li>Source code: <a href="https://github.com/nico-martin/gemma4-browser-extension" rel="nofollow">github.com/nico-martin/gemma4-browser-extension</a></li>
+<li>End result: a background-hosted Transformers.js engine, a side panel chat UI, and a content script for page extraction and highlighting.</li>
+</ul>
+<h2>
+	<a id="1-chrome-extension-architecture-mv3" href="#1-chrome-extension-architecture-mv3" rel="nofollow">
+		
+	</a>
+	<span>
+		1) Chrome extension architecture (MV3)
+	</span>
+</h2>
+<p>Before diving in, a quick scope note: I will not go deep on the React UI layer or Vite build configuration. The focus here is the high-level architecture decisions: what runs in each Chrome runtime and how those pieces are orchestrated.</p>
+<p>If Manifest V3 is new to you, read this short overview first:
+<a href="https://developer.chrome.com/docs/extensions/develop/migrate/what-is-mv3" rel="nofollow">What is Manifest V3?</a>.</p>
+<h3>
+	<a id="11-runtime-contexts-and-entry-points" href="#11-runtime-contexts-and-entry-points" rel="nofollow">
+		
+	</a>
+	<span>
+		1.1 Runtime contexts and entry points
+	</span>
+</h3>
+<p>In MV3, your architecture starts in <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/public/manifest.json" rel="nofollow"><code>public/manifest.json</code></a>. This project defines three entry points:</p>
+<ul>
+<li><code>background.service_worker = background.js</code>, built from <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/background/background.ts" rel="nofollow"><code>src/background/background.ts</code></a>.</li>
+<li><code>side_panel.default_path = sidebar.html</code>, built from <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/sidebar/index.html" rel="nofollow"><code>src/sidebar/index.html</code></a>.</li>
+<li><code>content_scripts[].js = content.js</code> with <code>matches: http(s)://*/*</code> and <code>run_at: document_idle</code>, built from <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/content/content.ts" rel="nofollow"><code>src/content/content.ts</code></a>.</li>
+</ul>
+<p>The background service worker also handles <code>chrome.action.onClicked</code> to open the side panel for the active tab.
+Related entry point to know: a popup can be defined with <code>action.default_popup</code> and works well for quick actions. This project uses a side panel for persistent chat, but the orchestration pattern is the same.</p>
+<h3>
+	<a id="12-what-runs-where" href="#12-what-runs-where" rel="nofollow">
+		
+	</a>
+	<span>
+		1.2 What runs where
+	</span>
+</h3>
+<p>The key design decision is to keep heavy orchestration in the background and keep UI/page logic thin.</p>
+<ul>
+<li>Background (<a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/background/background.ts" rel="nofollow"><code>src/background/background.ts</code></a>) is the control plane: agent lifecycle, model initialization, tool execution, and shared services like feature extraction.</li>
+<li>Side panel (<a href="https://github.com/nico-martin/gemma4-browser-extension/tree/main/src/sidebar" rel="nofollow"><code>src/sidebar/*</code></a>) is the interaction layer: chat input/output, streaming updates, and setup controls.</li>
+<li>Content script (<a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/content/content.ts" rel="nofollow"><code>src/content/content.ts</code></a>) is the page bridge: DOM extraction and highlight actions.</li>
+</ul>
+<p>One practical consequence of this division is that the conversation history also lives in background (<code>Agent.chatMessages</code>): the UI sends events like <code>AGENT_GENERATE_TEXT</code>, background appends the message, runs inference, then emits <code>MESSAGES_UPDATE</code> back to the side panel.</p>
+<p>This split avoids duplicate model loads, keeps the UI responsive, and respects Chrome's security boundaries around DOM access.</p>
+<h3>
+	<a id="13-messaging-contract" href="#13-messaging-contract" rel="nofollow">
+		
+	</a>
+	<span>
+		1.3 Messaging contract
+	</span>
+</h3>
+<p>Once runtimes are separated, messaging becomes the backbone. In this project, all messages are typed through enums in <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/shared/types.ts" rel="nofollow"><code>src/shared/types.ts</code></a>.</p>
+<ul>
+<li>Side panel -&gt; background (<code>BackgroundTasks</code>):<ul>
+<li><code>CHECK_MODELS</code>, <code>INITIALIZE_MODELS</code></li>
+<li><code>AGENT_INITIALIZE</code>, <code>AGENT_GENERATE_TEXT</code>, <code>AGENT_GET_MESSAGES</code>, <code>AGENT_CLEAR</code></li>
+<li><code>EXTRACT_FEATURES</code></li>
+</ul>
+</li>
+<li>Background -&gt; side panel (<code>BackgroundMessages</code>):<ul>
+<li><code>DOWNLOAD_PROGRESS</code>, <code>MESSAGES_UPDATE</code></li>
+</ul>
+</li>
+<li>Background -&gt; content (<code>ContentTasks</code>):<ul>
+<li><code>EXTRACT_PAGE_DATA</code>, <code>HIGHLIGHT_ELEMENTS</code>, <code>CLEAR_HIGHLIGHTS</code></li>
+</ul>
+</li>
+</ul>
+<p>The orchestration rule is simple: the background is the single coordinator; side panel and content script are specialized workers that request actions and render results.</p>
+<p>Typical request flow:</p>
+<ol>
+<li>Side panel sends <code>AGENT_GENERATE_TEXT</code>.</li>
+<li>Background appends to <code>Agent.chatMessages</code> and runs model/tool steps.</li>
+<li>Background emits <code>MESSAGES_UPDATE</code>.</li>
+<li>Side panel re-renders from the updated message list.</li>
+</ol>
+<h2>
+	<a id="2-transformersjs-integration-details" href="#2-transformersjs-integration-details" rel="nofollow">
+		
+	</a>
+	<span>
+		2) Transformers.js integration details
+	</span>
+</h2>
+<h3>
+	<a id="21-models-and-responsibilities" href="#21-models-and-responsibilities" rel="nofollow">
+		
+	</a>
+	<span>
+		2.1 Models and responsibilities
+	</span>
+</h3>
+<p>In <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/shared/constants.ts" rel="nofollow"><code>src/shared/constants.ts</code></a>, this extension uses two model roles:</p>
+<ul>
+<li>TextGeneration / LLM: <a href="https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX"><code>onnx-community/gemma-4-E2B-it-ONNX</code></a> (<code>text-generation</code>, <code>q4f16</code>)</li>
+<li>VectorEmbeddings: <a href="https://huggingface.co/onnx-community/all-MiniLM-L6-v2-ONNX"><code>onnx-community/all-MiniLM-L6-v2-ONNX</code></a> (<code>feature-extraction</code>, <code>fp32</code>)</li>
+</ul>
+<p>The split is intentional: Gemma 4 handles reasoning/tool decisions, while MiniLM generates vector embeddings for the semantic similarity search in <code>ask_website</code> and <code>find_history</code>.</p>
+<h3>
+	<a id="22-where-inference-runs" href="#22-where-inference-runs" rel="nofollow">
+		
+	</a>
+	<span>
+		2.2 Where inference runs
+	</span>
+</h3>
+<p>All inference runs in background (<a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/background/background.ts" rel="nofollow"><code>src/background/background.ts</code></a>):</p>
+<ul>
+<li>text generation via <code>pipeline("text-generation", ...)</code> with consistent KV Caching enabled by our new <code>DynamicCache</code> class</li>
+<li>embeddings via <code>pipeline("feature-extraction", ...)</code> plus vector normalization</li>
+</ul>
+<p>This gives a single model host for all tabs/sessions, avoids duplicate memory usage, and keeps the side panel UI responsive. Because models are loaded from the background service worker, artifacts are cached under the extension origin (<code>chrome-extension://&lt;extension-id&gt;</code>) rather than per-website origins, which gives one shared cache for the whole extension install.</p>
+<p>MV3 lifecycle note: service workers can be suspended and restarted, so model runtime state should be treated as recoverable and re-initialized when needed.</p>
+<h3>
+	<a id="23-download-and-cache-lifecycle" href="#23-download-and-cache-lifecycle" rel="nofollow">
+		
+	</a>
+	<span>
+		2.3 Download and cache lifecycle
+	</span>
+</h3>
+<p>The model lifecycle is explicit:</p>
+<ul>
+<li><code>CHECK_MODELS</code> inspects what is already cached and estimates remaining download size.</li>
+<li><code>INITIALIZE_MODELS</code> downloads/initializes models and emits <code>DOWNLOAD_PROGRESS</code> to the UI.</li>
+<li>Long-lived instances are reused after setup:<ul>
+<li>generation pipeline in <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/background/agent/Agent.ts" rel="nofollow"><code>src/background/agent/Agent.ts</code></a></li>
+<li>embedding pipeline in <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/background/utils/FeatureExtractor.ts" rel="nofollow"><code>src/background/utils/FeatureExtractor.ts</code></a></li>
+</ul>
+</li>
+</ul>
+<p>Permissions and privacy are part of the architecture, not a checkbox at the end. In this project, <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/public/manifest.json" rel="nofollow"><code>public/manifest.json</code></a> asks for <code>sidePanel</code>, <code>storage</code>, <code>scripting</code>, and <code>tabs</code>, plus <code>host_permissions</code> for <code>http(s)://*/*</code>:</p>
+<ul>
+<li><code>sidePanel</code>: required to open and control the side panel UX.</li>
+<li><code>storage</code>: required to persist tool/settings state across sessions.</li>
+<li><code>tabs</code> + <code>scripting</code>: required for tab-aware tools and page-level actions.</li>
+<li><code>host_permissions</code> on <code>http(s)://*/*</code>: required because content extraction/highlighting is designed to work on arbitrary websites.</li>
+</ul>
+<p>Why keep this narrow: permissions define user trust and Chrome Web Store review risk. Request only what your features actually need, and state clearly that inference runs locally in the extension runtime so users understand where their data is processed.</p>
+<h2>
+	<a id="3-agent-and-tool-execution-loop" href="#3-agent-and-tool-execution-loop" rel="nofollow">
+		
+	</a>
+	<span>
+		3) Agent and tool execution loop
+	</span>
+</h2>
+<h3>
+	<a id="31-tool-calling-basics-why-this-layer-exists" href="#31-tool-calling-basics-why-this-layer-exists" rel="nofollow">
+		
+	</a>
+	<span>
+		3.1 Tool-calling basics (why this layer exists)
+	</span>
+</h3>
+<p>Before the execution loop, it helps to understand how model tool calling works (the basis for any agentic workflow). You pass messages plus a tool schema (<code>name</code>, <code>description</code>, and <code>parameters</code>), and Transformers.js formats the actual prompt from those inputs using the model's chat template. Because chat templates are model-specific, the exact tool-call format depends on the model you use. With Gemma-4-style templates, the model emits a special tool-call token block when it decides to call one.</p>
+<pre><code><span>import</span> { pipeline } <span>from</span> <span>"@huggingface/transformers"</span>;
+
+<span>const</span> generator = <span>await</span> <span>pipeline</span>(
+  <span>"text-generation"</span>,
+  <span>"onnx-community/gemma-4-E2B-it-ONNX"</span>,
+  {
+    <span>dtype</span>: <span>"q4f16"</span>,
+    <span>device</span>: <span>"webgpu"</span>,
+  },
+);
+
+<span>const</span> messages = [{ <span>role</span>: <span>"user"</span>, <span>content</span>: <span>"What's the weather in Bern?"</span> }];
+
+<span>const</span> output = <span>await</span> <span>generator</span>(messages, {
+  <span>max_new_tokens</span>: <span>128</span>,
+  <span>do_sample</span>: <span>false</span>,
+  <span>tools</span>: [
+    {
+      <span>type</span>: <span>"function"</span>,
+      <span>function</span>: {
+        <span>name</span>: <span>"getWeather"</span>,
+        <span>description</span>: <span>"Get the weather in a location"</span>,
+        <span>parameters</span>: {
+          <span>type</span>: <span>"object"</span>,
+          <span>properties</span>: {
+            <span>location</span>: {
+              <span>type</span>: <span>"string"</span>,
+              <span>description</span>: <span>"The location to get the weather for"</span>,
+            },
+          },
+          <span>required</span>: [<span>"location"</span>],
+        },
+      },
+    },
+  ],
+});
+</code></pre>
+<p>At generation time, the model can emit output like:</p>
+<pre><code>&lt;|tool_call&gt;call:getWeather{location:&lt;|"|&gt;Bern&lt;|"|&gt;}&lt;tool_call|&gt;
+</code></pre>
+<p>That is exactly why this project has a normalization layer (<code>webMcp</code>) and a parser (<code>extractToolCalls</code>): model output must be converted into deterministic tool executions.</p>
+<h3>
+	<a id="32-tool-interface-in-this-project" href="#32-tool-interface-in-this-project" rel="nofollow">
+		
+	</a>
+	<span>
+		3.2 Tool interface in this project
+	</span>
+</h3>
+<p><a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/background/agent/webMcp.tsx" rel="nofollow"><code>src/background/agent/webMcp.tsx</code></a> normalizes extension tools into a model-friendly shape:</p>
+<ul>
+<li><code>name</code>, <code>description</code>, <code>inputSchema</code>, <code>execute</code></li>
+</ul>
+<p>Example tools include <code>get_open_tabs</code>, <code>go_to_tab</code>, <code>open_url</code>, <code>close_tab</code>, <code>find_history</code>, <code>ask_website</code>, and <code>highlight_website_element</code>.</p>
+<h3>
+	<a id="33-loop-design-agentrunagent" href="#33-loop-design-agentrunagent" rel="nofollow">
+		
+	</a>
+	<span>
+		3.3 Loop design (<code>Agent.runAgent</code>)
+	</span>
+</h3>
+<p>The core design choice here is to separate internal model messages from UI-facing chat messages:</p>
+<ul>
+<li>Internal model transcript (<code>messages</code>): system/user/tool/assistant turns used for messages in <code>generator(...)</code>.</li>
+<li>UI transcript (<code>chatMessages</code>): what the user sees, including streamed assistant text plus tool execution metadata (<code>tools</code>) and performance metrics.</li>
+</ul>
+<p>Execution flow:</p>
+<ol>
+<li>Add user input to <code>chatMessages</code>, create a placeholder assistant message, and stream tokens.</li>
+<li>Parse streamed/final model output with <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/background/agent/extractToolCalls.ts" rel="nofollow"><code>extractToolCalls.ts</code></a> into <code>{ message, toolCalls }</code>.</li>
+<li>Keep the user-visible assistant message as plain text, while tool calls execute in background.</li>
+<li>Append tool results to the assistant tool metadata and feed results back as the next prompt turn.</li>
+<li>Repeat until no tool calls remain, then finalize assistant content + metrics.</li>
+</ol>
+<p>This keeps user communication clean while preserving a deterministic tool loop in the background.</p>
+<h2>
+	<a id="4-data-boundaries-and-persistence" href="#4-data-boundaries-and-persistence" rel="nofollow">
+		
+	</a>
+	<span>
+		4) Data boundaries and persistence
+	</span>
+</h2>
+<p>State placement is another architectural decision that matters a lot in MV3. In this implementation, state is split by lifecycle and access pattern:</p>
+<ul>
+<li>Conversation state: background memory (<code>Agent.chatMessages</code>) for fast turn-by-turn orchestration.</li>
+<li>Tool preferences: <code>chrome.storage.local</code> so settings persist across sessions.</li>
+<li>Semantic history vectors: IndexedDB (<code>VectorHistoryDB</code>) for larger local retrieval data.</li>
+<li>Extracted page content: background cache (<code>WebsiteContentManager</code>) keyed by active URL.</li>
+</ul>
+<p>As described in section 1.2, keeping conversation history in background gives one canonical state across UI updates. This keeps short-lived state in memory, durable settings in extension storage, and heavy retrieval data in a local database.</p>
+<h2>
+	<a id="5-build-and-packaging-notes" href="#5-build-and-packaging-notes" rel="nofollow">
+		
+	</a>
+	<span>
+		5) Build and packaging notes
+	</span>
+</h2>
+<p>You do not need a complex build setup, but MV3 does require predictable outputs for each runtime.</p>
+<ul>
+<li>Multi-entry build in <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/vite.config.ts" rel="nofollow"><code>vite.config.ts</code></a>:<ul>
+<li><a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/sidebar/index.html" rel="nofollow"><code>src/sidebar/index.html</code></a></li>
+<li><a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/background/background.ts" rel="nofollow"><code>src/background/background.ts</code></a></li>
+<li><a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/src/content/content.ts" rel="nofollow"><code>src/content/content.ts</code></a></li>
+</ul>
+</li>
+<li>Ensure manifest-aligned output names/paths (<code>sidebar.html</code>, <code>background.js</code>, <code>content.js</code>).</li>
+<li>Keep the content script as a self-contained output to avoid runtime chunk-loading issues.</li>
+</ul>
+<p>The goal is simple: one artifact per Chrome entry point, in the exact place <a href="https://github.com/nico-martin/gemma4-browser-extension/blob/main/public/manifest.json" rel="nofollow"><code>public/manifest.json</code></a> expects.</p>
+<h2>
+	<a id="final-takeaway" href="#final-takeaway" rel="nofollow">
+		
+	</a>
+	<span>
+		Final takeaway
+	</span>
+</h2>
+<p>The architecture choice that unlocks this whole project is clear separation of concerns: background owns orchestration and model execution, UI surfaces stay thin, and content scripts handle page access.</p>
+<p>This project uses a side panel, but the same approach works for other setups:</p>
+<ul>
+<li>Popup-first assistant: use <code>action.default_popup</code> for quick interactions, with background owning conversation state and model execution.</li>
+<li>Side-panel copilot: keep long-running conversations in a persistent panel while background handles tool loops and caching.</li>
+<li>Per-tab agents: keep one agent state per <code>tabId</code> in background when each tab should have its own context.</li>
+<li>Hybrid UI (popup + side panel + options page): all UI entry points talk to the same background coordinator and reuse the same message contracts.</li>
+</ul>
+<p>The practical rule is simple: decide where state lives (<code>global</code>, <code>tabId</code>, or site-scoped), keep that state and the model inference in background (basically as background services), and let UI/content runtimes act as focused clients.</p>
+</div></div>

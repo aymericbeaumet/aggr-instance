@@ -1,0 +1,404 @@
+<div id="readability-page-1" class="page"><div>
+<p>HuggingFace Transformers has become the foundation of the open-source AI ecosystem, and the recent <a href="https://github.com/huggingface/transformers/releases/tag/v5.0.0" rel="nofollow">Transformers v5</a> release strengthened it with first-class support for Mixture-of-Experts (MoE) models, now the dominant architecture for <a href="https://www.nvidia.com/en-us/glossary/frontier-models/" rel="nofollow">frontier models</a>. v5 ships the MoE foundations: expert backends, dynamic weight loading, and distributed execution that make MoE extensible and easy to build on. </p>
+<p><a href="https://github.com/NVIDIA-NeMo/Automodel" rel="nofollow">NVIDIA NeMo AutoModel</a> is an open library part of the <a href="https://github.com/NVIDIA-NeMo" rel="nofollow">NVIDIA NeMo framework</a> for building custom generative AI models at scale. NeMo AutoModel builds cleanly on top of v5, adding Expert Parallelism, DeepEP fused all-to-all dispatch, and TransformerEngine kernels, and it leans on v5's dynamic weight loading to bring those optimizations to a broad and growing set of model families. The payoff is <strong>3.4-3.7x higher training throughput</strong> and <strong>29-32% less GPU memory</strong> on fine-tuning MoE models than native Transformers v5, using the same from_pretrained() API: a single import line, with no other code changes. </p>
+<p>This blog details how this combination works and how users can fine-tune MoE models faster without changing their APIs.</p>
+<h2>
+	<a id="background" href="#background" rel="nofollow">
+		
+	</a>
+	<span>
+		Background
+	</span>
+</h2>
+<p>The rise of MoE models has introduced new challenges to efficient training: Routing tokens across hundreds of experts, fusing expert matmuls into a single kernel, sharding weights across GPUs, and overlapping communication with computation all require infrastructure beyond what a general-purpose library provides out of the box.</p>
+<p><a href="https://github.com/huggingface/transformers/releases/tag/v5.0.0" rel="nofollow">Transformers v5</a> (“v5”) introduced first-class MoE support such as <a href="https://huggingface.co/docs/transformers/en/experts_interface">expert backends</a>, <a href="https://huggingface.co/docs/transformers/en/weightconverter">dynamic weight loading</a>, and tensor parallel plans for distributed execution. In addition, v5 made distributed training first-class by integrating PyTorch's DeviceMesh directly into from_pretrained().</p>
+<p><a href="https://github.com/NVIDIA-NeMo/Automodel" rel="nofollow">NeMo AutoModel</a> builds on top of v5 by subclassing AutoModelForCausalLM, and adding Expert Parallelism (EP), DeepEP fused all-to-all dispatch, and TransformerEngine kernels. DeepEP is the piece v5 doesn't have yet: it overlaps communication with expert compute. And because NeMo AutoModel rides v5's reversible weight conversion to load each model, it can focus its engineering on these reusable core ops instead of per-model checkpoint plumbing, while save_pretrained() still emits standard HF checkpoints that tools like vLLM and SGLang can load. </p>
+<p>The next section walks through how the two work together and the performance gains we measured, from full fine-tuning <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16">NVIDIA Nemotron 3 Ultra 550B A55B</a> across 16 nodes down to single-node models such as Qwen3-30B-A3B and <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16">Nemotron 3 Nano 30B A3B</a>.</p>
+<h2>
+	<a id="nemo-automodel-same-api-more-performance" href="#nemo-automodel-same-api-more-performance" rel="nofollow">
+		
+	</a>
+	<span>
+		NeMo AutoModel: Same API, More Performance
+	</span>
+</h2>
+<p>One of NeMo AutoModel's goals is API compatibility with HuggingFace Transformers to enable open-source community. NeMoAutoModelForCausalLM subclasses AutoModelForCausalLM, so any code that works with HF models works with AutoModel too.</p>
+<p>Here's what loading a model looks like in both. Only the import changes:</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/690d0a6c2c5acfe0e1f4777d/VTPq2Wp-RrEcP1eGUJxao.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/690d0a6c2c5acfe0e1f4777d/VTPq2Wp-RrEcP1eGUJxao.png" alt="nemo_and_hf"></a></p>
+<p>That single import does a lot of work. For popular MoE architectures like Qwen3, <a href="https://developer.nvidia.com/nemotron" rel="nofollow">NVIDIA Nemotron</a>, GPT-OSS, and DeepSeek V3, NeMo AutoModel ships <a href="https://github.com/NVIDIA-NeMo/Automodel/blob/main/nemo_automodel/_transformers/registry.py" rel="nofollow">hand-tuned implementations</a> with TransformerEngine attention, fused linear layers, and custom expert kernels. For everything else, it falls back to vanilla HF while still applying optimizations like <a href="https://github.com/linkedin/Liger-Kernel" rel="nofollow">Liger kernel</a> patching, among others. And whichever path it takes, the resulting model is ready to scale: pass a device_mesh and you have multi-GPU training without further rewrites.</p>
+<p>Where NeMo AutoModel really shines is scaling MoE models to multi-GPU training. To train <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16">Nemotron 3 Nano 30B A3B</a> with Expert Parallelism across 8 GPUs, one adds the distributed mesh configuration:</p>
+<pre><code><span>import</span> os
+<span>import</span> torch
+<span>import</span> torch.distributed <span>as</span> dist
+<span>from</span> nemo_automodel <span>import</span> NeMoAutoModelForCausalLM
+<span>from</span> nemo_automodel.recipes._dist_utils <span>import</span> create_distributed_setup_from_config
+
+dist.init_process_group(backend=<span>"nccl"</span>)
+torch.manual_seed(<span>0</span>)
+torch.cuda.set_device(<span>int</span>(os.environ.get(<span>"LOCAL_RANK"</span>, <span>0</span>)))
+
+dist_setup = create_distributed_setup_from_config(
+    {
+        <span>"strategy"</span>: <span>"fsdp2"</span>,
+        <span>"ep_size"</span>: <span>8</span>,
+    },
+)
+
+model = NeMoAutoModelForCausalLM.from_pretrained(
+    <span>"nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"</span>,
+    dtype=torch.bfloat16,
+    distributed_setup=dist_setup,
+)
+
+dist.destroy_process_group()
+</code></pre>
+<p>This gives speed, scalability and memory-optimizations with FSDP2,  Expert Parallelism,  TransformerEngine kernels and DeepEP dispatch, all from a from_pretrained() call.</p>
+<h2>
+	<a id="performance-comparison" href="#performance-comparison" rel="nofollow">
+		
+	</a>
+	<span>
+		Performance Comparison
+	</span>
+</h2>
+<p>We evaluated NeMo AutoModel in two regimes: full fine-tuning a frontier-scale 550B model across 16 nodes, and training two 30B MoE models on a single node. The 550B result shows why Expert Parallelism is essential at scale; the 30B results quantify the per-GPU speedup over Transformers v5.</p>
+<h3>
+	<a id="nemotron-3-ultra-550b-a55b-full-fine-tune-multi-node" href="#nemotron-3-ultra-550b-a55b-full-fine-tune-multi-node" rel="nofollow">
+		
+	</a>
+	<span>
+		Nemotron 3 Ultra 550B A55B (full fine-tune, multi-node)
+	</span>
+</h3>
+<p><a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16">Nemotron 3 Ultra 550B A55B</a> is a 550B-parameter hybrid model shipping with Mamba2, LatentMoE, and Multi-Token Prediction (MTP). We benchmark a <strong>full fine-tune</strong>: every parameter is updated and the Adam optimizer state is materialized, which at this scale spans <strong>16 H100 nodes (128 GPUs)</strong>.</p>
+<p><strong>Methodology:</strong></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Hardware</td>
+<td>16x H100 80GB (128 GPUs)</td>
+</tr>
+<tr>
+<td>Expert Parallelism</td>
+<td>EP=64</td>
+</tr>
+<tr>
+<td>Local batch size</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Sequence length</td>
+<td>4,096</td>
+</tr>
+<tr>
+<td>Features</td>
+<td>MTP, activation checkpointing, fused linear cross-entropy</td>
+</tr>
+<tr>
+<td>Kernels</td>
+<td>DeepEP dispatch + torch_mm experts + TransformerEngine</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<div>
+	<table>
+		<thead><tr>
+<th>Metric</th>
+<th>NeMo AutoModel (EP=64)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>TPS/GPU (avg)</td>
+<td>815</td>
+</tr>
+<tr>
+<td>TFLOP/s/GPU</td>
+<td>~293</td>
+</tr>
+<tr>
+<td>Peak Memory</td>
+<td>58.2 GiB</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Why there is no Transformers v5 column.</strong> Transformers v5 runs out of memory at this scale, so there is no v5 number to report here. AutoModel's Expert Parallelism shards the experts across GPUs to bring the footprint within budget, which is what lets the full fine-tune run. The 30B comparisons below show the same advantage where v5 fits.</p>
+<h3>
+	<a id="single-node-30b-moe-benchmarks" href="#single-node-30b-moe-benchmarks" rel="nofollow">
+		
+	</a>
+	<span>
+		Single-node 30B MoE benchmarks
+	</span>
+</h3>
+<p>We benchmarked three approaches on a single node with 8x H100 80GB GPUs: HF Transformers v4 (hub code), HF Transformers v5 (with best available optimizations), and NeMo AutoModel (EP=8 + custom kernels).</p>
+<p><strong>Methodology:</strong></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Hardware</td>
+<td>8x H100 80GB (single node)</td>
+</tr>
+<tr>
+<td>Sequence length</td>
+<td>4,096</td>
+</tr>
+<tr>
+<td>Local batch size</td>
+<td>1</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>A note on the routing gate.</strong> The NeMo AutoModel numbers below use a balanced routing gate, which forces tokens to be distributed uniformly across experts. This emulates the <em>ideal</em> operating point an MoE is trained toward: a well-trained model's load-balancing loss drives expert utilization to near-uniform, so balanced routing reflects the steady-state a real workload converges to (and removes the straggler noise that random dummy tokens otherwise inject into expert parallelism). v4/v5 run their native router on the same dummy tokens. The balanced gate therefore measures NeMo AutoModel at its target MoE operating point, and the v4/v5 columns reflect their out-of-the-box behavior.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/690d0a6c2c5acfe0e1f4777d/rbCVgV6a18c4UcDsiWfZN.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/690d0a6c2c5acfe0e1f4777d/rbCVgV6a18c4UcDsiWfZN.png" alt="nemo_automodel_blog_chart_mockup_v5"></a></p>
+<h3>
+	<a id="qwen3-30b-a3b" href="#qwen3-30b-a3b" rel="nofollow">
+		
+	</a>
+	<span>
+		Qwen3-30B-A3B
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Metric</th>
+<th>v4</th>
+<th>v5 (FA2 + grouped_mm)</th>
+<th>NeMo AutoModel (EP=8)</th>
+<th>v5 → NeMo AutoModel</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>TPS/GPU (avg)</td>
+<td>deadlock</td>
+<td>3,075</td>
+<td>11,340</td>
+<td><strong>3.69x</strong></td>
+</tr>
+<tr>
+<td>Peak Memory</td>
+<td>—</td>
+<td>68.2 GiB</td>
+<td>48.1 GiB</td>
+<td><strong>-29%</strong></td>
+</tr>
+<tr>
+<td>Avg Forward+Loss</td>
+<td>—</td>
+<td>582 ms</td>
+<td>194 ms</td>
+<td>3.00x</td>
+</tr>
+<tr>
+<td>Avg Backward</td>
+<td>—</td>
+<td>758 ms</td>
+<td>178 ms</td>
+<td>4.26x</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Why v4 deadlocks:</strong> Transformers v4 stores Qwen3 MoE experts as a ModuleList of 128 individual MLP modules, each separately FSDP-wrapped. The forward pass uses a data-dependent loop that only iterates experts that received tokens. With different data per rank, different ranks skip different experts, causing mismatched FSDP AllGather/ReduceScatter collectives and an indefinite hang. Transformers v5 fixes this by storing experts as fused 3D parameter tensors (no per-expert modules, no per-expert FSDP collectives).</p>
+<h3>
+	<a id="nemotron-3-nano-30b-a3b" href="#nemotron-3-nano-30b-a3b" rel="nofollow">
+		
+	</a>
+	<span>
+		Nemotron 3 Nano 30B A3B
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Metric</th>
+<th>v4 (hub code)</th>
+<th>v5 (FA2 + grouped_mm + Mamba CUDA)</th>
+<th>NeMo AutoModel (EP=8)</th>
+<th>v5 → NeMo AutoModel</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>TPS/GPU (avg)</td>
+<td>1,807</td>
+<td>4,583</td>
+<td>15,421</td>
+<td><strong>3.36x</strong></td>
+</tr>
+<tr>
+<td>Peak Memory</td>
+<td>61.9 GiB</td>
+<td>62.1 GiB</td>
+<td>42.5 GiB</td>
+<td><strong>-32%</strong></td>
+</tr>
+<tr>
+<td>Avg Forward+Loss</td>
+<td>1,024 ms</td>
+<td>283 ms</td>
+<td>109 ms</td>
+<td>2.60x</td>
+</tr>
+<tr>
+<td>Avg Backward</td>
+<td>1,246 ms</td>
+<td>611 ms</td>
+<td>157 ms</td>
+<td>3.89x</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>v4 config:</strong> trust_remote_code=True (NVIDIA's hub modeling code). The hub code's expert loop is FSDP-safe (iterates all experts regardless of token assignment), so it doesn't deadlock like Qwen3 v4.</p>
+<h3>
+	<a id="where-the-speedup-comes-from" href="#where-the-speedup-comes-from" rel="nofollow">
+		
+	</a>
+	<span>
+		Where the speedup comes from
+	</span>
+</h3>
+<p>The 3.4-3.7x speedup from NeMo AutoModel over Transformers v5 comes from three sources:</p>
+<ol>
+<li><p><strong>Expert Parallelism reduces memory pressure.</strong> EP=8 distributes expert weights across GPUs, cutting the per-GPU MoE footprint by 8x. For Qwen3, this drops peak memory from 68.2 GiB to 48.1 GiB (-29%). For Nemotron Nano, it drops from 62.1 GiB to 42.5 GiB (-32%), freeing headroom for larger batch sizes or longer sequences.  </p>
+</li>
+<li><p><strong>DeepEP fuses communication with computation.</strong> Instead of separate AllGather/ReduceScatter collectives for expert routing, DeepEP fuses token dispatch and combines into optimized GPU kernels, overlapping communication with expert computation.  </p>
+</li>
+<li><p><strong>TransformerEngine kernels accelerate core operations.</strong> TE's fused attention, linear layers, and RMSNorm implementations provide consistent speedups over their PyTorch/Flash Attention equivalents across all layer types, not just MoE layers.</p>
+</li>
+</ol>
+<h2>
+	<a id="transformers-v5-features-leveraged-by-huggingface-automodel" href="#transformers-v5-features-leveraged-by-huggingface-automodel" rel="nofollow">
+		
+	</a>
+	<span>
+		Transformers v5 Features Leveraged by HuggingFace AutoModel
+	</span>
+</h2>
+<h3>
+	<a id="expert-backends" href="#expert-backends" rel="nofollow">
+		
+	</a>
+	<span>
+		Expert Backends
+	</span>
+</h3>
+<p>One of the most impactful features in Transformers v5 is the <a href="https://huggingface.co/docs/transformers/en/experts_interface">experts_implementation</a> parameter, which includes three expert backends:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Backend</th>
+<th>Description</th>
+<th>Best for</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>eager</td>
+<td>For-loop over selected experts</td>
+<td>Debugging, compatibility, and correctness. Also available for v4.</td>
+</tr>
+<tr>
+<td>batched_mm</td>
+<td>Duplicates expert params, single batched GEMM via torch.bmm</td>
+<td>Small inputs, fast with torch.compile. Added for v5</td>
+</tr>
+<tr>
+<td>grouped_mm</td>
+<td>Orders tokens by expert, single grouped GEMM via torch.nn.functional.grouped_mm</td>
+<td>Training (memory efficient, no param duplication). Added for v5.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The grouped_mm backend is the key training optimization: instead of looping over experts one by one, it sorts tokens by their assigned expert and executes a single fused grouped matrix multiplication.</p>
+<p>NeMo AutoModel takes this further. For models with custom implementations, it uses DeepEP fused all-to-all dispatch combined with grouped GEMM kernels and TransformerEngine linear layers. The progression looks like:</p>
+<pre><code>v4 (eager for-loop) → v5 (grouped_mm) → NeMo AutoModel (DeepEP + GMM + TE)
+</code></pre>
+<p>In NeMo AutoModel, the expert backend is configured through BackendConfig:</p>
+<pre><code><span>from</span> nemo_automodel.components.models.common.utils <span>import</span> BackendConfig
+
+backend = BackendConfig(
+    attn=<span>"te"</span>,           <span># TransformerEngine attention</span>
+    linear=<span>"te"</span>,         <span># TransformerEngine linear layers</span>
+    experts=<span>"torch_mm"</span>,  <span># Grouped expert matmul</span>
+    dispatcher=<span>"deepep"</span>, <span># DeepEP fused all-to-all</span>
+)
+</code></pre>
+<h2>
+	<a id="expert-parallelism-and-deepep" href="#expert-parallelism-and-deepep" rel="nofollow">
+		
+	</a>
+	<span>
+		Expert Parallelism and DeepEP
+	</span>
+</h2>
+<p>Transformers v5 also ships an <a href="https://huggingface.co/docs/transformers/en/expert_parallelism">Expert Parallelism path</a>. It shards expert weights across GPUs. The <a href="https://github.com/huggingface/transformers/blob/v5.10.2/src/transformers/integrations/tensor_parallel.py#L1078" rel="nofollow">GroupedGemmParallel</a> style loads only each device's local experts, and <a href="https://github.com/huggingface/transformers/blob/v5.10.2/src/transformers/integrations/tensor_parallel.py#L1123" rel="nofollow">RouterParallel</a> routes tokens and combines results with an all_reduce. It's neatly built on v5's existing tensor-parallel machinery. Enabling it makes the model's tp_plan return its <a href="https://github.com/huggingface/transformers/blob/v5.10.2/src/transformers/modeling_utils.py#L1448" rel="nofollow">expert plan</a>, so expert parallelism shares the device budget with data parallelism (ep × dp = world_size). For the single-node 30B benchmarks here, we found plain data-parallel v5 (dp=8, ep=1) to be the fastest v5 configuration, so that's the v5 setup we report.</p>
+<p>NeMo AutoModel takes a complementary approach tuned for multi-GPU MoE training. It makes EP its own parallelism dimension, a dedicated moe_mesh alongside (rather than carved from) the data-parallel mesh, using PyTorch's DTensor with Shard(0). Because the expert mesh is orthogonal to data parallelism, the two compose on the same devices. On 8 GPUs NeMo AutoModel runs ep=8 and dp=8 together, so every GPU trains on its own data shard while holding only 1/8 of the experts. Expert weights are physically sharded across GPUs along the expert dimension.</p>
+<pre><code><span># From nemo_automodel/components/moe/parallelizer.py</span>
+<span>from</span> torch.distributed.tensor <span>import</span> Shard, distribute_tensor
+
+<span># Each GPU holds only 1/ep_size of the expert weights</span>
+distribute_tensor(param, device_mesh, [Shard(<span>0</span>)])
+</code></pre>
+<p>With ep_size=8 on 8 GPUs, each GPU holds only 1/8 of the expert parameters. For a model like Nemotron-3-Nano-30B-A3B with ~55 GiB of expert weights, EP reduces the per-GPU expert footprint from ~55 GiB to ~6.8 GiB, making training possible where FSDP-only approaches run out of memory.</p>
+<p>On top of EP, NeMo AutoModel integrates <a href="https://github.com/deepseek-ai/DeepEP" rel="nofollow">DeepEP</a> that fuses the token routing into optimized GPU kernels, and delivers significant speedups when combined with grouped GEMM for grouped expert computation. In our <a href="https://github.com/NVIDIA-NeMo/Automodel/discussions/916" rel="nofollow">large-scale MoE benchmarks</a>, DeepEP + grouped GEMM reduced cost per iteration by 47% on the full DeepSeek V3 671B model compared to all-gather + looped expert baselines.</p>
+<h3>
+	<a id="dynamic-weight-loading" href="#dynamic-weight-loading" rel="nofollow">
+		
+	</a>
+	<span>
+		Dynamic Weight Loading
+	</span>
+</h3>
+<p>Transformers v5 also introduced a <a href="https://huggingface.co/docs/transformers/en/weightconverter">dynamic weight loading</a> system through WeightConverter and WeightRenaming. This enables MoE checkpoint to be stored in fused 3D tensors for more efficient execution. The WeightConverter applies composable operations to transform checkpoint tensors on-the-fly during from_pretrained().</p>
+<p>NeMo AutoModel is a direct consumer of this v5 API. Over <a href="https://github.com/NVIDIA-NeMo/Automodel/blob/main/nemo_automodel/components/checkpoint/conversion_mapping.py" rel="nofollow">20 model types</a> use this mechanism through MODELS_REQUIRING_TENSOR_MERGING, including Mixtral, Qwen2 MoE, Qwen3 MoE, DeepSeek V2/V3, OLMoE, and more. The conversions are fully reversible: save_pretrained() produces standard HF-format checkpoints that any downstream tool can load.</p>
+<h2>
+	<a id="getting-started" href="#getting-started" rel="nofollow">
+		
+	</a>
+	<span>
+		Getting Started
+	</span>
+</h2>
+<p>To try NeMo AutoModel, please visit our official documentation page to <a href="https://docs.nvidia.com/nemo/automodel/latest/get-started/installation" rel="nofollow">get started</a>.</p>
+<p>For more details, see:</p>
+<ul>
+<li><a href="https://docs.nvidia.com/nemo/automodel/latest/get-started/hf-compatibility" rel="nofollow">NeMo AutoModel HuggingFace API Compatibility Guide</a>  </li>
+<li><a href="https://docs.nvidia.com/nemo/automodel/latest/model-coverage/overview" rel="nofollow">NeMo AutoModel Model Coverage</a>  </li>
+<li><a href="https://docs.nvidia.com/nemo/automodel/latest/performance/performance-summary" rel="nofollow">NeMo AutoModel Performance Summary</a>  </li>
+<li><a href="https://huggingface.co/docs/transformers/en/community_integrations/nemo_automodel_finetuning">NeMo AutoModel on HuggingFace</a></li>
+</ul>
+<h2>
+	<a id="conclusion" href="#conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion
+	</span>
+</h2>
+<p>NVIDIA NeMo AutoModel is the natural next step for HuggingFace users scaling up model training. By building directly on Transformers v5, AutoModel provides a zero-friction upgrade path: change one import line and get a model instance that is more than three times as fast.</p>
+<p>On Qwen3-30B-A3B and Nemotron 3 Nano 30B-A3B, this delivers 3.4-3.7x higher training throughput with 29-32% less GPU memory compared to the best Transformers v5 configuration. And because true Expert Parallelism shards experts across GPUs, the same path scales up to full fine-tuning a 550B model like Nemotron 3 Ultra across 16 nodes, the regime where Expert Parallelism becomes essential to fit the model in memory. Because NeMo AutoModel checkpoints are standard HF-format safetensors, you can deploy them on inference frameworks like vLLM and SGLang.</p>
+<p>The code, configs, and benchmark scripts are all available in the <a href="https://github.com/NVIDIA-NeMo/Automodel/tree/blog/transformers-v5-automodel/blog_experiments" rel="nofollow">NeMo AutoModel repository</a>.</p>
+<h2>
+	<a id="acknowledgements" href="#acknowledgements" rel="nofollow">
+		
+	</a>
+	<span>
+		Acknowledgements
+	</span>
+</h2>
+<p>Core contributors to this work, listed alphabetically by last name: Adil Asif, Hemil Desai, Alexandros Koumparoulis, and Huiying Li.  </p>
+</div></div>

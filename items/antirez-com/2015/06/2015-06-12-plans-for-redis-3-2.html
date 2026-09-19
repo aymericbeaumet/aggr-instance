@@ -1,0 +1,33 @@
+<div id="readability-page-1" class="page"><div id="content">
+<section id="newslist"><article data-news-id="89"><h2><a href="https://antirez.com/news/89">Plans for Redis 3.2</a></h2></article></section><topcomment><article data-comment-id="89-" id="89-"><span><span><a href="https://antirez.com/user/antirez">antirez</a></span> 4117 days ago. 301283 views.  </span><pre>I’m back from Paris, DotScale 2015 was a very interesting conference. Before leaving I was working on Sentinel in the context of the unstable branch: the work was mainly about connection sharing. In short, it is the ability of a few Sentinels to scale, monitoring many masters. Before to leave, and now that I’m back, I tried to “secure” a set of features that will be the basis for Redis 3.2. In the next weeks I’ll be focusing developing these features, so I thought it’s worth to share the list with you ASAP.
+
+Geo hashing API: This work originated from Ardb, that was originally a fork of Redis (<a rel="nofollow" href="https://github.com/yinqiwen/ardb">https://github.com/yinqiwen/ardb</a>), and was later extracted and improved by Matt Stancliff (<a rel="nofollow" href="https://matt.sh/redis-geo">https://matt.sh/redis-geo</a>) that ported it to Redis. Open source is cool eh? The code needs a refactoring effort since currently duplicates parts of the sorted set implementation. It is not impossible that I may also change a few things about the API, I’m currently not sure, if there is something to fix, I’ll fix it. But the bottom line is: this is a great feature, now that Matt is no longer contributing to Redis, there is a huge risk to lose this work, so I’m going to do the effort of refactoring, reviewing and merging it as the first of the tasks for Redis 3.2. I think it is a very exciting addition to the Redis API.
+
+Bloom filters: We’ll get bloom filters in 3.2. I’m not sure if this will be implemented as a String type feature like HyperLogLog are, but more likely as a new special type, since I'm interested in non trivial semantics that are more easy to provide as a new type. I’ve many design ideas for bloom filters, but I’m pretty sure I would like to have the ability to control from the API the accuracy/space tradeoff, perhaps not in the lower level from of specifying number of bits and hash functions to use, but in a more higher level way. Another thing I would love to have in this API is the ability of the bloom filter to auto-depollute itself (using multiple rotating filters or something like that). I’ll read all the available literature and decide what to do, but we’ll get this feature into 3.2.
+
+Memory PRs: there are two important PRs from RedisLabs to improve Redis memory usage. We’ll get both merged.
+
+Memory introspection command: A command that provides information about memory, like the LATENCY command but for memory usage. Hints about where is memory consumed, if its just the RSS that is high because of past peak memory usage, hints about amount of memory used by client output buffers, ability to resize the hash tables to save some memory if needed, and so forth.
+
+Some Redis Cluster multi DC support. This will probably just be a “static” option of Cluster slaves so that they’ll not take part to promotion when the master fails. In this way using CLUSTER FAILOVER TAKEOVER it will be possible to promote all the slaves in a minority partition.
+
+New List type operations: A few O(1) list operations like LMERGE, and O(N) operations that will be normally used with N very small so that they are most of the times O(1) operations, like operations to move N elements from a list to another.
+
+AOF safety feature: <a rel="nofollow" href="https://github.com/antirez/redis/pull/2574">https://github.com/antirez/redis/pull/2574</a>
+
+AOF rewrites optionally using an RDB preamble, so that rewriting the AOF and reloading back the content at startup is faster.
+
+SPOP COUNT option (already implemented, 3.2 will be the first stable versions to get it))
+
+Redis Cluster redis-trib rebalance command, in order to automatically rehash keys to end with an more homogeneous memory usage between nodes.
+
+A few things originally planned for 3.2 were ported to 3.0 since they were safe. A recent example is ZADD with support for options like NX and XX. In general it is possible that a few more commands about existing types will be added to Redis 3.2. This is basically a Redis version which is designed to make happy people that wanted more in the API side, since for a while we focused more on the operations aspect of Redis.
+
+About the ETA, the work is starting Monday, and I hope they’ll not take more time than the end of September, when the first RC will be pushed. Once it is RC, the RC -&gt; Stable transition time is not scheduled, it is a function of the reporting time of critical bugs. Once for a few weeks nobody notices more bad issues, we’ll go stable.
+
+I’ll follow up with new blog posts about single entries listed above, like for the Geo hashing thing, the bloom filter final implementation and API description, and so forth.
+
+In the meantime, have fun with Redis 3.0!</pre></article></topcomment>
+
+
+<p><a href="https://disqus.com">blog comments powered by <span>Disqus</span></a></p></div></div>

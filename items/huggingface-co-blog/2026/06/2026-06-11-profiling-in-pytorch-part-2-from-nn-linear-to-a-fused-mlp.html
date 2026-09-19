@@ -1,0 +1,551 @@
+<div id="readability-page-1" class="page"><div>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/thumbnail.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/thumbnail.png" alt="Thumbnail of the blog post"></a></p>
+
+
+<p>In the <a href="https://huggingface.co/blog/torch-profiler">first part of this series "Profiling in PyTorch"</a>, we used <code>torch.add(torch.matmul(x, w), b)</code> to learn how to read PyTorch profiler traces. We also discussed several other topics that came our way - the CPU dispatch chain, launch overhead, the difference between an overhead-bound and a compute-bound regime, and some internals of <code>torch.compile</code>.</p>
+<p>In the second iteration (this blog post), we climb one rung up the ladder. We replace the hand-written matmul-add pair with an <code>nn.Linear</code> (with <code>bias=True</code>). This is the building block every deep learning model uses. We then stack three of them (specific to our example), with an activation in between, to form a Multilayer Perceptron (MLP) block.</p>
+<blockquote>
+<p>The scripts for this blog post live here: <a href="https://huggingface.co/datasets/ariG23498/profiling-pytorch/blob/main/02_linear.py"><code>02_linear.py</code></a>, <a href="https://huggingface.co/datasets/ariG23498/profiling-pytorch/blob/main/03_simple_mlp.py"><code>03_simple_mlp.py</code></a>, and <a href="https://huggingface.co/datasets/ariG23498/profiling-pytorch/blob/main/03_kernels_mlp.py"><code>03_kernels_mlp.py</code></a>. Like before, it helps to open them in a separate tab and walk through the code as you read. We use an <code>NVIDIA A100-SXM4-80GB</code> GPU to run the scripts. It is really easy to set up a GPU on the Hugging Face infrastructure and experiment with the scripts using <a href="https://huggingface.co/docs/hub/spaces-dev-mode">Dev Mode with Spaces</a>. One could also run the scripts with the <a href="https://huggingface.co/docs/huggingface_hub/en/guides/jobs">Hugging Face Jobs pipeline</a>.</p>
+</blockquote>
+<p>Before we begin, a quick recap of two ideas we will lean on repeatedly:</p>
+<ol>
+<li>A GPU <strong>kernel</strong> is a program that runs in parallel on many threads of the GPU.</li>
+<li>The CPU <strong>schedules and launches</strong> these kernels. Most of the PyTorch overhead you see in a profiler trace is this scheduling work.</li>
+</ol>
+<h2>
+	<a id="from-matmul-add-to-linear" href="#from-matmul-add-to-linear" rel="nofollow">
+		
+	</a>
+	<span>
+		From matmul-add to Linear
+	</span>
+</h2>
+<p><code>nn.Linear</code> is a module wrapper around the same matrix multiplication and addition we already profiled in <a href="https://huggingface.co/blog/torch-profiler">Part 1</a>. The only difference is that it owns its weight and bias as parameters and exposes a <code>forward</code> method that PyTorch users have grown familiar with.</p>
+<pre><code><span># bias=True would truly emulate the multiplication and addition</span>
+<span># operations we have seen in part 1 of the series</span>
+linear_layer = nn.Linear(in_dim, out_dim, bias=<span>True</span>)
+y = linear_layer(x)
+</code></pre>
+<p>The operation at hand can be written as:</p>
+<pre><code>y = x @ w.T + b
+</code></pre>
+<p>Where <code>x</code> is the input, <code>w</code> is the weight and <code>b</code> is the bias. Let's run <a href="https://huggingface.co/datasets/ariG23498/profiling-pytorch/blob/main/02_linear.py"><code>02_linear.py</code></a> and check the profile.</p>
+<pre><code>uv run 02_linear.py --batch 1024 --in_dim 32 --out_dim 64
+uvx trace-util -f traces -b &lt;hf_uname&gt;/traces
+</code></pre>
+<blockquote>
+<p><a href="https://x.com/ariG23498/status/2054811716727517374" rel="nofollow"><code>trace-util</code></a> is a utility that will sync your traces to a <a href="https://huggingface.co/storage">Hugging Face bucket</a> and then provide the <a href="https://perfetto.dev/" rel="nofollow">Preffeto URLs</a> on your terminal.</p>
+</blockquote>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/linear-profile-trace.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/linear-profile-trace.png" alt="PyTorch profiler trace of an `nn.Linear` forward pass: three short Profile Steps and `linear_fwd` annotations on the CPU lane, a tiny kernel on the GPU lane, and a long `cudaDeviceSynchronize` bar at the end"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 1: Profiler trace of <code>nn.Linear</code></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Figure 1 shows the profiler trace of a forward call of the linear layer. We trace the <code>forward</code> call of the linear layer with a similar <code>schedule</code> setup as the previous traces, with <code>wait=1</code>, <code>warmup=1</code> and <code>active=3</code>. This is why we see three Profile Steps in the CPU and GPU lanes.</p>
+<h3>
+	<a id="what-is-the-transpose-doing" href="#what-is-the-transpose-doing" rel="nofollow">
+		
+	</a>
+	<span>
+		What is the transpose doing?
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/transpose-cpu-dispatch.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/transpose-cpu-dispatch.png" alt="Zoomed in CPU dispatch chain showing the aten::t transpose op nested before aten::addmm inside aten::linear, with no matching activity on the GPU lane"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 2: The transpose CPU row</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>If we zoom into the profiler trace, as we do in Figure 2, we notice an <code>aten::t</code> (transpose) op before the <code>aten::addmm</code> (multiplication and addition) op. We can already figure out that <code>nn.Linear</code> transposes the weight parameter and then multiplies it with the input. This is the reason we see an <code>aten::t</code> op.</p>
+<p>An important thing to notice is that <code>aten::t</code> does not really copy or reorganize data: it only rewrites tensor metadata (shape and stride) on the CPU to represent the transposed matrix. It does not launch a kernel on the GPU. One can verify this two ways: by looking at the GPU lane in the trace, or by checking the <code>aten::t</code> row in the profiler table and the time it took on CUDA.</p>
+<h3>
+	<a id="why-are-there-no-separate-mul-and-add-kernels" href="#why-are-there-no-separate-mul-and-add-kernels" rel="nofollow">
+		
+	</a>
+	<span>
+		Why are there no separate <code>mul</code> and <code>add</code> kernels?
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/no-aten-add.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/no-aten-add.png" alt="Profiler trace of the linear layer with the dispatch chain highlighted, showing aten::linear, aten::t and aten::addmm but no separate aten::add op"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 3: No <code>aten::add</code> in the profile of a linear layer</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>There is no <code>aten::add</code> (the bias addition) in the dispatch chain of the linear layer, as seen in Figure 3. This is because the bias addition has been <em>folded</em> into the matrix multiplication kernel, using what is called an <strong>epilogue</strong>.</p>
+<p>An <strong>epilogue</strong> is a small computation that a GEMM (GEneral Matrix Multiply) kernel does at the very end, just before it writes its result back to HBM (High Bandwidth Memory, the GPU's main memory). Adding a bias, applying an activation, or scaling by a constant are all classic epilogues. The point of an epilogue is to avoid loading or writing to HBM a second time, since memory traffic makes an operation expensive.</p>
+<p><code>nn.Linear</code> calls <code>torch.nn.functional.linear</code>, which, in turn, calls <code>aten::linear</code>. <code>aten::linear</code> looks at the inputs, notices that a bias was passed, and dispatches <code>aten::addmm(bias, x, weight)</code> instead of doing a matmul and an add separately. <code>addmm</code> computes:</p>
+<pre><code>out = x @ weight.T + bias
+</code></pre>
+<p>The cuBLAS GEMM kernel that runs on the GPU has a bias-add variant built in, and that's the kernel <code>aten::addmm</code> picks. The add never appears as a separate kernel because it is <strong>part of the matmul kernel's writeback</strong>, which is exactly what an epilogue is.</p>
+<p>This is the moment to notice something subtle. The kernel you saw in <a href="https://huggingface.co/blog/torch-profiler#did-we-fuse-the-matmul-and-add-kernels-into-one">Part 1 under <code>--compile</code></a> (<code>addmm</code>) is the kernel that eager <code>nn.Linear</code> already uses. There is nothing left for <code>torch.compile</code> to fuse here, which is the next thing we will verify.</p>
+<h3>
+	<a id="can---compile-help-a-single-linear" href="#can---compile-help-a-single-linear" rel="nofollow">
+		
+	</a>
+	<span>
+		Can --compile help a single Linear?
+	</span>
+</h3>
+<p>Let's compile the forward call and look at the profiler trace. (The profiler trace is visualized in the <a href="#where-did-the-transpose-go-kernel-layouts-and-pre-ops" rel="nofollow">next section</a>)</p>
+<pre><code>uv run 02_linear.py --batch 1024 --in_dim 32 --out_dim 64 --compile
+uvx trace-util -f traces -b &lt;hf_uname&gt;/traces
+</code></pre>
+<p>If you compare the eager and compiled traces for a single <code>nn.Linear</code>'s <code>forward</code>, you will find:</p>
+<ul>
+<li>The same cuBLAS GEMM kernel on the GPU.</li>
+<li>The same <code>aten::addmm</code> op on the CPU.</li>
+<li>A few extra rows on the CPU lane unique to compile.</li>
+</ul>
+<p>This is worth internalizing. A common reflex is to reach for <code>torch.compile</code> whenever a model feels slow. For a single GEMM-with-bias, compile has very little to do. This is not a bug, this is just that compile needs more than one operation to possibly do any fusing. Let's prove that by <a href="#stacking-two-linears-the-mlp" rel="nofollow">looking at an MLP</a>.</p>
+<h3>
+	<a id="where-did-the-transpose-go-kernel-layouts-and-pre-ops" href="#where-did-the-transpose-go-kernel-layouts-and-pre-ops" rel="nofollow">
+		
+	</a>
+	<span>
+		Where did the transpose go? Kernel layouts and pre-ops
+	</span>
+</h3>
+<p>A careful reader of the two traces (eager vs compile) will notice that the eager CPU dispatch chain has more in it than the compiled one.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/eager.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/eager.png" alt="Eager CPU dispatch chain with the aten::t transpose and aten::addmm boxed separately under aten::linear"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 4: Eager dispatch chain where <code>aten::linear</code> walks through <code>aten::t</code> (transpose) and then <code>aten::addmm</code></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/compile.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/compile.png" alt="Compiled CPU dispatch chain showing a Torch-Compiled Region and a single aten::addmm call, with no transpose op"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 5: Compiled dispatch chain where <code>aten::addmm</code> is called directly, with no transpose</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The eager CPU dispatch chain inside <code>aten::linear</code> is <code>aten::t</code> followed by <code>aten::addmm</code> (Figure 4). To understand what <code>aten::t</code> actually does, we need a quick detour into <em>strides</em> and <em>views</em>.</p>
+<p>A tensor stores its data as one flat, contiguous run of numbers in memory. The <code>shape</code> and <code>stride</code> are metadata that sit on top of that run and tell PyTorch how to walk it: a stride of <code>(s0, s1)</code> means "step <code>s0</code> elements to move one row, step <code>s1</code> to move one column". Change the metadata and you get a different <em>view</em> of the <em>same</em> raw data, with no copy:</p>
+<pre><code><span>&gt;&gt;&gt; </span>M = torch.tensor([[<span>0</span>, <span>1</span>],
+<span>... </span>                  [<span>2</span>, <span>3</span>],
+<span>... </span>                  [<span>4</span>, <span>5</span>]])
+<span>&gt;&gt;&gt; </span>M.shape, M.stride()
+(torch.Size([<span>3</span>, <span>2</span>]), (<span>2</span>, <span>1</span>))   <span># two steps per row, one step per column</span>
+
+<span>&gt;&gt;&gt; </span>T = M.t()                  <span># transpose</span>
+<span>&gt;&gt;&gt; </span>T.shape, T.stride()
+(torch.Size([<span>2</span>, <span>3</span>]), (<span>1</span>, <span>2</span>))   <span># shape and stride swapped, data untouched</span>
+<span>&gt;&gt;&gt; </span>T
+tensor([[<span>0</span>, <span>2</span>, <span>4</span>],
+        [<span>1</span>, <span>3</span>, <span>5</span>]])
+<span>&gt;&gt;&gt; </span>T.flatten()                <span># forced to materialize, so the data is reordered</span>
+tensor([<span>0</span>, <span>2</span>, <span>4</span>, <span>1</span>, <span>3</span>, <span>5</span>])
+</code></pre>
+<p><code>M.t()</code> did not move a single number. It returned a new view whose strides are swapped, so reading it row-by-row now walks the original buffer <code>0, 1, 2, 3, 4, 5</code> in transposed order. The underlying data is identical; only the metadata differs.</p>
+<p>This is exactly what <code>aten::t</code> does inside the linear layer: it does not allocate a new tensor or copy any data, it produces a <em>view</em> of the weight with rewritten strides.</p>
+<p>As we can see in Figure 5, compile did not remove a GPU kernel: it removed the <em>CPU overhead</em> of dispatching that view. Inductor traced through the view chain at compile time, computed the resulting strides once, and emitted a direct <code>aten::addmm</code> call with those strides hard-coded. A few microseconds of CPU work disappear while the GPU does identical math. </p>
+<p>As one would expect, when the input data violates the strides precomputed by the compiler, it will throw an error.</p>
+<p>If you look at the GPU lane in both traces, there is exactly one kernel per forward, and it is the <em>same</em> kernel both times:</p>
+<pre><code>cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_32x32_32x1_tn_align8
+</code></pre>
+<p>If no transpose kernel ran, who taught the GEMM to read the weight matrix in transposed order? The answer is in the kernel's name. Look at the suffix:</p>
+<pre><code>cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_32x32_32x1_tn_align8
+                                                          ^^
+</code></pre>
+<p>That <code>tn</code> is the layout descriptor. cuBLAS and CUTLASS precompile a <em>separate kernel binary</em> for each combination of input layouts.</p>
+<p><code>n</code> (non-transposed) and <code>t</code> (transposed) describe how a kernel walks its input during the inner loop. The dispatcher's job is to look at the input strides, decide which suffix combination matches, and pick the right precompiled kernel.</p>
+<blockquote>
+<p>The kernel name in a profiler trace is a hash dump of the kernel's identity. If two runs show the same kernel name, the GPU is doing the same work. If they differ (e.g., <code>_tn_</code> vs <code>_nn_</code>, <code>bf16</code> vs <code>fp16</code>, or <code>s16816gemm</code> vs <code>s161616gemm</code>) then the GPU is doing different work, and the dispatcher took a different branch. Learning to read this name is one of the most useful habits when comparing traces.</p>
+</blockquote>
+<h2>
+	<a id="stacking-three-linears-the-mlp" href="#stacking-three-linears-the-mlp" rel="nofollow">
+		
+	</a>
+	<span>
+		Stacking three Linears: the MLP
+	</span>
+</h2>
+<p>In this section, we will profile a Multilayer Perceptron (MLP). To make this more interesting, we will profile a feed-forward network with the GeGLU activation variant (which is quite heavily used in practice). This is also our way of paying tribute to one of the greatest lines ever written in the history of deep learning research (Figure 6).</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/geglu-paper.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/geglu-paper.png" alt="Conclusions section of the GLU Variants Improve Transformer paper, with the closing sentence attributing the architectures' success to divine benevolence highlighted"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 6: The conclusion section of the <a href="https://arxiv.org/abs/2002.05202" rel="nofollow">GLU Variants Improve Transformer</a> paper.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<pre><code><span>class</span> <span>SimpleGeGLUMLP</span>(nn.Module):
+    <span>def</span> <span>__init__</span>(<span>self, dim, hidden</span>):
+        <span>super</span>().__init__()
+        self.gate_proj = nn.Linear(dim, hidden, bias=<span>False</span>)
+        self.up_proj = nn.Linear(dim, hidden, bias=<span>False</span>)
+        self.down_proj = nn.Linear(hidden, dim, bias=<span>False</span>)
+
+    <span>def</span> <span>forward</span>(<span>self, x</span>):
+        g = self.gate_proj(x)
+        u = self.up_proj(x)
+        h = F.gelu(g, approximate=<span>"tanh"</span>)
+        m = h * u
+        y = self.down_proj(m)
+        <span>return</span> y
+</code></pre>
+<p>You will find the entire script here: <a href="https://huggingface.co/datasets/ariG23498/profiling-pytorch/blob/main/03_simple_mlp.py"><code>03_simple_mlp.py</code></a>. Execute it like so:</p>
+<pre><code>uv run 03_simple_mlp.py --batch 64 --<span>seq</span> 128 --dim 768 --hidden 3072
+uvx trace-util -f traces -b &lt;hf_uname&gt;/traces
+</code></pre>
+<p>Before we open the trace, let's think together about what we should expect to see. The <code>forward</code> function does a fair amount of computation, but most of it is already familiar to us.</p>
+<p>We should expect three <code>aten::linear</code> dispatches, one for each <code>nn.Linear</code> layer. We should also expect two pointwise kernel launches, one for the GeLU and one for the multiplication. Forming this expectation before looking is the single most useful habit in the profiling journey: you read the trace to <em>confirm or break</em> a guess, not to form one from scratch.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/simple-mlp-eager.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/simple-mlp-eager.png" alt="Profiler trace of the GeGLU MLP forward pass, with five boxed groups on the CPU lane labelled linear, linear, gelu, mul, linear"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 7: The profiler trace for a GeGLU MLP</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/occupancy-queries.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/occupancy-queries.png" alt="Occupancy Queries highlighted in the linear projection traces"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 8: The occupancy queries highlighted in the linear projection CPU lane</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>From Figure 7 we can pat ourselves on the back, as our intuition was correct. Per forward pass (one <code>mlp_fwd</code>), the GPU runs exactly 5 kernels. Figure 8 highlights the "occupancy query" as seen in the CPU lane for the linear projection layers.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Op</th>
+<th>CPU op</th>
+<th>GPU kernel</th>
+<th>launches</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>gate_proj</code></td>
+<td><code>aten::linear</code></td>
+<td><code>ampere_bf16_s16816gemm_bf16_128x128_...</code></td>
+<td>occupancy query + cudaLaunchKernel</td>
+</tr>
+<tr>
+<td><code>up_proj</code></td>
+<td><code>aten::linear</code></td>
+<td><code>ampere_bf16_s16816gemm_bf16_128x128_...</code></td>
+<td>occupancy query + cudaLaunchKernel</td>
+</tr>
+<tr>
+<td><code>gelu</code></td>
+<td><code>aten::gelu</code></td>
+<td><code>vectorized_elementwise_kernel&lt;4, GeluCUDAKernelImpl...&gt;</code></td>
+<td>cudaLaunchKernel</td>
+</tr>
+<tr>
+<td><code>h * u</code></td>
+<td><code>aten::mul</code></td>
+<td><code>vectorized_elementwise_kernel&lt;4, ...MulFunctor...&gt;</code></td>
+<td>cudaLaunchKernel</td>
+</tr>
+<tr>
+<td><code>down_proj</code></td>
+<td><code>aten::linear</code></td>
+<td><code>ampere_bf16_s16816gemm_bf16_128x256_...</code></td>
+<td>occupancy query + cudaLaunchKernel</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The three GEMMs each do an extra <code>cudaOccupancyMaxActiveBlocksPerMultiprocessor</code> call before the launch. We have a separate section on this in Part 1, <a href="https://huggingface.co/blog/torch-profiler#why-does-matmul-have-an-extra-cuda-runtime-call">you can find it here</a>. That is cuBLAS sizing the grid. The pointwise ops (GeLU and mul) launch directly, with no occupancy query. So "a linear" is actually query + launch, while "a pointwise op" is just launch.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/simple-mlp-table.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/simple-mlp-table.png" alt="Profiler table for the GeGLU MLP listing op names and their CUDA times, where metadata ops like aten::transpose and aten::as_strided show 0.000us of CUDA time"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 9: The table shows that some ops launch zero kernels</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The <code>aten::t</code>, <code>aten::transpose</code>, <code>aten::reshape</code>, <code>aten::view</code>, <code>aten::as_strided</code>, and <code>aten::_unsafe_view</code> ops launch zero kernels. They show <code>0.000us</code> of CUDA time in the table (Figure 9) because they only rewrite tensor metadata (shape and stride) on the CPU. A reader scanning the table sees around six op names per linear, but only one of them (<code>mm</code>) ever reaches the GPU.</p>
+<h3>
+	<a id="why-are-there-two-types-of-gemm-kernels" href="#why-are-there-two-types-of-gemm-kernels" rel="nofollow">
+		
+	</a>
+	<span>
+		Why are there two types of GEMM kernels?
+	</span>
+</h3>
+<p>The MLP flattens <code>[batch, seq, dim]</code> to <code>[batch * seq, dim]</code> for the matmul. In our command-line invocation we used 64 for <code>batch</code> and 128 for <code>seq</code>, so that's where the <code>8192</code> (<code>batch * seq = 64 * 128</code>) below comes from.</p>
+<p>From the trace:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Linear</th>
+<th><code>aten::mm</code> input dims</th>
+<th>M·K·N</th>
+<th>cuBLAS kernel</th>
+<th>avg CUDA</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>gate_proj</code></td>
+<td><code>[8192,768] x [768,3072]</code></td>
+<td><code>8192·768·3072</code></td>
+<td><code>…128x128…stages_32x5_tn</code></td>
+<td>0.19ms</td>
+</tr>
+<tr>
+<td><code>up_proj</code></td>
+<td><code>[8192,768] x [768,3072]</code></td>
+<td><code>8192·768·3072</code></td>
+<td><code>…128x128…stages_32x5_tn</code></td>
+<td>0.19ms</td>
+</tr>
+<tr>
+<td><code>down_proj</code></td>
+<td><code>[8192,3072] x [3072,768]</code></td>
+<td><code>8192·3072·768</code></td>
+<td><code>…128x256…stages_64x3_tn</code></td>
+<td>0.17ms</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>All three GEMMs have the same FLOP count, <code>2·8192·768·3072 ≈ 38.7 GFLOP</code> each, yet <code>down_proj</code> is about <code>10%</code> faster. Same work, different shape (<code>N=768</code> instead of <code>3072</code>), so cuBLAS picks a different tile (<code>128×256</code>, with a deeper <code>stages_64x3</code> pipeline) that gets better reuse for that shape.</p>
+<blockquote>
+<p>If you want to learn more about tiling in depth, <a href="https://alvinwan.com/how-to-tile-matrix-multiplication/" rel="nofollow">here is a great resource</a> to get started with.</p>
+</blockquote>
+<p>This is exactly why the table had two GEMM rows (Figure 9): the <code>128x128</code> row is gate+up and the <code>128x256</code> row is down.</p>
+<h3>
+	<a id="what-does-torchcompile-do" href="#what-does-torchcompile-do" rel="nofollow">
+		
+	</a>
+	<span>
+		What does torch.compile do?
+	</span>
+</h3>
+<p>Before compiling the <code>forward</code> method and visualizing it, let's do the mental exercise again of asking ourselves what we expect to see in the trace. This is a fun experiment, and an important one to repeat every time you profile something yourself. Always build on your intuition, and the moment something does not match, stop and figure out why.</p>
+<pre><code>uv run 03_simple_mlp.py --batch 64 --<span>seq</span> 128 --dim 768 --hidden 3072 --compile
+uvx trace-util -f traces -b &lt;hf_uname&gt;/traces
+</code></pre>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/simple-mlp-compile-trace.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/simple-mlp-compile-trace.png" alt="Profiler trace of the compiled GeGLU MLP showing three aten::mm calls and one fused triton kernel on the CPU lane, labelled mm, mm, fused, mm"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 10: The profiler trace for the compiled GeGLU MLP</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>In eager mode, each <code>nn.Linear</code> was expanded into a chain of dispatcher ops (<code>aten::linear</code> → <code>aten::t</code> → <code>aten::transpose</code> → <code>aten::matmul</code> → <code>aten::reshape</code> → <code>aten::mm</code>). Those are the high-level wrappers that ATen walks through before reaching the real GEMM. <code>torch.compile</code> removes that chain.</p>
+<p>By the time the compiled graph runs, there is no linear, no matmul, no transpose or reshape and those metadata ops were folded into how <code>mm</code> is called. We can see three bare <code>aten::mm</code> external calls (Figure 10). The proof that it is the same GEMM is that the kernel names are byte-for-byte identical to eager: <code>...128x128...stages_32x5_tn</code> for gate and up, and <code>...128x256...stages_64x3_tn</code> for down.</p>
+<h3>
+	<a id="the-fused-triton-kernel" href="#the-fused-triton-kernel" rel="nofollow">
+		
+	</a>
+	<span>
+		The fused Triton kernel
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/fused.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/fused.png" alt="Compiled MLP trace with the triton_poi_fused__unsafe_view_gelu_mul_0 kernel boxed on the CPU lane, replacing the separate gelu and mul kernels from the eager run"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 11: The fused Triton kernel</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>This is the headline of the whole compile lesson. The two eager pointwise kernels (GeLU and mul) plus a reshape collapsed into one kernel, <code>triton_poi_fused__unsafe_view_gelu_mul_0</code> (Figure 11). Let's decode the name:</p>
+<ul>
+<li><code>triton</code>: generated by Inductor's Triton backend (not cuBLAS, not ATen).</li>
+<li><code>poi</code>: pointwise (Inductor tags pointwise kernels <code>poi</code>, reductions <code>red</code>, and persistent reductions <code>per</code>).</li>
+<li><code>fused__unsafe_view_gelu_mul</code>: the ops it merged: the <code>_unsafe_view</code> (reshape), the GeLU, and the mul.</li>
+<li><code>0</code>: the unique id within the graph.</li>
+</ul>
+<p>Why is this a win? In eager mode, the intermediate <code>h = gelu(g)</code> is a full <code>[8192, 3072]</code> bf16 tensor (around 50 MB) that the GeLU kernel writes to HBM and the mul kernel immediately reads back. Fusion keeps it in registers (memory that resides inside the chip and are closer than the HBM). The Triton kernel reads <code>g</code> and <code>u</code> once, computes <code>gelu(g) * u</code>, and writes the result once. One whole round trip of the intermediate through global memory is gone.</p>
+<h2>
+	<a id="lets-use-hand-tuned-kernels" href="#lets-use-hand-tuned-kernels" rel="nofollow">
+		
+	</a>
+	<span>
+		Let's use hand tuned kernels
+	</span>
+</h2>
+<p>So far we have let PyTorch (eager) and the compiler (<code>torch.compile</code>) pick our kernels. Now we plug in a kernel that a human expert wrote and tuned by hand. We use the <code>LigerGEGLUMLP</code> layer, that we can easily fetch from the <a href="https://huggingface.co/kernels/kernels-community/liger-kernels">Hugging Face Hub</a> with the <code>kernels</code> library.</p>
+<pre><code><span>from</span> kernels <span>import</span> get_kernel
+
+kernels_layers = get_kernel(<span>"kernels-community/liger-kernels"</span>, version=<span>1</span>).layers
+kernels_geglu_mlp = kernels_layers.LigerGEGLUMLP(Config()).to(device, dtype=torch.bfloat16).<span>eval</span>()
+</code></pre>
+<p>The full script is here: <a href="https://huggingface.co/datasets/ariG23498/profiling-pytorch/blob/main/03_kernels_mlp.py"><code>03_kernels_mlp.py</code></a>.</p>
+<pre><code>uv run 03_kernels_mlp.py --batch 64 --<span>seq</span> 128 --dim 768 --hidden 3072
+uvx trace-util -f traces -b &lt;hf_uname&gt;/traces
+</code></pre>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/kernels-profile.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/kernels-profile.png" alt="Profiler trace of the LigerGEGLUMLP forward pass showing three aten::linear groups and a single LigerGELUMulFunction group on the CPU lane"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 12: The profiler trace for the <code>LigerGEGLUMLP</code> layer</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Figure 12 shows the profile for the <code>LigerGEGLUMLP</code> layer using the Liger kernels from the Hub.</p>
+<h3>
+	<a id="why-use-the-kernels-library" href="#why-use-the-kernels-library" rel="nofollow">
+		
+	</a>
+	<span>
+		Why use the kernels library
+	</span>
+</h3>
+<p>Writing kernels in Triton or CUDA is one problem and <em>shipping</em> them is another. The kernel has to be compiled for your exact combination of GPU architecture, CUDA version, and PyTorch version. This is the step that usually breaks ("works on my machine", missing <code>nvcc</code>, wrong Triton version).</p>
+<p>The <a href="https://github.com/huggingface/kernels" rel="nofollow"><code>kernels</code></a> library moves that build step off your machine. <code>get_kernel("kernels-community/liger-kernels", version=1)</code> downloads a <strong>pre-built, version-pinned</strong> kernel package from the Hugging Face Hub and caches it locally (here under <code>~/.cache/...kernels-community--liger-kernels</code>). The benefits are:</p>
+<ul>
+<li>The kernels are compiled once, in CI, for many architectures and version combinations. You download the right binary instead of compiling it yourself.</li>
+<li><code>version=1</code> pins the exact build, so everyone running your script gets the same kernel. There is no "it got slower after I updated a package".</li>
+<li>The package exposes a <code>.layers</code> attribute with drop-in <code>nn.Module</code>s (like <code>LigerGEGLUMLP</code>). You swap your module for theirs and nothing else in your model changes.</li>
+</ul>
+<h3>
+	<a id="why-tuned-kernels-are-better" href="#why-tuned-kernels-are-better" rel="nofollow">
+		
+	</a>
+	<span>
+		Why tuned kernels are better
+	</span>
+</h3>
+<p>When we say "tuned", we mean two concrete things, and both are visible in the trace.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/compile-preops.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/compile-preops.png" alt="Compiled MLP trace with the TorchDynamo, prologue and guard pre-ops boxed on the CPU lane before the compiled graph runs"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 13: The compiled run pays for pre-ops (Dynamo, guards, prologue) before any GEMM runs</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/no-preops.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-mlp-fusion/no-preops.png" alt="LigerGEGLUMLP trace with an empty box where the compile pre-ops would be, showing the hand-written kernel has no Dynamo or guard overhead"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 14: The Liger kernel has no pre-ops — the box where they would be is empty</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<ol>
+<li><p><strong>The fusion is baked in.</strong> The <a href="https://huggingface.co/kernels/kernels-community/liger-kernels/blob/v1/build/torch-cuda/layers.py#L307"><code>LigerGEGLUMLP</code></a> forward is <code>down_proj(LigerGELUMulFunction.apply(gate_proj(x), up_proj(x)))</code>. The <a href="https://huggingface.co/kernels/kernels-community/liger-kernels/blob/v1/build/torch-cuda/geglu.py#L130"><code>LigerGELUMulFunction</code></a> runs a single Triton kernel, <a href="https://huggingface.co/kernels/kernels-community/liger-kernels/blob/v1/build/torch-cuda/geglu.py#L97"><code>_geglu_tanh_forward_kernel</code></a>, that computes <code>gelu(gate) * up</code> in one pass. This is exactly what we saw from <code>torch.compile</code>, where the intermediate never makes a round-trip through HBM. We get it here <strong>without the compiler</strong>, as shown in Figures 13 and 14 (no Dynamo guards, no compile latency, no recompilation risk).</p>
+</li>
+<li><p><strong>The launch parameters were chosen for the hardware.</strong> The kernel does not guess its block size at random. Liger's <a href="https://huggingface.co/kernels/kernels-community/liger-kernels/blob/v1/build/torch-cuda/geglu.py#L95"><code>calculate_settings</code></a> picks them from the column count.</p>
+</li>
+</ol>
+<p>It is worth being honest about the trade-off here, because the raw numbers can be misleading. The Liger kernel runs in <strong>92.8 µs</strong>, while Inductor's fused kernel from the compile run was <strong>89.4 µs</strong>. At first glance the hand-written kernel looks slightly slower, but that comparison hides the cost that makes it worthwhile.</p>
+<p><code>torch.compile</code> specializes for a <strong>static shape</strong>. Inductor's <code>89.4 µs</code> kernel is fast precisely because it was generated for <em>this exact</em> <code>[8192, 3072]</code> problem. Change the batch size, the sequence length, or the hidden dimension, Dynamo re-traces, and you pay the compile cost all over again to get a new specialized kernel.</p>
+<p>So the real choice is not "slow human kernel vs fast compiled kernel". It is <strong>a fast generic kernel vs a kernel specialized for one particular input shape</strong>. The Liger kernel takes one set of launch parameters and runs them for <em>any</em> shape with no recompilation. It gives up the last few microseconds that per-shape specialization would buy, in exchange for being robust to changing shapes.</p>
+<h2>
+	<a id="conclusion" href="#conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion
+	</span>
+</h2>
+<p>The table below collects what each step changed on the GPU and what it left untouched.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Setup</th>
+<th>What changed</th>
+<th>What stayed the same</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Eager <code>nn.Linear</code></td>
+<td>Baseline: bias add is already folded into the GEMM epilogue (<code>addmm</code>), so it is <em>one</em> cuBLAS kernel, not a matmul plus an add</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Compiled <code>nn.Linear</code></td>
+<td>A few CPU dispatch ops (the <code>aten::t</code> view bookkeeping) disappear</td>
+<td>Same single cuBLAS GEMM kernel, byte-for-byte. Compile has nothing to fuse</td>
+</tr>
+<tr>
+<td>Eager MLP</td>
+<td>5 GPU kernels: 3 GEMMs + a GeLU + a mul. The <code>[8192, 3072]</code> intermediate makes a full round-trip through HBM</td>
+<td>Each GEMM is still the same bias-free cuBLAS kernel as a standalone linear</td>
+</tr>
+<tr>
+<td>Compiled MLP</td>
+<td>GeLU + mul + reshape collapse into <strong>one</strong> fused Triton kernel; the intermediate stays in registers. Pays compile pre-ops (Dynamo, guards)</td>
+<td>The 3 GEMMs are untouched with identical cuBLAS kernel names</td>
+</tr>
+<tr>
+<td>Liger MLP</td>
+<td>Same fusion, but baked into a hand-written Triton kernel with hardware-tuned launch params with <strong>no</strong> Dynamo, guards, or compile latency</td>
+<td>The 3 GEMMs are still the same cuBLAS kernels</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>If there is one habit to carry forward, it is the one we practiced before every trace: <strong>guess first, then look.</strong> State what you expect the trace to contain, open it, and treat any mismatch as the most interesting thing on the screen.</p>
+<p>This was the second stop in the <strong>Profiling in PyTorch</strong> series. In the next post we will keep climbing the ladder, moving from this MLP block towards the attention block and, eventually, a full model.</p>
+<p>Thanks to <a href="https://huggingface.co/NoeFlandre">Noe Flandre</a> and <a href="https://huggingface.co/pedrogengo">Pedro Gabriel Gengo Lourenço</a> for their reviews on the early draft of the post!</p>
+<blockquote>
+<p>The blog post was polished using an LLM. This in no way means that we have let an agent run in the background and let it generate the blog. Some of us in the team are non-english speakers and think LLMs (which are mostly trained in the English Language) can rectify silly grammar mistakes or rephrase sentences that sound less intimidating and cleaner. Hope this helps with the idea of "why should I read, if this was LLM generated". 🤗</p>
+</blockquote>
+</div></div>

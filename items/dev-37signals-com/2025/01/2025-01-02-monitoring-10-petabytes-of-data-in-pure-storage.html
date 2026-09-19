@@ -1,0 +1,328 @@
+<div id="readability-page-1" class="page"><div>
+
+<p>As the final part of our move out of the cloud, we are working on <a href="https://world.hey.com/dhh/our-cloud-exit-savings-will-now-top-ten-million-over-five-years-c7d9b5bd">moving 10 petabytes of data out of AWS Simple Storage Service (S3)</a>. After exploring different alternatives, we decided to go with <a href="https://www.purestorage.com">Pure Storage</a> FlashBlade solution.</p>
+
+
+
+<p>We store different kinds of information on S3, from the attachments customers upload to Basecamp to the Prometheus long-term metrics. On top of that, Pure’s system also provides filesystem-based capabilities, enabling other relevant usages, such as database backup storage. This makes the system a top priority for observability.</p>
+
+<p>Although the system has great reliability, out-of-the-box internal alerting, and autonomous ticket creation, it would also be good to have our metrics and alerts to facilitate problem-solving and ensure any disruptions are prioritized and handled.</p>
+
+<p>For more context on our current Prometheus setup, see <a href="https://dev.37signals.com/prometheus-metrics-at-37signals/">how we use Prometheus at 37signals</a>.</p>
+
+<hr>
+
+<h2 id="pure-openmetrics-exporter">Pure OpenMetrics exporter</h2>
+
+<p>Pure maintains two OpenMetrics exporters, <a href="https://github.com/PureStorage-OpenConnect/pure-fb-openmetrics-exporter">pure-fb-openmetrics-exporter</a> and <a href="https://github.com/PureStorage-OpenConnect/pure-fa-openmetrics-exporter">pure-fa-openmetrics-exporter</a>. Since we use Pure FlashBlade (fb), this post covers pure-fb-openmetrics-exporter, although overall usage should be similar. The setup is straightforward and requires only binary and basic authentication installation.</p>
+
+<p>Here is a snippet of our Chef recipe that installs it:</p>
+<div><pre><code><span>pure_api_token</span> <span>=</span> <span>"token"</span> <span># If you use Chef, your token should come from an encrypted databag. Changed to hardcoded here to simplify</span>
+<span>PURE_EXPORTER_VERSION</span> <span>=</span> <span>"1.0.13"</span><span>.</span><span>freeze</span> <span># Generally, we use Chef node metadata for version management. Changed to hardcoded to simplify</span>
+
+<span>directory</span> <span>"/opt/pure_exporter/</span><span>#{</span><span>PURE_EXPORTER_VERSION</span><span>}</span><span>"</span> <span>do</span>
+ <span>recursive</span> <span>true</span>
+ <span>owner</span> <span>'pure_exporter'</span>
+ <span>group</span> <span>'pure_exporter'</span>
+<span>end</span>
+
+<span># Avoid recreating under /tmp after reboot if target_binary is already there</span>
+<span>target_binary</span> <span>=</span> <span>"/opt/pure_exporter/</span><span>#{</span><span>PURE_EXPORTER_VERSION</span><span>}</span><span>/pure-fb-openmetrics-exporter"</span>
+
+<span>remote_file</span> <span>"/tmp/pure-fb-openmetrics-exporter-v</span><span>#{</span><span>PURE_EXPORTER_VERSION</span><span>}</span><span>-linux-amd64.tar.gz"</span> <span>do</span>
+ <span>source</span> <span>"https://github.com/PureStorage-OpenConnect/pure-fb-openmetrics-exporter/releases/download/v</span><span>#{</span><span>PURE_EXPORTER_VERSION</span><span>}</span><span>/pure-fb-openmetrics-exporter-v</span><span>#{</span><span>PURE_EXPORTER_VERSION</span><span>}</span><span>-linux-amd64.tar.gz"</span>
+ <span>not_if</span> <span>{</span> <span>::</span><span>File</span><span>.</span><span>exist?</span><span>(</span><span>target_binary</span><span>)</span> <span>}</span>
+<span>end</span>
+
+<span>archive_file</span> <span>"/tmp/pure-fb-openmetrics-exporter-v</span><span>#{</span><span>PURE_EXPORTER_VERSION</span><span>}</span><span>-linux-amd64.tar.gz"</span> <span>do</span>
+ <span>destination</span> <span>"/tmp/pure-fb-openmetrics-exporter-v</span><span>#{</span><span>PURE_EXPORTER_VERSION</span><span>}</span><span>"</span>
+ <span>action</span> <span>:extract</span>
+ <span>not_if</span> <span>{</span> <span>::</span><span>File</span><span>.</span><span>exist?</span><span>(</span><span>target_binary</span><span>)</span> <span>}</span>
+<span>end</span>
+
+<span>execute</span> <span>"copy binary"</span> <span>do</span>
+ <span>command</span> <span>"sudo cp /tmp/pure-fb-openmetrics-exporter-v</span><span>#{</span><span>PURE_EXPORTER_VERSION</span><span>}</span><span>/pure-fb-openmetrics-exporter /opt/pure_exporter/</span><span>#{</span><span>PURE_EXPORTER_VERSION</span><span>}</span><span>/pure-exporter"</span>
+ <span>creates</span> <span>"/opt/pure_exporter/</span><span>#{</span><span>PURE_EXPORTER_VERSION</span><span>}</span><span>/pure-exporter"</span>
+ <span>not_if</span> <span>{</span> <span>::</span><span>File</span><span>.</span><span>exist?</span><span>(</span><span>target_binary</span><span>)</span> <span>}</span>
+<span>end</span>
+
+<span>tokens</span> <span>=</span> <span>&lt;&lt;</span><span>EOF</span><span>
+main:
+ address: purestorage-mgmt.mydomain.com
+ api_token: </span><span>#{</span><span>pure_api_token</span><span>[</span><span>'token'</span><span>]</span><span>}</span><span>
+</span><span>EOF</span>
+
+<span>file</span> <span>"/opt/pure_exporter/tokens.yml"</span> <span>do</span>
+ <span>content</span> <span>tokens</span>
+ <span>owner</span> <span>'pure_exporter'</span>
+ <span>group</span> <span>'pure_exporter'</span>
+ <span>sensitive</span> <span>true</span>
+<span>end</span>
+
+<span>systemd_unit</span> <span>'pure-exporter.service'</span> <span>do</span>
+ <span>content</span> <span>&lt;&lt;-</span><span>EOU</span><span>
+ # Caution: Chef managed content. This is a file resource from </span><span>#{</span><span>cookbook_name</span><span>}</span><span>::</span><span>#{</span><span>recipe_name</span><span>}</span><span>
+ #
+
+ [Unit]
+ Description=Pure Exporter
+ After=network.target
+
+ [Service]
+ Restart=on-failure
+ PIDFile=/var/run/pure-exporter.pid
+ User=pure_exporter
+ Group=pure_exporter
+ ExecStart=/opt/pure_exporter/</span><span>#{</span><span>PURE_EXPORTER_VERSION</span><span>}</span><span>/pure-exporter \
+ --tokens=/opt/pure_exporter/tokens.yml
+
+ ExecReload=/bin/kill -HUP $MAINPID
+ SyslogIdentifier=pure-exporter
+
+ [Install]
+ WantedBy=multi-user.target
+</span><span> EOU</span>
+
+ <span>action</span> <span>[</span> <span>:create</span><span>,</span> <span>:enable</span><span>,</span> <span>:start</span> <span>]</span>
+ <span>notifies</span> <span>:reload</span><span>,</span> <span>"service[pure-exporter]"</span>
+<span>end</span>
+
+<span>service</span> <span>'pure-exporter'</span>
+</code></pre></div>
+
+<hr>
+
+<h2 id="prometheus-job-configuration">Prometheus Job Configuration</h2>
+
+<p>The simplest way of ingesting the metrics is to configure a basic Job without any customization:</p>
+
+<div><pre><code><span>-</span> <span>job_name</span><span>:</span> <span>pure_exporter</span>
+  <span>metrics_path</span><span>:</span> <span>/metrics</span>
+  <span>static_configs</span><span>:</span>
+  <span>-</span> <span>targets</span><span>:</span> <span>[</span><span>'</span><span>&lt;%=</span><span> </span><span>@hostname</span><span> </span><span>%&gt;:9491'</span><span>]</span>
+    <span>labels</span><span>:</span>
+      <span>environment</span><span>:</span> <span>'</span><span>production'</span>
+      <span>job</span><span>:</span> <span>pure_exporter</span>
+  <span>params</span><span>:</span>
+    <span>endpoint</span><span>:</span> <span>[</span><span>main</span><span>]</span> <span># From the tokens configuration above</span>
+</code></pre></div>
+
+<p>For a production-ready setup, we are using a slightly different approach. The exporter supports the usage of specific metric paths to allow for split Prometheus jobs configuration that reduces the overhead of pulling the metrics all at once:</p>
+
+<div><pre><code><span>-</span> <span>job_name</span><span>:</span> <span>pure_exporter_array</span>
+  <span>metrics_path</span><span>:</span> <span>/metrics/array</span>
+  <span>static_configs</span><span>:</span>
+  <span>-</span> <span>targets</span><span>:</span> <span>[</span><span>'</span><span>&lt;%=</span><span> </span><span>@hostname</span><span> </span><span>%&gt;:9491'</span><span>]</span>
+    <span>labels</span><span>:</span>
+      <span>environment</span><span>:</span> <span>'</span><span>production'</span>
+      <span>job</span><span>:</span> <span>pure_exporter</span>
+  <span>metric_relabel_configs</span><span>:</span>
+  <span>-</span> <span>source_labels</span><span>:</span> <span>[</span><span>name</span><span>]</span>
+    <span>target_label</span><span>:</span> <span>ch</span>
+    <span>regex</span><span>:</span> <span>"</span><span>([^.]+).*"</span>
+    <span>replacement</span><span>:</span> <span>"</span><span>$1"</span>
+    <span>action</span><span>:</span> <span>replace</span>
+  <span>-</span> <span>source_labels</span><span>:</span> <span>[</span><span>name</span><span>]</span>
+    <span>target_label</span><span>:</span> <span>fb</span>
+    <span>regex</span><span>:</span> <span>"</span><span>[^.]+</span><span>\\</span><span>.([^.]+).*"</span>
+    <span>replacement</span><span>:</span> <span>"</span><span>$1"</span>
+    <span>action</span><span>:</span> <span>replace</span>
+  <span>-</span> <span>source_labels</span><span>:</span> <span>[</span><span>name</span><span>]</span>
+    <span>target_label</span><span>:</span> <span>bay</span>
+    <span>regex</span><span>:</span> <span>"</span><span>[^.]+</span><span>\\</span><span>.[^.]+</span><span>\\</span><span>.([^.]+)"</span>
+    <span>replacement</span><span>:</span> <span>"</span><span>$1"</span>
+    <span>action</span><span>:</span> <span>replace</span>
+  <span>params</span><span>:</span>
+    <span>endpoint</span><span>:</span> <span>[</span><span>main</span><span>]</span> <span># From the tokens configuration above</span>
+<span>-</span> <span>job_name</span><span>:</span> <span>pure_exporter_clients</span>
+  <span>metrics_path</span><span>:</span> <span>/metrics/clients</span>
+  <span>static_configs</span><span>:</span>
+  <span>-</span> <span>targets</span><span>:</span> <span>[</span><span>'</span><span>&lt;%=</span><span> </span><span>@hostname</span><span> </span><span>%&gt;:9491'</span><span>]</span>
+    <span>labels</span><span>:</span>
+      <span>environment</span><span>:</span> <span>'</span><span>production'</span>
+      <span>job</span><span>:</span> <span>pure_exporter</span>
+  <span>params</span><span>:</span>
+    <span>endpoint</span><span>:</span> <span>[</span><span>main</span><span>]</span> <span># From the tokens configuration above</span>
+<span>-</span> <span>job_name</span><span>:</span> <span>pure_exporter_usage</span>
+  <span>metrics_path</span><span>:</span> <span>/metrics/usage</span>
+  <span>static_configs</span><span>:</span>
+  <span>-</span> <span>targets</span><span>:</span> <span>[</span><span>'</span><span>&lt;%=</span><span> </span><span>@hostname</span><span> </span><span>%&gt;:9491'</span><span>]</span>
+    <span>labels</span><span>:</span>
+      <span>environment</span><span>:</span> <span>'</span><span>production'</span>
+      <span>job</span><span>:</span> <span>pure_exporter</span>
+  <span>params</span><span>:</span>
+    <span>endpoint</span><span>:</span> <span>[</span><span>main</span><span>]</span>
+<span>-</span> <span>job_name</span><span>:</span> <span>pure_exporter_policies</span>
+  <span>metrics_path</span><span>:</span> <span>/metrics/policies</span>
+  <span>static_configs</span><span>:</span>
+  <span>-</span> <span>targets</span><span>:</span> <span>[</span><span>'</span><span>&lt;%=</span><span> </span><span>@hostname</span><span> </span><span>%&gt;:9491'</span><span>]</span>
+    <span>labels</span><span>:</span>
+      <span>environment</span><span>:</span> <span>'</span><span>production'</span>
+      <span>job</span><span>:</span> <span>pure_exporter</span>
+  <span>params</span><span>:</span>
+    <span>endpoint</span><span>:</span> <span>[</span><span>main</span><span>]</span> <span># From the tokens configuration above</span>
+</code></pre></div>
+
+<p>We also configure some <code>metric_relabel_configs</code> to extract labels from <code>name</code> using regex. Those labels help reduce the complexity of queries that aggregate metrics by different components.</p>
+
+<p>Detailed documentation on the available metrics can be found <a href="https://github.com/PureStorage-OpenConnect/pure-fb-openmetrics-exporter/blob/main/specification/metrics/purefb-metrics.md">here</a>.</p>
+
+<hr>
+
+<h2 id="alerts">Alerts</h2>
+
+<h3 id="auto-generated-alerts">Auto Generated Alerts</h3>
+
+<p>As I shared earlier, the system has an internal Alerting module that automatically triggers alerts for critical situations and creates tickets. To cover those alerts on the Prometheus side, we added an alerting configuration of our own that relies on the incoming severities:</p>
+
+<div><pre><code><span>-</span> <span>alert</span><span>:</span> <span>PureAlert</span>
+  <span>annotations</span><span>:</span>
+    <span>summary</span><span>:</span> <span>'</span><span>{{</span><span> </span><span>$labels.summary</span><span> </span><span>}}'</span>
+    <span>description</span><span>:</span> <span>'</span><span>{{</span><span> </span><span>$labels.component_type</span><span> </span><span>}}</span><span> </span><span>-</span><span> </span><span>{{</span><span> </span><span>$labels.component_name</span><span> </span><span>}}</span><span> </span><span>-</span><span> </span><span>{{</span><span> </span><span>$labels.action</span><span> </span><span>}}</span><span> </span><span>-</span><span> </span><span>{{</span><span> </span><span>$labels.kburl</span><span> </span><span>}}'</span>
+    <span>dashboard</span><span>:</span> <span>'</span><span>https://grafana/your-dashboard'</span>
+  <span>expr</span><span>:</span> <span>purefb_alerts_open{environment="production"} == </span><span>1</span>
+  <span>for</span><span>:</span> <span>1m</span>
+</code></pre></div>
+
+<p>We still need to evaluate how the pure-generated alerts will interact with the custom alerts I will cover below, and we might decide to stick to one or the other depending on what we find out.</p>
+
+<h3 id="hardware">Hardware</h3>
+
+<p>Before I continue, the image below helps visualize how some of the Pure FlashBlade components are physically organized:</p>
+
+
+
+<p>Because of Pure’s reliability, most isolated hardware failures do not require the immediate attention of an Ops team member. To cover the most basic hardware failures, we configure an alert that sends a message to the Ops Basecamp 4 project chat:</p>
+
+<div><pre><code><span>-</span> <span>alert</span><span>:</span> <span>PureHardwareFailed</span>
+  <span>annotations</span><span>:</span>
+    <span>summary</span><span>:</span> <span>Hardware {{ $labels.name }} in chassis {{ $labels.ch }} is failed</span>
+    <span>description</span><span>:</span> <span>'</span><span>The</span><span> </span><span>Pure</span><span> </span><span>Storage</span><span> </span><span>hardware</span><span> </span><span>{{</span><span> </span><span>$labels.name</span><span> </span><span>}}</span><span> </span><span>in</span><span> </span><span>chassis</span><span> </span><span>{{</span><span> </span><span>$labels.ch</span><span> </span><span>}}</span><span> </span><span>is</span><span> </span><span>failed'</span>
+    <span>dashboard</span><span>:</span> <span>'</span><span>https://grafana/your-dashboard'</span>
+  <span>expr</span><span>:</span> <span>purefb_hardware_health == </span><span>0</span>
+  <span>for</span><span>:</span> <span>1m</span>
+  <span>labels</span><span>:</span>
+    <span>severity</span><span>:</span> <span>chat-notification</span>
+</code></pre></div>
+
+<p>We also configure alerts that check for multiple hardware failures of the same type. This doesn’t mean two simultaneous failures will result in a critical state, but it is a fair guardrail for unexpected scenarios. We also expect those situations to be rare, keeping the risk of causing unnecessary noise low.</p>
+
+<div><pre><code><span>-</span> <span>alert</span><span>:</span> <span>PureMultipleHardwareFailed</span>
+  <span>annotations</span><span>:</span>
+    <span>summary</span><span>:</span> <span>Pure chassis {{ $labels.ch }} has {{ $value }} failed {{ $labels.type }}</span>
+    <span>description</span><span>:</span> <span>'</span><span>The</span><span> </span><span>Pure</span><span> </span><span>Storage</span><span> </span><span>chassis</span><span> </span><span>{{</span><span> </span><span>$labels.ch</span><span> </span><span>}}</span><span> </span><span>has</span><span> </span><span>{{</span><span> </span><span>$value</span><span> </span><span>}}</span><span> </span><span>failed</span><span> </span><span>{{</span><span> </span><span>$labels.type</span><span> </span><span>}},</span><span> </span><span>close</span><span> </span><span>to</span><span> </span><span>the</span><span> </span><span>healthy</span><span> </span><span>limit</span><span> </span><span>of</span><span> </span><span>two</span><span> </span><span>simultaneous</span><span> </span><span>failures.</span><span> </span><span>Ensure</span><span> </span><span>that</span><span> </span><span>the</span><span> </span><span>hardware</span><span> </span><span>failures</span><span> </span><span>are</span><span> </span><span>being</span><span> </span><span>worked</span><span> </span><span>on'</span>
+    <span>dashboard</span><span>:</span> <span>'</span><span>https://grafana/your-dashboard'</span>
+  <span>expr</span><span>:</span> <span>count(purefb_hardware_health{type!~"eth|mgmt_port|bay"} == 0) by (ch,type,environment) &gt; </span><span>1</span>
+  <span>for</span><span>:</span> <span>1m</span>
+  <span>labels</span><span>:</span>
+    <span>severity</span><span>:</span> <span>page</span>
+ <span># We are looking for multiple failed bays in the same blade</span>
+<span>-</span> <span>alert</span><span>:</span> <span>PureMultipleBaysFailed</span>
+  <span>annotations</span><span>:</span>
+    <span>summary</span><span>:</span> <span>Pure chassis {{ $labels.ch }} has fb {{ $labels.fb }} with {{ $value }} failed bays</span>
+    <span>description</span><span>:</span> <span>'</span><span>The</span><span> </span><span>Pure</span><span> </span><span>Storage</span><span> </span><span>chassis</span><span> </span><span>{{</span><span> </span><span>$labels.ch</span><span> </span><span>}}</span><span> </span><span>has</span><span> </span><span>fb</span><span> </span><span>{{</span><span> </span><span>$labels.fb</span><span> </span><span>}}</span><span> </span><span>with</span><span> </span><span>{{</span><span> </span><span>$value</span><span> </span><span>}}</span><span> </span><span>failed</span><span> </span><span>bays,</span><span> </span><span>close</span><span> </span><span>to</span><span> </span><span>the</span><span> </span><span>healthy</span><span> </span><span>limit</span><span> </span><span>of</span><span> </span><span>two</span><span> </span><span>simultaneous</span><span> </span><span>failures.</span><span> </span><span>Ensure</span><span> </span><span>that</span><span> </span><span>the</span><span> </span><span>hardware</span><span> </span><span>failures</span><span> </span><span>are</span><span> </span><span>being</span><span> </span><span>worked</span><span> </span><span>on'</span>
+    <span>dashboard</span><span>:</span> <span>'</span><span>https://grafana/your-dashboard'</span>
+  <span>expr</span><span>:</span> <span>count(purefb_hardware_health{type="bay"} == 0) by (ch,type,fb,environment) &gt; </span><span>1</span>
+  <span>for</span><span>:</span> <span>1m</span>
+  <span>labels</span><span>:</span>
+    <span>severity</span><span>:</span> <span>page</span>
+</code></pre></div>
+
+<p>Finally, we configure high-level alerts for chassis and XFM failures:</p>
+
+<div><pre><code><span>-</span> <span>alert</span><span>:</span> <span>PureChassisFailed</span>
+  <span>annotations</span><span>:</span>
+    <span>summary</span><span>:</span> <span>Chassis {{ $labels.name }} is failed</span>
+    <span>description</span><span>:</span> <span>'</span><span>The</span><span> </span><span>Pure</span><span> </span><span>Storage</span><span> </span><span>hardware</span><span> </span><span>chassis</span><span> </span><span>{{</span><span> </span><span>$labels.name</span><span> </span><span>}}</span><span> </span><span>is</span><span> </span><span>failed'</span>
+    <span>dashboard</span><span>:</span> <span>'</span><span>https://grafana/your-dashboard'</span>
+  <span>expr</span><span>:</span> <span>purefb_hardware_health{type="ch"} == </span><span>0</span>
+  <span>for</span><span>:</span> <span>1m</span>
+  <span>labels</span><span>:</span>
+    <span>severity</span><span>:</span> <span>page</span>
+<span>-</span> <span>alert</span><span>:</span> <span>PureXFMFailed</span>
+  <span>annotations</span><span>:</span>
+    <span>summary</span><span>:</span> <span>Xternal Fabric Module {{ $labels.name }} is failed</span>
+    <span>description</span><span>:</span> <span>'</span><span>The</span><span> </span><span>Pure</span><span> </span><span>Storage</span><span> </span><span>hardware</span><span> </span><span>Xternal</span><span> </span><span>fabric</span><span> </span><span>module</span><span> </span><span>{{</span><span> </span><span>$labels.name</span><span> </span><span>}}</span><span> </span><span>is</span><span> </span><span>failed'</span>
+    <span>dashboard</span><span>:</span> <span>'</span><span>https://grafana/your-dashboard'</span>
+  <span>expr</span><span>:</span> <span>purefb_hardware_health{type="xfm"} == </span><span>0</span>
+  <span>for</span><span>:</span> <span>1m</span>
+  <span>labels</span><span>:</span>
+  <span>severity</span><span>:</span> <span>page</span>
+</code></pre></div>
+
+<h3 id="latency">Latency</h3>
+
+<p>Using the metric <code>purefb_array_performance_latency_usec</code> we can set a threshold for all the different protocols and dimensions (read, write, etc), so we are alerted if any problem causes the latency to go above an expected level.</p>
+
+<div><pre><code><span>-</span> <span>alert</span><span>:</span> <span>PureLatencyHigh</span>
+  <span>annotations</span><span>:</span>
+    <span>summary</span><span>:</span> <span>Pure {{ $labels.dimension }} - {{ $labels.protocol }} latency high</span>
+    <span>description</span><span>:</span> <span>'</span><span>Pure</span><span> </span><span>{{</span><span> </span><span>$labels.protocol</span><span> </span><span>}}</span><span> </span><span>latency</span><span> </span><span>for</span><span> </span><span>dimension</span><span> </span><span>{{</span><span> </span><span>$labels.dimension</span><span> </span><span>}}</span><span> </span><span>is</span><span> </span><span>above</span><span> </span><span>100ms'</span>
+    <span>dashboard</span><span>:</span> <span>'</span><span>https://grafana/your-dashboard'</span>
+  <span>expr</span><span>:</span> <span>(avg_over_time(purefb_array_performance_latency_usec{protocol="all"}[30m]) * 0.001)</span>
+  <span>for</span><span>:</span> <span>1m</span>
+  <span>labels</span><span>:</span>
+    <span>severity</span><span>:</span> <span>chat-notification</span>
+</code></pre></div>
+
+<h3 id="saturation">Saturation</h3>
+
+<p>For saturation, we are primarily worried about something unexpected causing excessive use of array space, increasing the risk of hitting the cluster capacity. With that in mind, it’s good to have a simple alert in place, even if we don’t expect it to fire anytime soon:</p>
+
+<div><pre><code><span>-</span> <span>alert</span><span>:</span> <span>PureArraySpace</span>
+  <span>annotations</span><span>:</span>
+    <span>summary</span><span>:</span> <span>Pure Cluster {{ $labels.instance }} available space is expected to be below 10%</span>
+    <span>description</span><span>:</span> <span>'</span><span>The</span><span> </span><span>array</span><span> </span><span>space</span><span> </span><span>for</span><span> </span><span>pure</span><span> </span><span>cluster</span><span> </span><span>{{</span><span> </span><span>$labels.instance</span><span> </span><span>}}</span><span> </span><span>is</span><span> </span><span>expected</span><span> </span><span>to</span><span> </span><span>be</span><span> </span><span>below</span><span> </span><span>10%</span><span> </span><span>in</span><span> </span><span>a</span><span> </span><span>month,</span><span> </span><span>please</span><span> </span><span>investigate</span><span> </span><span>and</span><span> </span><span>ensure</span><span> </span><span>there</span><span> </span><span>is</span><span> </span><span>no</span><span> </span><span>risk</span><span> </span><span>of</span><span> </span><span>running</span><span> </span><span>out</span><span> </span><span>of</span><span> </span><span>capacity'</span>
+    <span>dashboard</span><span>:</span> <span>'</span><span>https://grafana/your-dashboard'</span>
+  <span>expr</span><span>:</span> <span>(predict_linear(purefb_array_space_bytes{space="empty",type="array"}[30d], 730 * 3600)) &lt; (purefb_array_space_bytes{space="capacity",type="array"} * 0.10)</span>
+  <span>for</span><span>:</span> <span>1m</span>
+  <span>labels</span><span>:</span>
+    <span>severity</span><span>:</span> <span>chat-notification</span>
+</code></pre></div>
+
+<h3 id="http">HTTP</h3>
+
+<p>We use BigIp load balancers to front-end the cluster, which means that all the alerts we already had in place for the BigIp HTTP profiles, virtual servers, and pools also cover access to Pure. The solution for each organization on this topic will be different, but it is a good practice to keep an eye on HTTP status codes and throughput.</p>
+
+<hr>
+
+<h2 id="grafana-dashboards">Grafana Dashboards</h2>
+
+<p>The project’s GitHub repository includes <a href="https://github.com/PureStorage-OpenConnect/pure-fb-openmetrics-exporter/tree/main/extra/grafana">JSON files for Grafana dashboards</a> that are based on the metrics generated by the exporter. With simple adjustments to fit each setup, it’s possible to import them quickly.</p>
+
+
+
+<hr>
+
+<h2 id="wrapping-up">Wrapping up</h2>
+
+<p>On top of the system’s built-in capabilities, Pure also provides options to integrate their system into well-known tools like Prometheus and Grafana, facilitating the process of managing the cluster the same way we manage everything else. I hope this post helps any other team interested in working with them better understand the effort involved.</p>
+
+<p>Thanks for reading!</p>
+
+
+
+
+              <hr>
+
+              <div>
+                <ul>
+
+  
+
+    
+
+                  <li><a href="https://dev.37signals.com/series/on-prem-observability/">Other posts in the “On-prem observability” series</a></li>
+
+  
+
+  
+
+  
+
+                </ul>
+              </div>
+
+
+
+            </div></div>

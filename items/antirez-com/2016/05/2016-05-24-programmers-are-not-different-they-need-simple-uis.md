@@ -1,0 +1,35 @@
+---
+title: Programmers are not different, they need simple UIs.
+link: http://antirez.com/news/107
+source: antirez-com
+published: 2016-05-24T15:06:17Z
+updated: 2016-05-24T15:06:17Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+summary: 'I’m spending days trying to get a couple of APIs right. New APIs about modules, and a new Redis data type. I really mean it when I say *days*, just for the API. Writing drafts, starting the implementation shaping data structures and calls, and then restarting from scratch to iterate again in a better way, to improve the design and the user facing part. Why I do that, delaying features for weeks? Is it really so important? Programmers are engineers, maybe they should just adapt to whatever API is better to export for the system exporting it. Should I really reply to my rhetorical questions? No, it is no longer needed today, and that’s a big win. I want to assume that at this point is tacit, given for granted, that programmers also have user interfaces, and that such user interfaces are so crucial to completely change the perception of a system. Database query languages, libraries calls, programming languages, Unix command line tools, they all have an User Interface part. If you use them daily, for you they are more UIs than anything else. So if this is all well known why I’m here writing this blog post? Because I want to stress how important is the concept of simplicity, not just in graphical UIs, but also in UIs designed for programmers. The act of iterating again and again to find a simple UI solution is not a form of perfectionism, it’s not futile narcissism. It is more an exploration in the design space, that sometimes is huge, made of small variations that make a big difference, and made of big variations that completely change the point of view. There are no rules to follow but your sensibility. Yes there are good practices, but they are not a good compass when the sea to navigate is the one of the design *space*. So why programmers should have this privilege of having good, simple UIs? Sure there is the joy of using something well made, that is great to handle, that feels *right*. But there is a more central question. Learning to configure Sendmail via M4 macros, or struggling with an Apache virtual host setup is not real knowledge. If such a system one day is no longer in use, what remains in your hands, or better, in your neurons? Nothing. This is ad-hoc knowledge. It is like junk food: empty calories without micronutrients. For programmers, the micronutrients are the ideas that last for decades, not the ad-hoc junk. I don’t want to ship junk, so I’ll continue to refine my designs before shipping. You should not accept junk, your neurons are better spent to learn general concepts. However in part it is inevitable: every system will have something that is not general that we need to learn in order to use it. Well, if that’s the deal, at least, let’s make the ad-hoc part a simple one, and if possible, something that is even fun to use. Comments'
+content: extracted
+html: 2016-05-24-programmers-are-not-different-they-need-simple-uis.html
+---
+
+## [Programmers are not different, they need simple UIs.](https://antirez.com/news/107)
+
+[antirez](https://antirez.com/user/antirez) 3770 days ago. 323669 views.
+
+```
+I’m spending days trying to get a couple of APIs right. New APIs about modules, and a new Redis data type.
+I really mean it when I say *days*, just for the API. Writing drafts, starting the implementation shaping data structures and calls, and then restarting from scratch to iterate again in a better way, to improve the design and the user facing part.
+
+Why I do that, delaying features for weeks? Is it really so important?
+Programmers are engineers, maybe they should just adapt to whatever API is better to export for the system exporting it.
+
+Should I really reply to my rhetorical questions? No, it is no longer needed today, and that’s a big win.
+
+I want to assume that at this point is tacit, given for granted, that programmers also have user interfaces, and that such user interfaces are so crucial to completely change the perception of a system. Database query languages, libraries calls, programming languages, Unix command line tools, they all have an User Interface part. If you use them daily, for you they are more UIs than anything else.
+
+So if this is all well known why I’m here writing this blog post? Because I want to stress how important is the concept of simplicity, not just in graphical UIs, but also in UIs designed for programmers. The act of iterating again and again to find a simple UI solution is not a form of perfectionism, it’s not futile narcissism. It is more an exploration in the design space, that sometimes is huge, made of small variations that make a big difference, and made of big variations that completely change the point of view. There are no rules to follow but your sensibility. Yes there are good practices, but they are not a good compass when the sea to navigate is the one of the design *space*.
+
+So why programmers should have this privilege of having good, simple UIs? Sure there is the joy of using something well made, that is great to handle, that feels *right*. But there is a more central question. Learning to configure Sendmail via M4 macros, or struggling with an Apache virtual host setup is not real knowledge. If such a system one day is no longer in use, what remains in your hands, or better, in your neurons? Nothing. This is ad-hoc knowledge. It is like junk food: empty calories without micronutrients.
+
+For programmers, the micronutrients are the ideas that last for decades, not the ad-hoc junk. I don’t want to ship junk, so I’ll continue to refine my designs before shipping. You should not accept junk, your neurons are better spent to learn general concepts. However in part it is inevitable: every system will have something that is not general that we need to learn in order to use it. Well, if that’s the deal, at least, let’s make the ad-hoc part a simple one, and if possible, something that is even fun to use.
+```
+
+[blog comments powered by Disqus](https://disqus.com)

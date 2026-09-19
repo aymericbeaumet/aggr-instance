@@ -1,0 +1,132 @@
+<div id="readability-page-1" class="page"><div>
+<p><strong>TL;DR</strong>: The transformers vLLM backend is now as fast (or faster) than custom vLLM implementations for many LLM architectures. Model authors can automatically leverage their transformers implementations to get ultra fast vLLM inference, for free.</p>
+<pre><code><span># Upgrade the vllm pip package</span>
+uv pip install --upgrade vllm --torch-backend auto
+</code></pre>
+<p>The transformers library has become the <strong>reference modeling library</strong> for Machine Learning. It supports 450+ architectures through consistent APIs, and is designed with the main goal that model implementations are <em>self contained</em> and <em>easy to understand</em>. Going through transformers code makes it easy for contributors to learn how an architecture works, and then port it to other frameworks such as vLLM, SGLang, MLX, llama.cpp, and many others.</p>
+<p>We have fully embraced this role in the ecosystem and are investing a lot of effort to make it easier. A big step in this direction was the integration last year of transformers as a modeling backend in vLLM. This has been allowing model authors to run transformers models (LLMs and VLMs alike) inside vLLM, without having to port anything. Transformers provides the modeling code, and vLLM provides extremely optimized inference techniques such as continuous batching and custom attention kernels.</p>
+<p>This integration gets better now 🚀!</p>
+<h2>
+	<a id="showcase" href="#showcase" rel="nofollow">
+		
+	</a>
+	<span>
+		Showcase
+	</span>
+</h2>
+<p>We put the transformers modeling backend for vLLM head to head with vLLM's hand written native implementations across three very different Qwen3 models:</p>
+<ul>
+<li>4B dense model on a single GPU</li>
+<li>32B dense model on tensor parallelism</li>
+<li>235B-parameter FP8 Mixture-of-Experts on data + expert parallelism on the same 8×H100 node</li>
+</ul>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/vllm-backend/pre-post-pr.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/vllm-backend/pre-post-pr.png" alt="Pre and Post PR benchmarks with trasnformers vllm backend"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>The result: the transformers modeling backend now <strong>meets or beats</strong> native throughput on every one of them.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Running any* Hugging Face model through the transformers modeling backend is a single flag — <code>--model-impl transformers</code>. It composes with the usual parallelism options, so nothing about your serving setup changes:</p>
+<pre><code><span># Qwen3-4B dense, single GPU</span>
+vllm serve Qwen/Qwen3-4B --model-impl transformers
+
+<span># Qwen3-32B dense, tensor-parallel across 2 GPUs</span>
+vllm serve Qwen/Qwen3-32B --model-impl transformers --tensor-parallel-size 2
+
+<span># Qwen3-235B-A22B-FP8 MoE, data-parallel + expert-parallel across 8 GPUs</span>
+vllm serve Qwen/Qwen3-235B-A22B-FP8 --model-impl transformers --data-parallel-size 8 --enable-expert-parallel
+<span># add --max-model-len 8192 if your node is memory constrained</span>
+</code></pre>
+<p><em>*Models that use linear attention are not currently supported, but they will be soon! Custom models where the code lives in a Hub repo are unlikely to work as they will not have been written compliantly.</em></p>
+<h3>
+	<a id="how-we-measured" href="#how-we-measured" rel="nofollow">
+		
+	</a>
+	<span>
+		How we measured
+	</span>
+</h3>
+<p>Each model is compared under three conditions that are identical in every way except the code path:</p>
+<ol>
+<li><strong>native</strong> — <code>--model-impl vllm</code>, vLLM's hand-written model (the bar to match)</li>
+<li><strong>after</strong> — <code>--model-impl transformers</code> <em>with</em> the PR</li>
+<li><strong>before</strong> — <code>--model-impl transformers</code> <em>without</em> the PR</li>
+</ol>
+<p>The full, reproducible runner is available as a gist: <a href="https://huggingface.co/datasets/ariG23498/useful-scripts/blob/main/transformers-backend-vllm-benchmark.sh"><code>benchmark.sh</code></a></p>
+<h2>
+	<a id="so-whats-new" href="#so-whats-new" rel="nofollow">
+		
+	</a>
+	<span>
+		So, what's new?
+	</span>
+</h2>
+<p>The transformers modeling backend for vLLM used to focus on <em>attention</em> as the bottleneck for inference. By plugging vLLM’s attention implementation at runtime, we could make a transformers model run efficiently inside the vLLM engine. But there are many dimensions to deployments that only a custom port can target to extract maximum inference performance. Parallelization across GPUs, compilation, fused kernels, and many more, all contribute to leveraging your hardware to achieve ultra-fast inference.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/vllm-backend/previous-pipeline.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/vllm-backend/previous-pipeline.png" alt="New model integration to transformers and vLLM"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>A new model used to be integrated once for transformers, and once for vLLM with custom optimizations</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>When model authors wanted the absolute best performance, they were still writing custom vLLM implementations.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/vllm-backend/current-pipeline.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/vllm-backend/current-pipeline.png" alt="New model integrates to transformers, and is immediately available to vLLM"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>A new model once integrated to transformers, can now be immediately used in vLLM with native vLLM implementation speed</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The latest iteration of the transformers modeling backend for vLLM dynamically applies inference specific layer fusions at runtime to match the speed of custom code implementations, for compatible architectures.</p>
+<h2>
+	<a id="how-does-it-work" href="#how-does-it-work" rel="nofollow">
+		
+	</a>
+	<span>
+		How does it work?
+	</span>
+</h2>
+<p>The transformers modeling backend for vLLM now uses <code>torch.fx</code> to perform static analysis on the model’s graph. This process searches for known patterns that can be optimised. After any patterns have been identified, it uses ast (abstract syntax tree) to manipulate the source code and rewrite some of the operations in place.</p>
+<p><strong>What can we achieve with this?</strong></p>
+<ul>
+<li>Fused operations that are many-to-one mapped to (ultra) optimized vLLM kernels, such as the ones used for Expert Parallelization (EP) in Mixture-of-Experts (MoE) models.</li>
+<li>The main other fused operations are vLLM's <code>MergedColumnParallelLinear</code> and <code>QKVParallelLinear</code>. These blocks allow us to infer parallel plans for TP (tensor-parallel). PP (pipeline-parallel) plans can also be inferred if the decoder block list is easily identifiable.</li>
+<li>The manipulated models are still fully (torch) compilable, being passed through <code>torch.compile</code> and CUDA Graphs, just the same as a dedicated vLLM model implementation.</li>
+<li>Unlike vLLM model implementations, Transformers model implementations can be used in <strong>training</strong>. So you can use the same model code for training/evals/RL rollouts.</li>
+</ul>
+<p>As shown above, this results in native vLLM inference speed for compatible models, without having to write a single line of code to optimize the model for inference.</p>
+<blockquote>
+<p>We are in the process of writing a detailed blog post to dive deep inside these optimized inference methods and explain in detail how we manipulate the model to adapt to them.</p>
+</blockquote>
+<h2>
+	<a id="resources" href="#resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Resources
+	</span>
+</h2>
+<ul>
+<li><a href="https://huggingface.co/blog/transformers-model-definition#a-model-definition-library">Transformers model definition</a></li>
+<li><a href="https://vllm.ai/blog/2025-04-11-transformers-backend" rel="nofollow">Transformers modeling backend in vLLM</a></li>
+<li><a href="https://vllm.ai/blog/2025-12-17-large-scale-serving" rel="nofollow">Large scale serving</a></li>
+<li><a href="https://docs.pytorch.org/docs/2.12/fx.html" rel="nofollow">Torch FX</a></li>
+<li><a href="https://docs.python.org/3/library/ast.html" rel="nofollow">Abstract syntax tree</a></li>
+</ul>
+</div></div>

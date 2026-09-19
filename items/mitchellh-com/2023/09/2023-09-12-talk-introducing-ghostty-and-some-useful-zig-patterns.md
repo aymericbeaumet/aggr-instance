@@ -134,6 +134,228 @@ images:
     width: 48
     height: 27
   color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-15.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-e7b231a93b25.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-16.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-44df2afc443b.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-17.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-32e9ed333406.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-18.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-e65cb14cae58.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-19.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-f450dab2bae0.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-20.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-5faf9659ded7.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-21.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-37ac8248b4d0.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-22.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-4a700eccb06a.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-23.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-1beb3d594f17.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-24.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-10a09f877b86.png
+    width: 2880
+    height: 1620
+  color: '#272b32'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-25.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-a04cd5d2ee5b.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-26.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-fea0e7081529.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-27.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-5faf9659ded7.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-28.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-0aae000594f3.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-29.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-b04415179b61.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-30.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-31fc202dec98.png
+    width: 2880
+    height: 1620
+  color: '#272b32'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-31.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-f9921ec02541.png
+    width: 2880
+    height: 1620
+  color: '#272b32'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-32.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-518fec25f8f5.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-33.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-92f4a49bccc2.png
+    width: 2880
+    height: 1620
+  color: '#272b32'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-34.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-fc1cadafe209.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-35.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-92c842565a4d.png
+    width: 2880
+    height: 1620
+  color: '#272b32'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-36.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-b43b5d5d061e.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-37.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-4022c5ec0aaf.png
+    width: 2880
+    height: 1620
+  color: '#272b32'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-38.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-613e657564ac.png
+    width: 2880
+    height: 1620
+  color: '#282b32'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-39.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-adbf3261d9d6.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-40.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-81cf809cfc37.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-41.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-2e405f67fa1c.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-42.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-6f0a1e6ffaef.png
+    width: 2880
+    height: 1620
+  color: '#272b32'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-43.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-4aeda450a2e7.png
+    width: 2880
+    height: 1620
+  color: '#282b32'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-44.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-5be33b832c6f.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-45.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-f27004ac1cb1.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-46.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-f7b51b7ae58e.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-47.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-6dd29a0da6c3.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-48.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-7c52e52e1e39.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-49.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-5cc41a32fc82.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-50.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-214633eb9348.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
+- source: https://mitchellh.com/_next/image?url=https%3A%2F%2Fstatic.mitchellh.com%2Fghostty%2Fzig-showtime%2Fslide-51.png&w=3840&q=75
+  original:
+    file: 2023-09-12-talk-introducing-ghostty-and-some-useful-zig-patterns.image-022f7132f36c.png
+    width: 2880
+    height: 1620
+  color: '#282c33'
 ---
 
 This is the text format of a talk I did for [Zig Showtime](https://zig.show). If you'd rather watch the video, you can find it on YouTube: [Zig Showtime: Ghostty](https://youtu.be/l_qY2p0OH9A?t=331). The video also includes a Q&A session at the end which I did not include in this post.

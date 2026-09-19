@@ -1,0 +1,117 @@
+<div id="readability-page-1" class="page"><div>
+<p>DeepSeek released V4 today. Two MoE checkpoints are on the Hub: DeepSeek-V4-Pro at 1.6T total parameters with 49B active, and DeepSeek-V4-Flash at 284B total with 13B active. Both have a 1M-token context window. The benchmark numbers are competitive, but not SOTA. It doesn't matter. The real innovation is how DeepSeek v4 is designed for efficient large context length support, and hence as one of the best candidates for agentic tasks.</p>
+<p>Focusing on long running agentic workloads. Running a frontier open model as an agent today breaks in predictable ways. The model stops. You reprompt. The trace blows past the context budget, or the KV cache fills the GPU, or tool-call round trips degrade halfway through a long task. <strong>V4 is built to fix these known failures</strong>, and point the way for the community to follow.</p>
+<p>This post covers three things: what the architecture does differently to make long-context inference cheap, the agent-specific post-training decisions that compound on top of it, and some takeaways from the paper that help reason about these changes.  </p>
+<h2>
+	<a id="the-kv-cache-problem-for-agents" href="#the-kv-cache-problem-for-agents" rel="nofollow">
+		
+	</a>
+	<span>
+		The KV cache problem for agents
+	</span>
+</h2>
+<p>A 1M context window is just capacity, not performance. Whether you can use it depends on the cost of every forward pass at that depth. For an agent running a long tool-use trajectory (a SWE-bench task, a multi-step browse session, a terminal session with hundreds of commands), every tool result is appended to the context, and every subsequent token pays the full attention cost against everything that came before.</p>
+<p>Two numbers matter: single-token inference FLOPs and KV cache size. Both grow with sequence length. At 1M tokens, DeepSeek-V4-Pro requires 27% of single-token inference FLOPs compared with DeepSeek-V3.2, so it runs faster on the same hardware. It also uses 10% of the KV cache memory. V4-Flash drops these numbers even further: 10% of the FLOPs and 7% of the KV cache.</p>
+<p>If we compare the KV cache memory against a established architecture like grouped query attention with 8 heads, stored in the usual bfloat16 format, DeepSeek v4 requires roughly 2% the cache size. This makes it much easier to deploy for very large context handling.</p>
+<p><a href="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig1_efficiency.png" rel="nofollow"><img src="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig1_efficiency.png" alt="Figure 1 from the DeepSeek-V4 technical report, benchmarks on the left, inference FLOPs and KV cache scaling on the right"></a>
+<em>Figure 1: benchmark comparison (left), per-token FLOPs and accumulated KV cache against sequence length (right).</em></p>
+<h2>
+	<a id="hybrid-attention-csa-and-hca" href="#hybrid-attention-csa-and-hca" rel="nofollow">
+		
+	</a>
+	<span>
+		Hybrid attention: CSA and HCA
+	</span>
+</h2>
+<p>The efficiency gain comes from splitting attention into two mechanisms and interleaving them across layers.</p>
+<p><strong>Compressed Sparse Attention (CSA)</strong> compresses KV entries by 4x along the sequence dimension using softmax-gated pooling with a learned positional bias. A lightning indexer (FP4, ReLU-scored multi-head dot product) picks the top-k compressed blocks per query. It inherits the sparse-selection idea from DeepSeek Sparse Attention in V3.2, but runs it over blocks that are already 4x shorter than the original sequence. The indexer's search space shrinks with it.</p>
+<p><a href="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig3_csa.png" rel="nofollow"><img src="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig3_csa.png" alt="Figure 3: Compressed Sparse Attention, showing compressor, lightning indexer over compressed blocks, and sliding-window branch"></a>
+<em>Figure 3: CSA. The compressor collapses every 4 tokens into one compressed KV entry. The lightning indexer picks the top-k compressed blocks per query. A sliding-window branch handles the most recent uncompressed tokens.</em></p>
+<p><strong>Heavily Compressed Attention (HCA)</strong> compresses KV entries by 128x and drops the sparse selection. Every query attends densely to every compressed block. The compressed sequence is short enough that dense attention is cheap.</p>
+<p><a href="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig4_hca.png" rel="nofollow"><img src="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig4_hca.png" alt="Figure 4: Heavily Compressed Attention, 128x compression with dense MQA over compressed blocks"></a>
+<em>Figure 4: HCA. A heavier compressor (128x vs. 4x) followed by dense attention over the compressed stream, with the same sliding-window branch for recency.</em></p>
+<p>The layers alternate between CSA and HCA. Different layers carry different attention patterns, and forcing one mechanism across all of them wastes capacity. In V4-Pro's 61-layer stack, layers 0–1 are HCA, layers 2–60 alternate CSA and HCA, and the MTP block at the end runs sliding-window only.</p>
+<p>Both paths use FP8 storage for most KV entries and BF16 only for the RoPE dimensions. The lightning indexer inside CSA runs in FP4. These storage choices compound with the compression ratios to produce the 2% KV cache figure.</p>
+<p><a href="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig2_architecture.png" rel="nofollow"><img src="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig2_architecture.png" alt="Figure 2: overall architecture, showing embedding, hybrid CSA/HCA attention, DeepSeekMoE, manifold-constrained hyper-connections"></a>
+<em>Figure 2: overall architecture. Attention layers alternate between CSA and HCA. Feed-forward layers use DeepSeekMoE. Residual connections are replaced with manifold-constrained hyper-connections (mHC).</em></p>
+<h2>
+	<a id="what-changes-for-agents" href="#what-changes-for-agents" rel="nofollow">
+		
+	</a>
+	<span>
+		What changes for agents
+	</span>
+</h2>
+<p>Efficient long-context attention is necessary for agent workflows but not sufficient. The paper describes three post-training and infrastructure choices that target agent use cases directly.</p>
+<h3>
+	<a id="interleaved-thinking-across-tool-calls" href="#interleaved-thinking-across-tool-calls" rel="nofollow">
+		
+	</a>
+	<span>
+		Interleaved thinking across tool calls
+	</span>
+</h3>
+<p>V3.2 kept reasoning traces across tool-result rounds but discarded them whenever a new user message arrived. For an agent handling a single user turn, this was fine. For multi-turn agentic workflows, where the user sends a follow-up after the agent has already chained several tool calls, the model lost its accumulated reasoning and had to reconstruct state.</p>
+<p>V4 preserves reasoning content across user message boundaries when the conversation contains tool calls. The model retains the complete reasoning history across all rounds, including across user turns. This allows a coherent, cumulative chain of thought over long-horizon agent tasks. For conversational use without tools, the old behavior is preserved: reasoning is flushed on each turn to keep context concise.</p>
+<p><a href="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig7_thinking.png" rel="nofollow"><img src="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig7_thinking.png" alt="Figure 7: thinking management, with tools (top) preserves reasoning across turns; without tools (bottom) discards reasoning at each new user message"></a>
+<em>Figure 7: thinking with tools (top) preserves reasoning across all turns. Thinking without tools (bottom) discards reasoning at each new user message.</em></p>
+<h3>
+	<a id="tool-call-schema-with-dedicated-tokens" href="#tool-call-schema-with-dedicated-tokens" rel="nofollow">
+		
+	</a>
+	<span>
+		Tool-call schema with dedicated tokens
+	</span>
+</h3>
+<p>V4 introduces a <code>|DSML|</code> special token and an XML-based tool-call format. The XML format reduces escaping failures compared to JSON-in-string tool calls, a common failure mode when models emit nested quoted content.</p>
+<p>The schema separates string parameters (passed as-is with <code>string="true"</code>) from structured parameters (passed as JSON with <code>string="false"</code>). This removes a class of parsing errors around numbers and booleans that JSON tool-call formats routinely hit.</p>
+<h3>
+	<a id="dsec-a-sandbox-built-for-rl-rollouts" href="#dsec-a-sandbox-built-for-rl-rollouts" rel="nofollow">
+		
+	</a>
+	<span>
+		DSec: a sandbox built for RL rollouts
+	</span>
+</h3>
+<p>The agent behavior was trained with RL against real tool environments. The paper describes the sandbox infrastructure built for that purpose. DeepSeek Elastic Compute (DSec) is a Rust platform that exposes four execution substrates behind one Python SDK: function calls, containers, microVMs (Firecracker), and full VMs (QEMU). A single cluster runs hundreds of thousands of concurrent sandboxes.</p>
+<p>Three DSec features matter for agent training: fast image loading via layered 3FS storage (so RL rollouts do not wait on container startup), preemption-safe trajectory replay (so interrupted training steps resume without re-running tool calls), and a uniform API across substrates (so training harnesses target function calls or full VMs without rewriting). These infrastructure decisions underpin the agent benchmark scores.</p>
+<h2>
+	<a id="agent-benchmark-results" href="#agent-benchmark-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Agent benchmark results
+	</span>
+</h2>
+<p>The knowledge and reasoning numbers are competitive but not leading. The agent numbers are where V4-Pro-Max separates from the field.</p>
+<p><a href="https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/resolve/main/assets/dsv4_performance.png" rel="nofollow"><img src="https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/resolve/main/assets/dsv4_performance.png" alt="DeepSeek-V4-Pro-Max benchmark comparison across frontier models"></a></p>
+<p>Specific numbers from the agent section of Table 6:</p>
+<ul>
+<li>Terminal Bench 2.0: V4-Pro-Max scores 67.9, ahead of GLM-5.1 (63.5) and K2.6 (66.7), behind GPT-5.4-xHigh (75.1) and Gemini-3.1-Pro (68.5).</li>
+<li>SWE Verified: 80.6 resolved, within a point of Opus-4.6-Max (80.8) and Gemini-3.1-Pro (80.6).</li>
+<li>MCPAtlas Public: 73.6, second only to Opus-4.6-Max (73.8).</li>
+<li>Toolathlon: 51.8, ahead of K2.6 (50.0), GLM-5.1 (40.7), and Gemini-3.1-Pro (48.8).</li>
+</ul>
+<p>In the paper's internal R&amp;D coding benchmark, 30 curated tasks across PyTorch, CUDA, Rust, and C++, V4-Pro-Max hits 67% pass rate, versus 47% for Sonnet 4.5 and 70% for Opus 4.5. In a survey of 85 DeepSeek developers using V4-Pro as their daily driver, 52% said it was ready to replace their current primary coding model and 39% leaned toward yes.</p>
+<p>The long-context retrieval numbers are in Figure 9. MRCR 8-needle accuracy stays above 0.82 through 256K tokens and holds at 0.59 at 1M.</p>
+<p><a href="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig9_mrcr.png" rel="nofollow"><img src="https://huggingface.co/buckets/burtenshaw/deepseek-v4-figures/resolve/v4_fig9_mrcr.png" alt="Figure 9: MRCR 8-needle retrieval performance across context lengths up to 1M tokens"></a>
+<em>Figure 9: MRCR 8-needle retrieval. V4-Pro-Max stays above 0.82 through 256K and holds at 0.59 at 1M.</em></p>
+<h2>
+	<a id="using-the-models" href="#using-the-models" rel="nofollow">
+		
+	</a>
+	<span>
+		Using the models
+	</span>
+</h2>
+<p>Four checkpoints are on the Hub. The instruct models use FP4 for MoE expert weights and FP8 for everything else. The base models are FP8 throughout.</p>
+<ul>
+<li><a href="https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro">deepseek-ai/DeepSeek-V4-Pro</a> (1.6T / 49B activated, instruct)</li>
+<li><a href="https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash">deepseek-ai/DeepSeek-V4-Flash</a> (284B / 13B activated, instruct)</li>
+<li><a href="https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-Base">deepseek-ai/DeepSeek-V4-Pro-Base</a> (1.6T / 49B activated, base)</li>
+<li><a href="https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-Base">deepseek-ai/DeepSeek-V4-Flash-Base</a> (284B / 13B activated, base)</li>
+</ul>
+<p>Both instruct models support three reasoning modes: Non-think (fast, no chain of thought), Think High (explicit reasoning in <code>&lt;think&gt;</code> blocks), and Think Max (maximum reasoning effort with a dedicated system prompt). Think Max requires a context window of at least 384K tokens. The recommended sampling parameters across all modes are <code>temperature=1.0, top_p=1.0</code>.</p>
+<p>The V4-Pro numbers on SWE Verified, MCPAtlas, and the internal R&amp;D benchmark put it at parity with frontier closed models on agent tasks. The open question is how the community's tool harnesses adapt to the <code>|DSML|</code> schema and whether the interleaved thinking gains transfer to out-of-domain agent frameworks.</p>
+<p>Figures in this blog post are from the technical report at <a href="https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/blob/main/DeepSeek_V4.pdf">DeepSeek_V4.pdf</a>.</p>
+</div></div>

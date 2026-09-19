@@ -1,0 +1,160 @@
+---
+title: Redis 6 RC1 is out today
+link: http://antirez.com/news/131
+source: antirez-com
+published: 2019-12-19T16:27:00Z
+updated: 2019-12-19T16:27:00Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+summary: 'So it happened again, a new Redis version reached the release candidate status, and in a few months it will hit the shelves of most supermarkets. I guess this is the most “enterprise” Redis version to date, and it’s funny since I took quite some time in order to understand what “enterprise” ever meant. I think it’s word I genuinely dislike, yet it has some meaning. Redis is now everywhere, and it is still considerably able to “scale down”: you can still download it, compile it in 30 seconds, and run it without any configuration to start hacking. But being everywhere also means being in environments where things like encryption and ACLs are a must, so Redis, inevitably, and more than thanks to me, I would say, in spite of my extreme drive for simplicity, adapted. But what’s interesting is that, even additions may be done in very opinionated ways. Redis ACLs hardly resemble something you saw in other systems, and SSL support was written in a few iterations in order to finally pick the idea that was the most sounding, from the point of view of letting the core as clean as possible. I’m quite happy with the result. Redis 6 does not bring just ACLs and SSL, it is the largest release of Redis ever as far as I can tell, and the one where the biggest amount of people participated. So, let’s start with credits. Who made Redis 6? This is the list of contributors by commits (it’s a terrible metric, but the one I can easily generate), having at least two commits, and excluding merge commits. Also note that the number of commits in my case may be inflated a lot by the fact that I fix many small stuff here and there constantly. 685 antirez 81 zhaozhao.zz 76 Oran Agra 51 artix 28 Madelyn Olson 27 Yossi Gottlieb 15 David Carlier 14 Guy Benoish 14 Guy Korland 13 Itamar Haber 9 Angus Pearson 8 WuYunlong 8 yongman 7 vattezhang 7 Chris Lamb 5 Dvir Volk 5 meir@redislabs.com 5 chendianqiang 5 John Sully 4 dejun.xdj 4 Daniel Dai 4 Johannes Truschnigg 4 swilly22 3 Bruce Merry 3 filipecosta90 3 youjiali1995 2 James Rouzier 2 Andrey Bugaevskiy 2 Brad Solomon 2 Hamid Alaei 2 Michael Chaten 2 Steve Webster 2 Wander Hillen 2 Weiliang Li 2 Yuan Zhou 2 charsyam 2 hujie 2 jem 2 shenlongxing 2 valentino 2 zhudacai 00228490 2 喜欢兰花山丘 Thanks to all the above folks, it was a great team work ladies and gentlemen. The list of new features in the change log is the following: * Many new modules APIs. * Better expire cycle. * SSL * ACLs * RESP3 * Client side caching * Threaded I/O * Diskless replication on replicas * Redis-benchmark cluster support + Redis-cli improvements * Systemd support rewrite. * Redis Cluster proxy was released with Redis 6 (but different repository). * A Disque module was released with Redis 6 (but different repository). Many big things, as you can see. I’ll spend a few words on selected ones. RESP3 === After ten years we needed a new protocol, I talked extensively about it here http://antirez.com/news/125, but then changed my mind, so the RESP3 protocol in Redis 6 is “opt in”. The connection starts in RESP2 mode, and only if you do a handshake using the new HELLO command, you enter in the new protocol mode. Why a new protocol? Because the old one was not semantical enough. There are other features in RESP3, but the main idea was the ability to return complex data types from Redis directly, without the client having to know in what type to convert the flat arrays returned, or the numbers returned instead of proper boolean values, and so forth. Since RESP3 is not the only protocol supported I expect the adoption to be slower than expected, but maybe this is not a bad thing after all: we’ll have time to adapt. ACLs === The best introduction to Redis ACLs is the ACL documentation itself (https://redis.io/topics/acl), even if probably it needs some update to match the last minute changes. So it’s more interesting to talk about motivations here. Redis needed ACLs because people need ACLs in bigger environments, in order to control better which client can do certain operations. But another main point about adding ACLs to Redis was isolation in order to defend the data against application bugs. If your worker can only do BRPOPLPUSH, the chance of the new developer adding for debugging a FLUSHALL that ends in production code for error and creates a nightmare for 5 hours, is lower. ACLs in Redis are for free, both operationally, because if you don’t use them, you can avoid knowing they are supported at all, and from the point of view of performances, since the overhead is not measurable. I guess it’s a good deal to have them. Bonus point, we have a Redis modules interface for ACLs now, so you can write custom authentication methods. SSL === It’s 2019, almost 2020, and there are new regulations. The only problem was doing it right. And doing it right required doing it wrong, understanding the limitations, and then abstracting the Redis connections in order to do it right. This work was entirely performed without my help, which shows how the Redis development process changed in recent times. Client side caching === I blogged about it here http://antirez.com/news/130, however I think that right now this is the most immature feature of Redis 6. Yep, it’s cool that the server can assist you in caching client side values, but I want to improve this before Redis 6 GA is out. Especially it could be very good to add a new mode that requires the server to maintain no state about clients, or very little state at all, and trade this with more messages. Moreover right now the messages to expire certain “cache slots” can’t be compiled in a single one. There is more work to do in January about this feature, but it will be a good one. Disque as a module === Finally I did it :-) https://github.com/antirez/disque-module, and I’m very happy with the result. Disque as a module really shows how powerful is the Redis module system at this point. Cluster message bus APIs, ability to block and resume clients, timers, AOF and RDB control of module private data. If you don’t know what Disque is, check the repository: the README is quite extensive. Cluster Proxy === My colleague Fabio worked for months at this Redis Cluster proxy: https://github.com/artix75/redis-cluster-proxy. It is ages that I want to see it happening, the client landscape is very fragmented when the topic is Redis Cluster support, so now we have a (work in progress) proxy that can do many interesting things. The main one is to abstract the Redis Cluster for clients, like if they were talking to a single instance. Another one is to perform multiplexing, at least when it is simple and clients just use simple commands and features. When there is to block or to perform transactions, the proxy allocates a different set of connections for the client. The proxy is also completely threaded, so it can be a good way in order to maximize the CPU usage in case most of your CPU time is spent in I/O. Check the project README for status and give it a try! Modules === With Redis 6 the modules API is totally at a new level. This is one of the part of Redis that matured faster in our history, because Redis Labs used the modules system from day zero in order to develop very complex stuff, not just trivial examples. Some time ago I started the Disque port, and this also motivated to bring me new features to the modules system. The result is that Redis is really a framework in order to write systems as modules, without having to invent everything from scratch, and being BSD licensed, Redis is really an open platform to write systems. Internals === There are tons of improvements to the Redis internals: the way commands are replicated changed quite a bit, the expires are now using a different algorithm which is faster and more cache obvious. Status and ETA === Today we went RC1, and I hope that between end of March, or at worst, May, you’ll see the GA ready. Right now Redis 6 is definitely testable and the chance you run into a bug is very small. Yet it includes a ton of code changes, and the new features are composed of new code that nobody ran in production before. So if you find bad things, please report them in the issue system describing at your best what happened. Thanks everybody that made this release possible and that will work in the next months to bring it to a very stable state. Oh, I almost forgot! This is the LOLWUT command interactive art for version 6: img://antirez.com/misc/lolwut6.png Every run displays a different landscape that is randomly generated. Comments'
+content: extracted
+html: 2019-12-19-redis-6-rc1-is-out-today.html
+preview:
+  file: 2019-12-19-redis-6-rc1-is-out-today.preview-4af1f21a60ff.webp
+  width: 256
+  height: 152
+  color: '#666666'
+images:
+- source: http://antirez.com/misc/lolwut6.png
+  original:
+    file: 2019-12-19-redis-6-rc1-is-out-today.image-dc0bd68d0275.png
+    width: 800
+    height: 476
+  color: '#040404'
+---
+
+## [Redis 6 RC1 is out today](https://antirez.com/news/131)
+
+[antirez](https://antirez.com/user/antirez) 2466 days ago. 172899 views.
+
+```
+So it happened again, a new Redis version reached the release candidate status, and in a few months it will hit the shelves of most supermarkets. I guess this is the most “enterprise” Redis version to date, and it’s funny since I took quite some time in order to understand what “enterprise” ever meant. I think it’s word I genuinely dislike, yet it has some meaning. Redis is now everywhere, and it is still considerably able to “scale down”: you can still download it, compile it in 30 seconds, and run it without any configuration to start hacking. But being everywhere also means being in environments where things like encryption and ACLs are a must, so Redis, inevitably, and more than thanks to me, I would say, in spite of my extreme drive for simplicity, adapted.
+
+But what’s interesting is that, even additions may be done in very opinionated ways. Redis ACLs hardly resemble something you saw in other systems, and SSL support was written in a few iterations in order to finally pick the idea that was the most sounding, from the point of view of letting the core as clean as possible. I’m quite happy with the result.
+
+Redis 6 does not bring just ACLs and SSL, it is the largest release of Redis ever as far as I can tell, and the one where the biggest amount of people participated. So, let’s start with credits. Who made Redis 6? This is the list of contributors by commits (it’s a terrible metric, but the one I can easily generate), having at least two commits, and excluding merge commits. Also note that the number of commits in my case may be inflated a lot by the fact that I fix many small stuff here and there constantly.
+
+   685  antirez
+    81  zhaozhao.zz
+    76  Oran Agra
+    51  artix
+    28  Madelyn Olson
+    27  Yossi Gottlieb
+    15  David Carlier
+    14  Guy Benoish
+    14  Guy Korland
+    13  Itamar Haber
+     9  Angus Pearson
+     8  WuYunlong
+     8  yongman
+     7  vattezhang
+     7  Chris Lamb
+     5  Dvir Volk
+     5  meir@redislabs.com
+     5  chendianqiang
+     5  John Sully
+     4  dejun.xdj
+     4  Daniel Dai
+     4  Johannes Truschnigg
+     4  swilly22
+     3  Bruce Merry
+     3  filipecosta90
+     3  youjiali1995
+     2  James Rouzier
+     2  Andrey Bugaevskiy
+     2  Brad Solomon
+     2  Hamid Alaei
+     2  Michael Chaten
+     2  Steve Webster
+     2  Wander Hillen
+     2  Weiliang Li
+     2  Yuan Zhou
+     2  charsyam
+     2  hujie
+     2  jem
+     2  shenlongxing
+     2  valentino
+     2  zhudacai 00228490
+     2  喜欢兰花山丘
+
+Thanks to all the above folks, it was a great team work ladies and gentlemen.
+The list of new features in the change log is the following:
+
+* Many new modules APIs.
+* Better expire cycle.
+* SSL
+* ACLs
+* RESP3
+* Client side caching
+* Threaded I/O
+* Diskless replication on replicas
+* Redis-benchmark cluster support + Redis-cli improvements
+* Systemd support rewrite.
+* Redis Cluster proxy was released with Redis 6 (but different repository).
+* A Disque module was released with Redis 6 (but different repository).
+
+Many big things, as you can see. I’ll spend a few words on selected ones.
+
+RESP3
+===
+
+After ten years we needed a new protocol, I talked extensively about it here http://antirez.com/news/125, but then changed my mind, so the RESP3 protocol in Redis 6 is “opt in”. The connection starts in RESP2 mode, and only if you do a handshake using the new HELLO command, you enter in the new protocol mode.
+
+Why a new protocol? Because the old one was not semantical enough. There are other features in RESP3, but the main idea was the ability to return complex data types from Redis directly, without the client having to know in what type to convert the flat arrays returned, or the numbers returned instead of proper boolean values, and so forth.
+
+Since RESP3 is not the only protocol supported I expect the adoption to be slower than expected, but maybe this is not a bad thing after all: we’ll have time to adapt.
+
+ACLs
+===
+
+The best introduction to Redis ACLs is the ACL documentation itself (https://redis.io/topics/acl), even if probably it needs some update to match the last minute changes. So it’s more interesting to talk about motivations here. Redis needed ACLs because people need ACLs in bigger environments, in order to control better which client can do certain operations. But another main point about adding ACLs to Redis was isolation in order to defend the data against application bugs. If your worker can only do BRPOPLPUSH, the chance of the new developer adding for debugging a FLUSHALL that ends in production code for error and creates a nightmare for 5 hours, is lower.
+
+ACLs in Redis are for free, both operationally, because if you don’t use them, you can avoid knowing they are supported at all, and from the point of view of performances, since the overhead is not measurable. I guess it’s a good deal to have them. Bonus point, we have a Redis modules interface for ACLs now, so you can write custom authentication methods.
+
+SSL
+===
+
+It’s 2019, almost 2020, and there are new regulations. The only problem was doing it right. And doing it right required doing it wrong, understanding the limitations, and then abstracting the Redis connections in order to do it right. This work was entirely performed without my help, which shows how the Redis development process changed in recent times.
+
+Client side caching
+===
+
+I blogged about it here http://antirez.com/news/130, however I think that right now this is the most immature feature of Redis 6. Yep, it’s cool that the server can assist you in caching client side values, but I want to improve this before Redis 6 GA is out. Especially it could be very good to add a new mode that requires the server to maintain no state about clients, or very little state at all, and trade this with more messages. Moreover right now the messages to expire certain “cache slots” can’t be compiled in a single one. There is more work to do in January about this feature, but it will be a good one.
+
+Disque as a module
+===
+
+Finally I did it :-) https://github.com/antirez/disque-module, and I’m very happy with the result.
+Disque as a module really shows how powerful is the Redis module system at this point. Cluster message bus APIs, ability to block and resume clients, timers, AOF and RDB control of module private data. If you don’t know what Disque is, check the repository: the README is quite extensive.
+
+Cluster Proxy
+===
+
+My colleague Fabio worked for months at this Redis Cluster proxy: https://github.com/artix75/redis-cluster-proxy.
+It is ages that I want to see it happening, the client landscape is very fragmented when the topic is Redis Cluster support, so now we have a (work in progress) proxy that can do many interesting things. The main one is to abstract the Redis Cluster for clients, like if they were talking to a single instance. Another one is to perform multiplexing, at least when it is simple and clients just use simple commands and features. When there is to block or to perform transactions, the proxy allocates a different set of connections for the client. The proxy is also completely threaded, so it can be a good way in order to maximize the CPU usage in case most of your CPU time is spent in I/O. Check the project README for status and give it a try!
+
+Modules
+===
+
+With Redis 6 the modules API is totally at a new level. This is one of the part of Redis that matured faster in our history, because Redis Labs used the modules system from day zero in order to develop very complex stuff, not just trivial examples. Some time ago I started the Disque port, and this also motivated to bring me new features to the modules system. The result is that Redis is really a framework in order to write systems as modules, without having to invent everything from scratch, and being BSD licensed, Redis is really an open platform to write systems.
+
+Internals
+===
+
+There are tons of improvements to the Redis internals: the way commands are replicated changed quite a bit, the expires are now using a different algorithm which is faster and more cache obvious.
+
+Status and ETA
+===
+
+Today we went RC1, and I hope that between end of March, or at worst, May, you’ll see the GA ready.
+Right now Redis 6 is definitely testable and the chance you run into a bug is very small. Yet it includes a ton of code changes, and the new features are composed of new code that nobody ran in production before. So if you find bad things, please report them in the issue system describing at your best what happened.
+
+Thanks everybody that made this release possible and that will work in the next months to bring it to a very stable state.
+
+Oh, I almost forgot! This is the LOLWUT command interactive art for version 6:
+
+
+
+Every run displays a different landscape that is randomly generated.
+```
+
+[blog comments powered by Disqus](https://disqus.com)

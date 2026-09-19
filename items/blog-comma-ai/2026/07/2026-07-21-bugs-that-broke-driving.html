@@ -1,0 +1,146 @@
+<div id="readability-page-1" class="page"><div>
+      <header>
+        
+        
+<p>
+  
+    <span>
+      
+      <time datetime="2026-07-21T20:00:00+00:00">July 21, 2026</time>
+    </span>
+  
+  <span></span>
+  
+    <span>
+      
+      11 minute read
+    </span>
+  
+</p>
+
+
+      </header>
+      <section itemprop="text">
+        <p>All software is riddled with bugs, and usually bad software is bad because of those bugs, not because of bad algorithmic choices. openpilot is no different; we’ve made great progress over the years by implementing new exciting ML techniques, but most of the driving improvements came from discovering and fixing blatant bugs. Here I walk through some of the most entertaining bugs through the years.</p>
+<h2 id="openpilot-drifts-right">openpilot drifts right<a href="#openpilot-drifts-right" title="Permalink"><span>Permalink</span><i></i></a></h2>
+
+
+
+
+
+
+<p>In 2017 comma was not a mature company. We had few users, low quality logging, no metrics in training other than a unitless val loss, and no closed-loop simulation tests. As a result we generally had no clue what was going on with openpilot beyond obvious issues we noticed while driving with it. This is clear from these Slack messages showing we were aware of the driving model’s tendency to bias driving slightly to the right for months, with no root cause or satisfactory explanation.</p>
+
+
+
+
+<p>By the end of the year we did figure out the major cause of this bias. We trained models to predict the future driving trajectory, and lanelines. These targets were ground-truthed with a localizer that relied on gyro measurements, as well as other sensors. Gyros are usually biased, the Android stack we used automatically corrected for the bias when it detected the device was at rest. This meant that when openpilot started and the car was stationary the bias was corrected appropriately. However, when the car then started moving, the openpilot device would heat up causing the bias to change, but the device never came to rest again so the bias was never corrected. The bias correlation with temperature is similar for every device, so all data would skew the same direction. A more comprehensive localizer that accounted for bias accurately fixed this.</p>
+<h2 id="laneline-predictions-in-the-middle-of-the-lane">Laneline predictions in the middle of the lane<a href="#laneline-predictions-in-the-middle-of-the-lane" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/bug_stories/laneline_middle_of_road.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/bug_stories/laneline_middle_of_road.png" alt="Road-camera view with a false laneline through the center of the road.">
+  </picture>
+  <figcaption></figcaption>
+</figure>
+
+
+<p>In 2019 we started getting mysterious complaints of cars departing the lane on roads with clearly marked lanelines. This happened because at the time openpilot still relied on the lanelines for driving decisions, and as the image shows, in these cases it would inexplicably detect a laneline in the middle of the lane. After looking for some more cases like this, we found all examples were in situations with bright daylight.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/bug_stories/hood_reflection_laneline.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/bug_stories/hood_reflection_laneline.png" alt="Road-camera view with false lanelines drawn over reflections on a car hood.">
+  </picture>
+  <figcaption><p>White reflections at front of hood classified as lanelines</p></figcaption>
+</figure>
+<p>The issue became obvious when looking at several examples of the training data with this same flaw. In certain lighting conditions the sun can reflect on the hood showing a bright white area, this gets detected in the ground-truth stack as a laneline marking that is always just in front of the car, and thus gets reconstructed as a laneline in the middle of the road. By adding better ground-truth of specifically these examples to the laneline detector, we retrained the detector and trained a new driving model with the fix.</p>
+
+
+<h2 id="turn-cutting-in-highway-turns">Turn-cutting in highway turns<a href="#turn-cutting-in-highway-turns" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/bug_stories/double_yellow_tf_model.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/bug_stories/double_yellow_tf_model.png" alt="Night road scene with incorrect double-yellow lane predictions.">
+  </picture>
+  <figcaption></figcaption>
+</figure>
+
+
+<p>In October 2020 there were several complaints about openpilot crossing the inner laneline in turns. After looking at the examples they all appeared to happen in long sweeping turns at night, in all cases the driving model predictions for the path and lanelines that were biased towards the inside of the turn.</p>
+<p>An investigation into the ground-truth showed the localizer incorrectly computed the car’s motion in these cases. Some localizer debugging revealed that the headlights shining onto long continuous lanelines creates problems for the visual odometry. The ORB feature detector selected edges based on the headlight illumination that move vehicle with the vehicle. This means that in scenes where there are little other features for the ORB detector to track, the localizer relies only on these erroneous features causing the localizer to be consistently biased towards those inside of the turn. Smarter ORB feature matching and outlier rejection fixed this, and the retrained model addressed the complaints.</p>
+
+
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/bug_stories/garbage_orb.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/bug_stories/garbage_orb.png" alt="Night road scene showing tracked ORB points on a double-yellow line.">
+  </picture>
+  <figcaption><p>Poor ORB features on a double-yellow line.</p></figcaption>
+</figure>
+<h2 id="braking-blurs-the-image">Braking blurs the image<a href="#braking-blurs-the-image" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>Phone cameras use a voice coil actuator to move the lens for focus adjustment. This means the lens is not rigidly mounted to a focus position, but instead mounted on a spring and focus movements are achieved by applying a force with the actuator. This also means that if there are rapid accelerations of the device, focus will shift due to the inertial forces, and to maintain focus a compensatory force needs to be applied with the actuator.</p>
+
+
+<p>We had an algorithm that would compensate for this focus shift for the OnePlus phones we were using in comma devices in 2019. Later we switched to Leeco phones, but never re-evaluated the focus algorithm. As it turns out our compensation algorithm was causing significant blur during acceleration on these newer devices, and these phones needed no focus compensation at all. This algorithm caused exactly what it was designed to prevent!</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/bug_stories/brake_blur_side_by_side.mp4">
+  </video>
+  <figcaption><p>With sag compensation (left); without it (right), December 2021.</p></figcaption>
+</figure>
+
+<h2 id="driving-model-never-converges-to-good-highway-speeds">Driving model never converges to good highway speeds<a href="#driving-model-never-converges-to-good-highway-speeds" title="Permalink"><span>Permalink</span><i></i></a></h2>
+
+
+<p>When experimental mode was introduced in openpilot, openpilot did not decisively accelerate or brake to a good speeds on the highway. Instead in steady-state, it would just keep driving the speed it was initialized at. Which could for example cause it to drive 55mph forever on an empty long highway.</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/bug_stories/pitch_hard_brake_example.mp4">
+  </video>
+  <figcaption><p>Hard braking event at −9.5 m/s², notice the slight pitch movements as a result.</p></figcaption>
+</figure>
+
+<p>openpilot driving models are trained on-policy in a driving simulator. The inputs to the simulator are 6dof pose changes, we use this instead of actions (acceleration and curvature) so we have more fine-grained control over the physics of the simulation. We noticed that we needed to add a lot of pitch noise to the simulation for the model to learn to brake and accelerate.</p>
+
+
+<p>After investigation this was due to the tight coupling of pitch and acceleration. In any normal vehicle, acceleration causes pitch movements. This means acceleration must be simulated with an appropriate pitch change. This lack of realism in the simulator can be exploited by the student model that is trained in it. As the results below show, fixing these artifacts by simulating realistic pitch movements during simulated acceleration made the model perform much better at our speed convergence tests.</p>
+<figure><a href="https://blog.comma.ai/img/bug_stories/pitch_accel_baseline_report.png" title="Open image at full size">
+  <picture><source srcset="https://blog.comma.ai/img/bug_stories/pitch_accel_baseline_report.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/bug_stories/pitch_accel_baseline_report.png" alt="Baseline speed-convergence report showing that none of nine runs converged.">
+  </picture></a>
+  <figcaption><p>Baseline: 0 of 9 runs converged</p></figcaption>
+</figure>
+<figure><a href="https://blog.comma.ai/img/bug_stories/pitch_accel_coupled_report.png" title="Open image at full size">
+  <picture><source srcset="https://blog.comma.ai/img/bug_stories/pitch_accel_coupled_report.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/bug_stories/pitch_accel_coupled_report.png" alt="Speed-convergence report with realistic pitch-and-acceleration coupling showing two of six runs converged.">
+  </picture></a>
+  <figcaption><p>Realistic coupling: 2 of 6 runs converged</p></figcaption>
+</figure>
+<h2 id="runtime-performance-doesnt-match-train-time-tests">Runtime performance doesn’t match train-time tests<a href="#runtime-performance-doesnt-match-train-time-tests" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<figure><a href="https://blog.comma.ai/img/bug_stories/padding_border_comparison.png" title="Open image at full size">
+  <picture><source srcset="https://blog.comma.ai/img/bug_stories/padding_border_comparison.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/bug_stories/padding_border_comparison.png" alt="Side-by-side model inputs showing a replicated training border and a green zero-filled runtime border.">
+  </picture></a>
+  <figcaption></figcaption>
+</figure>
+
+
+<p>This bug is so good we wrote it 4 times. Over the years openpilot has supported various cameras and mounting configurations. As a result sometimes the models were trained to take in bigger images than were available in some configurations. To make this work, the images needed to be padded to fit to the model’s desired input shape. It is essential that the padding is the same during train-time and runtime, but the inference and training stacks are completely separate. Over the years they each changed frequently, and were poorly tested to match each other.</p>
+
+
+<p>Here are all the varieties of bugs with padding making runtime different from train-time causing regressed outputs:</p>
+<ul>
+<li>in 2021: <a href="https://github.com/commaai/openpilot/commit/fc1954492b860011ca3b02ca69793e1fc9407d26" target="_blank" rel="noopener noreferrer"><code>fc19544</code> (#22971)</a></li>
+<li>in 2024: <a href="https://github.com/commaai/openpilot/commit/8656ef12c5e90881c60f730617645a586d922d24" target="_blank" rel="noopener noreferrer"><code>8656ef1</code> (#31495)</a></li>
+<li>in 2026 <a href="https://github.com/commaai/openpilot/commit/f24ad7e27aaf90fd7a6dedc56a21648b191dc3fe" target="_blank" rel="noopener noreferrer"><code>f24ad7e</code> (#37986)</a></li>
+<li>also in 2026 <a href="https://github.com/commaai/openpilot/commit/4585e93066b86ef8afa0788b7d0dd7249c66932d" target="_blank" rel="noopener noreferrer"><code>4585e93</code> (#38091)</a></li>
+</ul>
+
+
+<h2 id="looking-back">Looking back<a href="#looking-back" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>A lot has changed since 2017, many of these bugs would be unlikely to make it to production with our current tooling and infrastructure. We will still write many silly bugs though, and if you like the idea of fixing those bugs, <a href="https://comma.ai/jobs" target="_blank" rel="noopener noreferrer">maybe you should come work here.</a></p>
+<p><em>Harald Schäfer</em><br>
+<em>CTO @ <a href="https://comma.ai" target="_blank" rel="noopener noreferrer">comma.ai</a></em></p>
+
+      </section>
+      
+      
+
+      
+    </div></div>

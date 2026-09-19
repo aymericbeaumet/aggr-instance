@@ -1,0 +1,141 @@
+<div id="readability-page-1" class="page"><div><article data-comment-id="111-" id="111-"><span><span><a href="https://antirez.com/user/antirez">antirez</a></span> 3494 days ago. 270055 views.  </span><pre>After 10 million of units sold, and practically an endless set of different applications and auxiliary devices, like sensors and displays, I think it’s deserved to say that the Raspberry Pi is not just a success, it also became one of the preferred platforms for programmers to experiment in the embedded space. Probably with things like the Pi zero, it is also becoming the platform in order to create hardware products, without incurring all the risks and costs of designing, building, and writing software for vertical devices.
+
+Well, I love to think that also Redis is a platform that programmers like to use when to hack, experiment, build new things. Moreover devices that can be used for embedded / IoT applications, often have the problem of temporarily or permanently storing data, for example received by sensors, on the device, to perform on-device computations or to send them to remote servers. Redis is adding a “Stream” data type that is specifically suited for streams of data and time series storage, at this point the specification is near complete and work to implement it will start in the next weeks. Redis existing data structures, and the new streams, together with the small memory footprint, the decent performances it can provide even while running on small hardware (and resulting low energy usage), looked like a good match for Raspberry Pi potential applications, and in general for small ARM devices. The missing piece was the obvious one: to run well on the Pi.
+
+One of the many cool things about the Pi is that its development environment does not look like the embedded development environments of a few years ago… It just runs Linux, with all the Debian-alike tooling you expect to find. Basically adapting Redis to work on the Pi was not a huge task. The most fundamental mismatch a Linux system program and the Pi could have, is a performance / footprint mismatch, but this a non issue because of the Redis design itself: an empty instance consumes a total of 1MB of Resident Set Size, serves queries from memory, so it is fast enough and does not stress the flash disk too much, and when persistence is needed, it uses AOF which has an append-only write pattern. However the Pi runs an ARM processor, and this requires some care when dealing with unaligned accesses.
+
+In this blog post, while showing you what I did to make Redis and Raspberry Pi more happy together, I’ll try to provide an overview about dealing with architectures that do not handle unaligned accesses transparently as the x86 platform does.
+
+A few things about ARM processors
+—
+
+The most interesting thing about porting Redis to ARM is that ARM processors are, or actually were… well, not big fans of unaligned memory accesses. If you live your life in high level programming, you may not know it, but many processor architectures were historically not able to load or store memory words in addresses not multiple of the word size. So if the word size is 4 bytes (in the case of a 32 bit processor), you may load or store a word at address 0x4, 0x8, and so forth, but not at address 0x7. The result is an exception sometimes, or an odd behavior some other time, depending on the CPU and its exact configuration.
+
+Then the x86 processors family ruled the world and everybody kinda forgot about this issue (if not for dealing with SEE instructions and alike, but now even those instructions have unaligned variants). Oh well, initially forgetting about the issue is not really what happened. Even if x86 processors could deal with unaligned accesses without raising an exception, doing so was a non trivial performance penalty: partial reads/writes at word boundary required to do the double of the work. But then recent x86 processors have optimizations that make unaligned accesses as fast as aligned accesses most of the times, so basically nowadays for x86 this is really Not An Issue.
+
+ARM was, up to ARM v5, one of that platforms where unaligned accesses caused strange results, and very unexpected ones, actually. From the ARM official documentation: “if the address is not a multiple of four, the LDR instruction returns a rotated result rather than performing a true unaligned word load. Generally, this rotation is not what the programmer expects.” Oh well *definitely* not what the programmer expects. However even the original Raspberry Pi had an ARM v6 processor. The v6, while incurring into performance penalty, is able to deal with word-sized unaligned accesses. However instructions that deal with multiple words will raise an exception, terminating the program with a signal bus, or asking for help by the kernel (as we’ll see later in more details). This means that Redis would not crash like crap immediately when running on the Pi, because most of the unaligned accesses performed by Redis were actually word-sized. However, from time to time, the compiler generated code to speedup the computation using multiple load/store instructions, or the Redis code itself tried to load/store 64 bit values from unaligned accesses. This normally would result into a crash, in theory, however Linux helps a bit in this regard.
+
+Instead of crashing, ask the kernel!
+—
+
+The Linux kernel, when running on an ARM processor, is able to help user processes to work as expected even when they execute operations on unaligned addresses that are normally not supported by the CPU. The way this is performed is by registering an handler inside the kernel for such exceptions: the kernel will check the operation that failed, and will simulate it in a function, so that the final result is like if the processor executed it, and then will resume the “offending” process that will continue to run.
+
+If you are into low level programming, this Linux kernel file is worth checking: <a rel="nofollow" href="http://lxr.free-electrons.com/source/arch/arm/mm/alignment.c">http://lxr.free-electrons.com/source/arch/arm/mm/alignment.c</a>
+
+The actual behavior of the kernel when an unaligned access exception is raised by the CPU, is controlled by the file /proc/cpu/alignment:
+
+$ cat /proc/cpu/alignment
+User:		0
+System:		12590 (ip6_datagram_recv_common_ctl+0xc8/0xd4 [ipv6])
+Skipped:	0
+Half:		0
+Word:		0
+DWord:		0
+Multi:		12590
+User faults:	2 (fixup)
+
+As you can see there are separated counters for all the unaligned accesses that were corrected by the kernel, both in user space and in kernel space. In the above case 12590 accesses where corrected in kernel space. No user land process was corrected. Note that the “User faults” line shows the kernel configuration about what to do when an user space process performs an unaligned access that the CPU cannot handle: it can fix the problem, send a SIGBUS, or log the even in the kernel logs. This is controlled by single bits of an integer that can be written into /proc/cpu/alignment, so for instance in order to log (other than fix) user space unaligned accesses one can use “echo 3 &gt; /proc/cpu/alignment” (bit 1 enables logging, bit 2 enables fixing).
+
+My feeling is that the Linux kernel enabled such a feature not much since the kernel developers were concerned with the poor user space programmers that were not able to deal with unaligned memory accesses, but because the kernel itself does not always performs unaligned accesses as you can see from the “System” counter. So this was the simplest way to fix the Linux port on ARM instead of checking every single place of the code.
+
+Given that Linux handles this transparently, one could be tempted to say, oh well… maybe there is nothing to fix here, Redis will just work as expected as long as we set /proc/cpu/alignment to fix things transparently. Actually this is not the case for two reasons:
+
+1. When an unaligned access is performed and fixed by the kernel, this results in *very* slow execution. The speed penalty is much larger than, for example, the second memory access needed when doing unaligned work-sized accesses. While this only happens with multiple loads and stores instructions, it is still a shame that in certain conditions Redis would be much slower than needed.
+
+2. The Linux kernel implementation of ARM misaligned accesses is not perfect. There is code that GCC will emit that contains instructions that are not handled well by Linux 4.4.34.
+
+A trivial example is this one:
+
+$ #include &lt;stdlib.h&gt;
+
+int main(int argc, char **argv) {
+        int count = 1000;
+        char *buf = malloc(count*sizeof(double));
+        double sum = 0;
+        double *l = (double*) (buf+1);
+        while(count--) {
+                l++;
+                sum += *l;
+        }
+        return 0;
+}
+
+$ gcc foo.c -g -ggdb
+$ ./a.out
+Bus error
+
+Even if the kernel configuration in my Pi is set to deal with unaligned accesses and fix them, still the program received a SIGBUS!
+Let’s see where this happens with GDB:
+
+$ gdb ./a.out
+(gdb) run
+
+Program received signal SIGBUS, Bus error.
+0x00010484 in main (argc=1, argv=0xbefff3b4) at foo.c:10
+10	                sum += *l;
+
+Well it’s in the inner loop when our non aligned double pointer is deferenced, as expected.
+But we may want to check further what’s happening, checking the ARM instruction that generated the exception:
+
+(gdb) x/i $pc
+=&gt; 0x10484 &lt;main+100&gt;:	vldr	d6, [r11, #-20]	; 0xffffffec
+
+The VLDR instruction is used in order to load an extension register from a memory location, and is used for floating point math. For some reason the Linux kernel implementation of unaligned accesses correction, is not able to handle this instruction (I guess the implementation is just not complete as it should). The “dmesg” command will indeed show that the instruction was not recognized by the function that fixes the unaligned accesses:
+
+[317778.925569] Alignment trap: not handling instruction ed937b00 at [&lt;00010480&gt;]
+[317778.925610] Unhandled fault: alignment exception (0x011) at 0x01cb8011
+
+So, if the default C compiler in the Pi could emit code that the default Linux kernel could not handle, I really wanted Redis to be able to run without issues even when the kernel is configured for not fixing the unaligned accesses. This means that Redis on ARM should only perform word-sized unaligned accesses, the only ones that the CPU can handle transparently.
+
+Fixing the bugs
+—
+
+Given that ARM deals well with most unaligned memory accesses, Redis appeared to be already working on the Pi, mostly. Especially since by default the kernel is configured to fix many of the unaligned accesses that are not supported. Even with the alignment fixing disabled, it still superficially worked. However running the tests revealed different crashes, especially in obvious areas like bit operations and hash functions.
+
+The first thing now Redis does is to define USE_ALIGNED_ACCESS when compiled into architectures that don’t support unaligned accesses. Then it was just a matter of fixing the code in order to avoid the fast paths where unaligned accesses where performed, or replacing the pointers deferencing with memcpy() operations. You may think that using memcpy() is ways slower than deferencing a pointer, but things are much better than that: for a fixed size mecpy call like memcpy(src,dst,sizeof(uint64_t)) the compiler is smart enough to avoid calling the function. It will actually generate the fastest set of instructions that will do the trick even if the address is not aligned. For instance, in x86 processors, this function call will actually be translated into a single MOV instruction.
+
+After those fixes Redis and my two Raspberries, one original model B, and a much faster Pi 3, started to be great friends: all tests passing, but one about generating call traces in crash reports (but I’m going to fix this one as well), and from time to time a few failures in the integration tests due to the slowness of the Pi to setup masters and slaves setups. However at this point my appetite for correctness was stimulated, I wanted some more alignment problems.
+
+Let’s go the extra mile: SPARC
+—
+
+While I was working at fixing Redis for ARM, there was a parallel issue open in the Github repository about making Redis run well on Solaris/SPARC. Now SPARC is not as gentle as ARM, it is not able to deal with *any* unaligned access. I remembered this very well as during my first years of C programming I bought a very old SPARC station 4: big endian and not able to deal with unaligned accesses of any kind at the same time, it gave me some perspective on porting programs around. It’s a shame that after a few months of having it I spilled vodka on it, frying the motherboard forever, but I still have it in my parent’s house.
+
+Solaris/SPARC deals with unaligned accesses are more complex than Linux/ARM: 32 bit unaligned accesses are always fixed by the kernel, while 64 bit unaligned accesses are handled by registering an user space trap, according to the compilation flags. The Sun Studio C compiler has specific options to control what happens in a very precise way, and even tools in order to easily detect and fix such unaligned accesses.
+
+If non-word sized unaligned accesses were rare in Redis, you could expect word-sized unaligned accesses to be everywhere. But actually it was not the case, since up to Redis 3.0 I used to test and fix Redis with an OpenBSD/SPARC box from time to time. So the biggest problem was the function to hash keys. The original Redis string library, called SDS, had a fixed sized header, so accesses were always aligned while hashing keys. Starting with Redis 3.2 the SDS header is variable in size, so this is no longer the case. Moreover there were other new unaligned accesses here and there accumulated since the last time I tested Redis on SPARC a few years ago.
+
+To fix the hash function I also switched to SipHash, so this is also a security fix for HashDoS attacks. However it’s worth to note that I’m currently using a SipHash variant with reduced number of C and D rounds: SipHash1-2. This was made in order to avoid an otherwise non trivial speed regression, however there should not be practical attacks against SipHash1-2 AFAIK, and anyway is for sure more secure than what we previously used, Murmurhash2, that is so weak in that regard that’s possible to generate seed-independent collisions.
+
+The SipHash implementation I’m using is the reference one, modified a bit in order to simplify the code and to have a case insensitive variant.
+It is designed in order to deal with unaligned accesses, and to be endian agnostic. The first time I see a well written reference implementation of an hash function perhaps…
+
+The other SPARC fixes were greatly simplified by a kind Redis user that provided me with a Solaris/SPARC access. In the process of fixing the unaligned accesses I also tried to fix building and testing Redis in Solaris/SPARC, so this was a good portability improvement exercise in general. After this task was completed, Redis is finally “alignment safe” at least for the stand alone code. There is more work to do in the Cluster area.
+
+Performances of Redis in the Raspberry Pi
+—
+
+Ok, back to the Pi :-) How fast is Redis running on such small hardware? Well, as there are more than one Pi model out there, there are multiple answers for this question. Redis on the Pi 3 is surprisingly fast. My benchmarks are performed via the loopback interface because Redis on the Pi will be mostly intended for local programs to write data to it, or to use it as a message bus for both IPC and for cloud-edge exchange of information (for cloud here I mean the central servers of an appliance, and for edge the local installation of an appliance). However it also runs well when accessed via the ethernet port.
+
+On the Pi3, I get this numbers:
+
+Test 1 : 5 millions writes with 1 million keys (even distribution among keys).  No persistence, no pipelining. 28000 ops/sec.
+Test 2: Like test 1 but with pipelining using groups of 8 operations: 80000 ops/sec.
+Test 3: Like test 1 but with AOF enabled, fsync 1 sec: 23000 ops/sec
+Test 4: Like test 3, but with an AOF rewrite in progress: 21000 ops/sec
+
+Basically Redis on the Pi 3 looks fast enough for any use case. Consider that Redis is mostly single threaded, or double-threaded when it rewrites the AOF log, since there is another background process, so you can expect the above performances while, at the same time, other processes are running on the Pi. Bottom line is: the numbers does not mean we are saturating the Pi.
+
+With the original model B things are *quite* different, those numbers are much lower, like 2000 ops/sec non pipelined, and 15000 ops/sec when pipelining is used. This huge gap looks to hint at very inefficient handling of syscalls like write and read that require a context switch. However they are still good enough numbers for most applications, since Redis is not going to serve external clients most of the times, and because when there is high-load data logging needed to be performed, pipelining is often simple to implement.
+
+However right now I don’t have one of the most interesting (other than the Pi 3) devices to test, which is the Pi zero. It will be interesting to see the numbers that it can deliver. They should be better than the Model B I’m using.
+
+Pi continuity
+—
+
+One thing I love about Redis running well on the Pi is that I’m excited about Raspberry to become, with things like the Pi zero, potentially the to-go platform for IoT products. I mean even finished products intended for the final user. I can’t stop thinking what I would like to do in the hardware space if I had time: sensors, displays, the GPIO port, and the very low price make it possible to build an hardware startup in a much simpler way compared to the past, and I love the idea that hackers around the world could now ship smart appliances of different kinds. I want to be somewhat part of this, even if marginally, providing a good Redis experience in the Pi (and in the future with Android and other ARM based systems). Redis has a good combination of low resource needs, append-only operations and data model suitable for both logging and in-device analysis of the data, in order to take actions based on historical events, so I really believe it can help in this space.
+
+So starting from now the Raspberry Pi is for me one of the main target platforms for Redis, like the Linux servers originally were set as the Redis “standard”. In the next weeks I’ll continue with the fixes, that will all go into Redis 4.0. At the same time I’ll write a new section in the Redis official site with all the informations about Redis and the Pi: benchmarks in the different devices, good practices, and so forth.
+Maybe in the future I’ll be also able to release proof of concept “agents” in order to use Redis as a data bus between the IoT devices and the cloud, allowing the device to just log data inside Redis, with the agent taking care of moving the data on the cloud when the link with the outside world works, and at the same time fetching commands for the device to execute and sending back replies. This will be even more interesting when the stream data structure will be available in Redis 4.2.
+
+I would love hearing about applications where you see Redis going to help in embedded setups, and what I could do in order to make it better in this regard.</pre></article></div></div>

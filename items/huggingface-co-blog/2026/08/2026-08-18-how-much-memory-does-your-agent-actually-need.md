@@ -1,0 +1,190 @@
+---
+title: How Much Memory Does Your Agent Actually Need?
+link: https://huggingface.co/blog/ibm-research/altk-evolve-hmm
+source: huggingface-co-blog
+published: 2026-08-18T18:09:38Z
+updated: 2026-08-18T18:09:38Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+content: extracted
+html: 2026-08-18-how-much-memory-does-your-agent-actually-need.html
+preview:
+  file: 2026-08-18-how-much-memory-does-your-agent-actually-need.preview-04a5d62b2f24.webp
+  width: 256
+  height: 134
+  color: '#d3dce7'
+images:
+- source: https://cdn-uploads.huggingface.co/production/uploads/6435a1131860001f144239ea/j-n1Au9SJ2-RGkT9i98u4.jpeg
+  original:
+    file: 2026-08-18-how-much-memory-does-your-agent-actually-need.image-09017bf61216.jpg
+    width: 1910
+    height: 1000
+  color: '#f8fafc'
+- source: https://cdn-uploads.huggingface.co/production/uploads/6435a1131860001f144239ea/Kdj4ytv-bFmt7LII55y-m.png
+  original:
+    file: 2026-08-18-how-much-memory-does-your-agent-actually-need.image-b1e161a3b3da.png
+    width: 1536
+    height: 907
+  variants:
+  - file: 2026-08-18-how-much-memory-does-your-agent-actually-need.image-3df80698cda7.webp
+    width: 320
+    height: 189
+  - file: 2026-08-18-how-much-memory-does-your-agent-actually-need.image-46f347756de8.webp
+    width: 640
+    height: 378
+  - file: 2026-08-18-how-much-memory-does-your-agent-actually-need.image-c418e540a3c7.webp
+    width: 960
+    height: 567
+  - file: 2026-08-18-how-much-memory-does-your-agent-actually-need.image-a4c020cd04e8.webp
+    width: 1280
+    height: 756
+  - file: 2026-08-18-how-much-memory-does-your-agent-actually-need.image-6a0a4848d892.webp
+    width: 1536
+    height: 907
+  color: '#f8fafa'
+---
+
+In our [previous post](https://huggingface.co/blog/ibm-research/altk-evolve-sldd/), we compared **[ALTK-Evolve](https://agenttoolkit.github.io/altk-evolve/)** with [ACE](https://arxiv.org/abs/2510.04618) and showed that *how* you deliver an agent's self-distilled guidelines — a few retrieved per task vs. the whole set injected — drives both accuracy and cost. This post steps back to the question that comes before it: *how much* should you give it?
+
+Equipping an agent with agentic memory sounds simple: distill lessons from its past work, put them back in context, and more experience should mean better performance. It doesn't always work that way. When we scaled the evaluation to **eight models** — from a 30B dense model to frontier proprietary systems — one finding stood out:
+
+> **Agentic memory is not a feature you switch on. It's a dose you calibrate to the model.**
+
+**TL;DR**
+
+- **ALTK-Evolve** lets an agent learn from its own past trajectories: distilling reusable guidelines and injecting them back at inference time, with no weight updates and no human annotation.
+
+- **The right dose differs by model tier:** strong models with headroom want the full guideline set, weaker models do best with a compact core plus per-task retrieval, and saturated models show no measurable gain.
+
+- **Curated retrieval can be both the most accurate and the cheapest option:** gpt-oss-120b gained +16.1pp task completion at only +5% tokens — and prompt caching keeps even the full guideline set affordable in production.
+
+* * *
+
+## [](https://huggingface.co/blog/ibm-research/altk-evolve-hmm#the-key-insight-dosage-depends-on-capability) The Key Insight: Dosage Depends on Capability
+
+Not every model benefits from the same amount of memory. Across eight models spanning the capability spectrum, we saw three recurring patterns:
+
+- **Strong models with headroom** want the full guideline set — every guideline, including rare edge-case lessons. They have the capacity to absorb and apply all of it. DeepSeek-V3.2 (671B MoE) climbed **+9.5 percentage points** in task completion when given its full self-mined guideline set.
+
+- **Smaller or weaker models get drowned by a large guideline set.** For these, a tight, high-confidence core plus a handful of task-relevant guidelines retrieved per task works best. gpt-oss-120b (117B MoE) gained **+16.1pp** with this selective approach — while the full guideline set gained less *and* cost ~50% more tokens.
+
+- **Already-saturated models show no measurable gain.** We call this the saturated pattern — the label describes what we observed, not a proven cause. The model may already have been near its ceiling on these tasks, the guidelines may not have addressed its remaining failures, or it may not have applied the guidance effectively. GLM-5 (745B MoE) sat here in our runs.
+
+*What puts a model into one pattern rather than another isn't simply parameter count.* Benchmark headroom, context-window size, architecture, guideline quality, and task distribution all appear to shape where a model lands, and separating those factors is ongoing work. The practical takeaway holds either way: **the right dose of memory depends on the model, and we can calibrate it.**
+
+* * *
+
+## [](https://huggingface.co/blog/ibm-research/altk-evolve-hmm#learning-happens-around-the-model-not-inside-it) Learning happens around the model, not inside it
+
+"Memory" here doesn't mean replaying a past transcript. It means a **guideline set** — strategies that worked, mistakes to avoid, and edge cases — distilled from the agent's own prior trajectories. The loop is straightforward:
+
+1. The agent attempts tasks and produces trajectories.
+
+2. ALTK-Evolve extracts behavioral guidelines from both its successful and unsuccessful runs.
+
+3. It consolidates those guidelines into a reusable set.
+
+4. At inference time, the agent receives either the full guideline set or a task-relevant selection of it.
+
+No model weights are updated. The learning loop changes the *guidance available to the agent*, not the underlying model — which is exactly why it's cheap to adopt and portable across the eight models we tested.
+
+* * *
+
+## [](https://huggingface.co/blog/ibm-research/altk-evolve-hmm#results-across-the-spectrum) Results Across the Spectrum
+
+We evaluated on **AppWorld** — 585 multi-step tasks (168 `test_normal` + 417 `test_challenge`) across 9 simulated apps (calendars, messaging, payments, and so on). Tasks are scored two ways: whether the agent fully completes each task (**TGC — Task Goal Completion**) and whether *every* variant of a scenario passes (**SGC — Scenario Goal Completion**, a stricter, all-or-nothing bar). Full definitions are in the appendix.
+
+### [](https://huggingface.co/blog/ibm-research/altk-evolve-hmm#the-three-configurations-we-compare) The three configurations we compare
+
+Because the confusing part of any memory study is *what's actually in the context window*, we define the configurations up front.
+
+Both memory configurations draw from **the same guideline set**, mined once (via the loop above) from AppWorld's **training split** only. What changes between them is only *how that one set is delivered* — the **full guideline set** injects all of it every step, while **curated retrieval** delivers a selected subset — never how the guidelines were produced, and no test-split data ever goes into building it.
+
+| Configuration      | What's in the agent's context                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Baseline           | No memory — the agent as shipped.                                                                                                                    |
+| Full guideline set | Every mined guideline, injected on every ReAct step.                                                                                                 |
+| Curated retrieval  | A fixed, high-confidence core of those same guidelines plus a few task-relevant ones retrieved for each task (a fixed portion + a variable portion). |
+
+The number of guidelines a model mines depends on its own capability, so we report configurations by **strategy** — "full guideline set" vs. "curated retrieval" — rather than by raw counts, which aren't comparable across models.
+
+### [](https://huggingface.co/blog/ibm-research/altk-evolve-hmm#the-three-patterns-in-one-view) The three patterns, in one view
+
+Representative models from the eight-model sweep, measured by task completion (TGC) on `test_normal`:
+
+[![image](https://cdn-uploads.huggingface.co/production/uploads/6435a1131860001f144239ea/Kdj4ytv-bFmt7LII55y-m.png)](https://cdn-uploads.huggingface.co/production/uploads/6435a1131860001f144239ea/Kdj4ytv-bFmt7LII55y-m.png)
+
+*Figure 1. Representative models in the three observed patterns. Bars show TGC on AppWorld `test_normal` for baseline vs. the best-memory configuration; the x-axis begins at 40% to make differences visible. TGC alone understates the larger SGC gains — see the SGC columns in the table below.*
+
+The figure plots TGC to keep it readable; the table adds the stricter **SGC** metric, where the gains are often larger:
+
+| Model                    | Pattern               | Baseline TGC / SGC | Best-memory TGC / SGC | Best config        | Δ TGC | Δ SGC |
+| ------------------------ | --------------------- | ------------------ | --------------------- | ------------------ | ----- | ----- |
+| gpt-oss-120b (117B MoE)  | Weak / selective      | 39.9 / 21.4        | 56.0 / 37.5           | curated retrieval  | +16.1 | +16.1 |
+| DeepSeek-V3.2 (671B MoE) | Strong w/ headroom    | 79.8 / 64.3        | 89.3 / 80.4           | full guideline set | +9.5  | +16.1 |
+| Claude Opus 4.6          | Strong w/ headroom    | 90.5 / 87.5        | 94.6 / 94.6           | full guideline set | +4.1  | +7.1  |
+| GPT-5.5                  | Strong (near-ceiling) | 92.3 / 82.1        | 95.2 / 89.3           | full guideline set | +2.9  | +7.2  |
+| GLM-5 (745B MoE)         | Saturated             | 87.5 / 80.4        | 87.5 / 80.4           | full guideline set | 0.0   | 0.0   |
+
+Reading the SGC column, the stricter metric usually moves more than TGC — DeepSeek's SGC jumps **+16.1pp** against a **+9.5pp** TGC gain — because good guidelines especially help an agent clear *every* variant of a scenario, not just the average case. And the effect doesn't disappear at the top of the range: GPT-5.5 and Opus, both near the ceiling on TGC, still gain **+7.2** and **+7.1pp SGC** respectively. Memory keeps paying off as long as a model has a remaining failure mode to target.
+
+* * *
+
+## [](https://huggingface.co/blog/ibm-research/altk-evolve-hmm#the-cheapest-memory-strategy-can-also-be-the-best) The Cheapest Memory Strategy Can Also Be the Best
+
+A practical concern: injecting a full guideline set inflates every ReAct step's input, because the guidelines are re-sent each turn. Here's what we observed:
+
+| Model         | Config             | Tokens/task (baseline) | Tokens/task (+ memory) | Overhead |
+| ------------- | ------------------ | ---------------------- | ---------------------- | -------- |
+| DeepSeek-V3.2 | full guideline set | 148K                   | 263K                   | +78%     |
+| gpt-oss-120b  | full guideline set | 110K                   | 166K                   | +51%     |
+| gpt-oss-120b  | curated retrieval  | 110K                   | 116K                   | +5%      |
+
+*Table 1. Average token use per task, accumulated across agent steps, measured against the no-memory baseline.*
+
+Two takeaways:
+
+1. **Curated retrieval keeps cost near baseline.** For weaker models, where selection wins on accuracy, it also wins on cost — the best of both worlds (**+16.1pp TGC at only +5% tokens** for gpt-oss-120b). Better performance here does **not** require more inference cost.
+
+2. **Memory doesn't blow up the reasoning loop.** DeepSeek runs about the same number of ReAct steps with memory as without (≈18–19 on average), so the added cost is input-token inflation, not longer trajectories.
+
+The real efficiency lever in production is **prompt caching**: the static portion of the guideline set is identical across steps and can be cached, cutting effective cost substantially. Cache-aware prompt design — keeping the shared guideline-set prefix stable so it stays cacheable — is worth engineering for. We also hypothesize that **context-window size** plays a role: models with larger windows may absorb the full guideline set more effectively, while smaller-context models benefit more from retrieval that keeps injected content compact. We have not yet run controlled experiments isolating this factor.
+
+* * *
+
+## [](https://huggingface.co/blog/ibm-research/altk-evolve-hmm#memory-should-be-calibrated-not-merely-accumulated) Memory Should Be Calibrated, Not Merely Accumulated
+
+The lesson isn't to give an agent everything it has learned. It's to give it the amount of experience it can actually use.
+
+- For **weak models**, that means a compact core plus a few task-specific lessons — which, conveniently, is also the cheapest option.
+
+- For **strong models with headroom**, it means preserving the full guideline set, kept affordable in production via prompt caching.
+
+- For **saturated models**, it means spending no extra context until their remaining failure modes are better understood.
+
+The gains are real across the board — automatic, leakage-free, and requiring no human annotation — but only when the dose fits the model.
+
+* * *
+
+## [](https://huggingface.co/blog/ibm-research/altk-evolve-hmm#whats-next) What's Next
+
+This is a starting point, not the finish line:
+
+- **A learned selector.** Our current retrieval ranks guidelines by cosine similarity, which we've shown doesn't perfectly predict which guidelines help a given task. A selector trained on outcome signal is the natural next step.
+
+- **Memory for very weak models.** Below a minimum capability baseline, self-distillation lacks signal. Teacher-distilled memory for very weak models is a separate problem we're exploring.
+
+- **Beyond AppWorld.** These results are validated on AppWorld — a rigorous multi-step benchmark, but a single one. Broader agent benchmarks and real-world deployments are in progress.
+
+- **Isolating context window.** As above, we want controlled experiments that separate context-window size from raw capability.
+
+> **Try the [ALTK-Evolve](https://github.com/AgentToolkit/altk-evolve) library** — which includes the extraction, consolidation, and retrieval pipeline used here — **or read the [full technical report](https://arxiv.org/abs/2603.10600)** for the complete method and ablations.
+
+* * *
+
+## [](https://huggingface.co/blog/ibm-research/altk-evolve-hmm#appendix-understanding-the-metrics) Appendix: Understanding the Metrics
+
+AppWorld tasks are graded by two metrics, both reported as percentages (higher is better):
+
+- **TGC — Task Goal Completion.** The share of individual tasks the agent completes fully and correctly. This is the headline *"did it get the job done"* number.
+
+- **SGC — Scenario Goal Completion.** A stricter, all-or-nothing metric. Each *scenario* bundles several variants of the same task (the same request with different data, phrasing, or edge conditions). SGC counts a scenario as passing only if the agent succeeds on **every** variant. It measures **reliability** — an agent that solves a task most of the time but fails on one variant scores on TGC but not on SGC.

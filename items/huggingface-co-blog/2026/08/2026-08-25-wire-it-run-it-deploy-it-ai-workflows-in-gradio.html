@@ -1,0 +1,125 @@
+<div id="readability-page-1" class="page"><div>
+<p>Most interesting AI apps are pipelines. You generate an image, then cut out its background if you want to, or edit it into something new. You write a script, then generate a voice for it, or swap the voice while keeping the script the same. We usually wire these steps together in Python, and the moment something looks off we go back to print-debugging to find which step produced the odd value.</p>
+<p><strong><code>gr.Workflow</code></strong>, built right into Gradio, makes the pipeline <em>the interface</em>. You describe your steps as a graph of typed nodes, and Gradio serves a drag-and-drop canvas where every node is runnable and every intermediate result is visible. The same graph is also a REST API and a one-command deploy to Hugging Face Spaces.</p>
+<p>The best way to get the idea is to see a few workflows in action. Every app below is a live Huggingface Space you can open, run, and duplicate.</p>
+<h2>
+	<a id="edit-an-image" href="#edit-an-image" rel="nofollow">
+		
+	</a>
+	<span>
+		Edit an Image
+	</span>
+</h2>
+
+<p>Upload an image, type an edit ("turn it into a snowy winter scene", "add sunglasses", "make the car red"), and get the edited photo back. The whole app is a single node calling <a href="https://huggingface.co/Qwen/Qwen-Image-Edit">Qwen-Image-Edit</a> on Hugging Face Inference Providers.</p>
+<p>👉 <strong><a href="https://huggingface.co/spaces/ysharma/gr-workflow-image-editor">Try the Image Editor Pipeline</a></strong></p>
+<h2>
+	<a id="chain-real-models-into-a-media-studio" href="#chain-real-models-into-a-media-studio" rel="nofollow">
+		
+	</a>
+	<span>
+		Chain real models into a media studio
+	</span>
+</h2>
+
+<p>One graph, three pipelines. Start with a prompt and generate an image with <a href="https://huggingface.co/black-forest-labs/FLUX.1-schnell">FLUX</a>, then pass it to a <a href="https://huggingface.co/spaces/not-lain/background-removal">background-removal Gradio Space</a> to turn it into a sticker. A topic becomes a voiceover through a <a href="https://huggingface.co/spaces/mrfakename/MeloTTS">text-to-speech Gradio Space</a>, while the same topic becomes a catchy episode title through an <a href="https://huggingface.co/Qwen/Qwen2.5-7B-Instruct">LLM</a> call.</p>
+<p>That’s one canvas, two model calls through Hugging Face <a href="https://huggingface.co/docs/inference-providers/en/index">Inference Providers</a>, and two calls to Gradio Spaces.</p>
+<p>Since this is a workflow, each of the three outputs also gets its own REST endpoint: <code>/sticker</code>, <code>/voiceover</code>, and <code>/episode_title</code>. You can call any of them directly from code without opening the UI. See <a href="#call-it-from-code" rel="nofollow">Call it from code</a> below for a runnable example.</p>
+<p>👉 <strong><a href="https://huggingface.co/spaces/ysharma/gr-workflow-04-ai-media-studio">Try the AI Media Studio</a></strong></p>
+<h2>
+	<a id="fan-out-image-generation-in-parallel" href="#fan-out-image-generation-in-parallel" rel="nofollow">
+		
+	</a>
+	<span>
+		Fan-out image generation in parallel
+	</span>
+</h2>
+
+<p>Type in one idea, and it turns into a set of generated artwork all at once: a base image from FLUX, two AI re-imaginings of that image (a soft watercolor version and a neon cyberpunk take), and a gallery title written by an LLM.</p>
+<p>Each image is generated directly from the prompt by a model node using Inference Providers, while the title comes from an <code>fn</code> node that calls an LLM. This is the fan-out pattern in action: one idea can feed multiple operators simultaneously, all generating in parallel.</p>
+<p>👉 <strong><a href="https://huggingface.co/spaces/ysharma/gr-workflow-01-generative-art-lab">Try the Generative Art Lab</a></strong></p>
+<h2>
+	<a id="profile-a-hugging-face-dataset" href="#profile-a-hugging-face-dataset" rel="nofollow">
+		
+	</a>
+	<span>
+		Profile a Hugging Face dataset
+	</span>
+</h2>
+
+<p>Type in a Hugging Face dataset ID, such as <code>stanfordnlp/imdb</code> or <code>mteb/tweet_sentiment_extraction</code>, and a single input fans out to four operator nodes that analyze the dataset live using the <a href="https://huggingface.co/docs/dataset-viewer">Datasets Server</a> API. </p>
+<p>You get an overview card, a preview of the first few rows, per-column statistics, and a distribution chart, all computed independently and in parallel. That’s the power of workflows!</p>
+<p>👉 <strong><a href="https://huggingface.co/spaces/ysharma/gr-workflow-03-data-detective">Try Data Detective</a></strong></p>
+<h2>
+	<a id="run-your-own-gpu-model" href="#run-your-own-gpu-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Run your own GPU model
+	</span>
+</h2>
+
+<p>Every node so far reaches out to Hugging Face. But an <code>fn</code> node is just Python, which means it can also run a model inside the Space on a GPU. </p>
+<p>Decorate the bound function with <code>@spaces.GPU</code> and, when the node runs, <a href="https://huggingface.co/docs/hub/spaces-zerogpu">ZeroGPU</a> grabs a GPU for that call, runs the model, and releases it. We don't always need to rely on Inference Providers or existing Gradio Spaces.</p>
+<p>Check out this demo that animates a still image using <a href="https://huggingface.co/Lightricks/LTX-Video-0.9.7-distilled">Lightricks/LTX-Video</a> loaded through Diffusers, running entirely through one node. <code>gr.Workflow</code> doesn't need to know anything about your GPU setup. It simply calls the bound function.</p>
+<p>👉 <strong><a href="https://huggingface.co/spaces/ysharma/gr-workflow-zerogpu-animate">Try the ZeroGPU Animator</a></strong></p>
+<h2>
+	<a id="how-it-works-in-a-nutshell" href="#how-it-works-in-a-nutshell" rel="nofollow">
+		
+	</a>
+	<span>
+		How it works, in a nutshell
+	</span>
+</h2>
+<p>Every workflow is a graph with three kinds of nodes: <strong>references</strong> (your inputs), <strong>operators</strong> (the steps that do work), and <strong>subjects</strong> (your outputs). An operator can be your own Python function, a model on Hugging Face Inference Providers, another Gradio Space, or a row from a Hub dataset. You connect them by dragging between typed ports, hit Run, and watch each result appear in place. </p>
+<h2>
+	<a id="call-it-from-code" href="#call-it-from-code" rel="nofollow">
+		
+	</a>
+	<span>
+		Call it from code
+	</span>
+</h2>
+<p>Every workflow you build  is also an API, with no extra work. Each output becomes a REST endpoint named after its label, and you can call it from Python with the Gradio client. Here is a live, no-token example against the multi-endpoint demo Space, exactly as-is:</p>
+<pre><code><span>from</span> gradio_client <span>import</span> Client
+
+client = Client(<span>"ysharma/gr-workflow-multi-endpoint-API"</span>)
+
+<span>print</span>(client.predict(<span>"hello there friend"</span>, api_name=<span>"/word_count"</span>))  <span># -&gt; 3</span>
+<span>print</span>(client.predict(<span>20</span>, api_name=<span>"/fahrenheit"</span>))                    <span># -&gt; 68.0</span>
+</code></pre>
+<p>Endpoints that call a model or a Space run under a Hugging Face token, so pass one when you create the client:</p>
+<pre><code><span>from</span> gradio_client <span>import</span> Client, handle_file
+
+client = Client(<span>"ysharma/gr-workflow-image-editor"</span>, token=<span>"hf_..."</span>)
+
+edited = client.predict(
+    handle_file(<span>"dog.jpg"</span>),
+    <span>"turn it into a snowy winter scene"</span>,
+    api_name=<span>"/edited_image"</span>,
+)
+</code></pre>
+<p>Prefer plain HTTP? Every endpoint is reachable over <code>curl</code> too:</p>
+<pre><code>curl -s https://ysharma-gr-workflow-multi-endpoint-API.hf.space/gradio_api/call/word_count \
+  -H <span>"Content-Type: application/json"</span> -d <span>'{"data": ["hello there friend"]}'</span>
+</code></pre>
+<h2>
+	<a id="build-your-own" href="#build-your-own" rel="nofollow">
+		
+	</a>
+	<span>
+		Build your own
+	</span>
+</h2>
+<p>The fastest way in is to open any demo above, click <strong>Duplicate</strong>, and start rewiring. From Python, it is as short as:</p>
+<pre><code><span>import</span> gradio <span>as</span> gr
+
+<span>def</span> <span>your_function</span>(<span>text: <span>str</span></span>) -&gt; <span>str</span>:
+  <span>pass</span>
+
+gr.Workflow(bind=[your_function]).launch()
+</code></pre>
+<p>For the full walkthrough, the operator kinds, the JSON schema, and reusable patterns, see the official <a href="https://gradio.app/guides/workflows" rel="nofollow">gr.Workflow guide</a> in the Gradio docs.</p>
+<p>You can even build something as involved as <a href="https://github.com/automatic1111/stable-diffusion-webui" rel="nofollow">AUTOMATIC1111</a> with <code>gr.Workflow</code>. Keep an eye out for our next post, where we walk through building it step by step. Here is a sneak peek 😉👇</p>
+
+</div></div>

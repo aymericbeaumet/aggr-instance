@@ -1,0 +1,239 @@
+<div id="readability-page-1" class="page"><div>
+<p>Public voice AI benchmarks increasingly suggest that models are performing at human levels. Yet those scores don't always reflect how models work in the real-world. Since public benchmarks are open and widely used, models can also become optimized for the tests themselves. Their scores may improve because they have learned benchmark-specific patterns and not because they have become better at the underlying task.</p>
+<p>One reason is that traditional benchmarks overlook many of the conditions and qualities that make voice systems reliable, natural, contextually appropriate, and effective in practice. That's why we recently introduced held-out sets in <a href="https://huggingface.co/spaces/HumeAI/rw-voice-eq">Real World VoiceEQ</a>, the <a href="https://huggingface.co/blog/open-asr-leaderboard-private-data">Open-ASR Leaderboard</a>, and the <a href="https://huggingface.co/spaces/treble-technologies/ffasr">Far-field ASR Leaderboard</a>: to measure more of what matters in real-world use.</p>
+<p>However, broader measurement alone does not solve the problem. This phenomenon, sometimes called benchmark optimization or "benchmaxxing," is often discussed around machine learning, however, it has been difficult to measure in speech recognition.</p>
+<p>Our latest research introduces three tests to help quantify it. We evaluated 11 widely used open-source ASR models and found that several of the highest-scoring systems reproduced benchmark transcripts from the <a href="https://huggingface.co/datasets/facebook/voxpopuli">VoxPopuli</a> English and <a href="https://huggingface.co/datasets/openslr/librispeech_asr">LibriSpeech</a> (clean, other) datasets – even when the audio contradicted them, relevant words had been silenced, or the audio equally supported two different written forms.</p>
+<p>In some cases, models appeared to rely not only on what was said, but also on subtle acoustic cues that indicated which benchmark they were being tested on. As a result, their scores overstated how well they could transcribe speech more generally.</p>
+<h2>
+	<a id="reference-disagreement-voxpopuli-case-study" href="#reference-disagreement-voxpopuli-case-study" rel="nofollow">
+		
+	</a>
+	<span>
+		Reference disagreement (VoxPopuli case study)
+	</span>
+</h2>
+<p>VoxPopuli is known to contain a high number of transcription errors (which is why Artificial Analysis released a <a href="https://huggingface.co/datasets/ArtificialAnalysis/VoxPopuli-Cleaned-AA">cleaned version</a>). Our consensus disagreement probe tests what happens when leading ASR models encounter these errors: <em>Do they accurately transcribe what the audio says, or reproduce the benchmark's incorrect reference transcript?</em></p>
+<p>To test this at scale, we use an ensemble of independent models selected for their low phoneme error rate (PER). PER measures how closely a written transcription matches the sounds in the audio, making it a useful proxy for how faithfully a model transcribes what it hears. The ensemble results can be used to flag cases in which the models unanimously disagree with the benchmark's reference transcript. We then compare a sample of those flagged cases against human annotations to validate the corrected transcripts.</p>
+<p>For example, one VoxPopuli clip audibly includes the phrase "Thank you, Mr. President," but the reference transcript omits "Thank you." Six of the 11 models we tested reproduced the benchmark's erroneous transcript—giving the "expected" answer even though it contradicted the audio. On the real clip, the formatting follows the same pattern: models that omit "Thank you" also reproduce the benchmark's punctuation style, writing "Mr" without a period, while models that include the audible phrase tend to write "Mr." with the period.</p>
+<p>When we present the same content in newly collected voices from EU parliamentary recordings or generic voices, this behavior often weakens or disappears. In the below samples, all but one model flips back to transcribing the audio-faithful transcript for a clone of a new parliamentary recording. This suggests that the models are responding to acoustic cues that help them identify the benchmark membership and thus produce the expected transcript even if it contradicts the audio.</p>
+<p>The reference transcript for this clip reads "Mr President, I have another complaint about this procedure, which is that it is not secret." The audio in all three clips below actually says the same thing, preceded by an audible "Thank you,"—the clones are text-to-speech renditions of that true sentence, so the courtesy is audible in all three. Green highlighting and ✅ mark a transcript that includes the audible "Thank you"; red highlighting and ❌ mark a transcript that reproduces the benchmark's erroneous omission. All transcripts are raw model output, prior to any normalization—casing and punctuation are preserved exactly as generated, including lowercase output from some models.</p>
+<p><strong>Original VoxPopuli recording</strong></p>
+
+<p><strong>Voice clone of the same speaker</strong></p>
+
+<p><strong>Clone of a parliament speaker recorded after every model's training cutoff</strong></p>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Real clip</th>
+<th>Same-speaker clone</th>
+<th>ep-fresh clone</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/CohereLabs/cohere-transcribe-03-2026">CohereLabs/cohere-transcribe-03-2026</a></td>
+<td><span>❌ Mr President…</span></td>
+<td><span>❌ Mr President…</span></td>
+<td><span>✅ Thank you, Mr President…</span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/nvidia/canary-qwen-2.5b">nvidia/canary-qwen-2.5b</a></td>
+<td><span>❌ Mr President…</span></td>
+<td><span>❌ Mr President…</span></td>
+<td><span>✅ Thank you Mr. President…</span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-speech-4.1-2b">ibm-granite/granite-speech-4.1-2b</a></td>
+<td><span>❌ mr president…</span></td>
+<td><span>❌ mr president…</span></td>
+<td><span>✅ thank you mr president…</span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/microsoft/Phi-4-multimodal-instruct">microsoft/Phi-4-multimodal-instruct</a></td>
+<td><span>❌ Mr President…</span></td>
+<td><span>❌ Mr President…</span></td>
+<td><span>❌ Mr President…</span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2">nvidia/parakeet-tdt-0.6b-v2</a></td>
+<td><span>❌ Mr President…</span></td>
+<td><span>✅ Thank you, Mr President…</span></td>
+<td><span>✅ Thank you, Mr. President…</span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/bosonai/higgs-audio-v3-8b-stt-v2">bosonai/higgs-audio-v3-8b-stt-v2</a></td>
+<td><span>❌ mr president…</span></td>
+<td><span>❌ mr president…</span></td>
+<td><span>✅ thank you mr president…</span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf">Qwen/Qwen3-ASR-0.6B-hf</a></td>
+<td><span>✅ Thank you, Mr. President…</span></td>
+<td><span>✅ Thank you, Mister President…</span></td>
+<td><span>✅ Thank you, Mister President…</span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mistralai/Voxtral-Mini-3B-2507">mistralai/Voxtral-Mini-3B-2507</a></td>
+<td><span>✅ Thank you, Mr. President…</span></td>
+<td><span>✅ Thank you, Mr. President…</span></td>
+<td><span>✅ Thank you, Mr. President…</span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/moonshotai/Kimi-Audio-7B-Instruct">moonshotai/Kimi-Audio-7B-Instruct</a></td>
+<td><span>✅ Thank you, mr. President…</span></td>
+<td><span>✅ Thank you, Mr. President…</span></td>
+<td><span>✅ Thank you, mr. President…</span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/openai/whisper-large-v3">openai/whisper-large-v3</a></td>
+<td><span>✅ Thank you, Mr. President…</span></td>
+<td><span>✅ Thank you, Mr. President…</span></td>
+<td><span>✅ Thank you, Mr. President…</span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/moonshine-ai/moonshine-streaming-medium">moonshine-ai/moonshine-streaming-medium</a></td>
+<td><span>✅ thank you mr president…</span></td>
+<td><span>✅ thank you mr president…</span></td>
+<td><span>✅ thank you mr president…</span></td>
+</tr>
+<tr>
+<td><strong>Drops the courtesy (❌) out of 11</strong></td>
+<td><strong>6</strong></td>
+<td><strong>5</strong></td>
+<td><strong>1</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Parakeet is the only model that flips between reproducing the benchmark on the real clip and getting it right on the same-speaker clone. Phi-4 is the only model still dropping the courtesy on the ep-fresh clone. When we instead resynthesize the sentence in a generic TTS voice unconnected to any parliamentary recording, all eleven models restore the courtesy.</p>
+<p>The results suggest that this problem is both widespread and meaningful. Our methodology flagged potential reference errors in 40% of the VoxPopuli test clips we analyzed, affecting roughly 3% of all reference words.</p>
+<p>Models exhibiting benchmark-optimized behavior reproduced erroneous reference transcripts 18–30% of the time. The scatterplot below compares VoxPopuli word error rate (WER) on the x-axis with the rate at which each model reproduces the benchmark's incorrect reference instead of the consensus correction. The models with the lowest WER—and therefore the strongest reported benchmark performance—are also the most likely to reproduce these errors.</p>
+<p><img src="https://huggingface.co/datasets/HumeAI/hf-assets/resolve/main/blog/asr-benchmark-optimization/wer_vs_badref.png" width="800px" alt="Scatterplot comparing VoxPopuli WER to the rate at which each model reproduces the benchmark's incorrect reference transcript."></p>
+
+<h2>
+	<a id="masked-entity-retrieval" href="#masked-entity-retrieval" rel="nofollow">
+		
+	</a>
+	<span>
+		Masked Entity Retrieval
+	</span>
+</h2>
+<p>To build on the consensus disagreement probe, we deliberately silence numbers in the audio samples of test datasets and ask the models to transcribe what it hears. The number is literally absent from the audio, so models should not output any number, much less the exact number in the text.</p>
+<p>Some of these numbers are semi-predictable (although still unlikely for a model to predict), yet others are quite surprising. The following clip combines both probes, showing both how models recreate reference transcript errors including an incorrect number and one model even autocompletes a relatively random year (2011) despite it being silenced. In each model's row below:</p>
+<ul>
+<li>green highlighting with strikethrough marks reference-transcript words the model correctly did not reproduce (audio-faithful);</li>
+<li>green highlighting with <u>underline</u> marks a correct, audio-faithful insertion in place of the reference's erroneous wording;</li>
+<li>red highlighting (plain text) reproduces the reference transcript's erroneous, audio-unsupported content: keeping "Mr President", writing "more than 1 amendments" where the audio says "one thousand six hundred", supplying the silenced year "2011", or ending on "plenary".</li>
+</ul>
+<p><strong>2011 draft budget (masked numbers)</strong></p>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Reference</th>
+<th><span>Mr President,</span> in the Committee on Budgets, we voted on more than <span>1</span> amendments to the <span>2011</span> draft budget … voted in the <span>plenary</span>.</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>What the audio says</td>
+<td>In the Committee on Budgets, we voted on more than <span><u>one thousand six hundred</u></span> amendments to the ⟨silenced⟩ draft budget … voted in the …</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/CohereLabs/cohere-transcribe-03-2026">CohereLabs/cohere-transcribe-03-2026</a></td>
+<td><span>Mr President,</span> in the Committee on Budgets we voted on more than <span>1</span> amendments to the <span>2011</span> draft budget … voted in the <span>plenary</span>.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/nvidia/canary-qwen-2.5b">nvidia/canary-qwen-2.5b</a></td>
+<td><span>Mr President,</span> in the Committee on Budgets we voted on more than <span>one</span> amendments to the <span><del>2011</del></span> draft budget … voted in the <span><del>plenary</del></span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-speech-4.1-2b">ibm-granite/granite-speech-4.1-2b</a></td>
+<td><span><del>Mr President</del></span> in the committee on budgets we voted on more than <span><u>one thousand six hundred</u></span> amendments to the <span><del>2011</del></span> draft budget … voted on in the <span><del>plenary</del></span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/microsoft/Phi-4-multimodal-instruct">microsoft/Phi-4-multimodal-instruct</a></td>
+<td><span><del>Mr President</del></span> In the Committee on Budgets we voted on more than <span>1</span> amendments to the <span><del>2011</del></span> draft budget … voted on in the <span>plenary</span>.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2">nvidia/parakeet-tdt-0.6b-v2</a></td>
+<td><span><del>Mr President</del></span> In the Committee on Budgets we voted on more than <span>one</span> amendments to the <span><del>2011</del></span> draft budget … voted in the Protestants.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/bosonai/higgs-audio-v3-8b-stt-v2">bosonai/higgs-audio-v3-8b-stt-v2</a></td>
+<td><span><del>Mr President</del></span> in the committee on budgets we voted on more than <span><u>one thousand six hundred</u></span> amendments to the <span><del>2011</del></span> draft budget … voted in the <span><del>plenary</del></span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf">Qwen/Qwen3-ASR-0.6B-hf</a></td>
+<td><span><del>Mr President</del></span> In the Committee on Budgets, we voted on more than <span><u>1,600</u></span> amendments to the <span><del>2011</del></span> draft budget … voted in the <span><del>plenary</del></span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/mistralai/Voxtral-Mini-3B-2507">mistralai/Voxtral-Mini-3B-2507</a></td>
+<td><span><del>Mr President</del></span> In the Committee on Budgets, we voted on more than <span><u>1,600</u></span> amendments to the <span><del>2011</del></span> draft budget … voted in the <span><del>plenary</del></span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/moonshotai/Kimi-Audio-7B-Instruct">moonshotai/Kimi-Audio-7B-Instruct</a></td>
+<td><span><del>Mr President</del></span> <span><u>Ah</u></span> in the committee on budgets we voted on more than <span><u>one thousand six hundred</u></span> amendments to the <span><del>2011</del></span> draft budget … voted in the <span><del>plenary</del></span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/openai/whisper-large-v3">openai/whisper-large-v3</a></td>
+<td><span><del>Mr President</del></span> In the Committee on Budgets, we voted on more than <span><u>1,600</u></span> amendments to the <span><del>2011</del></span> draft budget … voted in the <span><del>plenary</del></span></td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/moonshine-ai/moonshine-streaming-medium">moonshine-ai/moonshine-streaming-medium</a></td>
+<td><span><del>Mr President</del></span> in the committee on budgets we voted on more than <span><u>one thousand six hundred</u></span> amendments to the <span><del>2011</del></span> draft budget … voted in the <span><del>plenary</del></span></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Recovery rates were highest on the public benchmarks and lower on held-out or newly collected audio (ep-fresh and libri-fresh below). On LibriSpeech, some of the strongest benchmark-performing models reproduced masked numbers in roughly 30–40% of examples, even though the number itself had been removed. The effect weakened on freshly collected data for several models, suggesting that the surrounding benchmark-associated audio—not only textual autocomplete—helped the models recover the reference.</p>
+<p><img src="https://huggingface.co/datasets/HumeAI/hf-assets/resolve/main/blog/asr-benchmark-optimization/masking_freshpairs.png" width="700px" alt="Recovery rate of masked numbers on public benchmarks versus freshly collected held-out audio."></p>
+
+<h2>
+	<a id="orthographic-switching" href="#orthographic-switching" rel="nofollow">
+		
+	</a>
+	<span>
+		Orthographic Switching
+	</span>
+</h2>
+<p>Our orthographic switching probe tests whether models reproduce the exact spelling used in a benchmark's reference transcript despite it not being clear in the audio. Orthographic variants are words that are semantically and phonetically identical but can be spelled different ways (1 vs one, Mr. vs mister, John vs Jon, Honor vs Honour, etc). In theory, models should consistently prefer one spelling over another, or alternate between them at roughly random rates. If models systematically switch to match what is in each benchmark's reference transcript, that suggests the models are picking up on which spelling the test expects.</p>
+<p><strong>Transcription: "I URGED ON THE BOYS THAT WHATEVER HAPPENED WE SHOULD NOT SHOOT ANY ONE" — models using "any one": 6/11, models using "anyone": 5/11</strong></p>
+
+<p><strong>Transcription: "CAMOUFLAGE WAS NOT A WORD THE CAPTAIN OR ANYONE ELSE OF HIS TIME YET UNDERSTOOD" — models using "any one": 2/11, models using "anyone": 9/11</strong></p>
+
+<p>Within LibriSpeech, we test one <em>intra-dataset</em> switch involving an older spacing convention: some reference transcripts use "any one", while others use "anyone." We measure the minimum accuracy for a given variant, which we call "switch rate". If a model only uses one variant it would have a 0% switch rate; a model which picks randomly would be expected to have a 50% switch rate. A model which knows which variant to use in every test sample would earn a 100% switch rate.</p>
+<p><img src="https://huggingface.co/datasets/HumeAI/hf-assets/resolve/main/blog/asr-benchmark-optimization/pair_spacing_sorted.png" width="700px" alt="Switch rate for the &quot;any one&quot; vs &quot;anyone&quot; spacing convention, sorted by model."></p>
+
+<p>Our second probe tests an <em>inter-dataset switch</em>, in which each benchmark uses a different spelling convention consistently across its test corpus. For example, VoxPopuli uses the abbreviation "Mr.," while LibriSpeech spells out "Mister."</p>
+<p>Multiple models exceed the 50% random-choice baseline, with some reaching roughly 90% switch accuracy. <strong>This suggests that the models can identify which dataset an audio sample comes from and select the spelling convention that benchmark expects, even though both forms sound identical.</strong></p>
+<p><img src="https://huggingface.co/datasets/HumeAI/hf-assets/resolve/main/blog/asr-benchmark-optimization/pair_mister_sorted.png" width="700px" alt="Switch rate for the &quot;Mr.&quot; vs &quot;Mister&quot; convention across VoxPopuli and LibriSpeech, sorted by model."></p>
+
+<h2>
+	<a id="localizing-the-switches" href="#localizing-the-switches" rel="nofollow">
+		
+	</a>
+	<span>
+		Localizing the switches
+	</span>
+</h2>
+<p>To test whether these behaviors generalize beyond the public benchmarks, we also collected fresh data from the same source domains but after the models' training cutoffs: recent European Parliament recordings for VoxPopuli and recordings from newly active LibriVox narrators for LibriSpeech. However, when presented with recently collected data from the same domain, many models stop matching the reference transcript and revert to more audio faithful transcriptions.</p>
+<p>Other interventions point to the same conclusion. Phrases which are present in the audio but are omitted in the reference transcript can reappear when a model is asked to translate the audio or when its attention is restricted to the relevant frames. Trimming away surrounding benchmark context, or appending ordinary conversational audio, can also restore the faithful transcript. Appending VoxPopuli audio can have the opposite effect, making otherwise faithful synthetic or mined samples more likely to match the benchmark reference.</p>
+<p><img src="https://huggingface.co/datasets/HumeAI/hf-assets/resolve/main/blog/asr-benchmark-optimization/steer_input_level_full.png" width="800px" alt="Effect of steering the amount of surrounding benchmark-associated audio context on transcription behavior."></p>
+
+<p><strong>Together, these results suggest that models are able to faithfully transcribe the literal spoken words, but are using surrounding acoustic context to decide whether to follow the audio or a benchmark-specific transcription policy.</strong></p>
+<h2>
+	<a id="conclusion" href="#conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion
+	</span>
+</h2>
+<p>Our findings suggest that, on two major open-source datasets, some models detect dataset-associated acoustic cues and adjust their transcription behavior accordingly. Specifically, models may reproduce words that are absent from the audio but present in the reference transcript, recover silenced numbers at elevated rates, or use surrounding acoustic context to select the written variant expected by a particular benchmark.</p>
+<p>For people selecting models, these findings underscore the importance of using fully held-out evaluation sets, as RW-Voice-EQ Bench and the Open ASR Leaderboard do, and of looking beyond word error rate on a single public benchmark. To this end, a "Benchmark fitting" tab has been added to the <a href="https://huggingface.co/spaces/hf-audio/open_asr_leaderboard">Open ASR Leaderboard</a>, which includes two of the above analyses across all models: quantifying (1) reference error rates from VoxPopuli and (2) orthographic switching across all public datasets. The relevant scripts are open-sourced on <a href="https://github.com/huggingface/open_asr_leaderboard/tree/main/benchmark_fitting" rel="nofollow">GitHub</a> as well as the <a href="https://huggingface.co/buckets/hf-audio/asr_leaderboard_h200">un-normalized model outputs</a>.</p>
+<p>Our findings also suggest that benchmark developers should avoid simple independent and identically distributed test splits in favor of temporal, speaker, or other metadata-based separation. Greater transparency around training data and model-selection procedures would also help researchers understand how these behaviors arise.</p>
+<p>Public benchmarks remain valuable: they are transparent, repeatable, easy to run, and well understood by the research community. But they are most useful when we can distinguish genuine transcription improvements from benchmark-specific gains that do not generalize to new audio.</p>
+<p>For more information, we encourage you to read our <a href="https://huggingface.co/papers/2608.19936">full report</a>.</p>
+</div></div>

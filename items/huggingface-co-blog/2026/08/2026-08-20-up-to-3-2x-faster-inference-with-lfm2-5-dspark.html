@@ -1,0 +1,301 @@
+<div id="readability-page-1" class="page"><div>
+<p>Today, we release <strong>DSpark draft model checkpoints</strong> for three models from our LFM2.5 family: LFM2.5-1.2B-Instruct, LFM2.5-2.6B, and LFM2.5-8B-A1B. These add a speculative decoding path that trades a minimal memory increase for a large decoding speedup without changing output quality:</p>
+<ul>
+<li><strong>Faster inference</strong>: up to 3.18 throughput improvement on a GPU and up to 2.87x on-device.  </li>
+<li><strong>Toward on-device agentic inference</strong>: cuts function-calling latency by 57% on average for LFM2.5-2.6B  </li>
+<li><strong>Day-one support for llama.cpp and SGLang</strong>: LFM-compatible DSpark integration is open-sourced upstream</li>
+</ul>
+<h2>
+	<a id="how-does-dspark-work" href="#how-does-dspark-work" rel="nofollow">
+		
+	</a>
+	<span>
+		How does DSpark work
+	</span>
+</h2>
+<p>The decode phase in LLM inference is traditionally memory-bound. Most latency comes from streaming weights from DRAM into SRAM, not from intense computation. Speculative decoding addresses this by using a lightweight draft model to produce candidate tokens, then having the target model verify them all in a single forward pass, sharing the cost of loading the weights across all tokens we verify.</p>
+<p>Over the years, multiple approaches of speculation have been proposed, with the most prominent being <a href="https://huggingface.co/papers/2503.01840">EAGLE-3</a>, <a href="https://huggingface.co/papers/2602.06036">DFlash</a>, and, most recently, <a href="https://huggingface.co/papers/2607.05147">DSpark</a>, which combines three components:</p>
+<ul>
+<li><strong>DFlash-style parallel backbone</strong> conditioned on the target model’s context features, producing hidden states for all draft tokens in a single forward pass.   </li>
+<li><strong>A lightweight sequential head</strong>, modeled as a Markov chain between neighboring tokens, that adds inter-token dependency, raising the acceptance rate at later positions.  </li>
+<li><strong>A confidence-scheduled verifier</strong> that predicts each token’s survival probability and prunes low-confidence suffixes when verification would cost more than it saves.</li>
+</ul>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/QSig7XupRwDH70cDopwv2.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/QSig7XupRwDH70cDopwv2.png" alt="DSpark"></a></p>
+<h2>
+	<a id="training-and-architecture" href="#training-and-architecture" rel="nofollow">
+		
+	</a>
+	<span>
+		Training and Architecture
+	</span>
+</h2>
+<p>We follow the DSpark recipe with a larger and more diverse data mix covering SFT, chat, code, and function-calling data. Based on our ablations, the first versions of the draft models are simplified attention-only draft models, with 5 layers and a block of 9. For each draft model, we ran 15 epochs on the entire dataset and selected the epoch with the highest acceptance rate rather than the lowest loss. </p>
+<p>The resulting draft models are relatively small, with each around ~300M parameters.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Component</th>
+<th>LFM2.5-1.2B-Instruct</th>
+<th>LFM2.5-8B-A1B</th>
+<th>LFM2.5-2.6B</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Decoder stack (5 layers)</td>
+<td>241.2M</td>
+<td>241.2M</td>
+<td>241.2M</td>
+</tr>
+<tr>
+<td>Hidden-state projection</td>
+<td>21.0M</td>
+<td>21.0M</td>
+<td>21.0M</td>
+</tr>
+<tr>
+<td>Markov head</td>
+<td>33.6M</td>
+<td>65.5M</td>
+<td>65.5M</td>
+</tr>
+<tr>
+<td>Norms + confidence head</td>
+<td>27.5k</td>
+<td>27.5k</td>
+<td>27.5k</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>295.7M</strong></td>
+<td><strong>327.7M</strong></td>
+<td><strong>327.7M</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="quality-parity" href="#quality-parity" rel="nofollow">
+		
+	</a>
+	<span>
+		Quality parity
+	</span>
+</h2>
+<p>Under greedy decoding, a draft token is only accepted if it matches the target model’s distribution. On rejection, the target model's own token takes its place. The emitted sequence is therefore <strong>identical to baseline greedy</strong> by construction, so benchmark accuracy (pass@1 or exact match) is unchanged.</p>
+<h2>
+	<a id="inference-speed-up-on-cpu-and-gpu" href="#inference-speed-up-on-cpu-and-gpu" rel="nofollow">
+		
+	</a>
+	<span>
+		Inference Speed Up on CPU and GPU
+	</span>
+</h2>
+<p>Our DSpark draft models for LFM2.5 ship with day-one support for <strong>llama.cpp</strong> (implementation <a href="https://github.com/ggml-org/llama.cpp/pull/27383" rel="nofollow">builds on top of the official codebase</a>, which we run with <a href="https://github.com/ggml-org/llama.cpp/pull/27441" rel="nofollow">experimental metal kernels</a>) and **SGLang (**implementation <a href="https://github.com/sgl-project/sglang/pull/31041" rel="nofollow">builds on the official SGLang implementation of DSpark</a>). </p>
+<p>We measure on-device throughput with llama.cpp and Metal on an M4 Max MacBook Pro using FP16 GGUF weights and up to 256 output tokens. We measure GPU throughput with SGLang on a single H100 80 GB in BF16. Both configurations use a DSpark block size of 9, a batch size of 1, and a temperature of 0. We evaluate them on five benchmark datasets.</p>
+<p>All three drafter models deliver noticeable throughput improvements on both the large-scale accelerator (H100) and the edge deployment (M4 Max MacBook). </p>
+<p>For <strong>LFM2.5-2.6B,</strong> speedup on the MacBook is especially noticeable, as it pushes the interactivity level a user can enjoy far beyond the throughput offered by most proprietary cloud models (around ~140 tok/s, depending on the dataset). </p>
+<div>
+	<table>
+		<thead><tr>
+<th>Dataset</th>
+<th>Acceptance (of 10)</th>
+<th>Speedup on H100</th>
+<th>Speedup on M4 Max</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>MATH500</td>
+<td>5.42</td>
+<td><strong>3.06x</strong> 326 → 1000 tok/s</td>
+<td><strong>2.25x</strong> 61 → 137 tok/s</td>
+</tr>
+<tr>
+<td>HumanEval</td>
+<td>4.54</td>
+<td><strong>2.56x</strong> 326 → 835 tok/s</td>
+<td><strong>2.63x</strong> 61 → 161 tok/s</td>
+</tr>
+<tr>
+<td>MBPP</td>
+<td>4.71</td>
+<td><strong>2.64x</strong> 326 → 861 tok/s</td>
+<td><strong>2.11x</strong> 62 → 132 tok/s</td>
+</tr>
+<tr>
+<td>GSM8K</td>
+<td>4.32</td>
+<td><strong>2.22x</strong> 312 → 693 tok/s</td>
+<td><strong>2.36x</strong> 60 → 143 tok/s</td>
+</tr>
+<tr>
+<td>MT-Bench</td>
+<td>5.07</td>
+<td><strong>2.87x</strong> 325 → 933 tok/s</td>
+<td><strong>1.99x</strong> 62 → 123 tok/s</td>
+</tr>
+<tr>
+<td>Mean</td>
+<td>4.81</td>
+<td><strong>2.67x</strong> 323 → 864 tok/s</td>
+<td><strong>2.27x</strong> 61 → 139 tok/s</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Across various multi-tool scenarios, DSpark reduces the latency by 57% on average for LFM2.5-2.6B.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/RTL-W6OBn97nMW7gkkT-e.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/RTL-W6OBn97nMW7gkkT-e.png" alt="bfcl_latency_mac"></a></p>
+<p>For <strong>LFM2.5-1.2B-Instruct</strong>, we see much more variance in dataset acceptance rates, so speedup varies by as much as 52% depending on the underlying text distribution.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Dataset</th>
+<th>Acceptance (of 10)</th>
+<th>Speedup on H100</th>
+<th>Speedup on M4 Max</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>MATH500</td>
+<td>6.02</td>
+<td><strong>2.56x</strong> 668 → 1712 tok/s</td>
+<td><strong>2.62x</strong> 140 → 366 tok/s</td>
+</tr>
+<tr>
+<td>HumanEval</td>
+<td>5.31</td>
+<td><strong>2.26x</strong> 664 → 1499 tok/s</td>
+<td><strong>2.87x</strong> 136 → 389 tok/s</td>
+</tr>
+<tr>
+<td>MBPP</td>
+<td>5.52</td>
+<td><strong>2.37x</strong> 667 → 1578 tok/s</td>
+<td><strong>2.74x</strong> 137 → 375 tok/s</td>
+</tr>
+<tr>
+<td>GSM8K</td>
+<td>4.34</td>
+<td><strong>1.67x</strong> 624 → 1041 tok/s</td>
+<td><strong>2.73x</strong> 140 → 381 tok/s</td>
+</tr>
+<tr>
+<td>MT-Bench</td>
+<td>3.90</td>
+<td><strong>1.66x</strong> 657 → 1091 tok/s</td>
+<td><strong>1.72x</strong> 137 → 237 tok/s</td>
+</tr>
+<tr>
+<td>Mean</td>
+<td>5.02</td>
+<td><strong>2.10x</strong> 656 → 1384 tok/s</td>
+<td><strong>2.54x</strong> 138 → 350 tok/s</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>For <strong>LFM2.5-8B-A1B</strong>, the acceptance rate increases compared to two dense models, yet on-device we get only an 18% improvement on average. This gap is due to the current MoE implementation in llama.cpp's Metal backend, and to the fact that verifying k tokens activates more experts and thus more weight traffic than a single decode step.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Dataset</th>
+<th>Acceptance (of 10)</th>
+<th>Speedup on H100</th>
+<th>Speedup on M4 Max</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>MATH500</td>
+<td>8.27</td>
+<td><strong>3.18x</strong> 428 → 1362 tok/s</td>
+<td><strong>1.21x</strong> 93 → 112 tok/s</td>
+</tr>
+<tr>
+<td>HumanEval</td>
+<td>7.02</td>
+<td><strong>2.58x</strong> 426 → 1100 tok/s</td>
+<td><strong>1.12x</strong> 91 → 101 tok/s</td>
+</tr>
+<tr>
+<td>MBPP</td>
+<td>6.93</td>
+<td><strong>2.64x</strong> 426 → 1122 tok/s</td>
+<td><strong>1.09x</strong> 89 → 97 tok/s</td>
+</tr>
+<tr>
+<td>GSM8K</td>
+<td>4.02</td>
+<td><strong>1.29x</strong> 385 → 496 tok/s</td>
+<td><strong>1.44x</strong> 90 → 129 tok/s</td>
+</tr>
+<tr>
+<td>MT-Bench</td>
+<td>8.52</td>
+<td><strong>3.02x</strong> 426 → 1288 tok/s</td>
+<td><strong>1.04x</strong> 87 → 90 tok/s</td>
+</tr>
+<tr>
+<td>Mean</td>
+<td>6.95</td>
+<td><strong>2.54x</strong> 418 → 1074 tok/s</td>
+<td><strong>1.18x</strong> 90 → 106 tok/s</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="how-to-use-lfm25-dspark" href="#how-to-use-lfm25-dspark" rel="nofollow">
+		
+	</a>
+	<span>
+		How to use LFM2.5-DSpark
+	</span>
+</h2>
+<p>Running the DSpark draft models with <strong>SGLang</strong> requires an SGLang build with DSpark support for LFM2 targets (<a href="https://github.com/sgl-project/sglang/pull/31041" rel="nofollow">PR #31041</a>). Launch the target with the draft attached:</p>
+<pre><code>python -m sglang.launch_server \
+  --model-path LiquidAI/LFM2.5-2.6B \
+  --speculative-algorithm DSPARK \
+  --speculative-draft-model-path LiquidAI/LFM2.5-2.6B-DSpark \
+  --speculative-draft-attention-backend flashinfer \
+  --disable-radix-cache --mem-fraction-static 0.75 --port 30000
+</code></pre>
+<p>Then query the OpenAI-compatible endpoint at <code>http://localhost:30000/v1</code>. The block size is read from the draft's <code>config.json</code>; the baseline is the same command without the three <code>--speculative-*</code> flags.</p>
+<p>Running them with <strong>llama.cpp</strong> requires the respective llama.cpp build (<a href="https://github.com/ggml-org/llama.cpp/pull/27383" rel="nofollow">PR#27383</a>).</p>
+<pre><code>llama-server -m LFM2.5-2.6B-F16.gguf \
+  -md LFM2.5-2.6B-DSpark-F16.gguf \
+  --spec-type draft-dspark --spec-draft-n-max 10 --spec-draft-n-min 0 \
+  -fa on -ngl 99
+</code></pre>
+<p>The block size is read from the sidecar metadata (n-max is clamped to it). Speculative decoding is <strong>exact</strong>: the target verifies every proposed token, so greedy output equals the target alone; per-response <code>timings</code> report <code>draft_n</code> / <code>draft_n_accepted</code>.</p>
+<h2>
+	<a id="get-started" href="#get-started" rel="nofollow">
+		
+	</a>
+	<span>
+		Get Started
+	</span>
+</h2>
+<p>The DSpark draft model checkpoints are available on Hugging Face as Safetensors and in GGUF format:</p>
+<ul>
+<li><strong>Safetensors</strong>: <a href="https://huggingface.co/LiquidAI/LFM2.5-2.6B-DSpark">LFM2.5-2.6B-DSpark</a>, <a href="https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-DSpark">LFM2.5-1.2B-Instruct-DSpark</a>, and <a href="https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-DSpark">LFM2.5-8B-A1B-DSpark</a>  </li>
+<li><strong>GGUF</strong>: <a href="https://huggingface.co/LiquidAI/LFM2.5-2.6B-DSpark-GGUF">LFM2.5-2.6B-DSpark-GGUF</a>, <a href="https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-DSpark-GGUF">LFM2.5-1.2B-Instruct-DSpark-GGUF</a>, <a href="https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF">LFM2.5-8B-A1B-DSpark-GGUF</a></li>
+</ul>
+<p>We can’t wait to see what you build.</p>
+<h2>
+	<a id="citation" href="#citation" rel="nofollow">
+		
+	</a>
+	<span>
+		Citation
+	</span>
+</h2>
+<p>For citations, please use the following reference or BibTeX:</p>
+<p>Liquid AI, "LFM2.5-DSpark: Up to 3.2x Faster Inference from H100 to MacBook", Liquid AI Blog, Aug 2026.</p>
+<pre><code>@article{liquidAI2026dspark,
+  author = {Liquid AI},
+  title = {LFM2.5-DSpark: Up to 3.2x Faster Inference from H100 to MacBook},
+  journal = {Liquid AI Blog},
+  year = {2026},
+  note = {www.liquid.ai/blog/lfm2.5-dspark},
+}
+</code></pre>
+</div></div>

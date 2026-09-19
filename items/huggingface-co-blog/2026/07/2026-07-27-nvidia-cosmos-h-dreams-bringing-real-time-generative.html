@@ -1,0 +1,118 @@
+<div id="readability-page-1" class="page"><div>
+<p>Surgical robotics is moving quickly from teleoperation toward increasingly capable vision-language-action policies. But evaluating and training these systems remains difficult. Physical robotic platforms are expensive to operate, experiments are slow to reproduce, and failures can damage instruments or biological material. Conventional simulators provide a safer alternative, but surgical scenes are exceptionally difficult to model: deformable tissue, fine instrument interactions, specular surfaces, sutures, needles, smoke, and occlusions all matter.</p>
+<p>World foundation models offer a different path. Instead of manually authoring every object and physical interaction, they learn visual dynamics directly from synchronized video and robot kinematics. NVIDIA's <a href="https://huggingface.co/nvidia/Cosmos-H-Surgical-Simulator">Cosmos-H-Surgical-Simulator</a> demonstrated this approach by generating future surgical video from an initial scene and a sequence of robot actions. It enabled faster-than-physical evaluation and synthetic data generation across the <a href="https://huggingface.co/datasets/nvidia/PhysicalAI-Robotics-Open-H-Embodiment">Open-H-Embodiment</a> ecosystem.</p>
+<p>Today, we are introducing the next step: <a href="https://github.com/isaac-for-healthcare/Cosmos-H-Dreams" rel="nofollow">Cosmos-H-Dreams</a>, a real-time, action-conditioned generative simulator for surgical robotics. Cosmos-H-Dreams distills the capabilities of Cosmos-H-Surgical-Simulator into a causal, few-step student model and serves it through <a href="https://github.com/NVIDIA/flashdreams" rel="nofollow">FlashDreams</a>, NVIDIA's accelerated streaming-inference library. Running on a single NVIDIA RTX PRO 6000 GPU, the result is an interactive environment that a person or a learned policy can control in a closed loop.</p>
+
+
+<hr>
+<h2>
+	<a id="1-from-surgical-world-model-to-interactive-simulator" href="#1-from-surgical-world-model-to-interactive-simulator" rel="nofollow">
+		
+	</a>
+	<span>
+		1. From Surgical World Model to Interactive Simulator
+	</span>
+</h2>
+<p><a href="https://huggingface.co/nvidia/Cosmos-H-Surgical-Simulator">Cosmos-H-Surgical-Simulator</a> is an action-conditioned world foundation model built on NVIDIA <a href="https://huggingface.co/nvidia/Cosmos-Predict2.5-2B">Cosmos-Predict2.5-2B</a> and post-trained on the <a href="https://huggingface.co/datasets/nvidia/PhysicalAI-Robotics-Open-H-Embodiment">Open-H-Embodiment</a> dataset. Given a surgical context frame and a future robot trajectory, it generates video showing the likely visual consequences of those actions. This makes it useful for offline policy evaluation and synthetic data generation. A recorded or policy-generated trajectory can be sent to the model, the corresponding rollout can be generated, and the result can be inspected or scored without repeatedly executing the motion on a physical robot.</p>
+<p>Cosmos-H-Dreams moves the model into the real-time regime. Starting from the multi-embodiment surgical priors learned by Cosmos-H-Surgical-Simulator, we specialize the model for da Vinci Research Kit (dVRK) tabletop suturing and distill it into a causal student that generates the scene autoregressively. The released model receives an initial RGB frame and a live stream of robot kinematics, then produces the next chunk of frames before continuing with the following action block.</p>
+<p>We have also demonstrated the versatility of Cosmos-H-Dreams by collaborating with CMR Surgical and Cambridge Consultants to integrate it with the Versius surgeon controller, enabling real-time operation on the Versius platform.</p>
+<hr>
+<h2>
+	<a id="2-distilling-cosmos-h-surgical-simulator-for-real-time" href="#2-distilling-cosmos-h-surgical-simulator-for-real-time" rel="nofollow">
+		
+	</a>
+	<span>
+		2. Distilling Cosmos-H-Surgical-Simulator for Real Time
+	</span>
+</h2>
+<p>The key challenge is preserving useful surgical dynamics while reducing the cost of generation. Cosmos-H-Dreams uses a teacher-to-student training pipeline designed for long, autoregressive rollouts.</p>
+<h3>
+	<a id="21-a-surgical-teacher" href="#21-a-surgical-teacher" rel="nofollow">
+		
+	</a>
+	<span>
+		2.1. A Surgical Teacher
+	</span>
+</h3>
+<p>The bidirectional teacher begins from the Cosmos-H-Surgical-Simulator Open-H checkpoint, which uses a unified 44-dimensional action representation. For the released dVRK tabletop model, the dual-arm dVRK action content, consisting of relative end-effector translation, rotation, and gripper state, is mapped into this common representation.</p>
+<p>The teacher is then fine-tuned on the JHU dVRK tabletop mixture, including successful demonstrations as well as failure and out-of-distribution episodes such as needle drops, missed throws, and unsuccessful knot ties. These failures are important: a simulator intended to evaluate policies must reproduce the consequences of poor actions, not only ideal demonstrations.</p>
+<p>To improve stability during long rollouts, the training process progressively increases the teacher's temporal horizon. We start training on a 12-frame horizon and progressively increase this number until 72 frames. At each horizon bump, we initialize the warmed-up model with pretrained weights.</p>
+<h3>
+	<a id="22-causal-warmup" href="#22-causal-warmup" rel="nofollow">
+		
+	</a>
+	<span>
+		2.2. Causal Warmup
+	</span>
+</h3>
+<p>The teacher's denoising trajectories are first precomputed and cached. A causal student is initialized from the teacher and trained to imitate these cached trajectories. This warmup stage teaches the student to operate with causal attention and a streaming key/value cache before it begins learning from its own generated history.</p>
+<h3>
+	<a id="23-self-forcing-distillation" href="#23-self-forcing-distillation" rel="nofollow">
+		
+	</a>
+	<span>
+		2.3. Self-Forcing Distillation
+	</span>
+</h3>
+<p>Autoregressive models face a familiar problem: during training they may see clean, ground-truth context, while during deployment they must condition on their own imperfect outputs. Small errors can therefore compound over time.</p>
+<p>Cosmos-H-Dreams addresses this mismatch with <a href="https://arxiv.org/abs/2506.08009" rel="nofollow"><strong>self-forcing distillation</strong></a>. During training, the student rolls forward using its own generated context. Distribution-matching supervision from the frozen teacher then guides those self-generated rollouts toward realistic surgical video. This prepares the student for the same conditions it will encounter during interactive inference.</p>
+<p>The resulting model supports few-step diffusion, with as few as two denoising steps per latent frame, rather than the many-step process used by the full teacher. It combines the teacher's surgical priors with the causal structure needed for streaming.</p>
+<hr>
+<h2>
+	<a id="3-flashdreams-the-real-time-inference-engine" href="#3-flashdreams-the-real-time-inference-engine" rel="nofollow">
+		
+	</a>
+	<span>
+		3. FlashDreams: The Real-Time Inference Engine
+	</span>
+</h2>
+<p>Model distillation is only part of the real-time story. Cosmos-H-Dreams is served through <a href="https://github.com/NVIDIA/flashdreams" rel="nofollow">FlashDreams</a>, an accelerated inference library for autoregressive world and video models.</p>
+<p>FlashDreams turns the distilled student into a low-latency streaming system through several complementary optimizations, such as streaming KV cache, CUDA Graph capturing, or model compilation.</p>
+<p>Together, these techniques bring the distilled surgical world model fine-tune from the roughly ten-frames-per-second regime of standard Cosmos-H-Surgical-Simulator inference to interactive operation (~160 frames per second) on a single <strong>NVIDIA RTX PRO 6000</strong>.</p>
+<p>Cosmos-H-Dreams also provides the human-machine interfaces that turn generation into interaction. A browser client can send keyboard commands and receive generated frames over WebRTC. A Meta Quest client can map tracked controller motion into robot actions and display the synthesized scene through WebXR. The same model can also be connected to a learned surgical policy, with generated observations and predicted actions exchanged inside a closed loop.</p>
+<hr>
+<h2>
+	<a id="4-adapting-to-your-own-data" href="#4-adapting-to-your-own-data" rel="nofollow">
+		
+	</a>
+	<span>
+		4. Adapting to Your Own Data
+	</span>
+</h2>
+<p>While Cosmos-H-Dreams includes a pre-trained checkpoint for tabletop suturing, the system is designed to be extensible to your specific embodiment. To train a real-time student model for your own dataset, we provide a complete recipe for teacher fine-tuning and self-forcing distillation in our <a href="https://github.com/NVIDIA-Medtech/Cosmos-H-Surgical-Simulator/blob/main/docs/tutorial_teacher_training_and_self_forcing.md" rel="nofollow">step-by-step guide</a>.</p>
+<hr>
+<h2>
+	<a id="5-what-is-next-toward-closed-loop-surgical-physical-ai" href="#5-what-is-next-toward-closed-loop-surgical-physical-ai" rel="nofollow">
+		
+	</a>
+	<span>
+		5. What Is Next: Toward Closed-Loop Surgical Physical AI
+	</span>
+</h2>
+<p>Cosmos-H-Dreams opens a new frontier for surgical simulation: environments learned from real robot data that are responsive enough to be inhabited.</p>
+<p>The immediate next step is to evaluate more than visual quality. A useful surgical simulator must respond correctly to actions, preserve instrument and scene structure over long rollouts, and support conclusions that transfer to the physical robot. This motivates a new family of closed-loop benchmarks: tool-tip reach and pose accuracy, gripper-cycle fidelity, idle stability, counterfactual action diversity, long-horizon drift, and agreement between simulated and real policy outcomes.</p>
+<p>Real-time world models can also become active partners in surgical policy development. They can generate rare failures on demand, provide scalable environments for reinforcement or imitation learning, and enable rapid evaluation of new policies without tying every experiment to scarce robotic hardware.</p>
+<p>Further ahead, real-time simulation enables a series of downstream applications such as latency-aware telesurgery, where the world model helps maintain a more stable display; or interactive surgical rehearsal, procedure planning, and intraoperative decision support. Cosmos-H-Dreams is a research and development platform, not a diagnostic system, a replacement for intraoperative imaging, or a controller for a physical surgical robot. Yet it provides a foundation for exploring these possibilities safely.</p>
+<p>As model fidelity, temporal stability, and hardware efficiency continue to improve, real-time generative simulation can help connect surgeon education, synthetic data generation, policy training, and policy evaluation within one shared Physical AI environment.</p>
+<hr>
+<h2>
+	<a id="6-get-started-today" href="#6-get-started-today" rel="nofollow">
+		
+	</a>
+	<span>
+		6. Get Started Today
+	</span>
+</h2>
+<p>Explore the models, data, and runtime behind Cosmos-H-Dreams:</p>
+<ul>
+<li><strong>Cosmos-H-Dreams code and examples:</strong> <a href="https://github.com/isaac-for-healthcare/Cosmos-H-Dreams" rel="nofollow">GitHub repository</a></li>
+<li><strong>Cosmos-H-Dreams model:</strong> <a href="https://huggingface.co/nvidia/Cosmos-H-Dreams">Hugging Face checkpoint</a></li>
+<li><strong>Cosmos-H-Surgical-Simulator:</strong> <a href="https://huggingface.co/nvidia/Cosmos-H-Surgical-Simulator">Hugging Face model</a> and <a href="https://github.com/NVIDIA-Medtech/Cosmos-H-Surgical-Simulator" rel="nofollow">GitHub repository</a></li>
+<li><strong>Adapt to your own data:</strong> <a href="https://github.com/NVIDIA-Medtech/Cosmos-H-Surgical-Simulator/blob/main/docs/tutorial_teacher_training_and_self_forcing.md" rel="nofollow">Step-by-step recipe for teacher fine-tuning and self-forcing distillation</a></li>
+<li><strong>Open-H-Embodiment:</strong> <a href="https://huggingface.co/datasets/nvidia/PhysicalAI-Robotics-Open-H-Embodiment">Hugging Face dataset</a></li>
+<li><strong>FlashDreams:</strong> <a href="https://github.com/NVIDIA/flashdreams" rel="nofollow">GitHub repository</a></li>
+<li><strong>NVIDIA Cosmos-Predict2.5:</strong> <a href="https://github.com/nvidia-cosmos/cosmos-predict2.5" rel="nofollow">GitHub repository</a></li>
+<li><strong>Cosmos-Surg-dVRK:</strong> World Foundation Model-based Automated Online Evaluation of Surgical Robot Policy Learning (<a href="https://arxiv.org/abs/2510.16240" rel="nofollow">arXiv paper</a>)</li>
+</ul>
+<p>Cosmos-H-Dreams brings action-conditioned surgical world modeling into the real-time loop, creating a new environment for people and policies to practice, explore, generate data, and evaluate what happens next.</p>
+</div></div>

@@ -1,0 +1,440 @@
+<div id="readability-page-1" class="page"><div>
+
+<p>In this episode of <a href="https://dev.37signals.com/series/recordables/">RECORDABLES</a>, we dig into our ambitious goal of moving from a commingled database to separate SQLite databases for every Fizzy customer. Lead Programmer Mike Dalessio walks through what multi-tenancy actually means in practice, why Rails doesn’t make it easy, and how the open sourced Active Record Tenanted gem makes it more seamless.</p>
+
+<p>During the conversation, Mike does a live demo showing what it takes to convert an existing Rails app to multi-tenanted and the safeguards built in to prevent accidental data leaks. You’ll also hear about the edge cases of globally replicated SQLite, and why we ended up launching Fizzy without it.</p>
+
+
+
+<p><a href="https://youtu.be/J1I3puqWDEw">Watch the full video episode on YouTube</a>.</p>
+
+<hr>
+
+<h2 id="timestamps">Timestamps</h2>
+
+<ul>
+  <li><strong>00:00:00</strong> — Introduction</li>
+  <li><strong>00:02:56</strong> — The Fizzy bet: one SQLite database per customer</li>
+  <li><strong>00:06:57</strong> — The challenge with SQLite and global writes</li>
+  <li><strong>00:14:35</strong> — Switching to MySQL (and fixing the fallout)</li>
+  <li><strong>00:18:55</strong> — Why the Apartment gem wasn’t enough</li>
+  <li><strong>00:22:55</strong> — Live Demo: Making Writebook multi-tenanted in minutes</li>
+  <li><strong>00:31:36</strong> — Built-in safety checks to prevent data leaks</li>
+  <li><strong>00:35:17</strong> — Replication, failover &amp; “emergent behavior”</li>
+  <li><strong>00:43:28</strong> — What’s Next: upstreaming to Rails and future plans</li>
+</ul>
+
+<hr>
+
+<h2 id="links--resources">Links &amp; Resources</h2>
+
+<ul>
+  <li><a href="https://www.youtube.com/watch?v=Sc4FJ0EZTAg/">Mike Dalessio’s Rails World 2025 talk: Multi-Tenant Rails – Everybody Gets a Database</a></li>
+  <li><a href="https://github.com/basecamp/activerecord-tenanted">Active Record Tenanted</a></li>
+  <li><a href="https://github.com/basecamp/fizzy">Fizzy code base</a></li>
+  <li><a href="https://github.com/rails-on-services/apartment">Apartment</a></li>
+  <li><a href="https://github.com/basecamp/writebook/pull/389">Writebook Multi-tenant code branch</a></li>
+</ul>
+
+<hr>
+
+<h2 id="transcript">Transcript</h2>
+
+<p><strong>Episode Highlights (00:00:00):</strong>
+That’s the kind of thing that multi-tenancy can give you as well. It’s not necessarily between customers, but it’s just keeping your data separate and having that database connection handled really gracefully and very seamlessly by Rails. Rails does not make your life easy when you want to work in this way, when you have multiple tenants and all sitting in one database. I wanted to make it as hard as possible for a developer to accidentally shoot themselves in the foot.</p>
+
+<p><strong>Kimberly (00:28):</strong>
+Welcome back to another episode of Recordables. This is where we’re sitting down with the 37signals technical team to dive into some of the products that we make, including Basecamp, HEY, Fizzy and open source products. I’m Kimberly, your host, along with my co-host from the mobile team, Fernando. Hello, Fernando.</p>
+
+<p><strong>Fernando (00:46):</strong>
+Hello, hello.</p>
+
+<p><strong>Kimberly (00:47):</strong>
+And this week we are talking a little bit about multi-tenant Rails. We’re diving deep into a Rails topic, and to do that, we have one of our programmers, Mike Dalessio, with us to do that. Mike, welcome to Recordables. Thanks for being here.</p>
+
+<p><strong>Mike (00:59):</strong>
+Really good to be here. Thank you for inviting me.</p>
+
+<p><strong>Kimberly (01:01):</strong>
+Before we dive into this Rails specific topic, Mike, tell us a little bit about you, what you do here at 37signals. Oh, and how long you’ve been here.</p>
+
+<p><strong>Mike (01:08):</strong>
+Sure. I’ve been with 37signals for about a year and a half, about a year and a half, and I work on the SIP team that stands for Security Infrastructure and Performance. I do a little bit less of the product work and a little bit more of the backend infrastructure and keeping things running around here work, which I love. It’s what I did before I came to 37signals at Shopify where I was on the team that worked on Ruby Performance there as well.</p>
+
+<p><strong>Kimberly (01:35):</strong>
+Amazing. Also another huge Ruby on Rails shop, so that’s very cool. Okay, so I know you’ve talked about this multi-tenant Rails a bit at Rails Worlds last year, but we’re going to have time to dive into it deep. I know you’re going to do some screen shares with us, so why don’t you just tell us a little bit about this topic and obviously why you’re so passionate about it.</p>
+
+<p><strong>Mike (01:55):</strong>
+Oh, sure. So the concept of multi-tenancy really just means keeping your customer’s data separate and private from each other because ideally you don’t want one customer to be able to access another customer’s data, but when it’s all together co-mingled in one big database, that is a risk. A developer could introduce a bug that lets that data go. And so multi-tenancy is a little bit about just keeping the boundaries between customer data present. And so Rails doesn’t do a great job of making this easy. It forces you to think about it as an application level concern. In all of my models, I have to keep in mind as a developer that, oh, this model actually contains data for all of my customers and I need to remember to select data that only belongs to account ID 1234. And if I forget to do that, it’ll work in tests.</p>
+
+<p><strong>(02:56):</strong>
+And as soon as I push into production, people will see each other’s. So when we were building Fizzy here at 37signals, we wanted it to be multi-tenant and we wanted one application to work for all the customers similar to what Basecamp does. And David cooked up this hair brained scheme of what if we used SQLite, which is a file-based database. So instead of it being a server in the cloud that you connect to, it’s a file that sits on your local machine and that’s where the database is. And so you don’t have to go over the network so it’s faster. It’s also a little more self-contained where you can just delete the database or move it around or copy it or whatever you need to do. And he really wanted to push the boundaries of what we could do in Rails with SQLite. And so his idea was what if we made Fizzy use the multi-tenant with SQLite where there’s a separate database file on disk for each of our customers in Fizzy, if you think about it, that could be tens of thousands, hundreds of thousands of customers, we’re going to have hundreds of thousands of SQLite files sitting on disk. Wouldn’t that be really neat if we could pull this off and kind of pointed me at that problem and said go.</p>
+
+<p><strong>Kimberly (04:11):</strong>
+Okay, wait, can I ask a quick question?</p>
+
+<p><strong>Mike (04:12):</strong>
+Sure.</p>
+
+<p><strong>Kimberly (04:13):</strong>
+This commingled database, I would assume that’s common, like what most people are doing. Yeah?</p>
+
+<p><strong>Mike (04:19):</strong>
+Yes. That is the dominant mode of deploying web applications today in the world, and it works fine, but it also means that when you scale up, you have to scale your database machine way up. If you look at what we have to do to run Basecamp and HEY, we have large machines running the database. That database is replicated across multiple machines for redundancy and it takes a lot of operational money and effort to keep that running.</p>
+
+<p><strong>Kimberly (04:52):</strong>
+And we don’t currently have any of our products that are not commingled databases where each user has their own database. This would’ve been the first iteration of that. Is that a true statement?</p>
+
+<p><strong>Mike (05:03):</strong>
+Correct, yes. That’s what we were hoping for was to really kind of change the paradigm about how you deploy SaaS apps. Can you do it without having to have a big humongo database machine that everything reads and writes its data to? And we almost got there. I guess maybe the punchline to this story is we didn’t launch Fizzy with SQLite. Unfortunately, it was a really complicated problem and we ran out of time. It doesn’t mean it’s not solvable and it doesn’t mean we won’t solve it, it just means it wasn’t solved when we had to go live with Fizzy.</p>
+
+<p><strong>Fernando (05:36):</strong>
+So I sort of asked this question last time with Jeremy when we were talking about the S3 migration, and I was like, isn’t it just copying files? Well, with multi-tenancy, isn’t this just sort of like you have the file there, what’s the complicated aspect of it?</p>
+
+<p><strong>Mike (05:53):</strong>
+Yeah, that’s a really good question. I know there’s a plan to have Kevin on to talk about SQLite replication, and so he can probably talk about this a little more deeply than I can, but I’ll try. If you only have one machine, you only have one computer running your website, that machine takes all the connections, all the requests that come in, it can go to its local files for all of its data and return the response and life is good, and this is fine. If that was what we wanted to launch with Fizzy, we totally could have flipped the switch and we would be live on it today. But the reality is what you want to do to have a world-class product is you want to have it geographically distributed. You want to have a data center in Europe, you want to have a data center in the PacRim, you want to have a data center on the East coast and on the west coast, and you want customers to be able to go to the closest machine when they do a read. And you want them to be able to all write to the correct machine.</p>
+
+<p><strong>(06:57):</strong>
+So if you think about SQLite, if I had four machines, one in each of those regions, if I do a write, how does the network know where to send my request to? Because that database can only be written to on one of those machines. That’s the thing about SQLite is there’s only one master copy that can be written to at any point in time. So if I’m in Europe and I try to do a write, how does the network know that it needs to go to the US and do the write there because that’s where my database is? And that’s where the complications come in because we can replicate the database so it’s readable everywhere. But then when I do the request, all of a sudden this integration between the top and the bottom of your stack, the network stack at the top, which is what carries the request, and then you have Rails and everything down to the database and the database level needs to be coupled to the network level in a way that’s very unnatural. And so that’s what Kevin and I had been trying to build, mostly Kevin, is an integrated stack where the database routing and the request routing all worked the same way. I’m not doing it justice there, but Kevin can talk about it in way more detail than I can.</p>
+
+<p><strong>Fernando (08:11):</strong>
+No, no, no, that makes sense.</p>
+
+<p><strong>Mike (08:12):</strong>
+And that was actually the bit that caused us to say this isn’t quite ready yet. And we launched Fizzy with MySQL instead of with SQLite.</p>
+
+<p><strong>Fernando (08:23):</strong>
+That makes perfect sense. When you have a stack of things, you usually don’t want to jump between more. One, you don’t want to jump between more than one level, so you want to go straight down or straight up. You don’t want go like, oh, the database needs the network and then that’s where things get fizzy. No, I’m kidding. My question is, if I’m understanding this correctly, there is a single source of truth. Let’s talk about this for database example. There’s a single source of truth. So is that by design due to how SQ Lite? Oh my god, I’ve only read that. I’ve never heard it spoken.</p>
+
+<p><strong>Mike (09:03):</strong>
+I think most people say SQLite. I think the maintainers say S Q L Lite.</p>
+
+<p><strong>Fernando (09:09):</strong>
+That’s how I would say it in Spanish. I’ll say SQLite. Is that a SQLite design decision or is that like a 37signals decision when you’re trying to explore?</p>
+
+<p><strong>Mike (09:20):</strong>
+That’s how the database works. So SQLite is intended to be, it’s just a file that’s on disk, which makes it great for things like mobile applications, which you can talk about right now, right? SQLite is the most widely deployed database in the universe because it’s on every Android and iOS device in the world. And it’s great because on a phone you only have one writer, which is the phone. Using SQLite for a web app is a little bit different. It’s not necessarily what SQLite was designed for, but again, so because it’s a flat file, you can have multiple processes on the local machine open up that file and write to it or read to it. So on a single machine I might have a dozen web server processes running, I can all read and write to the file and it’s fine, but as soon as I go to another machine that doesn’t have access to that hard drive, that machine can no longer write to the file. So that’s really the boundary we’re talking about, about the file system boundary.</p>
+
+<p><strong>Fernando (10:18):</strong>
+And if you say that these are database level design decisions, I assume that there’s some sort of conflict resolution or something that can be done at the file level so that oh, okay, there’s synchronization between two SQLite databases?</p>
+
+<p><strong>Mike (10:39):</strong>
+This is a great question. So if I have multiple processes that are reading and writing to the database, they can all read at the same time, but only one can write at a time. And for this, I think the default is to use POSIX file locking. So it’s just using the file system lock system call to prevent multiple processes from writing to it at the same time. So this also means that SQLite has an interesting bottleneck that RDBMs like MySQL or Postgres don’t have, which is you can only have one writer at a time, but on balance, because the writes are so fast, right? They’re like, I don’t know, nanoseconds, right? It’s you’re writing to the local disk and not having to go over the network, which is maybe milliseconds Most of the time it’s not a big deal that you can only have one writer at a time.</p>
+
+<p><strong>Fernando (11:29):</strong>
+That is really interesting.</p>
+
+<p><strong>Mike (11:31):</strong>
+So we’ve drifted a little bit, so I want to just tie what we’re talking about back to the multi-tenant conversation real quick. So we wanted to use SQLite and we wanted it to be multi-tenant, but those two things don’t necessarily need to be coupled together. So the Active Record Tenanted gem, which we open sourced a few months ago, we have had a couple of contributors who’ve started working on MySQL and Postgres support for this gem. So the same kind of thing applies where I might have for, I’m going to imagine a scenario here, regulatory reasons I need to have a separate database for Europeans than I do for North Americans, GDPR, what have you, contractual regions, I don’t know. But if you have that problem, Rails does not make your life very easy and a lot of people end up deploying two versions of their app and one for Europe, one for North America, and you don’t necessarily need to. If you think about tenant, not necessarily as a customer-specific thing, but maybe it’s a region-specific thing. You could have all of your US customers route their MySQL database connection to your US East to Amazon region, and you can have all of your European customers routed to a Hetzner box that you have sitting in Germany. That’s the kind of thing that multi-tenancy can give you as well. It’s not necessarily between customers, but it’s just keeping your data separate and having that database connection handled really gracefully and very seamlessly by Rails where today it’s very difficult to do that.</p>
+
+<p><strong>Fernando (13:12):</strong>
+Exactly. Yeah. I was going to eventually get to that point. When you explained it like, oh, the database layer is down here and the network layer up there, and you were trying to make it work, I’m sure both you and Kevin plenty of times where were like, we’re trying to make a square peg fin into, right? So my follow-up question was like, well, this sounds like sort of an application concern. And then you mentioned the decoupling, like, oh, okay, we were trying to make SQLite work with multi-tenancy, but they’re not necessarily tightly coupled. You could just split them apart and then use MySQL or Postgres or whatever. That is really interesting. My follow up question then is what is actually implemented in Fizzy? Yeah, what did we go live with? Yeah, did we just cut it all up? Open source the gem and Fizzy works like regular and there’s some open source work that’s happening?</p>
+
+<p><strong>Mike (14:16):</strong>
+Yeah, so right now, Fizzy doesn’t rely on the multi-tenant thing at all. The version, that version that we open source, but Fizzy itself is an open source project. And so you can actually go back through history and you can see the point in time that we had the multi-tenant libraries all working and we ripped it out and replaced it with MySQL.</p>
+
+<p><strong>Fernando (14:35):</strong>
+What is that like on a technical level?</p>
+
+<p><strong>Mike (14:37):</strong>
+Yeah, sure. Okay. Do you remember I mentioned that Rails does not make your life easy if you want to do multi-tenancy. So there was a long tail of bugs that were introduced by switching from SQLite to MySQL or from multi-tenant SQLite to using normal Rails and MySQL. Because if you think about if you are in multi-tenant mode, you have your database, your Rails processes connected to the database, and so you can do something like, I want to find the user named Fernando, so select star from users where name equals Fernando and it’ll bring you back. But now if we are in this MySQL database where all of the customer data is co-mingled, right? I can no longer say select star where name is Fernando, I need to say, and where account ID equals 1234. And so there were a bunch of places where we were relying on this implicit assumption that we’re connected to a database where all of the data belongs to the same customer.</p>
+
+<p><strong>(15:44):</strong>
+And now we switched over to MySQL and now all of a sudden we had this assumption sprinkled throughout our code where we weren’t specifying the account ID the way that we should. And so we had to go in and find that. So you can actually go through the Fizzy source code history and see us fixing these bugs one by one as we went through it. I think it was all one big bang, one big pull request, but there were a lot of very small changes we had to make in order to do that. And that’s the sign I’m talking about here, which is that Rails does not make your life easy when you want to work in this way when you have multiple tenants and all sitting in one database.</p>
+
+<p><strong>Fernando (16:19):</strong>
+I’m not a Rails expert, but the example that you gave sounds very low level when it comes to SQL instructions. Like Rails wouldn’t… do something like, no, no, no. My question is specifically what part makes it difficult from Rails to actually build multi-tenant?</p>
+
+<p><strong>Mike (16:42)</strong>:
+It, it’s just the usability. There’s nothing technical preventing. So there’s a really good mature, well-tested gem called Apartment because tenants and Apartments and everything.</p>
+
+<p><strong>Fernando (16:55):</strong>
+That’s a great name.</p>
+
+<p><strong>Mike (16:56):</strong>
+So a word play and Apartment actually does make this easy. Where Apartment will you have to decorate your Rails models with like, oh, I’m tenanted by account id, and you have to put that in all of your models.</p>
+
+<p><strong>(17:10):</strong>
+But once you do that, then Apartment will do some of the heavy lifting and say that you have to have an account ID specified or else it will raise an exception to make it a little safer. And the drawback, I talked about this a little bit in my Rails World talk, Apartment was built a long time ago. I think it’s like 12 years old and it’s still, it’s showing signs of its age and it’s not totally thread safe in all circumstances. So it’s not taking advantage of a lot of modern Rails. That connection handling got completely rewritten a few years ago. So Apartment is still, it’s a little inefficient. So Apartment I think does this thing where it closes the database connection and it opens a new one, and then if you want to switch back, it has to close this one and open the new one as opposed to just keeping a pool of connections open and maybe doing something where you like, oh, there’s a max on a number of connections you can have open at a time. It will reap them if they’re unused. And I built all of that into the Active Record Tenanted gem. It’s all there. So Apartment does handle the usability issues that you’re talking about though. Why is it hard? It’s simply like this implicit where account ID equals 1234 has to be in all of your database queries and Apartment will do a little bit of the heavy lifting there. It does a good job,.</p>
+
+<p><strong>Kimberly (18:32):</strong>
+But it didn’t do what we needed it to do for Fizzy.</p>
+
+<p><strong>Mike (18:34):</strong>
+It did not at all. No, no. It was a little slow. It wasn’t thread safe, like I said. And also, oh, this is the other thing. It’s Apartment only deals with the Active Record bit of multi-tenancy and it doesn’t make the rest of Rails work in multi-tenant mode.</p>
+
+<p><strong>Fernando (18:55):</strong>
+What is the rest of Rails?</p>
+
+<p><strong>Mike (18:57):</strong>
+Let me give you an example. So Rails is a really big framework. So I wrote a list, okay, if you think about, there’s a lot of things that Rails does that need to be aware that we’re working in this multi-tenant space. So one is fragment caching. If we generate a view in Rails. Rails is a really great job of caching that view so that we don’t have to regenerate it the next time you ask for it. But the cache is based on the record ID. And so you need to make sure that if you have two records with the same ID that belong to different accounts, so account A, record one and account B, record one by default will both try to write to the same cache record. So this is another way that you can accidentally get data from one customer being shown to a different customer because you’re not hitting the database, but you’re hitting the view fragment cache.</p>
+
+<p><strong>Fernando (19:58):</strong>
+Oh.</p>
+
+<p><strong>Mike (19:59):</strong>
+If that makes sense.</p>
+
+<p><strong>Fernando (20:01):</strong>
+Yeah.</p>
+
+<p><strong>Mike (20:02):</strong>
+So you’ve got to be careful about that. You want to maybe include your tenant ID when you are uploading blobs, attachments, pictures, whatever. If you have a customer who deletes their account, you want to be able to easily delete all of those attachments or maybe they want an export. There’s no good way in Rails by default to say, oh, these are all the files that belong to customer A because they’re all dumped into one big directory or one big S3 bucket with no differentiation. So having the tenant ID be in there would be really great so that you can say, oh, this is the first tenant account ID slash the blob ID is just a good way to keep all of files organized on disk. That’s something else that the Active Record Tenanted gem does.</p>
+
+<p><strong>Fernando (20:53):</strong>
+It sounds like a lot of work.</p>
+
+<p><strong>Mike (20:55):</strong>
+It was a long tail. It was a long tail and it took about six months to get it all working well and Fizzy.</p>
+
+<p><strong>Fernando (21:00):</strong>
+Wow.</p>
+
+<p><strong>Mike (21:01):</strong>
+But as a result though, it’s super easy to make an existing application multi-tenant. And I can walk you through that if you want. I can share my screen, actually walk you through what that looks like.</p>
+
+<p><strong>Kimberly (21:14):</strong>
+Yeah, let’s do it. Yeah. Mike, it kind of sounds like some of this solution is to eliminate the human factor. As you’re describing this, you’re like there’s all these ways that you can mess this up, and it sounds like it’s trying to prevent some of that human error potential.</p>
+
+<p><strong>Mike (21:33):</strong>
+Yes. I think that’s a big part of it is making sure that it is… well, I mean you can turn that on its head a little bit and be like, oh, well, I’m trying to make it usable because people will invariably, if you design something that’s not very usable, then invariably people are going to hold it the wrong way. If you don’t make the hammer have a nice long handle, they’re going to hold it by the head and try to pound something with it. So usability and also safety or for me, at least the same dimension, right? It’s kind of the same topic.</p>
+
+<p><strong>Kimberly (22:05):</strong>
+Okay, what are we looking at here?</p>
+
+<p><strong>Mike (22:06):</strong>
+So here’s what I’m going to show you. We have an application called Writebook that is open source and that you can get through the ONCE program and you can run it yourself, and it’s just for handling documentation. So we got a bunch of books here that are our internal documentation at 37signals. For example, if I go into the programmer’s handbook, then I can get a nice list of topics and each of these is page in our documentation. It’s just Writebook. This is a SQLite-backed application. The idea is you can run Writebook anywhere you want Digital Ocean or on your local machine. It’ll be writing to a local file that’s just a SQLite database. And so I thought this would be a really great way to show how easy it is to make something multi-tenant. Why don’t I convert Writebook into a multi-tenant application.</p>
+
+<p><strong>(22:55):</strong>
+So instead of having one global, everybody sees the same documents, it’ll actually be multiple instances. You can actually have multiple instances of Writebook. So it’ll be like fu.writebook.com or bar.writebook.com for individual customers. So this is what I did and it turned out to be super, super easy. So I’m going to show you the diff. And I’m not lying. This is the entire set of changes that I had to make to run in code to make Writebook multi-tenant, that is right to multiple SQLite databases. So I’ll walk through the changes real quick. You have to say that your main database connection is tenanted. It’s just… if I wanted to connect to a specific database, I could add some arguments here, but by default I’m just saying, hey, listen, this is the class that I want tenanted and all of our models inherit from this class, so they are all also tenanted.</p>
+
+<p><strong>Fernando (23:55):</strong>
+Can I ask tenanted based on what?</p>
+
+<p><strong>Mike (23:58):</strong>
+Oh, so the tenant, the tenant is just a string. It’s just a name.</p>
+
+<p><strong>Fernando (24:05):</strong>
+Oh my god, of course.</p>
+
+<p><strong>Mike (24:06):</strong>
+And the name is used by default. The name is used, I’ll tie it together in a minute, the name is used by default for the subdomain that you’re going to go to. So fu.writebook.com, the tenant is going to be fu.</p>
+
+<p><strong>Fernando (24:19):</strong>
+Yeah.</p>
+
+<p><strong>Mike (24:20):</strong>
+And then the database name on disk is also going to be fu.</p>
+
+<p><strong>Fernando (24:24):</strong>
+Of course.</p>
+
+<p><strong>Mike (24:24):</strong>
+So that’s how, again, the network layer and the database layer get tied together because we’ve named them the same thing here. And so at the database level, this is our database config. What we’ve had to do is change the name of the database, the path where it used to be storage/db/development. It’s now storage/… oh, I’ve got this little percent tenant in here. So, if you’re familiar with printf() this is just a format specifier that at runtime is going to be replaced with the name of the tenant. And I have to do that for all of our environments, so development, test and production is the same change. And then I have to make sure that when I actually hit in development, I hit a host that it has a wild card where I can hit any host I want. So lemme show you how this actually works.</p>
+
+<p><strong>(25:20):</strong>
+It might be a little bit easier. So I’m going to start off from scratch. I’ve deleted all the databases. I’m going to start up the server and it’s going to say, if I try to go to writebook.localhost, it’s going to give me an error and it’s going to say, oh, well, I can’t connect to a tenanted database while you’re untenanted. So it’s telling me that I’m untenanted because I haven’t provided that subdomain. So if I go and I do mike.writebook, it’s not going to say, ah, tenant not found Mike. Very cool.</p>
+
+<p><strong>(25:58):</strong>
+So if I go to the console, the Rails console, and I say application record, and that was the class that had tenanted added to it. It’s our base class. Create tenant, fubar. So what it just did was it just created the database and it applied all of the schema migrations. And now that database is live on disk. If I go and I look in find storage, here’s now a database called fubar db.development.sqlite. If I go here instead of Mike I now go to fubar, it’s going to kick me into the first run and prompt me to enter everything. So I could be like, oh, my name is Mike, my fake password, right? What it’s going to do now is it’s booting up the database, loading up the initial, oh, it didn’t do it. Hang on, because my password wasn’t long enough. There we go.</p>
+
+<p><strong>(27:04):</strong>
+Now it’s going to work. Ah. So now I’ve got the Writebook manual, which is by default this gets added. And if I look at what’s in storage now, you’ll see this is not great. Tree…. right? You can see that now I’ve also got all my active storage files are being stored in a directory called fubar as well, like automatically, because I mentioned I think that all of the blob keys get the tenant slash added to the front of them, which turns into on disk, I’ve now got a directory that has all of the fubar tenants images from this document.</p>
+
+<p><strong>Fernando (27:44):</strong>
+This is super cool.</p>
+
+<p><strong>Mike (27:46):</strong>
+Thank you. That’s great to hear.</p>
+
+<p><strong>Fernando (27:47):</strong>
+Is this a new default for, should this be the new default for Rails? It feels like a straight up improvement.</p>
+
+<p><strong>Mike (27:53):</strong>
+I would love for this to land in Rails. I feel like it’s got to actually be running somewhere in production first.</p>
+
+<p><strong>Fernando (28:00):</strong>
+No, no, no, of course, of course, of course. But the concept…</p>
+
+<p><strong>Mike (28:02):</strong>
+My plan, my dream is this would get upstream into Rails because it’s additional, if you don’t want it…</p>
+
+<p><strong>Fernando (28:08):</strong>
+Who cares?</p>
+
+<p><strong>Mike (28:09):</strong>
+You can continue to use Rails the way you always did. But if you want to work in this way, then yeah, turn on a bunch of these configs and you’ll get it for free. Yeah, I would love to see this in Rails at some point.</p>
+
+<p><strong>Fernando (28:20):</strong>
+Now, one question I have is, in this hypothetical scenario, if you were to have multi-tenant as a default, what would change in the configuration so that you didn’t need to have subdomains tied to tenants? I’m sure it’s possible, right?</p>
+
+<p><strong>Mike (28:45):</strong>
+Yes. So the gem by default ships with what I will call a, it’s actually it’s Rack Middleware, which maybe isn’t a helpful phrase, but the web server framework is called Rack, and that handles the request. And what we can do, and the way it works is the request gets handed to each stage before it finally arrives at the app. And you can insert a stage in there, and that’s what the gem does or inserts the stage that looks at the subdomain. It says, ah, there’s a subdomain in here. I will now look on disc to see if that is a valid tenant. And if it is, I will connect to it. And if it is not, I will raise an error. So by default, that looks at subdomain, but you can override that and you can use whatever logic you want it’s provided. I will see if I can get the gem…</p>
+
+<p><strong>Fernando (29:39):</strong>
+You could just consider… sorry.</p>
+
+<p><strong>Mike (29:39):</strong>
+No, go ahead.</p>
+
+<p><strong>Fernando (29:42):</strong>
+Oh, I was going to say, you could basically consider the base, like the default domain as a tenant, right?</p>
+
+<p><strong>Mike (29:53):</strong>
+Oh, you could. Yes, you could.</p>
+
+<p><strong>Fernando (29:55):</strong>
+And then that way you could get both the subdomains, each as individually named tenants and the top level domain as a tenant itself.</p>
+
+<p><strong>Mike (30:02):</strong>
+Yes, you could.</p>
+
+<p><strong>Fernando (30:03):</strong>
+Wow.</p>
+
+<p><strong>Mike (30:04):</strong>
+You can do whatever you want.</p>
+
+<p><strong>Fernando (30:05):</strong>
+That is super cool.</p>
+
+<p><strong>Mike (30:06):</strong>
+It’s literally the way this case is configured is you actually just pass in a lambda, an anonymous function…</p>
+
+<p><strong>Fernando (30:11):</strong>
+Right, right.</p>
+
+<p><strong>Mike (30:13):</strong>
+That takes the request and hands back the tenant name. So by default it’s just going to use the subdomain. And so if you look in Fizzy, in the source code, what we’re actually doing there is we look at the path and the first section of the path is a big number, and that’s the account ID. And we do that just like Basecamp does. So it’s that you can take it out of the path, you can take it out of the domain, you can take it out of the host name if you want to. Some of these are operationally easier than others. Having a separate domain for every customer means you have to worry about regenerating SSL keys, and how is your web server going to do that? And can you dynamic, can you automatically regenerate those SSL keys every 90 days? So some are harder or easier, but you have the flexibility to do whatever you want.</p>
+
+<p><strong>Kimberly (31:03):</strong>
+Mike, tell me this, I know in your Rails World talk, you mentioned something about safety checks. Is there something that you can show us on how that exactly works or what you’re checking for?</p>
+
+<p><strong>Fernando (31:13):</strong>
+Safety clearly.</p>
+
+<p><strong>Mike (31:15):</strong>
+Yes. Yes, absolutely. So one of the things that I think is, we talked about usability a little bit earlier and usability and safety kind of being different points on the same spectrum. I wanted to make it as hard as possible for a developer to accidentally shoot themselves in the foot. And so if I….</p>
+
+<p><strong>Kimberly (31:36):</strong>
+Eliminating that human error of possibilities again.</p>
+
+<p><strong>Mike (31:39):</strong>
+Yes, exactly. So if I do user.first, this is on the Rails console, so I’m running Ruby code, I get an exception saying, oh, well there’s there, there’s a default tenant here, which is like development tenant when I’m in development mode, and that tenant doesn’t exist. So if I do our application record with tenants and then I can pass a block and whatever I do in this block is going to be in the context of this tenant. So I can just say fubar, which is the tenant we just created, I can do user.first and it’ll return me a user from that database. And I know it’s from that database because I can see in here it has tenant fubar as an attribute on that model, which is great. Tells me that that object belongs to that tenant. So I can pull this out.</p>
+
+<p><strong>(32:33):</strong>
+I could say user equals blah. Now what happens if I try to update that user or write to that user while I’m in the context of a different tenant? It should raise an error for that too. So I have to create a second tenant, which I will just call second. And again, it migrates the whole database. So now what if I am in the context of the second database and I tried to do user.update, name is… I’m going to try to change the name on that user. It’s going to give me a safety exception saying with the user model belongs to tenant fubar, but you’re currently connected to tenant second to prevent you from doing this at runtime. So if there’s any kind of a bug that’s introduced where you might be saving one record to a different tenant’s database, you can’t cross the streams anymore because it does the safety checks where it compares the objects tenant string to the connection string, if that makes sense.</p>
+
+<p><strong>Kimberly (33:47):</strong>
+So those safety checks are already built into the gem that you created.</p>
+
+<p><strong>Mike (33:51):</strong>
+That’s correct. They’re built into the gem to make it as hard as possible for people to cross the streams and mix commingle customer data.</p>
+
+<p><strong>Kimberly (33:59):</strong>
+You’re making this sound very straightforward and very simple, but we also didn’t put this in Fizzy. I’m curious if we just needed more time because we’re working against a deadline or there was something else that made it not appropriate for what we were doing. Why did we not? How come it didn’t happen?</p>
+
+<p><strong>Mike (34:17):</strong>
+Yeah, the main reason is that we ran out of time. We had everything working and there were some edge cases. If you think about going live with a global product, you want it to have automatic failover where if a machine goes down, you want everything to immediately cut over to the backup. And with the SQLite database, that becomes really interesting to do because you need to make sure that you’ve got the database file being replicated in real time to a second machine where it’s available in read only mode. And then as soon as this machine goes down, you need to have something outside cut requests over to the second machine and it go into writeable mode. So this all of a sudden becomes the primary, where it used to be a secondary or a backup machine, and that was where things, there’s, there’s a long list of edge cases there.</p>
+
+<p><strong>(35:17):</strong>
+There’s a phrase people use, which is emergent behavior. Complex systems have interesting emergent behavior, that is behavior that you only see in when certain weird edge cases happen or when things happen in a certain order. And what we were going through was about once a week finding a new edge case in this complicated system we had built where there’s SQLite and there’s tenanting in Rails, and that was pretty solid. That was working well, but then we needed to replicate it globally and we needed to have network routing route requests to the right place. And then we also needed failover to work properly. And making all of that work in time for the release date just didn’t happen. We just didn’t have enough time to work out all of the bugs.</p>
+
+<p><strong>Fernando (36:05):</strong>
+I’d be remiss if I didn’t ask this, but this work was like last year, right? Middle of last year more or less?</p>
+
+<p><strong>Mike (36:13):</strong>
+It was. So the multi-tenant gem was worked on mostly the first half of 2025, and then the replication and failover work was like the middle of 2025, like the summer and fall of 2025.</p>
+
+<p><strong>Fernando (36:32):</strong>
+So given that this is 2026, the obvious question I have to ask is do you think the amount of time would’ve been reduced had you been using AI?</p>
+
+<p><strong>Mike (36:47):</strong>
+Oh the AI question. I don’t, I don’t know. I don’t know. If we could get an AI, an agent that was able to do things like deploy to our staging environment, actively monitor all of the systems like simulate, it might’ve been helpful to have an agent help us with a lot of those testing scenarios.</p>
+
+<p><strong>(37:16):</strong>
+But we actually, we did use AI for quite a bit of the replication stuff to if you go look at it. So I’m hopeful that Kevin will, open source Beamer. Beamer was the code name of the replication stack that he wrote. And a lot of that is Go code, which LLMs are great at writing Go code because it’s very simple language, syntactically anyway, it’s simple. So we did have a lot of AI help on some of this. The multi-tenant gem was I think a little bit tougher task for agents because it was something that was novel and it was trying to shoehorn something new into the existing framework. And so there were a lot of design decisions that had to be done. So the version of the gem that is open source now I think is version four if you believe that. I think it’s version four, where the first version was just spike threw it away, but then I wrote two more versions and I was unhappy with the API and threw them away before I landed on an API that I was really happy with.</p>
+
+<p><strong>(38:28):</strong>
+That felt Railsy and that felt like it wasn’t getting in the way. And also that was extensible in ways that would lead to creative problem solving. Let me give you an example of that. So I always think that you can tell that something is designed well, if people can use it for purposes that it was not originally designed for. And I came across one of these late in the Fizzy development work where we realized that we were already tenanting by customer. So every customer has their own SQLite database, but we wanted to replicate by region. So we wanted to have, for example, all of the North American customers in our Chicago data center and all the European customers and our Amsterdam data center. And then that meant that when we were running background jobs, we would have to have one database for North America and one database for Amsterdam.</p>
+
+<p><strong>(39:34):</strong>
+Because the job workers are local, they have to write to the local SQLite disks, and they have to keep their state in their own database too. So it’s like you’d have a job worker in the US that connects to any of the US customer databases, but then had its own database as well to keep state in. And they had to have the same thing in Amsterdam. And if we had multiple data centers, we’d do that in multiple places. And so what I ended up doing was we had the customer databases tended by account ID, and then we had the Solid Queue databases tenanted by region. So within the same application, we had two different dimensions of tenanting going on. And the Apartment gem would not be able to handle this because the Apartment gem acts as a, it’s a global, it’s a singleton Apartment, and you’d be like apartment.createtenant.</p>
+
+<p><strong>(40:31):</strong>
+And you’ll notice that when I was just showing you in the Rails console that I was actually using the application record. Application record was annotated with tenanted and I do applicationrecord.createtenant. And so all of the tenanting methods live on your application models. They don’t live on some other class that the gem is bringing. They live on your application models. And because I did that, I mostly did because it just felt a little bit more natural to me. But because I did that than late in the Fizzy development process, I was like, aha, I can use tenanting for Solid Queue as well. And then I would do Solid Queue record base.create tenant, and I’d pass in the region. And that was how you create the Solid Cache database because that API just ended up working much better for that use case. Anyway, where was I going with this? I was going to the point where it took me three generations of API design before I landed on one that I thought was Railsy and flexible enough to do some interesting things. And I don’t think an AI could have necessarily helped me get there better, get there better or faster.</p>
+
+<p><strong>Fernando (41:45):</strong>
+I agree. Sorry, I’m trying to wrap my mind around this. Why are you tenanting the Solid Queue by region?</p>
+
+<p><strong>Mike (41:54):</strong>
+The current version of Fizzy does not do this, but when we were still using SQLite, again, the idea was that our Solid Queue database is still SQLite and needs to live on a machine and a process needs to know that if it’s a running in the US, it should connect to the US database. And if it’s running in Amsterdam, it should connect to the Amsterdam database, and we needed to replicate that also. So we were also replicating the Solid Queue databases so that if the US went down, it wouldn’t be a complete outage. We would reroute everything over to Europe and North American customers would just get routed to Europe until we were able to get the US back up and running. So for failover and replication purposes, we’re still replicating those databases. It’s just that then in that case in Europe, we would have two Solid Queue clusters running. One would connect to the European database and one would connect to the US database. They’re both still local though. So that’s why we were using, we could have done something more complicated, but the fact that tenanting was right there fits and it just automatically multiplexed to the databases based on whatever region they were running for. You look at the customer database and you say that customer’s in the US region, so I should connect to the US Solid Queue database. It just ended up working really well.</p>
+
+<p><strong>Fernando (43:20):</strong>
+That’s awesome. That’s really interesting.</p>
+
+<p><strong>Mike (43:21):</strong>
+Well, if it had gone live in production, it would’ve been even more interesting, but maybe someday we’ll get there.</p>
+
+<p><strong>Fernando (43:25):</strong>
+Do you see a path forward?</p>
+
+<p><strong>Mike (43:28):</strong>
+I do. So I showed you, I just made Writebook with, honestly, that was five minutes of work. I was able to make it multi-tenant. Now there’s a little bit more you need to do around like, oh, I need to document how this works for people and I need to give them a script so they can create a new account when they want to, and they may need to create a wild card SSL cert if they want to run this themselves on their own machine. So there’s a long tail of little things, but the bulk of the code change was very quick, five minutes. So one possible path forward that I’ve been talking to David about is can we take all of our ONCE products that are all running on SQLite and make them all multi-tenant, demonstrate that the multi-tenant gem, Active Record Tenanted does work, get some miles on it. I feel like I really want to run it in production somewhere so that then it’s a more compelling argument about upstreaming it to Rails. I would love to try to get a future product that we’re working on on this as well. But again, I feel like the Active Record Multi-tenant gem is pretty solid. It had a year almost where we were running it internally on Fizzy. We were using Fizzy most of last year, and it was solid, it was work, it worked well.</p>
+
+<p><strong>(44:50):</strong>
+We didn’t really have any problems with it for the last six months or so. The complication was around replication and failover, and really we need to solve that. And so I want to keep working with Kevin to hopefully finish up Beamer and really get that working. Because there’s another missing concern in Rails that I would love to fix at some point, which is failover. There’s no concept in Rails of what host am I running on and should I fail over? Solid Queue has started to scratch at this with how it manages its connection handling. And I actually built, I have a fork of Solid, Solid Queue that knows whether it is in active or passive mode based on something that’s in the database. You can have a flag in the database that says, you have your primary in North America and your backup is in Europe.</p>
+
+<p><strong>(45:41):</strong>
+You have the Solid Queue job cluster running in both places, but nobody’s doing anything in Europe because the US is the primary. So this is all code that we already have in HEY, that it basically lifted, I jammed into Solid Queue. It totally worked in Solid Queue. And I was like, all right, we’re using this in one app, we’re using it in a library. Why isn’t this primitive in Rails? So why shouldn’t there be a class in Rails that tells you, are you in fail… are you in primary mode or are you in passive backup mode? And if you have that, then a lot of the Beamer replication code becomes much simpler as well. So there’s a whole path here, but I really want Rails to become a little bit more capable around failover and replication than it is today.</p>
+
+<p><strong>Kimberly (46:28):</strong>
+Mike, question for you, for anyone who’s listening and is like, okay, I totally get this and I can use this gem and this doesn’t seem hard, do you have any pieces of advice or things you should make sure to look out for that you can share?</p>
+
+<p><strong>Mike (46:42):</strong>
+Yeah, that’s a really good question. So the one thing I think that I would love some more feedback on is how the gem approaches Action Cable. So brief summary of what Action Cable is, is it’s the ability to do, to push data to a web client. Under the hood it’s using web sockets and maintaining an open connection. And so the most common use for this these days in Rails is Turbo, Hotwired and Turbo, where you can essentially broadcast data. So we use this everywhere in our apps to push notifications, to push chats, to push card updates if someone changes the status on it. So you’re pushing data to the web client. That connection also has to be tenanted because you don’t want to push data for one customer to a different customer. And a lot of that is reusing the same middleware I referenced earlier where request comes in. How do you find out what tenant that request is for? I’ve only solved one problem with that, which was Fizzy’s problem. And so I would ask people if they’re going to kick the tires on the gem to make sure that Action cable is wired up correctly for your use case. And let me know if it’s not.</p>
+
+<p><strong>Fernando (48:01):</strong>
+So Mike, I’m on the mobile side. So when it comes to rich text, where’s that stored? How do you handle that with the multi-tenant?</p>
+
+<p><strong>Mike (48:11):</strong>
+Thanks for asking. So Rails has a relatively complicated system for how it stores its own data. And by that I mean there’s metadata around Active Storage uploads. There’s some, the actual action, the rich text content is stored in a separate record. So Rails needs its own tables, basically. So if you’re going to use any of the rich text stuff, you need Action Text and Active Storage. And that means that those need to be in separate tables. And so the gem actually jumps through some hoops to make sure that the Rails models are using your tenanted database too. So the idea is if in my tenanted database I have my card class, and the card has some rich text and the rich text has some attachments. You want to be able to do a join across all of those tables. So they all need to be in the same database.</p>
+
+<p><strong>(49:08):</strong>
+And so there’s actually a concept in the gem of being a subtenant of your database. So your application models are the official tenants, they are the tenants, but then you can have these Rails records that normally would be, I don’t know, in some other, in your primary database. If your primary database is tenanted, then all of a sudden these Rails records are subtenants and we can’t do it through class inheritance. In your Rails application, all of your classes inherit from application records. So you make the change there and everything else gets it because the subclasses, but the Rails records are in a completely separate hierarchy of classes. And so we actually, we have to actually inject some behavior into those classes. But it all just works at the end of the day where then you can do that join across all of those classes. And it also means that those Rails data records also don’t get commingled. And we have that multi-tenant boundary between all that data.</p>
+
+<p><strong>Kimberly (50:11):</strong>
+Mike, so is there a place where people can find this gem? And if so, we’ll add it to our show notes.</p>
+
+<p><strong>Mike (50:16):</strong>
+Yes, there is a GitHub repository for the gem. It is open source. It’s been open source for a few months now. And also you can go to the Fizzy source code if you want, go back through history and actually see how it was being used.</p>
+
+<p><strong>Kimberly (50:26):</strong>
+That’s perfect. Well, thank you for joining us. This has been an episode of Recordables a production by 37signals. To hear more from our technical team, like Mike and Fernando, check out our developer’s blog. That is at blog. No, that’s at dev.37signals.com. I like don’t even know what the address is.</p>
+
+
+
+
+              <hr>
+
+              <div>
+                <ul>
+
+  
+
+    
+
+                  <li><a href="https://dev.37signals.com/series/recordables/">Other posts in the “RECORDABLES” series</a></li>
+
+  
+
+  
+
+  
+
+                </ul>
+              </div>
+
+
+
+            </div></div>

@@ -1,0 +1,1200 @@
+<div id="readability-page-1" class="page"><div>
+<p><em>A technical walkthrough of how we built the Granite 4.2 reasoning model family.</em></p>
+<p><strong>Authors:</strong> Granite Team, IBM</p>
+<hr>
+<p><strong>TL;DR:</strong> Granite 4.2 is our first family of dense, decoder-only reasoning LLMs, released in three sizes: <strong>3B, 8B, and 30B</strong>. These  models are post-trained from <a href="https://huggingface.co/collections/ibm-granite/granite-41-language-models">Granite-4.1</a> base models. <a href="https://huggingface.co/collections/ibm-granite/granite-41-language-models">Granite-4.1</a> base models were pre-trained from scratch on roughly 15T tokens with a five-phase strategy that extends the context window to 512K tokens, supervised fine-tuned on chain-of-thought, reasoning, and agentic-trajectory data, then post-trained with a <strong>multi-stage reinforcement learning pipeline</strong>. That pipeline includes agentic RL, where the 8B and 30B models learn to act with tools inside real sandboxed environments. Every model has a <strong>thinking / non-thinking</strong> switch, a <strong>low-effort</strong> thinking mode that spends a short reasoning budget on easy questions, and native tool calling. All Granite 4.2 models are released under the Apache 2.0 license.</p>
+<p><strong>Links:</strong></p>
+<ul>
+<li><a href="https://huggingface.co/collections/ibm-granite/granite-42-language-models">Granite 4.2 HF Collection</a></li>
+<li><a href="https://github.com/ibm-granite/granite-4.2-language-models" rel="nofollow">GitHub Repository</a></li>
+<li><a href="https://www.ibm.com/granite/docs/" rel="nofollow">Granite Docs</a></li>
+</ul>
+<hr>
+<h2>
+	<a id="overview" href="#overview" rel="nofollow">
+		
+	</a>
+	<span>
+		Overview
+	</span>
+</h2>
+<p>Granite 4.2 is the reasoning-focused release of the Granite language-model family. Earlier Granite releases were strong instruction-following assistants; Granite 4.2 adds explicit reasoning. Every model can produce a chain of thought before its answer and can run in <strong>thinking</strong> or <strong>non-thinking</strong> mode depending on how much deliberation a task needs. A <strong>low-effort</strong> mode falls between the two, spending a short reasoning budget on easy questions.</p>
+<p>The three sizes (<strong>3B, 8B, and 30B</strong>) share the same architectural design and follow the same training pipeline (base model, SFT, then multi-stage RL), each at its own scale. All three are strong reasoners and instruction followers. The clearest capability split shows up in post-training. The <strong>8B and 30B</strong> models additionally go through an <strong>agentic RL</strong> block that teaches them to operate as agents: calling tools, editing and running code, driving a terminal, and searching the web inside real environments. Every model supports native tool calling. Served through an OpenAI-compatible endpoint (for example, with vLLM), it emits tool calls in the OpenAI function-calling format and plugs into agentic harnesses without extra glue. Granite 4.2 is also supported in SGLang, see the <a href="https://docs.sglang.io/cookbook/autoregressive/IBM/Granite-4.2" rel="nofollow">SGLang cookbook</a> for a ready-to-serve recipe.</p>
+
+
+<p>The rest of this post walks through the build: architecture, pre-training, supervised fine-tuning, the multi-stage RL pipeline, and results.</p>
+<hr>
+<h2>
+	<a id="model-architecture" href="#model-architecture" rel="nofollow">
+		
+	</a>
+	<span>
+		Model Architecture
+	</span>
+</h2>
+<p>Granite 4.2 models are built on a decoder-only dense transformer architecture with the following core components:</p>
+<ul>
+<li><strong>Attention:</strong> Grouped Query Attention (GQA) with 40 attention heads and 8 KV heads</li>
+<li><strong>Position Embedding:</strong> Rotary Position Embedding (RoPE) with θ = 10,000,000</li>
+<li><strong>Feed-Forward:</strong> MLP with SwiGLU activation</li>
+<li><strong>Normalization:</strong> RMSNorm (ε = 1e-5)</li>
+<li><strong>Embeddings:</strong> Separate input/output embeddings (not tied)</li>
+<li><strong>Precision:</strong> bfloat16</li>
+</ul>
+<table>
+<thead>
+  <tr>
+    <th>Component</th>
+    <th>3B Dense</th>
+    <th>8B Dense</th>
+    <th>30B Dense</th>
+  </tr></thead>
+<tbody>
+  <tr>
+    <td>Embedding size</td>
+    <td>2560</td>
+    <td>4096</td>
+    <td>4096</td>
+  </tr>
+  <tr>
+    <td>Number of layers</td>
+    <td>40</td>
+    <td>40</td>
+    <td>64</td>
+  </tr>
+  <tr>
+    <td>Attention head size</td>
+    <td>64</td>
+    <td>128</td>
+    <td>128</td>
+  </tr>
+  <tr>
+    <td>Number of attention heads</td>
+    <td>40</td>
+    <td>32</td>
+    <td>32</td>
+  </tr>
+  <tr>
+    <td>Number of KV heads</td>
+    <td>8</td>
+    <td>8</td>
+    <td>8</td>
+  </tr>
+  <tr>
+    <td>MLP hidden size</td>
+    <td>8192</td>
+    <td>12800</td>
+    <td>32768</td>
+  </tr>
+  <tr>
+    <td>MLP activation</td>
+    <td>SwiGLU</td>
+    <td>SwiGLU</td>
+    <td>SwiGLU</td>
+  </tr>
+  <tr>
+    <td>Sequence length</td>
+    <td>131072</td>
+    <td>131072</td>
+    <td>131072</td>
+  </tr>
+  <tr>
+    <td>Position embedding</td>
+    <td>RoPE</td>
+    <td>RoPE</td>
+    <td>RoPE</td>
+  </tr>
+  <tr>
+    <td># Parameters</td>
+    <td>3B</td>
+    <td>8B</td>
+    <td>30B</td>
+  </tr>
+</tbody></table>
+
+<hr>
+<h2>
+	<a id="pre-training" href="#pre-training" rel="nofollow">
+		
+	</a>
+	<span>
+		Pre-Training
+	</span>
+</h2>
+<p>Granite 4.2 models are post-trained from <a href="https://huggingface.co/collections/ibm-granite/granite-41-language-models">Granite-4.1</a> base models. <a href="https://huggingface.co/collections/ibm-granite/granite-41-language-models">Granite-4.1</a> base models were trained from scratch on approximately <strong>15 trillion tokens</strong> using a five-phase training strategy. Phases 1–2 focus on foundational pre-training, phases 3–4 perform mid-training with progressively higher-quality data annealing, and phase 5 introduces long-context training, extending the context window to <strong>512K tokens</strong>. Each phase uses a distinct data mixture and learning-rate schedule, gradually shifting from broad web-scale data toward more curated, high-quality sources.</p>
+<p>The pre-training recipe closely follows the previous generation; for a detailed treatment of the data blend, phase schedule, and long-context extension, see the <a href="https://huggingface.co/blog/ibm-granite/granite-4-1">Granite 4.1 blog</a>.</p>
+<hr>
+<h2>
+	<a id="sft-data-preparation--quality-control" href="#sft-data-preparation--quality-control" rel="nofollow">
+		
+	</a>
+	<span>
+		SFT: Data Preparation &amp; Quality Control
+	</span>
+</h2>
+<p>Supervised fine-tuning (SFT) turns the base model into a reliable instruction-following, reasoning, and tool-using assistant. The SFT data mixture combines agentic (31.6%) and non-agentic (68.4%) data, totaling approximately 7.2 million samples, or roughly 100B tokens, of which about 65B are trainable.</p>
+<p>The <strong>agentic corpus</strong> covers a broad range of domains, including software engineering (SWE, 69%), tool calling (12.1%), terminal use (8.0%), math (3.5%), search (0.8%), and action (0.2%). These samples and trajectories are generated using a diverse set of agent scaffolds and harnesses, including OpenHands, OpenCode, Terminus-2, SWE-agent, OpenResearcher, MiniSWE, OpenSeeker, EnvScaler, Gemini CLI, Hermes, Codex, and Goose. The agentic data combines samples from both open-source datasets and our own synthetically generated RL environments, spanning a variety of agent–harness combinations.</p>
+<p>The <strong>non-agentic corpus</strong> consists of several major categories: instruction following (18.8%), coding (18.8%), math (14.6%), multilingual (7.0%), science (5.4%), reasoning (3.0%), and safety (0.8%).</p>
+<h3>
+	<a id="data-quality-control" href="#data-quality-control" rel="nofollow">
+		
+	</a>
+	<span>
+		Data Quality Control
+	</span>
+</h3>
+<p>We apply multiple stages of quality control before a sample enters the final SFT mixture. First, data from different sources is normalized and reformatted into a consistent OpenAI Chat format, making the conversation structure and tool interactions uniform across datasets and scaffolds.</p>
+<p>We then use GPT-OSS-120B and Gemma 4 as LLM-based judges to assess sample quality. Low-scoring samples are removed, as are samples containing hallucinated or fabricated information, invalid tool interactions, or tool calls to functions that are not defined in the corresponding tool list. Several targeted, dataset-specific heuristic rules are also applied where appropriate to further improve quality and remove known sources of noise.</p>
+<p>Finally, we perform both local and global deduplication. Deduplication is based on SHA-256 hashes computed over the combination of the <code>tools</code> and <code>messages</code> fields, removing duplicate samples both within individual data sources and across the overall SFT mixture.</p>
+<h3>
+	<a id="sft-training-details" href="#sft-training-details" rel="nofollow">
+		
+	</a>
+	<span>
+		SFT Training Details
+	</span>
+</h3>
+<p>The complete corpus is first globally shuffled to reduce ordering effects and ensure that samples from different domains are well mixed during training. The shuffled corpus is then partitioned into equally sized <code>.parquet</code> shards, which are tokenized using the model's tokenizer and chat template and prepared for large-scale distributed training.</p>
+<p>Before launching the final large-scale runs, we tune hyperparameters on representative configurations, sweeping learning-rate schedules, initial learning rates, and warm-up ratios to find settings that train stably across model sizes. The final training configuration is summarized below:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Compute</td>
+<td>32–128 nodes (by model size), 4× Grace/GB200 per node</td>
+</tr>
+<tr>
+<td>Sequence length (packed)</td>
+<td>131,072 (128K)</td>
+</tr>
+<tr>
+<td>Global batch size</td>
+<td>128</td>
+</tr>
+<tr>
+<td>Learning rate</td>
+<td>1.0e-5, constant after warm-up; 3.0e-6 for Phase 2</td>
+</tr>
+<tr>
+<td>LR warm-up</td>
+<td>2.5% of <code>train_iters</code></td>
+</tr>
+<tr>
+<td>Training duration</td>
+<td>~2 epochs</td>
+</tr>
+<tr>
+<td>Parallelism</td>
+<td>TP=2, PP=1, CP=4 or CP=2</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="phase-2-sft-for-the-30b-model" href="#phase-2-sft-for-the-30b-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Phase 2 SFT for the 30B Model
+	</span>
+</h3>
+<p>For the 30B model, we additionally perform a second phase of SFT focused specifically on agentic coding. In this phase, agentic, SWE, and coding data are upsampled to increase their effective contribution to the training distribution, while approximately 16% of the mixture is retained as replay data from the original SFT corpus.</p>
+<p>The 30B model is then fine-tuned for roughly one additional epoch at a lower learning rate of 3.0e-6. This targeted second phase increases the model's exposure to agentic coding trajectories without discarding the capabilities acquired during the initial SFT phase.</p>
+<hr>
+<h2>
+	<a id="reinforcement-learning-a-multi-stage-multi-environment-pipeline" href="#reinforcement-learning-a-multi-stage-multi-environment-pipeline" rel="nofollow">
+		
+	</a>
+	<span>
+		Reinforcement Learning: A Multi-Stage, Multi-Environment Pipeline
+	</span>
+</h2>
+<p>After SFT, we apply a <strong>multi-stage, multi-environment reinforcement learning pipeline</strong>. Rather than a single RL pass, we run a <em>chain</em> of focused stages spanning many environments: math, code, science, instruction following, tool use, and structured output, then software engineering, terminal use, and web search. Each stage is an independent RL run that targets one capability and warm-starts from the previous stage's checkpoint.</p>
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/TuxEn5hma0bQf3-z_Ab6c.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/TuxEn5hma0bQf3-z_Ab6c.png" alt="Granite 4.2 staged RL curriculum"></a></p>
+<p><em>Figure 1. The staged RL curriculum. Foundational RL (verifiable rewards + skill boosters) runs for all sizes; the agentic RL block (SWE → Terminal → Search) runs for 8B and 30B only. Every model finishes with RLHF. Each stage is a separate GRPO run that warm-starts from the previous checkpoint.</em></p>
+<h3>
+	<a id="training-methodology" href="#training-methodology" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Methodology
+	</span>
+</h3>
+<p>Every stage trains with <strong>asynchronous GRPO</strong> (<a href="https://arxiv.org/abs/2402.03300" rel="nofollow">Group Relative Policy Optimization</a>), so the generator and trainer halves of the loop never block on each other. A pool of generation workers keeps sampling responses and dropping the finished trajectories into a shared buffer; once the buffer holds a full step's worth, the trainer pulls that batch, takes an optimizer step, and streams the updated parameters back to the generator workers without pausing them. A refresh can land partway through a rollout, leaving a single trajectory stitched together from two adjacent policy versions. We allow this instead of paying to prevent it: the workers reuse their existing KV cache rather than rebuilding it after each refresh, and the one guardrail is a limit that keeps them from drifting more than a single update behind the trainer, which bounds how off-policy any sample can get. Whatever mismatch survives that limit is handled in the objective by <em>truncated importance sampling</em>, which clamps the train-versus-generation log-probability ratio to a fixed ceiling so a handful of stale tokens cannot dominate an update.</p>
+<p>Advantages are group-relative with a <strong>leave-one-out baseline</strong>: each response is judged against the mean reward of the <em>other</em> samples drawn for the same prompt, which removes the need for a separate value network. To make this concrete, take <strong>RLVR</strong>, the first and longest-running stage: each step pairs <strong>256 prompts</strong> with <strong>16 sampled responses apiece</strong> for a <strong>4,096</strong>-example batch, which the trainer consumes in a single optimizer step before the next rollout begins. Later stages keep this machinery unchanged and adjust only the per-stage shape, shown next.</p>
+<h4>
+	<a id="rl-training-configuration" href="#rl-training-configuration" rel="nofollow">
+		
+	</a>
+	<span>
+		RL training configuration
+	</span>
+</h4>
+<p>The pipeline keeps a common backbone of hyperparameters across every stage, which makes the curriculum easier to run and compare. A handful of knobs are fixed everywhere:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Parameter</th>
+<th>Value (shared across stages)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Algorithm</td>
+<td>GRPO (no value network; group-relative advantages)</td>
+</tr>
+<tr>
+<td>Training stack</td>
+<td>NeMo-RL (Megatron-Core + vLLM) with NeMo-Gym environments</td>
+</tr>
+<tr>
+<td>Ratio clip (min / max)</td>
+<td>0.2 / 0.28</td>
+</tr>
+<tr>
+<td>Micro-batch size</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Parallelism</td>
+<td>tensor-parallel 2–4; no pipeline- or context-parallelism</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>What changes from stage to stage is the <em>shape</em> of each run: how many prompts and generations per step, how long the context is, whether the agent loop runs, and how hard we pull back toward the reference policy. The table below gives the exact settings for the <strong>30B</strong> chain, stage by stage:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Stage</th>
+<th>Prompts/step</th>
+<th>Gens/prompt</th>
+<th>Max seq len</th>
+<th>Rollout turns</th>
+<th>KL</th>
+<th>LR</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>RLVR (×3)</td>
+<td>256</td>
+<td>16</td>
+<td>64K</td>
+<td>1</td>
+<td>0</td>
+<td>5e-7</td>
+</tr>
+<tr>
+<td>IF booster</td>
+<td>256</td>
+<td>16</td>
+<td>64K</td>
+<td>1</td>
+<td>0</td>
+<td>5e-7</td>
+</tr>
+<tr>
+<td>Code booster</td>
+<td>64</td>
+<td>16</td>
+<td>64K</td>
+<td>1</td>
+<td>0.05</td>
+<td>5e-7</td>
+</tr>
+<tr>
+<td>SWE 1</td>
+<td>64</td>
+<td>16</td>
+<td>128K</td>
+<td>1</td>
+<td>0.01</td>
+<td>5e-7</td>
+</tr>
+<tr>
+<td>SWE 2</td>
+<td>32</td>
+<td>16</td>
+<td>128K</td>
+<td><strong>128</strong></td>
+<td>0</td>
+<td>5e-7</td>
+</tr>
+<tr>
+<td>Terminal</td>
+<td>8</td>
+<td>32</td>
+<td>64K</td>
+<td><strong>64</strong></td>
+<td>0.01</td>
+<td><strong>1e-6</strong></td>
+</tr>
+<tr>
+<td>Search</td>
+<td>32</td>
+<td>16</td>
+<td>128K</td>
+<td><strong>64</strong></td>
+<td>0.01</td>
+<td>5e-7</td>
+</tr>
+<tr>
+<td>RLHF</td>
+<td>128</td>
+<td>16</td>
+<td>48K</td>
+<td>1</td>
+<td>0.05</td>
+<td>5e-7</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><em>Parameters shown for the 30B model. Global batch size = prompts/step × generations/prompt (e.g. 256 × 16 = 4096 for RLVR). The 3B and 8B models use the same recipe and hyperparameters with <strong>fewer stages</strong> (see <a href="#how-the-three-sizes-differ" rel="nofollow">How the Three Sizes Differ</a>); the stage list is what changes, not the knobs.</em></p>
+<p>The <strong>KL schedule</strong> follows the reward type: explore freely where the reward is objective and verifiable (RLVR and SWE 2 run at KL 0), and stay close to the reference where the objective is preference, safety, or a narrow skill graft (RLHF and the code booster use KL 0.05). The <strong>rollout-turns</strong> column counts the environment interactions <em>GRPO itself</em> sees per rollout. In every case the model is trained on complete, real-environment trajectories.</p>
+<h3>
+	<a id="the-staged-curriculum" href="#the-staged-curriculum" rel="nofollow">
+		
+	</a>
+	<span>
+		The Staged Curriculum
+	</span>
+</h3>
+<p>Each stage is a separate RL run with a single objective and its own reward signal. When it finishes, its policy is exported to Hugging Face format and becomes the base model for the next stage, so the pipeline is a sequence of warm-starts:</p>
+<pre><code>SFT ─▶ RLVR ─▶ Skill boosters ─▶ SWE agent ─▶ Terminal ─▶ Search ─▶ RLHF
+      └──────── foundational RL ────────┘   └──────── agentic RL (8B / 30B) ────────┘
+</code></pre>
+<p>The <strong>8B and 30B</strong> models follow the full ladder. The <strong>3B</strong> model takes a shortened path: foundational RL and alignment, without the agentic block.</p>
+<h3>
+	<a id="reward-signals" href="#reward-signals" rel="nofollow">
+		
+	</a>
+	<span>
+		Reward Signals
+	</span>
+</h3>
+<p>A stage is defined mostly by <em>how it is rewarded</em>. Across the pipeline there are three reward types, and a single stage can use more than one:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Reward type</th>
+<th>What it measures</th>
+<th>Used in</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Verifiable</strong></td>
+<td>Exact-match, unit tests, format checkers, rule-based checkers on ground truth</td>
+<td>RLVR · boosters · SWE</td>
+</tr>
+<tr>
+<td><strong>Reward model / LLM judge</strong></td>
+<td>Open-ended quality, preference, safety, answer correctness</td>
+<td>RLVR · Search · RLHF</td>
+</tr>
+<tr>
+<td><strong>Agentic outcome</strong></td>
+<td>Did the model actually solve a task in a real environment?</td>
+<td>SWE · Terminal · Search</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Verifiable rewards are objective and hard to game, so the pipeline front-loads them. Judge- and preference-based rewards handle open-ended qualities that no checker can express. Agentic-outcome rewards are the sparsest: often a single bit at the end of a long tool-use trajectory.</p>
+<h3>
+	<a id="foundational-rl-build-the-skills" href="#foundational-rl-build-the-skills" rel="nofollow">
+		
+	</a>
+	<span>
+		Foundational RL: Build the Skills
+	</span>
+</h3>
+<h4>
+	<a id="rlvr-verifiable-reward-rl" href="#rlvr-verifiable-reward-rl" rel="nofollow">
+		
+	</a>
+	<span>
+		RLVR: verifiable-reward RL
+	</span>
+</h4>
+<p>RLVR is the foundational stage and the broadest data mix in the pipeline: a single blended dataset spanning many verifiable domains.</p>
+<ul>
+<li><strong>Math:</strong> chain-of-thought with boxed-answer checking, plus formal proving in <strong>Lean</strong></li>
+<li><strong>Competitive coding:</strong> solutions checked against hidden tests in a sandbox</li>
+<li><strong>STEM / graduate-level science MCQA</strong> and general knowledge</li>
+<li><strong>Instruction following:</strong> structured-output and inverse-instruction tasks</li>
+<li><strong>Tool / function calling:</strong> single-step tool use</li>
+<li><strong>Reasoning puzzles</strong> and <strong>abstention</strong> (knowing when to refuse)</li>
+</ul>
+<p>Each task type carries its own verifier, so the reward is grounded per example. RLVR runs for <strong>two rounds on 3B and 8B, and three on 30B</strong>. Each round is a fresh warm-started run on a re-weighted mix of public and internally curated RL data.</p>
+<h4>
+	<a id="skill-boosters-targeted-lifts" href="#skill-boosters-targeted-lifts" rel="nofollow">
+		
+	</a>
+	<span>
+		Skill boosters: targeted lifts
+	</span>
+</h4>
+<p>After RLVR, a few short <strong>booster</strong> stages sharpen specific capabilities that benefit from concentrated training focusing on the following domains:</p>
+<ul>
+<li><strong>Instruction following (IF):</strong> multi-turn chat, inverse-IFEval, structured outputs</li>
+<li><strong>Code:</strong> competitive coding only</li>
+</ul>
+<p>Boosters are small, focused runs. A light KL penalty keeps the model close to its current behavior while nudging one skill. </p>
+
+
+<h3>
+	<a id="agentic-rl-learning-to-act-8b--30b" href="#agentic-rl-learning-to-act-8b--30b" rel="nofollow">
+		
+	</a>
+	<span>
+		Agentic RL: Learning to Act (8B / 30B)
+	</span>
+</h3>
+<p>In the agentic stages the model learns to <strong>act</strong>: call tools, observe results, and iterate inside a real environment, rewarded on whether the task was actually solved. These stages share the same shape: multi-turn tool use, real (not simulated) environments, sparse outcome rewards, and GRPO, warm-started from the coding-boosted checkpoint. They run in order: <strong>SWE → Terminal → Search</strong>.</p>
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/FxSMYasHnR4vpv263_DAL.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/FxSMYasHnR4vpv263_DAL.png" alt="Agentic RL environments"></a></p>
+<p><em>Figure 2. The three agentic-RL environments. Each pairs a real harness with a real environment and a sparse, outcome-based reward. The 3B model runs none of these.</em></p>
+<ul>
+<li><strong>SWE agent (software engineering).</strong> Each task is a real repository in its own sandbox. Driven by the <a href="https://github.com/All-Hands-AI/OpenHands" rel="nofollow">OpenHands</a> harness, the model reads code, edits files, and runs the test suite over many internal turns. The reward is verifiable: do the hidden tests pass? Tasks are drawn from open-source SWE datasets, each instance backed by a per-repo container image.</li>
+<li><strong>Terminal agent (terminal / OS operation).</strong> Multi-step tasks in a live shell, run through the Harbor / <a href="https://www.harborframework.com/docs/agents/terminus-2" rel="nofollow">Terminus-2</a> agent harness. The model plans a sequence of commands, observes their output, and recovers from errors. Reward is assigned when the task completed successfully. This is the one stage that drives its multi-turn agent loop at the GRPO level, with rollouts spanning up to 64 environment turns.</li>
+<li><strong>Search agent (deep research).</strong> The model answers hard, multi-hop questions using live web-search tool calls inside a browsing agent loop: gather evidence across hops, reason over it, and produce an answer. Because correctness here is open-ended, the reward is an LLM judge on the final answer.</li>
+</ul>
+<h3>
+	<a id="alignment-rlhf" href="#alignment-rlhf" rel="nofollow">
+		
+	</a>
+	<span>
+		Alignment: RLHF
+	</span>
+</h3>
+<p>The final stage of every model is <strong>RLHF for human preference and safety.</strong> It optimizes against a generative reward model (GenRM) for preference, plus a safety reward covering jailbreak resistance and appropriate refusals. This stage uses the highest KL penalty in the pipeline, aligning tone and safety without eroding the capabilities the earlier stages built. In addition to human preference and safety alignment, this stage also applies a reasoning-length penalty to discourage overly verbose reasoning behavior acquired during earlier stages.</p>
+<h3>
+	<a id="how-the-three-sizes-differ" href="#how-the-three-sizes-differ" rel="nofollow">
+		
+	</a>
+	<span>
+		How the Three Sizes Differ
+	</span>
+</h3>
+<p>Same method and infrastructure; the difference is how far up the ladder each model goes.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Stage</th>
+<th>3B</th>
+<th>8B</th>
+<th>30B</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>RLVR</strong> (verifiable)</td>
+<td>×2</td>
+<td>×2</td>
+<td>×3</td>
+</tr>
+<tr>
+<td><strong>Skill boosters</strong></td>
+<td>code</td>
+<td>IF · GPQA · code</td>
+<td>IF · code</td>
+</tr>
+<tr>
+<td><strong>SWE agent</strong></td>
+<td>—</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><strong>Terminal agent</strong></td>
+<td>—</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><strong>Search agent</strong></td>
+<td>—</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><strong>RLHF</strong> (preference + safety)</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>3B is a strong foundational-RL model; 8B and 30B add the agentic-RL block on top, learning to act with tools in real environments.</p>
+<hr>
+<h2>
+	<a id="agentic-ai-infrastructure-for-scalable-rl" href="#agentic-ai-infrastructure-for-scalable-rl" rel="nofollow">
+		
+	</a>
+	<span>
+		Agentic AI Infrastructure for Scalable RL
+	</span>
+</h2>
+<p>Reinforcement learning at this scale needs infrastructure that can drive a training loop and a fleet of live environments at the same time. This matters most in the agentic stages, where every training example is a multi-turn rollout that edits code, runs commands, or browses the web. Granite 4.2's RL runs on two open components: <strong><a href="https://github.com/NVIDIA-NeMo/RL" rel="nofollow">NeMo-RL</a></strong> on the training side and <strong><a href="https://github.com/NVIDIA-NeMo/gym" rel="nofollow">NeMo-Gym</a></strong> on the rollout side.</p>
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/ceRxgjK0m0kVHp1iJ7P34.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/ceRxgjK0m0kVHp1iJ7P34.png" alt="NeMo-RL + NeMo-Gym system architecture"></a></p>
+<p><em>Figure 3. The RL system. NeMo-RL drives the GRPO loop (Megatron-Core training backend, vLLM generation, and Megatron-Bridge for HF⇄Megatron weight conversion). NeMo-Gym orchestrates rollouts and hosts the tools, sandboxes, and reward/verifier calls as pluggable <strong>Resources</strong>.</em></p>
+<p>The division of labor:</p>
+<ul>
+<li><strong>NeMo-RL (training side).</strong> <a href="https://github.com/NVIDIA/Megatron-LM" rel="nofollow">Megatron-Core</a> is the training backend; <a href="https://github.com/vllm-project/vllm" rel="nofollow">vLLM</a> generates rollouts; <strong>Megatron-Bridge</strong> converts weights between Megatron and Hugging Face formats, so each stage can export a clean HF checkpoint for the next one.</li>
+<li><strong>NeMo-Gym (rollout side).</strong> It exposes each environment as a set of <strong>Resources</strong> (verifiers, tools, sandboxes, and reward models) behind a uniform interface. This is the plug point for the agentic stages: the SWE repo sandboxes, the terminal harness, and the web-search tools all attach here, and to the training loop they look the same as a simple math verifier.</li>
+</ul>
+<p>That uniformity is what makes the staged curriculum above practical: a booster's rule-based checker and a full SWE sandbox present the same interface to GRPO.</p>
+<p>This split is also what makes the <strong>asynchronous</strong> training loop described above physically possible: generation and policy updates live on separate GPU pools, so the expensive generation fleet — including the live agentic environments — stays busy instead of idling through optimizer steps.</p>
+<hr>
+<h2>
+	<a id="results" href="#results" rel="nofollow">
+		
+	</a>
+	<span>
+		Results
+	</span>
+</h2>
+<p>Granite 4.2 was evaluated across agentic coding, general agentic and tool use, reasoning, chat and instruction following, and long context. The full benchmark table is below, followed by charts that break out the headline results by model size.</p>
+<table>
+<thead>
+  <tr>
+    <th>Task</th>
+    <th>3B Dense</th>
+    <th>8B Dense</th>
+    <th>30B Dense</th>
+  </tr>
+</thead>
+<tbody>
+<tr>
+  <td colspan="4">Agentic (Coding)</td>
+</tr>
+<tr>
+    <td>SWE Bench Multilingual</td>
+    <td>NA</td>
+    <td>30.78</td><td>41.89</td>
+</tr>
+<tr>
+    <td>SWE Bench Pro</td>
+    <td>NA</td>
+    <td>19.11</td><td>33.29</td>
+</tr>
+<tr>
+    <td>SWE Bench Verified</td>
+    <td>NA</td>
+    <td>47.67</td><td>57.00</td>
+</tr>
+<tr>
+    <td>Terminal-Bench 2.1</td>
+    <td>NA</td>
+    <td>20.56</td><td>29.24</td>
+</tr>
+<tr>
+  <td colspan="4">Agentic (General)</td>
+</tr>
+<tr>
+    <td>τ³-bench</td>
+    <td>45.78</td>
+    <td>58.06</td><td>62.00</td>
+</tr>
+<tr>
+    <td>BFCL (v4)</td>
+    <td>52.41</td>
+    <td>50.29</td><td>61.39</td>
+</tr>
+<tr>
+    <td>ProfBench</td>
+    <td>32.10</td>
+    <td>41.20</td><td>42.90</td>
+</tr>
+<tr>
+    <td>BirdBench</td>
+    <td>NA</td>
+    <td>41.07</td><td>41.85</td>
+</tr>
+<tr>
+    <td>GDPval</td>
+    <td>NA</td>
+    <td>1189.00</td><td>1225.00</td>
+</tr>
+<tr>
+  <td colspan="4">Reasoning</td>
+</tr>
+<tr>
+    <td>AIME25</td>
+    <td>78.33</td>
+    <td>86.67</td><td>89.17</td>
+</tr>
+<tr>
+    <td>HMMT Feb25</td>
+    <td>66.67</td>
+    <td>78.33</td><td>89.17</td>
+</tr>
+<tr>
+    <td>GPQA</td>
+    <td>54.80</td>
+    <td>64.14</td><td>66.41</td>
+</tr>
+<tr>
+    <td>LiveCodeBench v6</td>
+    <td>69.71</td>
+    <td>73.24</td><td>75.77</td>
+</tr>
+<tr>
+    <td>SciCode</td>
+    <td>24.11</td>
+    <td>36.09</td><td>38.76</td>
+</tr>
+<tr>
+  <td colspan="4">Chat &amp; Instruction Following</td>
+</tr>
+<tr>
+    <td>MMLU-Pro</td>
+    <td>67.84</td>
+    <td>74.04</td><td>77.60</td>
+</tr>
+<tr>
+    <td>MMLU-ProX lite (IBM)</td>
+    <td>27.78</td>
+    <td>61.06</td><td>66.64</td>
+</tr>
+<tr>
+    <td>Arena-Hard-V2</td>
+    <td>34.96</td>
+    <td>65.19</td><td>67.93</td>
+</tr>
+<tr>
+    <td>IFBench (prompt)</td>
+    <td>74.33</td>
+    <td>79.33</td><td>77.17</td>
+</tr>
+<tr>
+  <td colspan="4">Long Context</td>
+</tr>
+<tr>
+    <td>RULER 64K</td>
+    <td>67.52</td>
+    <td>80.99</td><td>89.96</td>
+</tr>
+<tr>
+    <td>RULER 128K</td>
+    <td>55.30</td>
+    <td>71.41</td><td>81.38</td>
+</tr>
+</tbody></table>
+
+<p><strong>Supported languages:</strong> English, German, Spanish, French, Japanese, Portuguese, Arabic, Czech, Italian, Korean, Dutch, and Chinese.</p>
+<p>The charts below break these results out by capability area.</p>
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/u4p7x5-U_7Qj9w-ovsZ7D.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/u4p7x5-U_7Qj9w-ovsZ7D.png" alt="Reasoning benchmarks"></a></p>
+<p><em>Figure 4. Reasoning (pass@1). Scores rise consistently with model size across math (AIME25, HMMT), science (GPQA), and code reasoning (LiveCodeBench, SciCode).</em></p>
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/CH5Aqnjba9hHlBteGNvw0.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/CH5Aqnjba9hHlBteGNvw0.png" alt="Agentic coding benchmarks"></a></p>
+<p><em>Figure 5. Agentic coding resolve rates. The agentic-RL block is trained only for 8B and 30B; the 30B model leads across SWE-Bench variants and Terminal-Bench.</em></p>
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/mXZuw86XqEvna7Rm2OcTi.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/65cc2c288ebd392213e58899/mXZuw86XqEvna7Rm2OcTi.png" alt="General agentic and tool-use benchmarks"></a></p>
+<p><em>Figure 6. General agentic and tool-use benchmarks, reported for all three sizes.</em></p>
+<hr>
+<h2>
+	<a id="quantization" href="#quantization" rel="nofollow">
+		
+	</a>
+	<span>
+		Quantization
+	</span>
+</h2>
+<p>We also released four quantized variants of the Granite 4.2 models for inference with vLLM. The models are converted to FP8, NVFP4, and MXFP4 using LLM Compressor, and to the GGUF format using the llama.cpp framework for reduced-memory deployment.</p>
+<h3>
+	<a id="fp8" href="#fp8" rel="nofollow">
+		
+	</a>
+	<span>
+		FP8
+	</span>
+</h3>
+<p>The FP8 version is quantized with dynamic per-channel weights and per-token activations.  No calibration is used.</p>
+<h3>
+	<a id="fp4" href="#fp4" rel="nofollow">
+		
+	</a>
+	<span>
+		FP4
+	</span>
+</h3>
+<p>The NVFP4 and MXFP4 versions are quantized using GPTQ calibrated on 2K samples drawn from the SFT dataset.  Max context length is 2K during calibration.</p>
+<h3>
+	<a id="gguf" href="#gguf" rel="nofollow">
+		
+	</a>
+	<span>
+		GGUF
+	</span>
+</h3>
+<p>Conversion of the Granite 4.2 models to GGUF is done with the canonical llama.cpp tool as described in <a href="https://github.com/IBM/gguf#gguf-conversion--quantization" rel="nofollow">https://github.com/IBM/gguf#gguf-conversion--quantization</a>.</p>
+<p>Several GGUF formats are provided:</p>
+<ul>
+<li>Q8_0</li>
+<li>Q6_K</li>
+<li>Q5_K_S</li>
+<li>Q5_K_M</li>
+<li>Q5_1</li>
+<li>Q5_0</li>
+<li>Q4_K_S</li>
+<li>Q4_K_M</li>
+<li>Q4_1</li>
+<li>Q4_0</li>
+<li>Q3_K_S</li>
+<li>Q3_K_M</li>
+<li>Q3_K_L</li>
+<li>Q2_K</li>
+</ul>
+<hr>
+<h2>
+	<a id="infrastructure" href="#infrastructure" rel="nofollow">
+		
+	</a>
+	<span>
+		Infrastructure
+	</span>
+</h2>
+<h3>
+	<a id="hardware" href="#hardware" rel="nofollow">
+		
+	</a>
+	<span>
+		Hardware
+	</span>
+</h3>
+<p>We trained the Granite 4.2 language models on an NVIDIA GB200 NVL72 cluster hosted by CoreWeave, featuring:</p>
+<ul>
+<li>A 72-GPU NVLink domain for high-speed intra-rack communication</li>
+<li>A non-blocking Fat-Tree NDR 400 Gb/s InfiniBand fabric for full-bandwidth inter-rack connectivity</li>
+<li>Thousands of GPUs operating at cluster scale</li>
+</ul>
+<p>This infrastructure delivers the high-bandwidth, low-latency communication required for efficient large-scale distributed training.</p>
+<h3>
+	<a id="software-stack" href="#software-stack" rel="nofollow">
+		
+	</a>
+	<span>
+		Software Stack
+	</span>
+</h3>
+<p>The training software stack is packaged into <code>.sqsh</code> container images, each giving a run a reproducible, portable environment with its SBSA-compatible CUDA targets, Linux aarch64 Python wheels, and GPU-specific binaries pinned. The large-scale SFT runs build on an NGC PyTorch base image (Ubuntu 22.04, CUDA 12.8, Python 3.12); the RL stack runs in its own NeMo-RL container.</p>
+<hr>
+<h2>
+	<a id="getting-started-transformers" href="#getting-started-transformers" rel="nofollow">
+		
+	</a>
+	<span>
+		Getting Started (Transformers)
+	</span>
+</h2>
+<h3>
+	<a id="installation" href="#installation" rel="nofollow">
+		
+	</a>
+	<span>
+		Installation
+	</span>
+</h3>
+<pre><code>pip install torch
+pip install accelerate transformers
+</code></pre>
+<h3>
+	<a id="basic-inference-thinking-mode" href="#basic-inference-thinking-mode" rel="nofollow">
+		
+	</a>
+	<span>
+		Basic Inference (Thinking Mode)
+	</span>
+</h3>
+<pre><code><span>import</span> torch
+<span>from</span> transformers <span>import</span> AutoModelForCausalLM, AutoTokenizer
+
+model_path = <span>"ibm-granite/granite-4.2-30b"</span>
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+model = AutoModelForCausalLM.from_pretrained(model_path, device_map=<span>"cuda"</span>, torch_dtype=torch.bfloat16)
+model.<span>eval</span>()
+
+messages = [
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"How many r's are in the word 'strawberry'?"</span>},
+]
+
+text = tokenizer.apply_chat_template(messages, tokenize=<span>False</span>, add_generation_prompt=<span>True</span>, enable_thinking=<span>True</span>)
+inputs = tokenizer(text, return_tensors=<span>"pt"</span>).to(model.device)
+
+<span>with</span> torch.no_grad():
+    output = model.generate(**inputs, max_new_tokens=<span>8192</span>, temperature=<span>1.0</span>, top_p=<span>0.95</span>, do_sample=<span>True</span>)
+
+<span>print</span>(tokenizer.decode(output[<span>0</span>][inputs.input_ids.shape[-<span>1</span>]:], skip_special_tokens=<span>False</span>))
+</code></pre>
+<details>
+<summary><b>Example Output</b></summary>
+
+<pre><code>&lt;think&gt;
+Okay, let's see. The problem is to find how many 'r's are in the word 'strawberry'.
+
+First, I need to write out the word: s t r a w b e r r y.
+
+Now, I need to count the number of 'r' letters. Let's list each letter and check for 'r'.
+
+1. s – not r
+2. t – not r
+3. r – yes, that's one
+4. a – no
+5. w – no
+6. b – no
+7. e – no
+8. r – yes, that's two
+9. r – yes, that's three
+10. y – no
+
+Total r's = 3.
+&lt;/think&gt;
+There are **3** r's in the word "strawberry".&lt;|im_end|&gt;
+</code></pre>
+</details>
+
+<h3>
+	<a id="non-thinking-mode" href="#non-thinking-mode" rel="nofollow">
+		
+	</a>
+	<span>
+		Non-Thinking Mode
+	</span>
+</h3>
+<pre><code>messages = [
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"What is the capital of France?"</span>},
+]
+text = tokenizer.apply_chat_template(messages, tokenize=<span>False</span>, add_generation_prompt=<span>True</span>, enable_thinking=<span>False</span>)
+inputs = tokenizer(text, return_tensors=<span>"pt"</span>).to(model.device)
+
+output = model.generate(**inputs, max_new_tokens=<span>2048</span>, temperature=<span>1.0</span>, top_p=<span>0.95</span>, do_sample=<span>True</span>)
+<span>print</span>(tokenizer.decode(output[<span>0</span>][inputs.input_ids.shape[-<span>1</span>]:], skip_special_tokens=<span>False</span>))
+</code></pre>
+<details>
+<summary><b>Example Output</b></summary>
+
+<pre><code>&lt;think&gt;&lt;/think&gt;The capital of France is Paris.&lt;|im_end|&gt;
+</code></pre>
+</details>
+
+<h3>
+	<a id="low-effort-thinking" href="#low-effort-thinking" rel="nofollow">
+		
+	</a>
+	<span>
+		Low-Effort Thinking
+	</span>
+</h3>
+<pre><code>messages = [
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"What is 2 + 2?"</span>},
+]
+text = tokenizer.apply_chat_template(messages, tokenize=<span>False</span>, add_generation_prompt=<span>True</span>,
+                                     enable_thinking=<span>True</span>, low_effort=<span>True</span>)
+inputs = tokenizer(text, return_tensors=<span>"pt"</span>).to(model.device)
+
+output = model.generate(**inputs, max_new_tokens=<span>4096</span>, temperature=<span>1.0</span>, top_p=<span>0.95</span>, do_sample=<span>True</span>)
+<span>print</span>(tokenizer.decode(output[<span>0</span>][inputs.input_ids.shape[-<span>1</span>]:], skip_special_tokens=<span>False</span>))
+</code></pre>
+<details>
+<summary><b>Example Output</b></summary>
+
+<pre><code>&lt;think&gt;
+Simple answer.
+&lt;/think&gt;
+2 + 2 = 4.&lt;|im_end|&gt;
+</code></pre>
+</details>
+
+<hr>
+<h2>
+	<a id="tool-calling" href="#tool-calling" rel="nofollow">
+		
+	</a>
+	<span>
+		Tool Calling
+	</span>
+</h2>
+<p>Granite models support tool calling with integrated reasoning: the model reasons about which tool to call and why before calling it. Tools are defined with the <a href="https://platform.openai.com/docs/guides/function-calling" rel="nofollow">OpenAI function definition schema</a>.</p>
+<h3>
+	<a id="basic-tool-calling" href="#basic-tool-calling" rel="nofollow">
+		
+	</a>
+	<span>
+		Basic Tool Calling
+	</span>
+</h3>
+<pre><code>tools = [
+    {
+        <span>"type"</span>: <span>"function"</span>,
+        <span>"function"</span>: {
+            <span>"name"</span>: <span>"get_current_weather"</span>,
+            <span>"description"</span>: <span>"Get the current weather for a specified city."</span>,
+            <span>"parameters"</span>: {
+                <span>"type"</span>: <span>"object"</span>,
+                <span>"properties"</span>: {
+                    <span>"city"</span>: {<span>"type"</span>: <span>"string"</span>, <span>"description"</span>: <span>"Name of the city"</span>}
+                },
+                <span>"required"</span>: [<span>"city"</span>]
+            }
+        }
+    }
+]
+
+messages = [
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"What's the weather like in Boston right now?"</span>},
+]
+text = tokenizer.apply_chat_template(messages, tokenize=<span>False</span>, tools=tools,
+                                     add_generation_prompt=<span>True</span>, enable_thinking=<span>True</span>)
+inputs = tokenizer(text, return_tensors=<span>"pt"</span>).to(model.device)
+
+output = model.generate(**inputs, max_new_tokens=<span>4096</span>, temperature=<span>1.0</span>, top_p=<span>0.95</span>, do_sample=<span>True</span>)
+<span>print</span>(tokenizer.decode(output[<span>0</span>][inputs.input_ids.shape[-<span>1</span>]:], skip_special_tokens=<span>False</span>))
+</code></pre>
+<details>
+<summary><b>Example Output</b></summary>
+
+<pre><code>&lt;think&gt;
+Okay, the user is asking for the weather in Boston right now. Let me check the tools
+available. There's a function called get_current_weather that takes a city parameter.
+I need to call that with the city set to Boston.
+&lt;/think&gt;
+&lt;tool_call&gt;
+&lt;function=get_current_weather&gt;
+&lt;parameter=city&gt;
+Boston
+&lt;/parameter&gt;
+&lt;/function&gt;
+&lt;/tool_call&gt;
+&lt;|im_end|&gt;
+</code></pre>
+</details>
+
+<h3>
+	<a id="multi-turn-with-tool-response" href="#multi-turn-with-tool-response" rel="nofollow">
+		
+	</a>
+	<span>
+		Multi-Turn with Tool Response
+	</span>
+</h3>
+<pre><code>messages = [
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"What's the weather like in Boston right now?"</span>},
+    {<span>"role"</span>: <span>"assistant"</span>, <span>"content"</span>: <span>"&lt;think&gt;\nThe user wants to know the current weather in Boston. I should call get_current_weather.\n&lt;/think&gt;"</span>,
+     <span>"tool_calls"</span>: [{<span>"function"</span>: {<span>"name"</span>: <span>"get_current_weather"</span>, <span>"arguments"</span>: {<span>"city"</span>: <span>"Boston"</span>}}}]},
+    {<span>"role"</span>: <span>"tool"</span>, <span>"content"</span>: <span>'{"temperature": "72°F", "condition": "Partly cloudy", "humidity": "65%"}'</span>},
+]
+text = tokenizer.apply_chat_template(messages, tokenize=<span>False</span>, tools=tools,
+                                     add_generation_prompt=<span>True</span>, enable_thinking=<span>True</span>)
+inputs = tokenizer(text, return_tensors=<span>"pt"</span>).to(model.device)
+
+output = model.generate(**inputs, max_new_tokens=<span>4096</span>, temperature=<span>1.0</span>, top_p=<span>0.95</span>, do_sample=<span>True</span>)
+<span>print</span>(tokenizer.decode(output[<span>0</span>][inputs.input_ids.shape[-<span>1</span>]:], skip_special_tokens=<span>False</span>))
+</code></pre>
+<details>
+<summary><b>Example Output</b></summary>
+
+<pre><code>&lt;think&gt;
+The tool returned the weather data for Boston: temperature 72°F, partly cloudy, humidity 65%.
+I need to present this information clearly to the user.
+&lt;/think&gt;
+The current weather in Boston is 72°F, partly cloudy, with 65% humidity.&lt;|im_end|&gt;
+</code></pre>
+</details>
+
+<hr>
+<h2>
+	<a id="multi-turn-conversations" href="#multi-turn-conversations" rel="nofollow">
+		
+	</a>
+	<span>
+		Multi-Turn Conversations
+	</span>
+</h2>
+<h3>
+	<a id="history-thinking-truncation" href="#history-thinking-truncation" rel="nofollow">
+		
+	</a>
+	<span>
+		History Thinking Truncation
+	</span>
+</h3>
+<pre><code>messages = [
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"What is 15 * 37?"</span>},
+    {<span>"role"</span>: <span>"assistant"</span>, <span>"content"</span>: <span>"&lt;think&gt;\nLet me calculate 15 * 37.\n15 * 37 = 15 * 30 + 15 * 7 = 450 + 105 = 555\n&lt;/think&gt;\n15 * 37 = 555"</span>},
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"Now divide that by 5"</span>},
+]
+
+<span># Default: previous thinking is stripped to save context</span>
+text = tokenizer.apply_chat_template(messages, tokenize=<span>False</span>, add_generation_prompt=<span>True</span>,
+                                     enable_thinking=<span>True</span>, truncate_history_thinking=<span>True</span>)
+
+<span># To preserve full history:</span>
+text_full = tokenizer.apply_chat_template(messages, tokenize=<span>False</span>, add_generation_prompt=<span>True</span>,
+                                          enable_thinking=<span>True</span>, truncate_history_thinking=<span>False</span>)
+</code></pre>
+<h3>
+	<a id="parsing-thinking-vs-final-answer" href="#parsing-thinking-vs-final-answer" rel="nofollow">
+		
+	</a>
+	<span>
+		Parsing Thinking vs. Final Answer
+	</span>
+</h3>
+<pre><code><span>import</span> re
+
+<span>def</span> <span>parse_model_output</span>(<span>text</span>):
+    <span>"""Separate thinking content from final answer."""</span>
+    think_match = re.search(<span>r'&lt;think&gt;(.*?)&lt;/think&gt;'</span>, text, re.DOTALL)
+    <span>if</span> think_match:
+        thinking = think_match.group(<span>1</span>).strip()
+        answer_start = text.find(<span>'&lt;/think&gt;'</span>) + <span>len</span>(<span>'&lt;/think&gt;'</span>)
+        answer_end = text.find(<span>'&lt;|im_end|&gt;'</span>, answer_start)
+        answer = text[answer_start:answer_end].strip() <span>if</span> answer_end != -<span>1</span> <span>else</span> text[answer_start:].strip()
+    <span>else</span>:
+        thinking, answer = <span>""</span>, text.strip()
+    <span>return</span> thinking, answer
+
+thinking, answer = parse_model_output(output_text)
+</code></pre>
+<hr>
+<h2>
+	<a id="using-with-agentic-coding-harnesses" href="#using-with-agentic-coding-harnesses" rel="nofollow">
+		
+	</a>
+	<span>
+		Using with Agentic Coding Harnesses
+	</span>
+</h2>
+<p>Granite models can serve as the backbone for agentic coding tools. Because they support reasoning and tool calling through the OpenAI-compatible API, they integrate with popular agentic harnesses without extra adapters. Start the vLLM server, then follow the harness-specific instructions below.</p>
+<h3>
+	<a id="opencode" href="#opencode" rel="nofollow">
+		
+	</a>
+	<span>
+		OpenCode
+	</span>
+</h3>
+<p><a href="https://opencode.ai" rel="nofollow">OpenCode</a> is an AI coding agent that runs in your terminal.</p>
+<p><strong>Install:</strong></p>
+<pre><code>curl -fsSL https://opencode.ai/install | bash
+</code></pre>
+<p><strong>Configure</strong> <code>~/.config/opencode/opencode.json</code>:</p>
+<pre><code><span>{</span>
+  <span>"$schema"</span><span>:</span> <span>"https://opencode.ai/config.json"</span><span>,</span>
+  <span>"model"</span><span>:</span> <span>"local/granite-4.2-30b"</span><span>,</span>
+  <span>"provider"</span><span>:</span> <span>{</span>
+    <span>"local"</span><span>:</span> <span>{</span>
+      <span>"npm"</span><span>:</span> <span>"@ai-sdk/openai-compatible"</span><span>,</span>
+      <span>"name"</span><span>:</span> <span>"vLLM (local)"</span><span>,</span>
+      <span>"options"</span><span>:</span> <span>{</span>
+        <span>"baseURL"</span><span>:</span> <span>"http://localhost:8000/v1"</span><span>,</span>
+        <span>"apiKey"</span><span>:</span> <span>"EMPTY"</span>
+      <span>}</span><span>,</span>
+      <span>"models"</span><span>:</span> <span>{</span>
+        <span>"granite-4.2-30b"</span><span>:</span> <span>{</span>
+          <span>"name"</span><span>:</span> <span>"Granite 4.2 30B"</span><span>,</span>
+          <span>"limit"</span><span>:</span> <span>{</span>
+            <span>"context"</span><span>:</span> <span>131072</span><span>,</span>
+            <span>"output"</span><span>:</span> <span>8192</span>
+          <span>}</span>
+        <span>}</span>
+      <span>}</span>
+    <span>}</span>
+  <span>}</span>
+<span>}</span>
+</code></pre>
+<p><strong>Run:</strong></p>
+<pre><code>opencode
+opencode run <span>"your task description"</span>
+</code></pre>
+<p>For full documentation, see <a href="https://opencode.ai/docs" rel="nofollow">opencode.ai/docs</a>.</p>
+<h3>
+	<a id="pi" href="#pi" rel="nofollow">
+		
+	</a>
+	<span>
+		Pi
+	</span>
+</h3>
+<p><a href="https://pi.dev" rel="nofollow">Pi</a> is a minimal agent harness for AI-powered coding that runs in your terminal. It supports custom providers via a <code>models.json</code> configuration file.</p>
+<p><strong>Install:</strong></p>
+<pre><code>curl -fsSL https://pi.dev/install.sh | sh
+</code></pre>
+<p><strong>Configure</strong> <code>~/.pi/agent/models.json</code>:</p>
+<pre><code><span>{</span>
+  <span>"providers"</span><span>:</span> <span>{</span>
+    <span>"vllm"</span><span>:</span> <span>{</span>
+      <span>"baseUrl"</span><span>:</span> <span>"http://localhost:8000/v1"</span><span>,</span>
+      <span>"api"</span><span>:</span> <span>"openai-completions"</span><span>,</span>
+      <span>"apiKey"</span><span>:</span> <span>"EMPTY"</span><span>,</span>
+      <span>"compat"</span><span>:</span> <span>{</span>
+        <span>"supportsDeveloperRole"</span><span>:</span> <span><span>false</span></span><span>,</span>
+        <span>"supportsReasoningEffort"</span><span>:</span> <span><span>false</span></span>
+      <span>}</span><span>,</span>
+      <span>"models"</span><span>:</span> <span>[</span>
+        <span>{</span>
+          <span>"id"</span><span>:</span> <span>"granite-4.2-30b"</span><span>,</span>
+          <span>"name"</span><span>:</span> <span>"Granite 4.2 30B"</span><span>,</span>
+          <span>"reasoning"</span><span>:</span> <span><span>true</span></span><span>,</span>
+          <span>"input"</span><span>:</span> <span>[</span><span>"text"</span><span>]</span><span>,</span>
+          <span>"contextWindow"</span><span>:</span> <span>131072</span><span>,</span>
+          <span>"maxTokens"</span><span>:</span> <span>8192</span><span>,</span>
+          <span>"samplingParams"</span><span>:</span> <span>{</span>
+            <span>"temperature"</span><span>:</span> <span>1.0</span><span>,</span>
+            <span>"top_p"</span><span>:</span> <span>0.95</span>
+          <span>}</span><span>,</span>
+          <span>"cost"</span><span>:</span> <span>{</span> <span>"input"</span><span>:</span> <span>0</span><span>,</span> <span>"output"</span><span>:</span> <span>0</span><span>,</span> <span>"cacheRead"</span><span>:</span> <span>0</span><span>,</span> <span>"cacheWrite"</span><span>:</span> <span>0</span> <span>}</span>
+        <span>}</span>
+      <span>]</span>
+    <span>}</span>
+  <span>}</span>
+<span>}</span>
+</code></pre>
+<p><strong>Run:</strong></p>
+<pre><code>pi
+</code></pre>
+<p>Then select the <code>granite-4.2-30b</code> model with <code>/model</code> or <code>Ctrl+L</code> in the interactive session.</p>
+<p>For full documentation, see <a href="https://pi.dev/docs/latest" rel="nofollow">pi.dev/docs</a>.</p>
+<h3>
+	<a id="openhands" href="#openhands" rel="nofollow">
+		
+	</a>
+	<span>
+		OpenHands
+	</span>
+</h3>
+<p><a href="https://www.openhands.dev" rel="nofollow">OpenHands</a> is an AI software engineer that can plan, write code, and execute commands.</p>
+<ol>
+<li><p><strong>Install and launch OpenHands</strong> following the <a href="https://docs.openhands.dev/openhands/usage/agent-canvas/setup" rel="nofollow">official installation guide</a>.</p>
+</li>
+<li><p><strong>Configure the LLM</strong> in the OpenHands settings with:</p>
+<ul>
+<li><strong>Model:</strong> <code>granite-4.2-30b</code></li>
+<li><strong>Base URL:</strong> <code>http://localhost:8000/v1</code></li>
+<li><strong>API Key:</strong> your vLLM <code>--api-key</code> value</li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p><strong>Note:</strong> The <code>openai/</code> prefix is required when connecting to OpenAI-compatible endpoints like vLLM. Refer to the <a href="https://docs.openhands.dev/openhands/usage/llms/local-llms" rel="nofollow">OpenHands local LLM documentation</a> for detailed setup instructions, troubleshooting, and alternative installation methods.</p>
+</blockquote>
+<hr>
+<p><strong>Resources:</strong></p>
+<ul>
+<li><a href="https://huggingface.co/collections/ibm-granite/granite-42-language-models">Granite 4.2 HF Collection</a></li>
+<li><a href="https://github.com/ibm-granite/granite-4.2-language-models" rel="nofollow">GitHub: ibm-granite/granite-4.2-language-models</a></li>
+<li><a href="https://www.ibm.com/granite/docs/" rel="nofollow">Granite Documentation</a></li>
+<li><a href="https://github.com/ibm-granite-community/" rel="nofollow">Granite Community Resources</a></li>
+<li><a href="https://research.ibm.com/blog/code-alchemy-for-synthetic-code" rel="nofollow">Code Alchemy</a></li>
+</ul>
+<hr>
+<p><em>Last updated: September 11, 2026 to clarify base models.</em></p>
+</div></div>

@@ -1,0 +1,1020 @@
+<div id="readability-page-1" class="page"><div>
+<p><em>An in-depth technical walkthrough of data engineering, pre-training, supervised fine-tuning, and reinforcement learning behind the Granite 4.1 LLMs.</em></p>
+<p><strong>Authors:</strong> Granite Team, IBM</p>
+<hr>
+<p><strong>TL;DR</strong> — Granite 4.1 is a family of dense, decoder‑only LLMs (3B, 8B, and 30B) trained on ~15T tokens using a multi‑stage pre‑training pipeline, including long‑context extension of up to 512K tokens. The models are further refined with supervised fine‑tuning on ~4.1M high‑quality curated samples and reinforcement learning via on‑policy GRPO with DAPO loss (<a href="https://arxiv.org/abs/2503.14476" rel="nofollow">Yu et al., 2025</a>). Notably, the 8B instruct model matches or surpasses the previous Granite 4.0‑H‑Small (32B‑A9B MoE) despite using a simpler dense architecture with fewer parameters. All Granite 4.1 models are released under the Apache 2.0 license.</p>
+<p><strong>Links:</strong></p>
+<ul>
+<li><a href="https://huggingface.co/collections/ibm-granite/granite-41-language-models">Granite 4.1 HF Collection</a></li>
+<li><a href="https://github.com/ibm-granite/granite-4.1-language-models" rel="nofollow">GitHub Repository</a></li>
+<li><a href="https://www.ibm.com/granite/docs/" rel="nofollow">Granite Docs</a></li>
+</ul>
+<hr>
+<h2>
+	<a id="overview" href="#overview" rel="nofollow">
+		
+	</a>
+	<span>
+		Overview
+	</span>
+</h2>
+<p>Building high‑quality small language models goes beyond simply scaling compute—it requires rigorous data curation throughout training. For Granite 4.1, we prioritized data quality over quantity, progressively refining the data mixture across five pre‑training stages. We further curated supervised fine‑tuning data using an LLM‑as‑Judge framework and applied a multi‑stage reinforcement learning pipeline to systematically strengthen performance in math, coding, instruction following, and general chat.</p>
+<hr>
+<h2>
+	<a id="model-architecture" href="#model-architecture" rel="nofollow">
+		
+	</a>
+	<span>
+		Model Architecture
+	</span>
+</h2>
+<p>Granite 4.1 models use a decoder-only dense transformer architecture. The core design choices include <strong>Grouped Query Attention (GQA)</strong>, <strong>Rotary Position Embeddings (RoPE)</strong>, <strong>SwiGLU activations</strong>, <strong>RMSNorm</strong>, and <strong>shared input/output embeddings</strong>.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Component</th>
+<th>3B Dense</th>
+<th>8B Dense</th>
+<th>30B Dense</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Embedding size</td>
+<td>2560</td>
+<td>4096</td>
+<td>4096</td>
+</tr>
+<tr>
+<td>Number of layers</td>
+<td>40</td>
+<td>40</td>
+<td>64</td>
+</tr>
+<tr>
+<td>Attention head size</td>
+<td>64</td>
+<td>128</td>
+<td>128</td>
+</tr>
+<tr>
+<td>Number of attention heads</td>
+<td>40</td>
+<td>32</td>
+<td>32</td>
+</tr>
+<tr>
+<td>Number of KV heads</td>
+<td>8</td>
+<td>8</td>
+<td>8</td>
+</tr>
+<tr>
+<td>MLP hidden size</td>
+<td>8192</td>
+<td>12800</td>
+<td>32768</td>
+</tr>
+<tr>
+<td>MLP activation</td>
+<td>SwiGLU</td>
+<td>SwiGLU</td>
+<td>SwiGLU</td>
+</tr>
+<tr>
+<td>Position embedding</td>
+<td>RoPE</td>
+<td>RoPE</td>
+<td>RoPE</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>All three model sizes share the same training pipeline and data strategy, differing only in architecture dimensions.</p>
+<hr>
+<h2>
+	<a id="pre-training" href="#pre-training" rel="nofollow">
+		
+	</a>
+	<span>
+		Pre-Training
+	</span>
+</h2>
+<p>Granite 4.1 is trained from scratch on approximately 15 trillion tokens using a five‑phase training strategy. Phases 1–2 focus on foundational pre‑training, phases 3–4 perform mid‑training with progressively higher‑quality data annealing, and phase 5 introduces long‑context training, extending the context window to 512K tokens. Each phase employs a distinct data mixture and learning‑rate schedule, gradually shifting from broad web‑scale data to more curated, domain‑specific content.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/G9mYhWq9PunNVyKzszCUL.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/G9mYhWq9PunNVyKzszCUL.png" alt="Five-phase pre-training pipeline"></a></p>
+<p><em><strong>Figure 2:</strong> The five-phase pre-training pipeline. Phases 1–2 are pre-training, Phases 3–4 are mid-training (high-quality data annealing), and Phase 5 is long context training (LCE).</em></p>
+<h3>
+	<a id="phase-1-general-pre-training-10t-tokens" href="#phase-1-general-pre-training-10t-tokens" rel="nofollow">
+		
+	</a>
+	<span>
+		Phase 1: General Pre-Training (10T tokens)
+	</span>
+</h3>
+<p>The first phase establishes broad language understanding using a general mixture of training data with a power learning rate schedule and warmup.</p>
+<p><strong>Data composition:</strong></p>
+<ul>
+<li><strong>CommonCrawl</strong> ~59% — general web data</li>
+<li><strong>Code</strong> ~20% — programming languages and repositories</li>
+<li><strong>Math</strong> ~7% — mathematical reasoning data</li>
+<li><strong>Technical</strong> ~10.5% — scientific papers, technical documentation and manuals</li>
+<li><strong>Multilingual</strong> ~2% — non-English language data</li>
+<li><strong>Domain Specific</strong> ~1.5% — domain-specific content</li>
+</ul>
+<h3>
+	<a id="phase-2-mathcode-pre-training-2t-tokens" href="#phase-2-mathcode-pre-training-2t-tokens" rel="nofollow">
+		
+	</a>
+	<span>
+		Phase 2: Math/Code Pre-Training (2T tokens)
+	</span>
+</h3>
+<p>Phase 2 sharply increases the proportion of code and mathematical data, pivoting toward stronger reasoning capabilities while still maintaining general language coverage.</p>
+<p><strong>Data composition:</strong></p>
+<ul>
+<li><strong>Math</strong> ~35% — a 5x increase over Phase 1</li>
+<li><strong>Code</strong> ~30% — a 1.5x increase</li>
+<li><strong>CommonCrawl-HQ</strong> ~12% — high-quality common crawl subset</li>
+<li><strong>Synthetic</strong> ~9% — synthetic high-quality data</li>
+<li><strong>Technical</strong> ~10%</li>
+<li><strong>Multilingual</strong> ~3%</li>
+<li><strong>Domain</strong> ~1%</li>
+</ul>
+<h3>
+	<a id="phase-3-high-quality-data-annealing-2t-tokens" href="#phase-3-high-quality-data-annealing-2t-tokens" rel="nofollow">
+		
+	</a>
+	<span>
+		Phase 3: High-Quality Data Annealing (2T tokens)
+	</span>
+</h3>
+<p>Phase 3 transitions into <strong>mid-training</strong> with a more balanced, high-quality mixture and an exponential decay learning rate schedule. This is where we start blending in chain-of-thought and synthetic instruction data.</p>
+<p><strong>Data composition:</strong></p>
+<ul>
+<li><strong>CommonCrawl-HQ</strong> ~16.67%</li>
+<li><strong>Math</strong> ~16.67%</li>
+<li><strong>Code</strong> ~16.67%</li>
+<li><strong>Synthetic</strong> ~8.5% </li>
+<li><strong>Technical</strong> ~12.5%</li>
+<li><strong>Multilingual</strong> ~4.5%</li>
+<li><strong>Long Chain-of-Thought</strong> ~12.5% — reasoning trajectories</li>
+<li><strong>Language Instructions</strong> ~7.5% — instruction tuning data</li>
+<li><strong>Code Instructions</strong> ~4.5% — instruction tuning data</li>
+</ul>
+<h3>
+	<a id="phase-4-high-quality-data-annealing--refinement-05t-tokens" href="#phase-4-high-quality-data-annealing--refinement-05t-tokens" rel="nofollow">
+		
+	</a>
+	<span>
+		Phase 4: High-Quality Data Annealing — Refinement (0.5T tokens)
+	</span>
+</h3>
+<p>The fourth phase continues mid-training with a linear learning rate decay to zero, focusing the model on the highest-quality data available.</p>
+<p><strong>Data composition:</strong></p>
+<ul>
+<li><strong>CommonCrawl-HQ</strong> ~40%</li>
+<li><strong>Code</strong> ~20%</li>
+<li><strong>Math</strong> ~20%</li>
+<li><strong>Long Chain-of-Thought</strong> ~6%</li>
+<li><strong>Code Instructions</strong> ~5%</li>
+<li><strong>Language Instructions</strong> ~9%</li>
+</ul>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/Rrc_DSHSiJs7iNc8Nv8yI.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/Rrc_DSHSiJs7iNc8Nv8yI.png" alt="Data mix evolution across pre-training phases"></a></p>
+<p><em><strong>Figure 3:</strong> How the data mix evolves across the pre-training phases. Notice the progressive shift from web-heavy (Phase 1) to quality-heavy with instruction and reasoning data (Phases 3–4).</em></p>
+<h3>
+	<a id="phase-5-long-context-training-lce" href="#phase-5-long-context-training-lce" rel="nofollow">
+		
+	</a>
+	<span>
+		Phase 5: Long Context Training (LCE)
+	</span>
+</h3>
+<p>The fifth and final phase also part of of mid-training extends the context window from <strong>4K</strong> to <strong>512K</strong> through a staged long-context extension process:</p>
+<ol>
+<li><strong>32K extension</strong> — using the same data mix as Phase 4</li>
+<li><strong>128K extension</strong> — same data mix as Phase 4</li>
+<li><strong>512K extension</strong> — 80% books + 20% code repository data (8b and 30b only)</li>
+</ol>
+<p>The LCE phase uses an exponential learning rate schedule starting at <code>1e-4</code> and decaying to <code>0</code>. To ensure the model natively handles long sequences without degrading short-context performance, we do a model merge after each LCE stage. RULER benchmark of base models:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model name</th>
+<th>32K</th>
+<th>64K</th>
+<th>128K</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>granite-4.1-3b-base</strong></td>
+<td>75.0</td>
+<td>66.6</td>
+<td>58.0</td>
+</tr>
+<tr>
+<td><strong>granite-4.1-8b-base</strong></td>
+<td>83.6</td>
+<td>79.1</td>
+<td>73.0</td>
+</tr>
+<tr>
+<td><strong>granite-4.1-30b-base</strong></td>
+<td>85.2</td>
+<td>84.6</td>
+<td>76.7</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<hr>
+<h2>
+	<a id="sft-data-preparation--quality-control" href="#sft-data-preparation--quality-control" rel="nofollow">
+		
+	</a>
+	<span>
+		SFT: Data Preparation &amp; Quality Control
+	</span>
+</h2>
+<p>Supervised fine‑tuning (SFT) is what turns the base model into a reliable instruction‑following assistant, making data quality critically important—since even a small number of incorrect or hallucinated samples can instill undesirable behaviors. To address this, we apply a rigorous LLM‑as‑Judge framework alongside rule‑based filtering to curate high-quality samples. Together, the pipeline automatically assess each sample against structural, semantic, and behavioral criteria, fixing issues when possible and filtering out samples that fail to meet our quality standards.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/_-jA1WScOVuIFl20cLEPU.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/_-jA1WScOVuIFl20cLEPU.png" alt="SFT Data Quality Pipeline"></a></p>
+<p><em><strong>Figure 4:</strong> The SFT data quality pipeline. Raw conversation data passes through an LLM-as-Judge with a multi-dimensional rubric, producing accept/borderline/reject verdicts. Hard-reject defects (hallucination, false premise, incorrect computation) trigger automatic rejection regardless of score.</em></p>
+<p>Our rigorous LLM‑as‑Judge framework evaluates only assistant responses, treating system prompts, user inputs, retrieved documents, and tool outputs strictly as contextual information. This ensures that the judge assesses what the model says, rather than what it was asked to do. In RAG settings, responses that are not grounded in the retrieved context are flagged as hallucinations, while tool‑use outputs are validated against the set of allowed tools and their parameter schemas.</p>
+<p>We employ specialized judge prompts tailored to different SFT data types, including multi‑turn dialogue, RAG‑augmented responses, tool‑calling interactions, and multilingual conversations. Each response is scored across six weighted dimensions—instruction following, correctness, completeness, conciseness, naturalness, and calibration (with optional critical‑thinking checks). Samples are accepted, flagged as borderline, or rejected based on deterministic score thresholds, with hard‑reject rules overriding scores for severe defects such as hallucinations, false premises, or incorrect computations.</p>
+<p>To complement semantic evaluation, we apply a deterministic rule‑based pipeline that enforces structural integrity through text normalization, truncation and length filtering, schema validation, and leakage detection. A final global deduplication step ensures dataset‑wide uniqueness. All filtering and correction actions are fully auditable.</p>
+<h3>
+	<a id="sft-training-details" href="#sft-training-details" rel="nofollow">
+		
+	</a>
+	<span>
+		SFT Training Details
+	</span>
+</h3>
+<p>After passing through the LLM-as-Judge, rule-based filtering, and global deduplication pipeline, we fine-tune base models on these approximately <strong>4.1 million</strong> high-quality samples. The following details apply to all three model variants:</p>
+<p><strong>Training Configuration:</strong></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Compute</td>
+<td>16 nodes, 4x GB200 per node</td>
+</tr>
+<tr>
+<td>Epochs</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Learning rate</td>
+<td>5e-6 (linear warmup 3%, linear decay over ~25K steps)</td>
+</tr>
+<tr>
+<td>Sequence length</td>
+<td>16,384 tokens</td>
+</tr>
+<tr>
+<td>Total samples</td>
+<td>~4.1M</td>
+</tr>
+<tr>
+<td>Effective batch size</td>
+<td>256 samples/iter (~4.2M tokens/iter)</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<hr>
+<h2>
+	<a id="reinforcement-learning-multi-stage-rl-pipeline" href="#reinforcement-learning-multi-stage-rl-pipeline" rel="nofollow">
+		
+	</a>
+	<span>
+		Reinforcement Learning: Multi-Stage RL Pipeline
+	</span>
+</h2>
+<p>After SFT, we apply a multi-stage reinforcement learning pipeline to further improve the model's capabilities across specific domains. Rather than a single RL pass, we run <strong>multiple targeted RL stages</strong>, each optimizing for different capabilities.</p>
+<h3>
+	<a id="training-methodology" href="#training-methodology" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Methodology
+	</span>
+</h3>
+<p>We use <strong>On-policy GRPO (Group Relative Policy Optimization)</strong> (<a href="https://arxiv.org/abs/2402.03300" rel="nofollow">Shao et al., 2024</a>) with <strong>DAPO (Decoupled Clip and Dynamic sAmpling Policy Optimization) loss</strong> (<a href="https://arxiv.org/abs/2503.14476" rel="nofollow">Yu et al., 2025</a>) which provides more stable training signals compared to standard GRPO. However, due to computationally intensive nature of dynamic sampling, we switch it off during our training runs.</p>
+<h4>
+	<a id="rl-training-configuration" href="#rl-training-configuration" rel="nofollow">
+		
+	</a>
+	<span>
+		RL training configuration
+	</span>
+</h4>
+<div>
+	<table>
+		<thead><tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Algorithm</td>
+<td>On-policy GRPO with DAPO loss</td>
+</tr>
+<tr>
+<td>Training stack</td>
+<td>SkyRL (<a href="https://github.com/NovaSky-AI/SkyRL" rel="nofollow">NovaSky-AI, 2025</a>)</td>
+</tr>
+<tr>
+<td>Samples per prompt</td>
+<td>16</td>
+</tr>
+<tr>
+<td>Train batch size</td>
+<td>1024</td>
+</tr>
+<tr>
+<td>Context length</td>
+<td>8,192</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="rl-pipeline" href="#rl-pipeline" rel="nofollow">
+		
+	</a>
+	<span>
+		RL Pipeline
+	</span>
+</h3>
+<p><a href="#fig-rl-pipeline" rel="nofollow">Figure 10</a> depicts our Reinforcement Learning pipeline for training Granite 4.1 models. Through extensive experimentation with a variety of reinforcement learning recipes, we found that this sequence of steps minimizes catastrophic forgetting while simultaneously maximizing performance across multiple domains.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/MAieYrC4jTq4xiFUYcqHJ.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/MAieYrC4jTq4xiFUYcqHJ.png" alt="Granite 4.1 Reinforcement Learning Pipeline"></a></p>
+<p><em><strong>Figure 10:</strong> The Granite 4.1 reinforcement learning pipeline consisting of four sequential stages: Multi-domain RL, RLHF, Identity and Knowledge-calibration RL, and Math RL.</em></p>
+<h4>
+	<a id="multi-domain-rl" href="#multi-domain-rl" rel="nofollow">
+		
+	</a>
+	<span>
+		Multi-domain RL
+	</span>
+</h4>
+<p>In this stage, the model is trained jointly on a unified mixture of data drawn from multiple domains. Every gradient update therefore reflects the full diversity of tasks, which prevents catastrophic forgetting, boosts overall benchmark performance, and minimizes regressions on any individual task.</p>
+<p>The different domains covered in this stage include:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Domain</th>
+<th>Description</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Math</strong></td>
+<td>Mathematical reasoning and computation</td>
+</tr>
+<tr>
+<td><strong>Science</strong></td>
+<td>Scientific knowledge and reasoning</td>
+</tr>
+<tr>
+<td><strong>Logical Reasoning</strong></td>
+<td>Deductive and inductive logic</td>
+</tr>
+<tr>
+<td><strong>Instruction Following (IF)</strong></td>
+<td>Adherence to complex instructions</td>
+</tr>
+<tr>
+<td><strong>Structured Output</strong></td>
+<td>Structured data output</td>
+</tr>
+<tr>
+<td><strong>Text2SQL</strong></td>
+<td>Database query generation</td>
+</tr>
+<tr>
+<td><strong>Temporal Reasoning</strong></td>
+<td>Time-based logic and ordering</td>
+</tr>
+<tr>
+<td><strong>General Chat</strong></td>
+<td>General conversational quality</td>
+</tr>
+<tr>
+<td><strong>In-context Learning</strong></td>
+<td>Learning from in-context examples</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>During this stage, we trained the models on 45,504 unique prompts (averaged across all Granite 4.1 models) and found that a learning rate of <code>5e‑7</code> with a KL‑loss coefficient ($\beta$) of <code>0.05</code> performed best for multi‑domain reinforcement learning.</p>
+<h4>
+	<a id="rlhf" href="#rlhf" rel="nofollow">
+		
+	</a>
+	<span>
+		RLHF
+	</span>
+</h4>
+<p>To further improve the model's helpfulness and chat ability, we train our model on generic-chat prompts using a multilingual scalar reward model. With this stage, we observed an average improvement of <strong>~18.9 points</strong> (averaged across the three Granite 4.1 models) in Alpaca-Eval compared to the SFT checkpoints.</p>
+<p>To mitigate policy drift from its previously learned knowledge, we use a conservative learning rate of <code>3e-7</code> and higher KL-loss coeff $\beta$ of <code>0.09</code> in this stage. We use an average of 17,920 unique prompts in this RLHF stage.</p>
+<h4>
+	<a id="identity--knowledge-calibration-rl" href="#identity--knowledge-calibration-rl" rel="nofollow">
+		
+	</a>
+	<span>
+		Identity &amp; Knowledge-Calibration RL
+	</span>
+</h4>
+<p>In this stage, we train the model for a few steps (~40 training steps) on identity and knowledge calibration prompts. We observed that this small training stage significantly improves the model's self-identification capabilities.</p>
+<p>Similar to the RLHF stage, we used a learning rate of <code>3e-7</code> and KL-loss coeff $\beta$ of <code>0.09</code>, and we use 1728 unique prompts in this stage.</p>
+<h4>
+	<a id="math-rl" href="#math-rl" rel="nofollow">
+		
+	</a>
+	<span>
+		Math RL
+	</span>
+</h4>
+<p>During our RL training, we found that the RLHF stage causes a drop in math benchmark scores (e.g., in GSM8K, DeepMind-Math). The Math RL stage enables the model to recover from this drop and surpasses the original SFT performance on math benchmarks: <strong>~3.8 points</strong> on average for GSM8K, and <strong>~23.48 points</strong> on average for DeepMind-Math. We use an average of 13,504 unique prompts in this stage and similar to the multi-domain RL stage, we used a learning rate of <code>5e-7</code> and KL-loss coeff $\beta$ of <code>0.05</code>.</p>
+<hr>
+<h2>
+	<a id="results" href="#results" rel="nofollow">
+		
+	</a>
+	<span>
+		Results
+	</span>
+</h2>
+
+
+<h3>
+	<a id="base-model-benchmarks" href="#base-model-benchmarks" rel="nofollow">
+		
+	</a>
+	<span>
+		Base Model Benchmarks
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Benchmark</th>
+<th>Metric</th>
+<th>3B</th>
+<th>8B</th>
+<th>30B</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>General Tasks</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>MMLU</td>
+<td>5-shot</td>
+<td>66.47</td>
+<td>73.60</td>
+<td>78.44</td>
+</tr>
+<tr>
+<td>MMLU-Pro</td>
+<td>5-shot, CoT</td>
+<td>37.16</td>
+<td>44.58</td>
+<td>49.51</td>
+</tr>
+<tr>
+<td>BBH</td>
+<td>3-shot, CoT</td>
+<td>63.84</td>
+<td>73.83</td>
+<td>80.66</td>
+</tr>
+<tr>
+<td>AGI EVAL</td>
+<td>3-shot</td>
+<td>54.32</td>
+<td>61.68</td>
+<td>69.20</td>
+</tr>
+<tr>
+<td>DROP</td>
+<td>5-shot</td>
+<td>66.04</td>
+<td>72.36</td>
+<td>78.57</td>
+</tr>
+<tr>
+<td><strong>Math Tasks</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>GSM8K</td>
+<td>8-shot</td>
+<td>72.93</td>
+<td>73.54</td>
+<td>83.78</td>
+</tr>
+<tr>
+<td>Minerva Math</td>
+<td>4-shot</td>
+<td>38.00</td>
+<td>43.42</td>
+<td>45.66</td>
+</tr>
+<tr>
+<td><strong>Code Tasks</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>HumanEval</td>
+<td>pass@1 (StarCoder)</td>
+<td>76.19</td>
+<td>79.24</td>
+<td>81.52</td>
+</tr>
+<tr>
+<td>HumanEval</td>
+<td>pass@1</td>
+<td>59.76</td>
+<td>68.29</td>
+<td>69.50</td>
+</tr>
+<tr>
+<td>HumanEval+</td>
+<td>pass@1</td>
+<td>54.27</td>
+<td>62.20</td>
+<td>61.60</td>
+</tr>
+<tr>
+<td>Eval+ Avg</td>
+<td></td>
+<td>65.94</td>
+<td>62.05</td>
+<td>63.90</td>
+</tr>
+<tr>
+<td><strong>Multilingual Tasks</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>MMMLU</td>
+<td>5-shot</td>
+<td>56.59</td>
+<td>64.73</td>
+<td>73.36</td>
+</tr>
+<tr>
+<td>INCLUDE</td>
+<td>5-shot</td>
+<td>51.77</td>
+<td>57.60</td>
+<td>67.07</td>
+</tr>
+<tr>
+<td>MGSM</td>
+<td>8-shot</td>
+<td>58.48</td>
+<td>63.68</td>
+<td>74.40</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="instruct-model-benchmarks" href="#instruct-model-benchmarks" rel="nofollow">
+		
+	</a>
+	<span>
+		Instruct Model Benchmarks
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Benchmark</th>
+<th>Metric</th>
+<th>3B</th>
+<th>8B</th>
+<th>30B</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>General Tasks</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>MMLU</td>
+<td>5-shot</td>
+<td>67.02</td>
+<td>73.84</td>
+<td>80.16</td>
+</tr>
+<tr>
+<td>MMLU-Pro</td>
+<td>5-shot, CoT</td>
+<td>49.83</td>
+<td>55.99</td>
+<td>64.09</td>
+</tr>
+<tr>
+<td>BBH</td>
+<td>3-shot, CoT</td>
+<td>75.83</td>
+<td>80.51</td>
+<td>83.74</td>
+</tr>
+<tr>
+<td>AGI EVAL</td>
+<td>0-shot, CoT</td>
+<td>65.16</td>
+<td>72.43</td>
+<td>77.80</td>
+</tr>
+<tr>
+<td>GPQA</td>
+<td>0-shot, CoT</td>
+<td>31.70</td>
+<td>41.96</td>
+<td>45.76</td>
+</tr>
+<tr>
+<td>SimpleQA</td>
+<td></td>
+<td>3.68</td>
+<td>4.82</td>
+<td>6.81</td>
+</tr>
+<tr>
+<td><strong>Alignment Tasks</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>AlpacaEval 2.0</td>
+<td></td>
+<td>38.57</td>
+<td>50.08</td>
+<td>56.16</td>
+</tr>
+<tr>
+<td>IFEval Avg</td>
+<td></td>
+<td>82.30</td>
+<td>87.06</td>
+<td>89.65</td>
+</tr>
+<tr>
+<td>ArenaHard</td>
+<td></td>
+<td>37.80</td>
+<td>68.98</td>
+<td>71.02</td>
+</tr>
+<tr>
+<td>MTBench Avg</td>
+<td></td>
+<td>7.53</td>
+<td>8.50</td>
+<td>8.53</td>
+</tr>
+<tr>
+<td><strong>Math Tasks</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>GSM8K</td>
+<td>8-shot</td>
+<td>86.88</td>
+<td>92.49</td>
+<td>94.16</td>
+</tr>
+<tr>
+<td>GSM Symbolic</td>
+<td>8-shot</td>
+<td>81.32</td>
+<td>83.70</td>
+<td>75.70</td>
+</tr>
+<tr>
+<td>Minerva Math</td>
+<td>0-shot, CoT</td>
+<td>67.94</td>
+<td>80.10</td>
+<td>81.32</td>
+</tr>
+<tr>
+<td>DeepMind Math</td>
+<td>0-shot, CoT</td>
+<td>64.64</td>
+<td>80.07</td>
+<td>81.93</td>
+</tr>
+<tr>
+<td><strong>Code Tasks</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>HumanEval</td>
+<td>pass@1</td>
+<td>79.27</td>
+<td>87.20</td>
+<td>89.63</td>
+</tr>
+<tr>
+<td>HumanEval+</td>
+<td>pass@1</td>
+<td>74.39</td>
+<td>80.49</td>
+<td>85.98</td>
+</tr>
+<tr>
+<td>MBPP</td>
+<td>pass@1</td>
+<td>61.64</td>
+<td>82.54</td>
+<td>83.33</td>
+</tr>
+<tr>
+<td>MBPP+</td>
+<td>pass@1</td>
+<td>52.91</td>
+<td>70.64</td>
+<td>71.69</td>
+</tr>
+<tr>
+<td>CRUXEval-O</td>
+<td>pass@1</td>
+<td>40.75</td>
+<td>47.63</td>
+<td>55.75</td>
+</tr>
+<tr>
+<td>BigCodeBench</td>
+<td>pass@1</td>
+<td>32.19</td>
+<td>35.00</td>
+<td>38.77</td>
+</tr>
+<tr>
+<td>MULTIPLE</td>
+<td>pass@1</td>
+<td>52.54</td>
+<td>60.26</td>
+<td>62.31</td>
+</tr>
+<tr>
+<td>Eval+ Avg</td>
+<td>pass@1</td>
+<td>67.05</td>
+<td>80.21</td>
+<td>82.66</td>
+</tr>
+<tr>
+<td><strong>Tool Calling</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>BFCL v3</td>
+<td></td>
+<td>60.80</td>
+<td>68.27</td>
+<td>73.68</td>
+</tr>
+<tr>
+<td><strong>Multilingual Tasks</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>MMMLU</td>
+<td>5-shot</td>
+<td>57.61</td>
+<td>64.84</td>
+<td>73.71</td>
+</tr>
+<tr>
+<td>INCLUDE</td>
+<td>5-shot</td>
+<td>52.05</td>
+<td>58.89</td>
+<td>67.26</td>
+</tr>
+<tr>
+<td>MGSM</td>
+<td>8-shot</td>
+<td>70.00</td>
+<td>82.32</td>
+<td>71.12</td>
+</tr>
+<tr>
+<td><strong>Safety</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>SALAD-Bench</td>
+<td></td>
+<td>93.95</td>
+<td>95.80</td>
+<td>96.41</td>
+</tr>
+<tr>
+<td>AttaQ</td>
+<td></td>
+<td>81.88</td>
+<td>81.19</td>
+<td>85.76</td>
+</tr>
+<tr>
+<td>Tulu3 Safety Eval Avg</td>
+<td></td>
+<td>66.84</td>
+<td>75.57</td>
+<td>78.19</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Supported languages:</strong> English, German, Spanish, French, Japanese, Portuguese, Arabic, Czech, Italian, Korean, Dutch, and Chinese.</p>
+<hr>
+<h3>
+	<a id="granite41-comparison-with-leading-opensource-models" href="#granite41-comparison-with-leading-opensource-models" rel="nofollow">
+		
+	</a>
+	<span>
+		Granite 4.1 Comparison with Leading Open‑Source Models
+	</span>
+</h3>
+<p>Granite 4.1 delivers competitive instruction‑following and tool‑calling capabilities without relying on long chains of thought. By avoiding extended reasoning traces, it provides predictable latency, stable token usage, and lower operational cost. This makes Granite 4.1 a production‑ready, open‑source choice for enterprise workloads where efficiency, reliability, and cost control are critical.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/0eQZvn83EJBg-dZT-Uoo0.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/0eQZvn83EJBg-dZT-Uoo0.png" alt="BFCL V3"></a></p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/MiNs_R5sA992r43HCyA92.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/MiNs_R5sA992r43HCyA92.png" alt="IFEval"></a></p>
+<h3>
+	<a id="granite-41-8b-vs-granite-40-h-small-32b-a9b" href="#granite-41-8b-vs-granite-40-h-small-32b-a9b" rel="nofollow">
+		
+	</a>
+	<span>
+		Granite 4.1-8B vs. Granite 4.0-H-Small (32B-A9B)
+	</span>
+</h3>
+<p>A striking result: the Granite 4.1-8B dense model <strong>consistently matches or outperforms</strong> the previous-generation Granite 4.0-H-Small, a 32B-parameter Mixture-of-Experts model with 9B active parameters.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/C7F0iXCkhlEREl_1Z3Fnn.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/C7F0iXCkhlEREl_1Z3Fnn.png" alt="Granite 4.1-8B vs Granite 4.0-H-Small comparison"></a></p>
+<p><em><strong>Figure 13:</strong> Granite 4.1-8B (dark blue) vs. Granite 4.0-H-Small 32B-A9B (light blue) across benchmarks. The 8B dense model matches or exceeds the larger MoE model on IFEval, AlpacaEval, MMLU-Pro, BBH, GSM8K, DeepMind-Math, Evalplus, ArenaHard, BFCL V3 and MBPP(+).</em></p>
+<h3>
+	<a id="granite-41-model-family-comparison" href="#granite-41-model-family-comparison" rel="nofollow">
+		
+	</a>
+	<span>
+		Granite 4.1 Model Family Comparison
+	</span>
+</h3>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/GWOOEjb2Nr07aJFaJZXmx.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6658c911e238275ea9efc339/GWOOEjb2Nr07aJFaJZXmx.png" alt="Granite 4.1 model family comparison"></a></p>
+<p><em><strong>Figure 14:</strong> Comparison across the Granite 4.1 family — 30B, 8B, and 3B models. Scores scale predictably with model size, with the 30B model leading across all benchmarks.</em></p>
+
+<h2>
+	<a id="fp8-quantization" href="#fp8-quantization" rel="nofollow">
+		
+	</a>
+	<span>
+		FP8 Quantization
+	</span>
+</h2>
+<p>We also released fp8 quantized variants of the Granite 4.1 models, optimized for inference with vLLM. The precision is reduced from 16‑bit to 8‑bit, resulting in approximately a 50% reduction in both disk footprint and GPU memory usage. Quantization is applied only to the weights and activations of linear operators within the transformer blocks using LLM Compressor, while all other layers are preserved at their original precision.</p>
+<h2>
+	<a id="infrastructure" href="#infrastructure" rel="nofollow">
+		
+	</a>
+	<span>
+		Infrastructure
+	</span>
+</h2>
+<p>We trained the Granite 4.1 Language Models on an <strong>NVIDIA GB200 NVL72 cluster</strong> hosted on CoreWeave:</p>
+<ul>
+<li><strong>Intra-rack communication:</strong> 72-GPU NVLink domain</li>
+<li><strong>Inter-rack communication:</strong> Non-blocking, full Fat-Tree NDR 400 Gb/s InfiniBand network</li>
+<li><strong>Scale:</strong> Thousands of GPUs across the cluster</li>
+</ul>
+<p>This infrastructure provides the scalable, high-bandwidth interconnect needed for efficient distributed training at the token volumes required (15T+ tokens across pre-training alone).</p>
+<hr>
+<h2>
+	<a id="getting-started" href="#getting-started" rel="nofollow">
+		
+	</a>
+	<span>
+		Getting Started
+	</span>
+</h2>
+<p>Granite 4.1 models are available under the <strong>Apache 2.0 license</strong>. Here's how to get started with the 30B instruct model wiht tool calling example:</p>
+<pre><code>pip install torch torchvision torchaudio
+pip install accelerate
+pip install transformers
+</code></pre>
+<pre><code><span>import</span> torch
+<span>from</span> transformers <span>import</span> AutoModelForCausalLM, AutoTokenizer
+
+device = <span>"cuda"</span>
+model_path = <span>"ibm-granite/granite-4.1-30b"</span>
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+<span># drop device_map if running on CPU</span>
+model = AutoModelForCausalLM.from_pretrained(model_path, device_map=device)
+model.<span>eval</span>()
+
+tools = [
+    {
+        <span>"type"</span>: <span>"function"</span>,
+        <span>"function"</span>: {
+            <span>"name"</span>: <span>"get_current_weather"</span>,
+            <span>"description"</span>: <span>"Get the current weather for a specified city."</span>,
+            <span>"parameters"</span>: {
+                <span>"type"</span>: <span>"object"</span>,
+                <span>"properties"</span>: {
+                    <span>"city"</span>: {
+                        <span>"type"</span>: <span>"string"</span>,
+                        <span>"description"</span>: <span>"Name of the city"</span>
+                    }
+                },
+                <span>"required"</span>: [<span>"city"</span>]
+            }
+        }
+    }
+]
+
+<span># change input text as desired</span>
+chat = [
+    { <span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"What's the weather like in London right now?"</span> },
+]
+chat = tokenizer.apply_chat_template(chat, \
+                                     tokenize=<span>False</span>, \
+                                     tools=tools, \
+                                     add_generation_prompt=<span>True</span>)
+<span># tokenize the text</span>
+input_tokens = tokenizer(chat, return_tensors=<span>"pt"</span>).to(device)
+<span># generate output tokens</span>
+output = model.generate(**input_tokens, 
+                        max_new_tokens=<span>100</span>)
+<span># decode output tokens into text</span>
+output = tokenizer.batch_decode(output)
+<span># print output</span>
+<span>print</span>(output[<span>0</span>])
+</code></pre>
+<p>Expected Output:</p>
+<pre><code>&lt;|start_of_role|&gt;system&lt;|end_of_role|&gt;You are a helpful assistant with access to the following tools. You may call one or more tools to assist with the user query.
+
+You are provided with function signatures within &lt;tools&gt;&lt;/tools&gt; XML tags:
+&lt;tools&gt;
+{"type": "function", "function": {"name": "get_current_weather", "description": "Get the current weather for a specified city.", "parameters": {"type": "object", "properties": {"city": {"type": "string", "description": "Name of the city"}}, "required": ["city"]}}}
+&lt;/tools&gt;
+
+For each tool call, return a json object with function name and arguments within &lt;tool_call&gt;&lt;/tool_call&gt; XML tags:
+&lt;tool_call&gt;
+{"name": &lt;function-name&gt;, "arguments": &lt;args-json-object&gt;}
+&lt;/tool_call&gt;. If a tool does not exist in the provided list of tools, notify the user that you do not have the ability to fulfill the request.&lt;|end_of_text|&gt;
+&lt;|start_of_role|&gt;user&lt;|end_of_role|&gt;What's the weather like in London right now?&lt;|end_of_text|&gt;
+&lt;|start_of_role|&gt;assistant&lt;|end_of_role|&gt;&lt;tool_call&gt;
+{"name": "get_current_weather", "arguments": {"city": "London"}}
+&lt;/tool_call&gt;&lt;|end_of_text|&gt;
+</code></pre>
+<p><strong>Resources:</strong></p>
+<ul>
+<li><a href="https://huggingface.co/collections/ibm-granite/granite-41-language-models">Granite 4.1 HF Collection</a></li>
+<li><a href="https://huggingface.co/papers/2603.17074">PRISM: Demystifying Retention and Interaction in Mid-Training</a></li>
+<li><a href="https://github.com/ibm-granite/granite-4.1-language-models" rel="nofollow">GitHub: ibm-granite/granite-4.1-language-models</a></li>
+<li><a href="https://www.ibm.com/granite/docs/" rel="nofollow">Granite Documentation</a></li>
+<li><a href="https://github.com/ibm-granite-community/" rel="nofollow">Granite Community Resources</a></li>
+</ul>
+<hr>
+<p><em>Granite 4.1 marks a significant step forward for high‑quality, open‑source language models. By prioritizing data quality and rigor at every stage—from pre‑training curation to supervised fine‑tuning and multi‑stage reinforcement learning—we deliver a substantially improved post‑training pipeline. The result is stronger instruction following, tool use, and conversational performance, showing that carefully trained dense 8B models can rival much larger MoE architectures. We’re excited to see how the community adopts and builds on these models.</em></p>
+</div></div>

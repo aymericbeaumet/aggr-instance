@@ -1,0 +1,464 @@
+<div id="readability-page-1" class="page"><div>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/66c8620a79b42e5c941b0265/NCnP1M7Ce__41kiS-V7hW.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/66c8620a79b42e5c941b0265/NCnP1M7Ce__41kiS-V7hW.png" alt="image"></a></p>
+<blockquote>
+<p><strong>QIMMA validates benchmarks before evaluating models, ensuring reported scores reflect genuine Arabic language capability in LLMs.</strong></p>
+</blockquote>
+
+
+
+<p>If you've been tracking Arabic LLM evaluation, you've probably noticed a growing tension: the number of benchmarks and leaderboards is expanding rapidly, but <strong>are we actually measuring what we think we're measuring?</strong></p>
+<p>We built <strong>QIMMA</strong> قمّة (Arabic for "summit"), to answer that question systematically. Instead of aggregating existing Arabic benchmarks as-is and running models on them, we applied a rigorous quality validation pipeline <em>before</em> any evaluation took place. What we found was sobering: even widely-used, well-regarded Arabic benchmarks contain systematic quality issues that can quietly corrupt evaluation results.</p>
+<p>This post walks through what QIMMA is, how we built it, what problems we found, and what the model rankings look like once you clean things up.</p>
+
+
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/66c8620a79b42e5c941b0265/JFGUze00t2twAEsj6XxCm.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/66c8620a79b42e5c941b0265/JFGUze00t2twAEsj6XxCm.png" alt="image"></a></p>
+
+
+<hr>
+<h2>
+	<a id="🔍-the-problem-arabic-nlp-evaluation-is-fragmented-and-unvalidated" href="#🔍-the-problem-arabic-nlp-evaluation-is-fragmented-and-unvalidated" rel="nofollow">
+		
+	</a>
+	<span>
+		🔍 The Problem: Arabic NLP Evaluation Is Fragmented and Unvalidated
+	</span>
+</h2>
+<p>Arabic is spoken by over 400 million people across diverse dialects and cultural contexts, yet the Arabic NLP evaluation landscape remains fragmented. A few key pain points have motivated this work:</p>
+<p><strong>Translation issues.</strong> Many Arabic benchmarks are translations from English. This introduces distributional shifts. Questions that feel natural in English become awkward or culturally misaligned in Arabic, making benchmark data less representative of how Arabic is naturally used.</p>
+<p><strong>Absent quality validation.</strong> Even <em>native</em> Arabic benchmarks are often released without rigorous quality checks. Annotation inconsistencies, incorrect gold answers, encoding errors, and cultural bias in ground-truth labels have all been documented in established resources.</p>
+<p><strong>Reproducibility gaps.</strong> Evaluation scripts and per-sample outputs are rarely released publicly, making it hard to audit results or build on prior work.</p>
+<p><strong>Coverage fragmentation.</strong> Existing leaderboards cover isolated tasks and narrow domains, making holistic model assessment difficult.</p>
+<p>To illustrate where QIMMA sits relative to existing platforms:</p>
+<div>
+<table>
+  <thead>
+    <tr>
+      <th>Leaderboard</th>
+      <th>Open Source</th>
+      <th>Native Arabic</th>
+      <th>Quality Validation</th>
+      <th>Coding Eval</th>
+      <th>Public Outputs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>OALL v1</td><td>✅</td><td>Mixed</td><td>❌</td><td>❌</td><td>✅</td></tr>
+    <tr><td>OALL v2</td><td>✅</td><td>Mostly</td><td>❌</td><td>❌</td><td>✅</td></tr>
+    <tr><td>BALSAM</td><td>Partial</td><td>50%</td><td>❌</td><td>❌</td><td>❌</td></tr>
+    <tr><td>AraGen</td><td>✅</td><td>100%</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td>SILMA ABL</td><td>✅</td><td>100%</td><td>✅</td><td>❌</td><td>✅</td></tr>
+    <tr><td>ILMAAM</td><td>Partial</td><td>100%</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td>HELM Arabic</td><td>✅</td><td>Mixed</td><td>❌</td><td>❌</td><td>✅</td></tr>
+    <tr>
+      <td>⛰ QIMMA</td>
+      <td>✅</td>
+      <td>99%</td>
+      <td>✅</td>
+      <td>✅</td>
+      <td>✅</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>QIMMA is the only platform combining all five properties: open source, predominantly native Arabic content, systematic quality validation, code evaluation, and public per-sample inference outputs.</p>
+<hr>
+<h2>
+	<a id="⛰-whats-in-qimma" href="#⛰-whats-in-qimma" rel="nofollow">
+		
+	</a>
+	<span>
+		⛰ What's in QIMMA?
+	</span>
+</h2>
+<p>QIMMA consolidates <strong>109 subsets</strong> from <strong>14 source benchmarks</strong> into a unified evaluation suite of over <strong>52,000 samples</strong>, spanning 7 domains:</p>
+<div>
+<table>
+  <thead>
+    <tr>
+      <th>Domain</th>
+      <th>Benchmarks</th>
+      <th>Task Types</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><b>Cultural</b></td><td>AraDiCE-Culture, ArabCulture, PalmX</td><td>MCQ</td></tr>
+    <tr><td><b>STEM</b></td><td>ArabicMMLU, GAT, 3LM STEM</td><td>MCQ</td></tr>
+    <tr><td><b>Legal</b></td><td>ArabLegalQA, MizanQA</td><td>MCQ, QA</td></tr>
+    <tr><td><b>Medical</b></td><td>MedArabiQ, MedAraBench</td><td>MCQ, QA</td></tr>
+    <tr><td><b>Safety</b></td><td>AraTrust</td><td>MCQ</td></tr>
+    <tr><td><b>Poetry &amp; Literature</b></td><td>FannOrFlop</td><td>QA</td></tr>
+    <tr><td><b>Coding</b></td><td>3LM HumanEval+, 3LM MBPP+</td><td>Code</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>A few things stand out about this design:</p>
+<ul>
+<li><strong>99% native Arabic content.</strong> The only exception is code evaluation, which is inherently language-agnostic.</li>
+<li><strong>First Arabic leaderboard with code evaluation.</strong> QIMMA integrates Arabic-adapted versions of HumanEval+ and MBPP+, making it possible to assess coding capability with Arabic-language problem statements.</li>
+<li><strong>Diversity in Domains and Tasks.</strong> QIMMA evaluates real-world competency areas including education, governance, healthcare, creative expression, and software development.</li>
+</ul>
+<hr>
+<h2>
+	<a id="🔬-the-quality-validation-pipeline" href="#🔬-the-quality-validation-pipeline" rel="nofollow">
+		
+	</a>
+	<span>
+		🔬 The Quality Validation Pipeline
+	</span>
+</h2>
+<p>This is the methodological heart of QIMMA. Before running a single model, we applied a <strong>multi-stage validation pipeline</strong> to every sample in every benchmark.</p>
+<h3>
+	<a id="stage-1-multi-model-automated-assessment" href="#stage-1-multi-model-automated-assessment" rel="nofollow">
+		
+	</a>
+	<span>
+		Stage 1: Multi-Model Automated Assessment
+	</span>
+</h3>
+<p>Each sample was independently evaluated by two state-of-the-art LLMs:</p>
+<ul>
+<li><strong>Qwen3-235B-A22B-Instruct</strong></li>
+<li><strong>DeepSeek-V3-671B</strong></li>
+</ul>
+<p>We chose two models with strong Arabic capability but different training data compositions, so that their <em>combined</em> judgment is more robust than either alone.</p>
+<p>Each model scores a sample against a <strong>10-point rubric</strong>, with binary scores (0 or 1) per criterion:</p>
+<p><img src="https://cdn-uploads.huggingface.co/production/uploads/66c8620a79b42e5c941b0265/KkWnEuAunRTalBhMkPQ02.png" alt="QIMMA pipeline"></p>
+
+<p>A sample is eliminated if either model scores it below 7/10. Samples where both models agree on elimination are dropped immediately. However, where only one model flags a sample, it proceeds to human review in Stage 2.</p>
+<h3>
+	<a id="stage-2-human-annotation-and-review" href="#stage-2-human-annotation-and-review" rel="nofollow">
+		
+	</a>
+	<span>
+		Stage 2: Human Annotation and Review
+	</span>
+</h3>
+<p>Flagged samples are reviewed by <strong>native Arabic speakers</strong> with cultural and dialectal familiarity. Human annotators make final calls on:</p>
+<ul>
+<li>Cultural context and regional variation</li>
+<li>Dialectal nuance</li>
+<li>Subjective interpretation</li>
+<li>Subtle quality issues automated assessment may miss</li>
+</ul>
+<p>For culturally sensitive content, multiple perspectives are considered, since "correctness" can genuinely vary across Arab regions.</p>
+<hr>
+<h2>
+	<a id="⚠️-what-we-found-systematic-quality-problems" href="#⚠️-what-we-found-systematic-quality-problems" rel="nofollow">
+		
+	</a>
+	<span>
+		⚠️ What We Found: Systematic Quality Problems
+	</span>
+</h2>
+<p>The pipeline revealed recurring quality issues across benchmarks; not isolated errors, but <strong>systematic patterns</strong> reflecting gaps in how benchmarks were originally constructed.</p>
+<h3>
+	<a id="by-the-numbers" href="#by-the-numbers" rel="nofollow">
+		
+	</a>
+	<span>
+		By the Numbers
+	</span>
+</h3>
+<div>
+<table>
+  <thead>
+    <tr>
+      <th>Benchmark</th>
+      <th>Total Samples</th>
+      <th>Discarded</th>
+      <th>Discard Rate</th>
+    </tr>
+  </thead>
+  <tbody>
+      <tr>
+      <td>ArabicMMLU</td>
+      <td>14,163</td>
+      <td>436</td>
+      <td>3.1%</td>
+    </tr>
+    <tr><td>MizanQA</td><td>1,769</td><td>41</td><td>2.3%</td></tr>
+    <tr><td>PalmX</td><td>3,001</td><td>25</td><td>0.8%</td></tr>
+    <tr><td>MedAraBench</td><td>4,960</td><td>33</td><td>0.7%</td></tr>
+    <tr><td>FannOrFlop</td><td>6,984</td><td>43</td><td>0.6%</td></tr>
+    <tr><td>ArabCulture</td><td>3,482</td><td>7</td><td>0.2%</td></tr>
+    <tr><td>MedArabiQ</td><td>499</td><td>1</td><td>0.2%</td></tr>
+    <tr><td>GAT</td><td>13,986</td><td>1</td><td>~0.0%</td></tr>
+    <tr><td>3LM STEM</td><td>2,609</td><td>1</td><td>~0.0%</td></tr>
+    <tr><td>AraDiCE-Culture</td><td>180</td><td>0</td><td>0.0%</td></tr>
+    <tr><td>ArabLegalQA</td><td>79</td><td>0</td><td>0.0%</td></tr>
+    <tr><td>AraTrust</td><td>522</td><td>0</td><td>0.0%</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>
+	<a id="taxonomy-of-issues-found" href="#taxonomy-of-issues-found" rel="nofollow">
+		
+	</a>
+	<span>
+		Taxonomy of Issues Found
+	</span>
+</h3>
+<div>
+
+  <div>
+    <p>⚖️ Answer Quality</p>
+    <p>False or mismatched gold indices, factually wrong answers, missing or raw text answers.</p>
+  </div>
+
+  <div>
+    <p>📄 Text &amp; Formatting Quality</p>
+    <p>Corrupt or illegible text, spelling and grammar errors, and duplicate samples.</p>
+  </div>
+
+  <div>
+    <p>💬 Cultural Sensitivity</p>
+    <p>Stereotype reinforcement and monolithic generalizations about diverse communities.</p>
+  </div>
+
+  <div>
+    <p>🤝 Gold Answer Compliance</p>
+    <p>Misalignment of gold answers with evaluation protocols.</p>
+  </div>
+
+</div>
+
+<hr>
+<h2>
+	<a id="💻-code-benchmark-a-different-kind-of-quality-work" href="#💻-code-benchmark-a-different-kind-of-quality-work" rel="nofollow">
+		
+	</a>
+	<span>
+		💻 Code Benchmark: A Different Kind of Quality Work
+	</span>
+</h2>
+<p>Code benchmarks required a different intervention. Rather than discarding samples, we <strong>refined the Arabic problem statements</strong> in 3LM's Arabic adaptations of HumanEval+ and MBPP+, leaving task identifiers, reference solutions, and test suites completely unchanged.</p>
+<p>The modification rates were striking:</p>
+<div>
+<table>
+  <thead>
+    <tr>
+      <th>Benchmark</th>
+      <th>Total Prompts</th>
+      <th>Modified</th>
+      <th>Unchanged</th>
+      <th>Modification Rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>3LM HumanEval+</td><td>164</td><td>145</td><td>19</td><td><b>88%</b></td></tr>
+    <tr><td>3LM MBPP+</td><td>378</td><td>308</td><td>70</td><td><b>81%</b></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Modifications fell into five categories:</p>
+<ol>
+<li><strong>Linguistic refinement</strong> : normalizing toward natural Modern Standard Arabic and consistent imperative style</li>
+<li><strong>Clarity improvements</strong> : fixing ambiguous instructions and unclear constraints</li>
+<li><strong>Consistency normalization</strong> : standardizing mathematical terminology, punctuation, and example formatting</li>
+<li><strong>Structural corrections</strong> : fixing broken triple-quoted strings, indentation errors, corrupted text fragments</li>
+<li><strong>Semantic refinements</strong> : clarifying whether ranges are inclusive/exclusive, preserving task intent</li>
+</ol>
+<hr>
+<h2>
+	<a id="⚙️-evaluation-setup" href="#⚙️-evaluation-setup" rel="nofollow">
+		
+	</a>
+	<span>
+		⚙️ Evaluation Setup
+	</span>
+</h2>
+<h3>
+	<a id="evaluation-framework" href="#evaluation-framework" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation Framework
+	</span>
+</h3>
+<p>QIMMA uses <a href="https://github.com/huggingface/lighteval" rel="nofollow">LightEval</a>, <a href="https://github.com/evalplus/evalplus" rel="nofollow">EvalPlus</a> and <a href="https://github.com/mbzuai-oryx/FannOrFlop" rel="nofollow">FannOrFlop</a> as its evaluation framework, chosen for consistency, multilingual community adoption, and reproducibility.</p>
+<h3>
+	<a id="metrics-by-task-type" href="#metrics-by-task-type" rel="nofollow">
+		
+	</a>
+	<span>
+		Metrics by Task Type
+	</span>
+</h3>
+<div>
+<table>
+  <thead>
+    <tr>
+      <th>Task Type</th>
+      <th>Metric</th>
+      <th>Benchmarks</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><b>MCQ</b></td><td>Normalized Log-Likelihood Accuracy</td><td>AraDiCE-Culture, ArabicMMLU, ArabCulture, PalmX, 3LM STEM, MedArabiQ, GAT, MedAraBench, AraTrust</td></tr>
+    <tr><td><b>Multi-select MCQ</b></td><td>Probability Mass on Gold Choices</td><td>MizanQA</td></tr>
+    <tr><td><b>Generative QA</b></td><td>F1 BERTScore (AraBERT v02)</td><td>MedArabiQ, ArabLegalQA, FannOrFlop</td></tr>
+    <tr><td><b>Code</b></td><td>Pass@1</td><td>3LM HumanEval+, 3LM MBPP+</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>
+	<a id="prompt-templates" href="#prompt-templates" rel="nofollow">
+		
+	</a>
+	<span>
+		Prompt Templates
+	</span>
+</h3>
+<p>QIMMA standardizes prompting by question format, with six template types:</p>
+<div>
+<figure>
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/C-WxGverw4w_pnf6IRUsB.png" alt="QIMMA prompt templates">
+  <figcaption>
+  <b>MCQ</b>: generic multiple choice · <b>MCQ-C</b>: multiple choice with context passage · <b>MCQ-I</b>: multiple choice with specific instructions (GAT analogy/completion) · <b>QA</b>: generic open-ended QA · <b>QA-C</b>: QA with context · <b>QA-F</b>: fill-in-the-blank QA
+  </figcaption>
+</figure>
+</div>
+
+<p>All prompts are in Arabic. For MizanQA and ArabCulture, benchmark-specific system prompts from the original papers are preserved.</p>
+<hr>
+<h2>
+	<a id="🏆-leaderboard-results" href="#🏆-leaderboard-results" rel="nofollow">
+		
+	</a>
+	<span>
+		🏆 Leaderboard Results
+	</span>
+</h2>
+<p><em>Results as of April 2026; covering top 10 evaluated models. Visit the <a href="https://huggingface.co/spaces/qimma/leaderboard">live leaderboard</a> for current rankings.</em></p>
+<div>
+<table>
+  <thead>
+    <tr>
+      <th>Rank</th>
+      <th>Model</th>
+      <th>AVERAGE</th>
+      <th>AraDiCE-Culture</th>
+      <th>ArabicMMLU</th>
+      <th>ArabCulture</th>
+      <th>PALMX</th>
+      <th>3LM STEM</th>
+      <th>AraTrust</th>
+      <th>MizanQA</th>
+      <th>MedArabiQ</th>
+      <th>ArabLegalQA</th>
+      <th>GAT</th>
+      <th>MedAraBench</th>
+      <th>HumanEval+</th>
+      <th>MBPP+</th>
+      <th>FannOrFlop</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>🥇 1</td><td>Qwen/Qwen3.5-397B-A17B-FP8</td><td><b>68.06</b></td><td><b>82.78</b></td><td>77.54</td><td>61.75</td><td><b>83.91</b></td><td><u>88.67</u></td><td>90.04</td><td><b>73.36</b></td><td>47.30</td><td>54.94</td><td>55.89</td><td>47.97</td><td><b>67.68</b></td><td><b>76.72</b></td><td>44.33</td></tr>
+    <tr><td>🥈 2</td><td>Applied-Innovation-Center/Karnak</td><td><u>66.20</u></td><td>73.33</td><td><u>80.94</u></td><td>53.49</td><td>81.40</td><td><b>93.10</b></td><td>89.08</td><td>55.92</td><td><u>55.78</u></td><td><b>71.58</b></td><td><u>61.06</u></td><td><u>54.19</u></td><td>33.54</td><td>64.55</td><td>58.91</td></tr>
+    <tr><td>🥉 3</td><td>inceptionai/Jais-2-70B-Chat</td><td>65.81</td><td><u>78.89</u></td><td><b>81.29</b></td><td><b>83.24</b></td><td><u>83.73</u></td><td>87.96</td><td><u>90.23</u></td><td><u>71.78</u></td><td>52.79</td><td>69.60</td><td>51.67</td><td>50.89</td><td>19.51</td><td>43.65</td><td>56.13</td></tr>
+    <tr><td>#4</td><td>Qwen/Qwen2.5-72B-Instruct</td><td>65.75</td><td>77.22</td><td>73.78</td><td>63.83</td><td>77.77</td><td>87.55</td><td>88.51</td><td>63.49</td><td>50.06</td><td>70.74</td><td>55.90</td><td>44.19</td><td>37.20</td><td>72.75</td><td>57.51</td></tr>
+    <tr><td>#5</td><td>Applied-Innovation-Center/AIC-1</td><td>65.37</td><td>73.33</td><td>72.02</td><td>77.52</td><td>76.11</td><td>88.13</td><td><b>90.61</b></td><td>56.36</td><td>53.75</td><td>68.96</td><td><b>62.11</b></td><td>50.78</td><td>28.05</td><td>69.58</td><td>47.83</td></tr>
+    <tr><td>#6</td><td>Qwen/Qwen3.5-122B-A10B</td><td>64.84</td><td>74.44</td><td>73.17</td><td>37.78</td><td>81.46</td><td>86.18</td><td>86.97</td><td>64.01</td><td>47.04</td><td>55.11</td><td>50.90</td><td>52.49</td><td><u>65.24</u></td><td>72.43</td><td><u>60.54</u></td></tr>
+    <tr><td>#7</td><td>Sakalti/Ultiima-72B</td><td>64.49</td><td>78.33</td><td>72.28</td><td>68.79</td><td>76.75</td><td>83.70</td><td>89.08</td><td>60.44</td><td>44.58</td><td>69.12</td><td>46.91</td><td>42.25</td><td>39.02</td><td><u>74.07</u></td><td>57.56</td></tr>
+    <tr><td>#8</td><td>meta-llama/Llama-3.3-70B-Instruct</td><td>63.96</td><td>77.22</td><td>71.57</td><td>78.05</td><td>77.95</td><td>88.28</td><td>85.63</td><td>67.44</td><td><b>56.25</b></td><td>64.00</td><td>51.13</td><td><b>54.86</b></td><td>27.44</td><td>71.16</td><td>24.43</td></tr>
+    <tr><td>#9</td><td>Qwen/Qwen2.5-32B-Instruct</td><td>63.26</td><td>70.56</td><td>68.76</td><td>75.80</td><td>72.07</td><td>81.03</td><td>85.82</td><td>53.78</td><td>48.08</td><td>69.27</td><td>56.94</td><td>36.51</td><td>34.15</td><td>72.75</td><td><b>93.10</b></td></tr>
+    <tr><td>#10</td><td>FreedomIntelligence/AceGPT-v2-32B-Chat</td><td>61.14</td><td>76.67</td><td>70.62</td><td><u>79.79</u></td><td>74.46</td><td>84.88</td><td>86.97</td><td>63.89</td><td>49.96</td><td><u>71.46</u></td><td>56.04</td><td>47.32</td><td>23.78</td><td>54.50</td><td>15.56</td></tr>
+  </tbody>
+</table>
+</div>
+
+<ul>
+<li><strong>Scale does not guarantee best performance.</strong> The top 10 spans models from 32B to 397B parameters, with several mid-size models outperforming larger ones on specific domains.</li>
+<li><strong>Arabic-specialized models lead on cultural and linguistic tasks.</strong> Jais-2-70B-Chat ranks highest on ArabicMMLU and ArabCulture, while Karnak leads on 3LM STEM and ArabLegalQA.</li>
+<li><strong>Coding remains the hardest domain for Arabic-specialized models.</strong> The top HumanEval+ and MBPP+ scores belong to multilingual models, with Qwen3.5-397B leading both.</li>
+</ul>
+
+
+<h3>
+	<a id="the-size-performance-relationship" href="#the-size-performance-relationship" rel="nofollow">
+		
+	</a>
+	<span>
+		The Size-Performance Relationship
+	</span>
+</h3>
+<p>Across the full leaderboard (46 models), a clear but imperfect size-performance 
+correlation emerges. However, there are interesting exceptions:</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/66c8620a79b42e5c941b0265/KPdYTBwzMvJEyALTYfGji.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/66c8620a79b42e5c941b0265/KPdYTBwzMvJEyALTYfGji.png" alt="c64aafc7-1"></a></p>
+<ul>
+<li>Arabic-specialized models often outperform size-matched multilingual models</li>
+<li>Instruction-tuned models consistently outperform their base counterparts except for Qwen3</li>
+<li>Some smaller Arabic-specialized models (Fanar-1-9B, ALLaM-7B) outperform much larger multilingual models on specific domains</li>
+</ul>
+<hr>
+<h2>
+	<a id="🌟-what-makes-qimma-different" href="#🌟-what-makes-qimma-different" rel="nofollow">
+		
+	</a>
+	<span>
+		🌟 What Makes QIMMA Different
+	</span>
+</h2>
+<p>To summarize the distinctive properties of QIMMA:</p>
+<div>
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Details</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><b>Quality-first philosophy</b></td><td>Validation runs <i>before</i> evaluation, not as an afterthought</td></tr>
+    <tr><td><b>Multi-model validation</b></td><td>Two LLMs with different training + human review for flagged cases</td></tr>
+    <tr><td><b>99% native Arabic</b></td><td>Avoids translation artifacts almost entirely</td></tr>
+    <tr><td><b>Multi-domain, multi-task</b></td><td>7 domains, 3 task types (MCQ, QA, code), 109 subsets</td></tr>
+    <tr><td><b>Code evaluation</b></td><td>First Arabic leaderboard to include code generation</td></tr>
+    <tr><td><b>Full transparency</b></td><td>Per-sample inference outputs publicly released, not just aggregate scores</td></tr>
+    <tr><td><b>LightEval-based</b></td><td>Unified, reproducible evaluation codebase</td></tr>
+    <tr><td><b>Dialectal awareness</b></td><td>Explicit handling of MSA vs. dialectal variation in prompts and rubrics</td></tr>
+  </tbody>
+</table>
+</div>
+
+<hr>
+<h2>
+	<a id="🔗-resources" href="#🔗-resources" rel="nofollow">
+		
+	</a>
+	<span>
+		🔗 Resources
+	</span>
+</h2>
+<ul>
+<li>🏆 <strong>Leaderboard</strong>: <a href="https://huggingface.co/spaces/qimma/leaderboard">QIMMA Leaderboard</a></li>
+<li>💻 <strong>Code</strong>: <a href="https://github.com/tiiuae/QIMMA-leaderboard.git" rel="nofollow">GitHub</a></li>
+<li>📄 <strong>Paper</strong>: <a href="https://arxiv.org/pdf/2604.03395" rel="nofollow">Are Arabic Benchmarks Reliable? QIMMA's Quality-First Approach to LLM Evaluation</a></li>
+</ul>
+<hr>
+<h2>
+	<a id="🔖-citation" href="#🔖-citation" rel="nofollow">
+		
+	</a>
+	<span>
+		🔖 Citation
+	</span>
+</h2>
+<pre><code>@misc{alqadi2026arabicbenchmarksreliableqimmas,
+      title={Are Arabic Benchmarks Reliable? QIMMA's Quality-First Approach to LLM Evaluation}, 
+      author={Leen AlQadi and Ahmed Alzubaidi and Mohammed Alyafeai and Hamza Alobeidli and Maitha Alhammadi and Shaikha Alsuwaidi and Omar Alkaabi and Basma El Amel Boussaha and Hakim Hacid},
+      year={2026},
+      eprint={2604.03395},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2604.03395}, 
+}
+</code></pre>
+</div></div>

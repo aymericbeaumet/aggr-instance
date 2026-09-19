@@ -1,0 +1,541 @@
+<div id="readability-page-1" class="page"><div>
+<blockquote>
+<strong>TL;DR</strong> — We extend the RLVE framework from single-turn reasoning puzzles to <strong>multi-turn, tool-augmented e-commerce conversations</strong>. EcomRLVE-GYM provides 8 verifiable environments — product discovery, substitution, cart building, returns, order tracking, policy QA, bundle planning, and multi-intent journeys — each with procedural problem generation, a 12-axis difficulty curriculum, and algorithmically verifiable rewards. We train a Qwen 3 8B model with DAPO over 300 steps and present early results demonstrating that environment scaling and adaptive difficulty transfer to agentic, real-world task completion.
+</blockquote>
+<p>This project originated in the <a href="https://cerebralvalley.ai/e/openenv-hackathon-sf" rel="nofollow">Pytorch OpenEnv Hackathon</a> and is still evolving, follow us for updates 🔥 </p>
+<h2>
+	<a id="why-rl-for-shopping-agents" href="#why-rl-for-shopping-agents" rel="nofollow">
+		
+	</a>
+	<span>
+		Why RL for shopping agents?
+	</span>
+</h2>
+<p>Large language models can hold fluent conversations, yet deploying them as shopping assistants reveals a persistent gap: <strong>fluency ≠ task completion</strong>. A customer who asks <em>"find me a USB-C charger under $25 that ships in two days"</em> needs an agent that invokes the right catalog search, filters on three hard constraints, avoids hallucinating product IDs it never retrieved, and handles follow-ups when the top result goes out of stock.</p>
+<p>Supervised fine-tuning can teach surface-level tool use from demonstrations, but it cannot scale to the combinatorial space of constraint configurations, partial-information dialogues, and multi-step transactional workflows that real e-commerce demands.</p>
+<p>Reinforcement learning with verifiable rewards (RLVR) offers an alternative: the agent optimises for <em>outcomes</em> — did the products satisfy the constraints? Was the cart correct? Was the return initiated for the right order line? The challenge is constructing reward functions that are both <strong>verifiable</strong> (no LLM-as-a-judge subjectivity) and <strong>adaptive</strong> (difficulty that grows with the policy's capability).</p>
+<h3>
+	<a id="from-rlve-gym-to-ecomrlve-gym" href="#from-rlve-gym-to-ecomrlve-gym" rel="nofollow">
+		
+	</a>
+	<span>
+		From RLVE-Gym to EcomRLVE-GYM
+	</span>
+</h3>
+<p>RLVE-Gym provides 400 environments for sorting, multiplication, Sudoku, and other algorithmic-reasoning tasks; however, those are all <strong>single-turn, text-in / text-out</strong> puzzles — extending to agentic domains was left as future work.</p>
+<p>EcomRLVE-GYM fills that gap: we stay in the <strong>verifiable</strong> regime (e-commerce outcomes <em>can</em> be checked algorithmically) while extending to <strong>multi-turn, tool-augmented, agentic</strong> conversations — environments where the agent must <em>act</em> (call tools, modify world state) rather than merely <em>reason</em> (produce a text answer) and compensates for the deficiency of the search system.</p>
+<p>EcomRLVE-GYM transforms customer-service outcomes structurally verifiable:</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6893dd21467f7d2f5f358a95/dA0i6ZB3JDG-rqQtLRCy0.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6893dd21467f7d2f5f358a95/dA0i6ZB3JDG-rqQtLRCy0.png" alt="verifiable_signals_dark"></a></p>
+<p>Every signal above can be evaluated by a program with access to the hidden ground-truth goal. No human annotation or LLM-as-a-judge is needed.</p>
+<hr>
+<h2>
+	<a id="what-a-training-episode-looks-like" href="#what-a-training-episode-looks-like" rel="nofollow">
+		
+	</a>
+	<span>
+		What a training episode looks like
+	</span>
+</h2>
+<p>Before we explain the framework, here is what a single EcomRLVE episode looks like at difficulty <code>d = 4</code>. The environment generates a hidden goal, a simulated user opens the chat, and the agent must use tools to satisfy the request. Every action is verified algorithmically — no LLM judge required.</p>
+<center><img src="https://cdn-uploads.huggingface.co/production/uploads/6893dd21467f7d2f5f358a95/qDXS-CPl8DT4JN6Uq6nrt.png" width="300" height="400" alt="Sample Episode">
+</center>
+
+<p>The reward is fully computed by code: F1 over <code>(product, variant, qty)</code> tuples, an efficiency bonus for finishing in fewer turns, and a hallucination check that every recommended product ID was actually retrieved. If the agent had picked the Lightning variant instead of USB-C, the simulated user would have corrected it mid-dialogue — and the F1 would have dropped.</p>
+<h2>
+	<a id="the-eight-environments" href="#the-eight-environments" rel="nofollow">
+		
+	</a>
+	<span>
+		The eight environments
+	</span>
+</h2>
+<p>Each environment covers a distinct real-world shopping scenario. The agent must complete the task using tools (catalog search, cart operations, order lookups, policy queries) and is scored by a program — not a human or another LLM.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Environment</th>
+<th>What the agent must do</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Product Discovery</strong></td>
+<td>Find products that satisfy all the user's constraints</td>
+</tr>
+<tr>
+<td><strong>Substitution</strong></td>
+<td>An item is out of stock — find a similar, compatible alternative</td>
+</tr>
+<tr>
+<td><strong>Cart Building</strong></td>
+<td>Add the exact products, variants, and quantities the user asked for</td>
+</tr>
+<tr>
+<td><strong>Return + Replacement</strong></td>
+<td>Identify the right order line, initiate a return, suggest a replacement</td>
+</tr>
+<tr>
+<td><strong>Order Tracking</strong></td>
+<td>Resolve which order the user means and report its current status</td>
+</tr>
+<tr>
+<td><strong>Policy QA</strong></td>
+<td>Answer a deterministic question about store policy (return window, shipping rules, etc.)</td>
+</tr>
+<tr>
+<td><strong>Bundle Planning</strong></td>
+<td>Recommend a complete shopping list for a project within a budget</td>
+</tr>
+<tr>
+<td><strong>Multi-Intent Journey</strong></td>
+<td>Handle a conversation that chains 2–5 of the above tasks in sequence</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Every environment uses the same three-part reward signal:</p>
+<ul>
+<li><strong>Task reward</strong> — did the agent actually complete the goal? (e.g., were the right products recommended, was the cart correct, was the right order tracked?)</li>
+<li><strong>Efficiency reward</strong> — did the agent complete it without wasting turns? Turns the <em>user</em> caused (asking a follow-up, confirming an action) don't count against the agent — only turns caused by agent mistakes do.</li>
+<li><strong>Hallucination penalty</strong> — did the agent only recommend products it actually retrieved during the session? Recommending product IDs that were never looked up is penalised, so the agent cannot invent results from memory.</li>
+</ul>
+<p>Invalid outputs (malformed JSON, illegal tool calls) trigger an immediate failure score, creating a strong incentive for well-formed responses from step one.</p>
+<h2>
+	<a id="adaptive-difficulty-curriculum" href="#adaptive-difficulty-curriculum" rel="nofollow">
+		
+	</a>
+	<span>
+		Adaptive difficulty curriculum
+	</span>
+</h2>
+<p>A single difficulty number <code>d</code> controls 12 independent aspects of a task simultaneously. This is important because e-commerce conversations are hard in many different ways at once — not just along one dimension.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6893dd21467f7d2f5f358a95/SALZRvBC6TP1HG1ZxqWsh.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6893dd21467f7d2f5f358a95/SALZRvBC6TP1HG1ZxqWsh.png" alt="Screenshot 2026-03-08 at 11.27.11"></a></p>
+<p>Here are four representative difficulty axes:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>What changes</th>
+<th>Easy (<code>d = 0</code>)</th>
+<th>Medium (<code>d = 6</code>)</th>
+<th>Hard (<code>d = 12</code>)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>How many constraints</strong> the user has</td>
+<td>2</td>
+<td>5</td>
+<td>8</td>
+</tr>
+<tr>
+<td><strong>How often the user omits</strong> a constraint</td>
+<td>5%</td>
+<td>70%</td>
+<td>~80%</td>
+</tr>
+<tr>
+<td><strong>Fraction of search results</strong> that are distractors</td>
+<td>0%</td>
+<td>12%</td>
+<td>24%</td>
+</tr>
+<tr>
+<td><strong>Items that go out of stock</strong> mid-conversation</td>
+<td>0%</td>
+<td>30%</td>
+<td>50%</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The other eight axes cover turn budget, input noise (typos, slang), context switches, retrieval depth, order-history size, policy complexity, and tool budget. The full breakdown is in the <a href="https://github.com/owlgebra-ai/EcomRLVE-Gym" rel="nofollow">technical report</a>.</p>
+<p><strong>Adaptive scheduling.</strong> Each environment tracks the agent's success rate independently and only advances to harder problems once the agent is passing the current level reliably. This keeps every environment training at the agent's capability frontier — avoiding both "too easy to learn from" and "too hard to make progress on".</p>
+<h2>
+	<a id="deep-dive-cart-building-e_cart" href="#deep-dive-cart-building-e_cart" rel="nofollow">
+		
+	</a>
+	<span>
+		Deep dive: Cart Building (E_CART)
+	</span>
+</h2>
+<p>Cart building is a good showcase because it requires the full search → inspect → clarify → act loop, has a binary ground truth, and introduces a challenge absent from most recommendation benchmarks: <strong>variant selection</strong>.</p>
+<p>To succeed, the agent must develop five distinct skills:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Skill</th>
+<th>What it means in practice</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Product Discovery</strong></td>
+<td>Search the catalog with well-formed queries to find the right items</td>
+</tr>
+<tr>
+<td><strong>Variant Selection</strong></td>
+<td>Identify the correct color, size, or connector type — not just the right product</td>
+</tr>
+<tr>
+<td><strong>Cart Management</strong></td>
+<td>Add items with the exact variant and quantity the user asked for</td>
+</tr>
+<tr>
+<td><strong>Clarification Dialogue</strong></td>
+<td>Ask the user a focused follow-up when a request is ambiguous (e.g., missing size)</td>
+</tr>
+<tr>
+<td><strong>Multi-Item Orders</strong></td>
+<td>Handle shopping lists with several different products in a single conversation</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The agent uses six tools to accomplish this:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>catalog_search</code></td>
+<td>Searches the product catalog with a natural-language query</td>
+</tr>
+<tr>
+<td><code>catalog_get_variants</code></td>
+<td>Returns available variants (color, size, connector, etc.) for a product</td>
+</tr>
+<tr>
+<td><code>cart_add</code></td>
+<td>Adds a product to the cart with a specific variant and quantity</td>
+</tr>
+<tr>
+<td><code>cart_view</code></td>
+<td>Reads the current cart so the agent can verify it matches the request</td>
+</tr>
+<tr>
+<td><code>user_get_visit_history</code></td>
+<td>Fetches recently viewed products by user</td>
+</tr>
+<tr>
+<td><code>ask_user</code></td>
+<td>Sends a clarification question to the customer when a detail is missing</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="the-problem" href="#the-problem" rel="nofollow">
+		
+	</a>
+	<span>
+		The problem
+	</span>
+</h3>
+<p>The generator samples 1–5 target products (scaling in difficulty with <code>d</code>), each potentially requiring a specific variant (USB-C vs Lightning, Matte vs Glossy) and a quantity &gt; 1. The agent must:</p>
+<ol>
+<li>Search the catalog to find each product</li>
+<li>Call <code>catalog.get_variants</code> to see available options</li>
+<li>Add the correct <code>(product_id, variant_id, qty)</code> tuples to the cart</li>
+</ol>
+<h3>
+	<a id="why-variants-matter" href="#why-variants-matter" rel="nofollow">
+		
+	</a>
+	<span>
+		Why variants matter
+	</span>
+</h3>
+<p>Real product catalogs have sparse variant data — many products have none, and those that do typically vary only by colour or size. To create a richer discrimination task, we <strong>synthesize variants at episode initialization</strong>:</p>
+<ul>
+<li>A per-category priority list picks the most natural attribute to vary (electronics → <code>connector_type</code>; clothing → <code>size</code>; kitchen → <code>material</code>).</li>
+<li>For each target product, we generate 3 variants: 1 target + 2 plausible distractors. An "Anker 65W USB-C Charger" produces <code>{USB-C, Lightning, HDMI}</code>.</li>
+<li>The verifier checks <strong>composite keys</strong> <code>(product_id, variant_id)</code> — correct product but wrong variant means the unit is unmatched.</li>
+</ul>
+<h3>
+	<a id="difficulty-scaling" href="#difficulty-scaling" rel="nofollow">
+		
+	</a>
+	<span>
+		Difficulty scaling
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Axis</th>
+<th>d = 0</th>
+<th>d = 3</th>
+<th>d = 6</th>
+<th>d = 9</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Distinct items</strong></td>
+<td>1</td>
+<td>2</td>
+<td>3</td>
+<td>4</td>
+</tr>
+<tr>
+<td><strong>Variant required</strong></td>
+<td>21%</td>
+<td>66%</td>
+<td>93%</td>
+<td>99%</td>
+</tr>
+<tr>
+<td><strong>Multi-quantity</strong></td>
+<td>0%</td>
+<td>30%</td>
+<td>50%</td>
+<td>50%</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>At <code>d = 0</code> the agent adds a single product with no variant complexity — learning the basic <code>catalog.search → cart.add</code> workflow. At <code>d = 6</code> it juggles 3 items, nearly all requiring a specific variant, with half needing qty &gt; 1.</p>
+<h3>
+	<a id="scoring" href="#scoring" rel="nofollow">
+		
+	</a>
+	<span>
+		Scoring
+	</span>
+</h3>
+<p>The cart must be exactly right — correct product, correct variant, correct quantity. Partial credit is given for partially correct carts, but a perfect score requires every item to match. If the agent adds the wrong variant, the simulated user corrects it mid-dialogue (<em>"that's the Lightning version, but I need USB-C"</em>), giving the agent a chance to self-correct before the episode ends.</p>
+<h3>
+	<a id="trajectories-easy-vs-hard" href="#trajectories-easy-vs-hard" rel="nofollow">
+		
+	</a>
+	<span>
+		Trajectories: easy vs. hard
+	</span>
+</h3>
+<p>Two real E_CART episodes from a Qwen 3 8B agent. Same environment, same agent — difficulty alone changes the game.</p>
+<div>
+	<table>
+		<thead><tr>
+<th></th>
+<th><strong>d = 1</strong> — 1 item, no variants</th>
+<th><strong>d = 8</strong> — 3 items, variants + typos</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>User message</strong></td>
+<td><em>"Shopping list: SonicWave Keypad. Please add everything."</em></td>
+<td><em>"pls add the following to my <strong>aart</strong>: Eco-<strong>Frienly HrenLefa</strong> Charger by GreenLeaf, High-Performance <strong>AqaPure</strong> Air Fryer , <strong>Lighrweiht</strong> PixelVault Tank Top (3)."</em> — typos from noise axis</td>
+</tr>
+<tr>
+<td><strong>Turn 1</strong></td>
+<td><code>user.get_visit_history()</code> → 4 results. Spots the target immediately.</td>
+<td><code>user.get_visit_history()</code> → 9 results. Must disambiguate across chargers, fryers, tops.</td>
+</tr>
+<tr>
+<td><strong>Turn 2</strong></td>
+<td><code>cart.add("syn_000162", qty=1)</code> → Cart: 1 item, $2.74. <em>"I found the SonicWave Keypad."</em> User: <em>"Great, that's the exact one."</em></td>
+<td>No tool calls — presents 3 product cards. User: <em>"Add the Charger with 100W output, Air Fryer with Charcoal filter, 3 Tank Tops in size XS."</em></td>
+</tr>
+<tr>
+<td><strong>Turn 3</strong></td>
+<td><code>answer: { "done": true }</code> — <strong>Done in 3 turns.</strong></td>
+<td><code>catalog.get_variants</code> × 3 → charger: 6 variants (100W, 120W, 30W…), air fryer: 6 (Bamboo, Permanent, <strong>Charcoal</strong>…), tank top: 7 (<strong>XS</strong>, S, XL…). User: <em>"I need three Tank Tops in XS."</em></td>
+</tr>
+<tr>
+<td><strong>Turn 4</strong></td>
+<td></td>
+<td><code>cart.add(charger, "100W", qty=1)</code> ✓ <code>cart.add(fryer, "Bamboo", qty=1)</code> ✗ should be Charcoal. <code>cart.add(tank_top, "size_XL", qty=3)</code> ✗ should be XS. User: <em>"Air Fryer has Bamboo not Charcoal, Tank Top is XL not XS."</em></td>
+</tr>
+<tr>
+<td><strong>Turn 5</strong></td>
+<td></td>
+<td>Re-fetches tank top variants, adds 2× XS — <strong>doesn't fix the air fryer</strong>. User: <em>"Air Fryer still shows Bamboo. I need three XS, not two."</em></td>
+</tr>
+<tr>
+<td><strong>Turn 6</strong></td>
+<td></td>
+<td>Re-fetches tank top variants <em>again</em> — <strong>still ignores the air fryer</strong>. User: <em>"Please change the Air Fryer variant."</em></td>
+</tr>
+<tr>
+<td><strong>Turn 7</strong></td>
+<td></td>
+<td><em>"I cannot find a Charcoal filter variant."</em> — It exists; the agent saw it in turn 3 but never selected it. User: <em>"Skip the Air Fryer then."</em></td>
+</tr>
+<tr>
+<td><strong>Turn 8</strong></td>
+<td></td>
+<td><code>answer: { "done": true }</code> — Cart still wrong: Charger ✓, Air Fryer (Bamboo) ✗, Tank Top (3×XL + 2×XS) ✗</td>
+</tr>
+<tr>
+<td><strong>Reward</strong></td>
+<td><code>r_task</code> = +1.00, <code>r_eff</code> = +0.33, <code>r_hall</code> = 0.00, <strong>r_total = +0.80</strong> ✓</td>
+<td><code>r_task</code> ≈ 0.00, <code>r_eff</code> = −0.43, <code>r_hall</code> = 0.00, <strong>r_total = −0.06</strong> ✗</td>
+</tr>
+<tr>
+<td><strong>Outcome</strong></td>
+<td>Cart matches goal. 3 turns, 2 effective.</td>
+<td>Wrong variants, wrong quantities, user gave up. 8 turns, 6 effective.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>At d=1 the agent solves the task in 3 clean turns. At d=8 it spirals — picking Bamboo instead of Charcoal, XL instead of XS, never fixing the air fryer despite two user corrections, then hallucinating that the variant doesn't exist. This is exactly the kind of multi-step error cascade that the difficulty curriculum surfaces, and that adaptive training should teach the agent to recover from.</p>
+<h2>
+	<a id="user-simulation" href="#user-simulation" rel="nofollow">
+		
+	</a>
+	<span>
+		User simulation
+	</span>
+</h2>
+<p>A verifiable environment needs a user simulator that behaves realistically. We use <strong>Qwen3.5 (9.7B)</strong> to generate natural, varied user messages rather than canned templates — covering everything from typo-filled requests to mid-conversation topic switches.</p>
+<p>Two design choices matter for training quality:</p>
+<p><strong>Preferences match stated constraints.</strong> Each simulated user has a hidden set of preferences (price sensitivity, brand loyalty, shipping speed, etc.). These are deliberately biased toward whatever constraints the user communicated — so if the user said "under $25", the reward function actually cares about price. Without this, an agent could be penalised for correctly following the user's instructions.</p>
+<p><strong>Strategic omission.</strong> The LLM deliberately withholds some constraints from the opening message to force the agent to ask clarifying questions. The system tracks exactly what was and wasn't mentioned, so the agent is never penalised for information it was never given.</p>
+<h2>
+	<a id="environment-scaling" href="#environment-scaling" rel="nofollow">
+		
+	</a>
+	<span>
+		Environment scaling
+	</span>
+</h2>
+<p>Following RLVE's methodology, we define nested environment collections:</p>
+<p><strong>C1 ⊂ C2 ⊂ C4 ⊂ C8</strong></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Collection</th>
+<th>Environments</th>
+<th>Skills trained</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>C1</strong></td>
+<td>Cart</td>
+<td>Serarch Query Formulation, Cart Manipulation</td>
+</tr>
+<tr>
+<td><strong>C2</strong></td>
+<td>+ Substitution</td>
+<td>Similarity reasoning under constraints</td>
+</tr>
+<tr>
+<td><strong>C4</strong></td>
+<td>+ Product Discovery, Returns</td>
+<td>Transactional workflows (Retrieval + recommendation, return initiation)</td>
+</tr>
+<tr>
+<td><strong>C8</strong></td>
+<td>+ Status, Policy, Bundle, Journey</td>
+<td>Knowledge retrieval, planning, compositionality</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>We hypothesise — consistent with RLVE's findings — that C8 agents outperform single-environment specialists, even on the specialist's own task.</p>
+<h2>
+	<a id="early-results" href="#early-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Early results
+	</span>
+</h2>
+<p>We trained Qwen 3 8B with DAPO on C1 (Cart Building) for 300 steps as an initial viability study.</p>
+<div>
+	<table>
+		<thead><tr>
+<th></th>
+<th>Config</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Base model</strong></td>
+<td>Qwen 3 8B</td>
+</tr>
+<tr>
+<td><strong>Algorithm</strong></td>
+<td>DAPO (G = 8 rollouts/prompt)</td>
+</tr>
+<tr>
+<td><strong>LR</strong></td>
+<td>1e-5</td>
+</tr>
+<tr>
+<td><strong>Catalog</strong></td>
+<td>2M products, FAISS index with <code>Alibaba-NLP/gte-modernbert-base</code> (768-dim)</td>
+</tr>
+<tr>
+<td><strong>User sim</strong></td>
+<td>Qwen3.5 9.7B</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6893dd21467f7d2f5f358a95/eWQqFP-PbCJeNsn8klCQZ.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6893dd21467f7d2f5f358a95/eWQqFP-PbCJeNsn8klCQZ.png" alt="accuracy_levels"></a></p>
+<p>We saw progressive growth in difficulty reached, confirming that adaptive scheduling produces a steady learning signal rather than the saturation (static-low) or starvation (static-high) patterns predicted by the RLVE paper.</p>
+<h2>
+	<a id="try-it-yourself" href="#try-it-yourself" rel="nofollow">
+		
+	</a>
+	<span>
+		Try it yourself
+	</span>
+</h2>
+<p>Run a live episode directly in your browser using the embedded demo below. Here is how to get started:</p>
+<ol>
+<li><strong>Pick an environment</strong> from the dropdown (e.g., <code>E_CART</code> for cart building or <code>E_PD</code> for product discovery).</li>
+<li><strong>Set a difficulty</strong> — <code>0</code> is a simple single-constraint task; <code>6+</code> introduces missing information, noisy retrieval, and variant selection.</li>
+<li><strong>Click "Reset Episode"</strong> — the simulated user will open with a shopping request.</li>
+<li>You are the agentnow: Make tool calls, analyse outputs and submit the final list of product ids.</li>
+<li>Click <strong>"Reset Episode"</strong> between runs to start a fresh scenario.</li>
+</ol>
+
+
+
+<h2>
+	<a id="resources" href="#resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Resources
+	</span>
+</h2>
+<p><a href="https://huggingface.co/collections/owlgebra-ai/wufus"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Models-WUFUS-blue" alt="Models"></a>
+<a href="https://huggingface.co/datasets/owlgebra-ai/Amazebay-catalog-2M"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Catalog%20Data-Amazebay2M-yellow" alt="Data"></a>
+<a href="https://github.com/owlgebra-ai/EcomRLVE-Gym" rel="nofollow"><img src="https://img.shields.io/badge/Github-Code-black" alt="Code"></a>
+<a href="https://huggingface.co/spaces/owlgebra-ai/EcomRLVE-Gym"><img src="https://img.shields.io/badge/%F0%9F%A4%97-Space-red" alt="Demo"></a></p>
+<p>The environments, verifiers, and training configs are all open-source:</p>
+<pre><code>git <span>clone</span> https://github.com/owlgebra-ai/EcomRLVE-Gym
+<span>cd</span> EcomRLVE-Gym
+pip install -e .
+</code></pre>
+<p>The 2M-product catalog is on the Hub:</p>
+<pre><code><span>from</span> datasets <span>import</span> load_dataset
+
+catalog = load_dataset(<span>"owlgebra-ai/Amazebay-catalog-2M"</span>, split=<span>"train"</span>)
+<span>print</span>(<span>f"<span>{<span>len</span>(catalog)}</span> products loaded"</span>)
+</code></pre>
+<h2>
+	<a id="references" href="#references" rel="nofollow">
+		
+	</a>
+	<span>
+		References
+	</span>
+</h2>
+<ol>
+<li><p>Zeng, Z., Ivison, H., Wang, Y., et al. (2025). <em>RLVE: Scaling Up Reinforcement Learning for Language Models with Adaptive Verifiable Environments.</em> ICML 2025. <a href="https://arxiv.org/abs/2511.07317" rel="nofollow">arXiv:2511.07317</a></p>
+</li>
+<li><p>Yu, Q., Zhang, Z., Zhu, R., et al. (2025). <em>DAPO: An Open-Source LLM Reinforcement Learning System at Scale.</em> <a href="https://arxiv.org/abs/2503.14476" rel="nofollow">arXiv:2503.14476</a></p>
+</li>
+<li><p>Shao, Z., Wang, P., Zhu, Q., et al. (2024). <em>DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models.</em> <a href="https://arxiv.org/abs/2402.03300" rel="nofollow">arXiv:2402.03300</a></p>
+</li>
+<li><p>DeepSeek-AI. (2025). <em>DeepSeek-R1: Incentivizing Reasoning in LLMs through Reinforcement Learning.</em> Nature.</p>
+</li>
+<li><p>Meta AI. (2024). <em>Llama 3.1: A Foundation Model for General Intelligence.</em> <a href="https://llama.meta.com" rel="nofollow">llama.meta.com</a></p>
+</li>
+<li><p>Qwen Team. (2025). <em>Qwen3 Technical Report.</em> <a href="https://arxiv.org/abs/2505.09388" rel="nofollow">arXiv:2505.09388</a></p>
+</li>
+</ol>
+</div></div>

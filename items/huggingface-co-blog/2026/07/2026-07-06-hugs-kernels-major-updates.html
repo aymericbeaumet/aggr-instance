@@ -1,0 +1,202 @@
+<div id="readability-page-1" class="page"><div>
+<p>In our <a href="https://huggingface.co/blog/kernel-builder">previous post (From Zero to GPU)</a>, we introduced the 🤗 Kernels project, which aims at standardizing how custom kernels are packaged, distributed, and consumed. We want the project to be frictionless and secure, while making it as Hub-friendly as possible.</p>
+<p>Over the past few months, we have worked towards this goal. In the process, we also almost completely redesigned the project. This post will summarize the major updates we have shipped and what’s coming.</p>
+<p><strong>Table of contents</strong></p>
+<ul>
+<li><a href="#kernels--a-new-repository-type" rel="nofollow">Kernels – a new repository type</a></li>
+<li><a href="#improved-security" rel="nofollow">Improved security</a></li>
+<li><a href="#revamped-clis" rel="nofollow">Revamped CLIs</a></li>
+<li><a href="#more-coverage-of-frameworks-and-backends" rel="nofollow">More coverage of frameworks and backends</a></li>
+<li><a href="#foundation-for-agentic-kernel-development" rel="nofollow">Foundation for agentic kernel development</a></li>
+<li><a href="#misc" rel="nofollow">Misc</a></li>
+<li><a href="#conclusion" rel="nofollow">Conclusion</a></li>
+</ul>
+<h2>
+	<a id="kernels--a-new-repository-type" href="#kernels--a-new-repository-type" rel="nofollow">
+		
+	</a>
+	<span>
+		Kernels – a new repository type
+	</span>
+</h2>
+<p>We have introduced a new repository type on the Hub called <a href="https://huggingface.co/kernels">"kernel"</a>. This enables us to cater to users with compute-related specificities. For example, a user can get a sense of which accelerators, operating systems, and backend versions are supported for a given kernel:</p>
+<figure>
+    <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/revamped-kernels/flash-attn3.png" alt="Flash Attention 3 Kernel Page" width="600">
+    <figcaption>Kernel page: <a href="https://huggingface.co/kernels/kernels-community/flash-attn3">kernels-community/flash-attn3</a></figcaption>
+</figure>
+
+<p>One can browse all available kernels on the Hub here: <a href="https://huggingface.co/kernels">https://huggingface.co/kernels</a>. </p>
+<p>Making these kernels first-class citizens of the Hub also benefits the AI ecosystem. Users can now see trends across kernels, models, and the applications that use them. The kernels become more discoverable to users.</p>
+<h2>
+	<a id="improved-security" href="#improved-security" rel="nofollow">
+		
+	</a>
+	<span>
+		Improved security
+	</span>
+</h2>
+<p>Kernels run native code with the same privileges as the Python process that loads them, so a malicious kernel can do real harm. Therefore, security has always been of utmost importance to the Kernels project.</p>
+<p>This is why we focused early on reproducibility: you should be able to recompile a kernel yourself and verify that it matches the publicly available source. We use Nix to make this possible, since it keeps builds pure through hermetic evaluation of the build recipe and a strongly isolated sandbox. We further improve provenance by embedding the source Git SHA1 into the kernel itself.</p>
+<p>In recent months, we have added additional layers of defense: trusted kernel publishers and code signing.</p>
+<h3>
+	<a id="trusted-kernel-publishers" href="#trusted-kernel-publishers" rel="nofollow">
+		
+	</a>
+	<span>
+		Trusted kernel publishers
+	</span>
+</h3>
+<p>With the new repo type, we also introduced “trusted publishers”. Since kernels execute code on a machine with the same privileges as the Python process they are used in, an attacker could compromise machines by uploading a malicious kernel and coaxing you to use that kernel. To help you avoid such malicious kernels, the kernels package will now only load kernels by <em>trusted publishers</em> by default. A trusted publisher is an organization that is trusted by the community to act in good faith.</p>
+<p>We still want to support loading kernels from organizations or users that are not trusted publishers, but you have to explicitly opt in using the <code>trust_remote_code</code> argument when loading a kernel from the Hub:</p>
+<pre><code><span>from</span> kernels <span>import</span> get_kernel
+
+kernel_module = get_kernel(  
+   “Atlas-Inference/gdn”, version=<span>1</span>, trust_remote_code=<span>True</span>  
+)  
+</code></pre>
+<p>By default, users cannot publish kernel repositories on the Hub. They have to request to be a kernel publisher. Users and organizations can request for access from their account settings. This gives us time to treat these requests on a case-by-case basis.</p>
+<h3>
+	<a id="kernel-signing" href="#kernel-signing" rel="nofollow">
+		
+	</a>
+	<span>
+		Kernel signing
+	</span>
+</h3>
+<p>An additional layer of security that we are adding is code signing. Code signing protects against the scenario where an attacker uploads a malicious kernel to a kernel repo from a trusted publisher whose Hub credentials were compromised. In code signing, a kernel is signed with a private key known only to the kernel developer and validated with a public key that is generally available. In the Hub compromise scenario, an attacker cannot sign the malicious kernel since they do not own the private key needed for signing.</p>
+<p>To further improve security, we use Sigstore’s cosign to sign using ephemeral private keys. Since these signing keys are only valid for a limited time, an attacker typically cannot use the private key, even when it is leaked. We also verify that the kernel was signed by a trusted GitHub workflow from a trusted GitHub repository.</p>
+<p>Kernel signing is already supported by <code>kernel-builder</code> and we have provided the <code>kernels verify-signature</code> to verify a kernel. Kernels does not verify the signature upon loading a kernel yet, since we would like to test this new functionality more before fully rolling it out. Preliminary notes on setting up code signing for your own kernels can be found in the kernels 0.16.0 release notes: <a href="https://github.com/huggingface/kernels/releases/tag/v0.16.0" rel="nofollow">https://github.com/huggingface/kernels/releases/tag/v0.16.0</a>. </p>
+<h2>
+	<a id="revamped-clis" href="#revamped-clis" rel="nofollow">
+		
+	</a>
+	<span>
+		Revamped CLIs
+	</span>
+</h2>
+<p>Previously, a bunch of utilities were intertwined between <code>kernels</code> and <code>kernel-builder</code>. We have established a better separation of concern between the CLI of <code>kernels</code> and <code>kernel-builder</code>. The mental model here is that <code>kernels</code> is a library for loading and preparing kernels for use. Therefore, it should not include anything related to “building” kernels. </p>
+<p>As a result of this, both <code>kernels</code> and <code>kernel-builder</code> are now much leaner and more specific. Refer to the documentation to learn more about this:</p>
+<ul>
+<li><a href="https://huggingface.co/docs/kernels/en/cli"><code>kernels</code> CLI</a>  </li>
+<li><a href="https://huggingface.co/docs/kernels/en/builder-cli"><code>kernel-builder</code> CLI</a></li>
+</ul>
+<p>This improved CLI experience also lets us cater to the rise of agentic kernel
+development in a better manner. More on this <a href="#foundation-for-agentic-kernel-development" rel="nofollow">later</a>.</p>
+<h2>
+	<a id="more-coverage-of-frameworks-and-backends" href="#more-coverage-of-frameworks-and-backends" rel="nofollow">
+		
+	</a>
+	<span>
+		More coverage of frameworks and backends
+	</span>
+</h2>
+<p>We have extended support for frameworks, the most visible changes are:</p>
+<ul>
+<li>We added support for the Torch Stable ABI to kernels and kernel-builder. The Torch Stable ABI allows kernel developers to target a particular Torch version or any version that is released after it for roughly two years. For instance, a kernel that targets the Torch 2.9 Stable ABI support Torch &gt;= 2.9.  </li>
+<li>Apache TVM FFI is the first framework to be supported besides Torch. TVM FFI is standardized ABI for kernels that interoperates with other frameworks such as PyTorch, Jax and CuPy. This allows kernel developers to make kernels that runs across frameworks.</li>
+</ul>
+<h2>
+	<a id="foundation-for-agentic-kernel-development" href="#foundation-for-agentic-kernel-development" rel="nofollow">
+		
+	</a>
+	<span>
+		Foundation for agentic kernel development
+	</span>
+</h2>
+<p><code>kernel-builder</code> and <code>kernels</code> complement the rise of agentic kernel development wherein an agent is leveraged to come up with an (optimized) kernel from scratch. Together, they support a workflow in which agents can scaffold, build, benchmark, and iteratively optimize kernels.</p>
+<p>Agentic kernel development is still nascent, and the right development loops will continue to evolve. That makes simple, clear fundamentals especially important where the tools should be easy to compose into whichever agent workflows or frameworks people choose to use.</p>
+<p><code>kernel-builder</code> helps enforce a structure in how kernel source code should be scaffolded and used to perform reproducible builds. This gives agents a predictable project layout and repeatable workflow to operate within. Its CLI is also meant to be <a href="https://huggingface.co/blog/is-it-agentic-enough">agent-optimized</a>. For example, this can mean non-interactive commands and outputs that are straightforward for an agent to interpret programmatically. To this end, we also have <a href="https://huggingface.co/docs/kernels/en/cli-skills">backend-specific skills</a> to help agents navigate the idiosyncrasies of different backends. These skills can capture backend-specific toolchains, compilation paths, and performance considerations.</p>
+<p>Building a kernel successfully isn’t the only goal, we need to ensure that it delivers actual speedups over a baseline on the target hardware. A successful build is therefore only the first validation step. Usually, this target hardware can include many different accelerators, even different families of the same accelerator.</p>
+<p> This makes it important to evaluate results across hardware vendors and generations where relevant. Our tight <a href="https://huggingface.co/docs/kernels/en/builder/github-actions">integration with HF Jobs</a> can make this benchmarking process easy. Agents can use this integration to run benchmark suites, collect performance results, and compare them against a defined baseline.</p>
+<p>This way, agents can run tests across different hardware configurations to get reliable feedback on the performance of the generated kernels and identify what needs to be done. That feedback can then inform the next optimization iteration.</p>
+<p>Below are some examples of agent-augmented kernels. These illustrate the kinds of kernels that can be developed and evaluated through this workflow: </p>
+<ul>
+<li><a href="https://huggingface.co/kernels/drbh/yamoe">https://huggingface.co/kernels/drbh/yamoe</a>   </li>
+<li><a href="https://huggingface.co/kernels/sayakpaul/qk-norm-rope">https://huggingface.co/kernels/sayakpaul/qk-norm-rope</a></li>
+</ul>
+<h2>
+	<a id="misc" href="#misc" rel="nofollow">
+		
+	</a>
+	<span>
+		Misc
+	</span>
+</h2>
+<h3>
+	<a id="environment-setup" href="#environment-setup" rel="nofollow">
+		
+	</a>
+	<span>
+		Environment setup
+	</span>
+</h3>
+<p>The environment setup for building kernels with <code>kernel-builder</code> can be daunting. To make it easier for users, we now have an <a href="https://huggingface.co/docs/kernels/en/builder/writing-kernels#quick-install">installation script</a> for setting up an environment in one click. If you prefer working with ephemeral instances, our <a href="https://github.com/huggingface/kernels/tree/main/terraform" rel="nofollow">Terraform setup guide</a> is worth following. </p>
+<h3>
+	<a id="system-card-for-kernels" href="#system-card-for-kernels" rel="nofollow">
+		
+	</a>
+	<span>
+		System card for kernels
+	</span>
+</h3>
+<p>After the kernels are built, we create a system card for each kernel to expose useful information, including how to use it and its exposed interfaces. When the kernel is pushed to the Hub, this system card becomes the front matter for the kernel:</p>
+<figure>
+    <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/revamped-kernels/kernel-card.png" alt="System card for a kernel" width="600">
+    <figcaption>System card for <a href="https://huggingface.co/kernels/kernels-community/flash-attn3">kernels-community/flash-attn3</a></figcaption>
+</figure>
+
+<h3>
+	<a id="is-a-kernel-compatible-on-my-system" href="#is-a-kernel-compatible-on-my-system" rel="nofollow">
+		
+	</a>
+	<span>
+		Is a kernel compatible on my system?
+	</span>
+</h3>
+<p>Is a question one would ask multiple times to plan things better. Use the <a href="https://huggingface.co/docs/kernels/main/en/api/kernels#kernels.has_kernel"><code>has_kernel()</code></a> method for this purpose:</p>
+<pre><code><span>from</span> kernels <span>import</span> has_kernel
+
+<span>print</span>(has_kernel(<span>"kernels-community/activation"</span>, version=<span>1</span>))  
+</code></pre>
+<p>It returns a <code>bool</code>. If you’re looking for more explanations around why a given kernel isn’t supported then use <a href="https://huggingface.co/docs/kernels/main/en/api/kernels#kernels.get_kernel_variants"><code>get_kernel_variants()</code></a>:</p>
+<pre><code> <span>from</span> kernels <span>import</span> get_kernel_variants, VariantAccepted
+
+<span>for</span> decision <span>in</span> get_kernel_variants(<span>"kernels-community/activation"</span>, version=<span>1</span>):  
+    name = decision.variant.variant_str  
+    <span>if</span> <span>isinstance</span>(decision, VariantAccepted):  
+        <span>print</span>(<span>f"<span>{name}</span>: compatible"</span>)  
+    <span>else</span>:  
+        <span>print</span>(<span>f"<span>{name}</span>: rejected (<span>{decision.reason}</span>)"</span>)  
+</code></pre>
+<p>It should print (depends on the machine you’re on):</p>
+<pre><code>torch212-cxx11-cu130-aarch64-linux: compatible  
+torch210-cu128-x86_64-windows: rejected (CPU (x86_64) does not match system CPU (aarch64))  
+torch211-cu128-x86_64-windows: rejected (CPU (x86_64) does not match system CPU (aarch64))  
+torch212-metal-aarch64-darwin: rejected (OS (darwin) does not match system OS (linux))  
+torch211-metal-aarch64-darwin: rejected (OS (darwin) does not match system OS (linux))  
+torch210-metal-aarch64-darwin: rejected (OS (darwin) does not match system OS (linux))  
+torch29-metal-aarch64-darwin: rejected (OS (darwin) does not match system OS (linux))  
+…  
+</code></pre>
+<h3>
+	<a id="improved-manylinux_2_28-support" href="#improved-manylinux_2_28-support" rel="nofollow">
+		
+	</a>
+	<span>
+		Improved manylinux_2_28 support
+	</span>
+</h3>
+<p>Kernel-builder has targeted <code>manylinux_2_28</code> almost since the beginning. We used to target <code>manylinux</code> by using a modern gcc toolchain compiled with glibc 2.28. To avoid compatibility issues with older versions of <code>libstdc++</code>, we statically linked libstdc++.</p>
+<p>However, this approach recently resulted in some issues. Some <code>libstdc++</code> functionality uses global initialization. This can lead to corrupted data when multiple <code>libstdc++</code> versions come into play, such as the <code>libstdc++</code> that is linked dynamically by PyTorch and the <code>libstdc++</code> that is linked statically by a kernel. Some recent kernels use functionality (e.g. C++ regexes) that trigger global initializations, leading to such corrupted data, causing segfaults and other issues.</p>
+<p>To solve this issue, kernels now link <code>libstdc++</code> dynamically. To ensure compatibility with old <code>libstdc++</code> versions, we now compile kernels with the official <code>manylinux_2_28</code> toolchain.</p>
+<h2>
+	<a id="conclusion" href="#conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion
+	</span>
+</h2>
+<p>Our goal with the Kernels project is to serve both kernel developers and users of custom kernels. We’re always keen on receiving feedback from the community on how we can improve it. Don’t hesitate to contribute!</p>
+<p><em>Acknowledgements: Thanks to <a href="https://huggingface.co/blog/ariG23498">Aritra</a> for reviewing the post.</em></p>
+</div></div>

@@ -1,0 +1,592 @@
+<div id="readability-page-1" class="page"><div>
+<blockquote>
+<strong>TL;DR:</strong> Two new Apache 2.0 multilingual embedding models built on ModernBERT — a 97M-parameter compact model that beats every open sub-100M multilingual embedder on MTEB Multilingual Retrieval (60.3), and a 311M full-size model that scores 65.2 on MTEB Multilingual Retrieval (#2 among open models under 500M parameters) with Matryoshka support. Both cover 200+ languages, are tuned on 52 languages, handle 32K-token context (64x R1), and add code retrieval across 9 programming languages.
+</blockquote>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/642ae74b25442667e9bd72ed/LrZQDi73p2iIqRJTd25f7.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/642ae74b25442667e9bd72ed/LrZQDi73p2iIqRJTd25f7.png" alt="Granite Embedding Multilingual R2" title="Granite Multilingual Embedding Intro Picture"></a></p>
+<p><strong>In this post:</strong> <a href="#enterprise-ready-by-design" rel="nofollow">Enterprise-Ready by Design</a> · <a href="#a-strong-sub-100m-multilingual-model" rel="nofollow">A Strong Sub-100M Multilingual Model</a> · <a href="#what-changed-from-r1" rel="nofollow">What Changed from R1</a> · <a href="#training-the-full-size-311m-model" rel="nofollow">Training the Full-Size 311M Model</a> · <a href="#building-the-compact-97m-multilingual-model" rel="nofollow">Building the compact 97M Multilingual Model</a> · <a href="#benchmark-results" rel="nofollow">Benchmark Results</a> · <a href="#matryoshka-embeddings-311m" rel="nofollow">Matryoshka Embeddings</a> · <a href="#deployment-options" rel="nofollow">Deployment Options</a> · <a href="#for-framework-integrators" rel="nofollow">For Framework Integrators</a> · <a href="#which-model-should-you-use" rel="nofollow">Which Model Should You Use?</a> · <a href="#try-the-models" rel="nofollow">Try The Models</a></p>
+<p>Multilingual embedding models face a persistent tension: broad language coverage usually comes at the cost of model size, and small models usually sacrifice languages. If you work across languages — retrieval-augmented generation over multilingual corpora, cross-lingual search, code retrieval in international teams — you've likely had to choose between a model that's fast enough and one that's good enough.</p>
+<p>The Granite Embedding Multilingual R2 release narrows that gap considerably. We're releasing two new multilingual embedding models:</p>
+<ul>
+<li><a href="https://huggingface.co/ibm-granite/granite-embedding-311m-multilingual-r2"><strong>granite-embedding-311m-multilingual-r2</strong></a> — A 311M-parameter full-size model with 768-dimensional embeddings, Matryoshka dimension support, and top-tier multilingual retrieval quality.</li>
+<li><a href="https://huggingface.co/ibm-granite/granite-embedding-97m-multilingual-r2"><strong>granite-embedding-97m-multilingual-r2</strong></a> — A 97M-parameter compact model with 384-dimensional embeddings that delivers strong retrieval quality for its size.</li>
+</ul>
+<p>Both models support <strong>200+ languages</strong> with enhanced retrieval quality for <strong>52 languages and programming code</strong>, handle context lengths up to <strong>32,768 tokens</strong> (a 64x increase over their R1 predecessors), and are released under the <strong>Apache 2.0</strong> license. They work out of the box with <code>sentence-transformers</code> and <code>transformers</code>, require no task-specific instructions, and are compatible as drop-in replacements in <strong>LangChain</strong>, <strong>LlamaIndex</strong>, <strong>Haystack</strong>, and <strong>Milvus</strong> with a one-line model name change. For frameworks currently using an English-only default, that one line gives every user in your community support for 200+ languages — no API changes, no new dependencies, no code changes required on their end. Both models ship with ONNX and OpenVINO weights for CPU-optimized inference.</p>
+<details>
+<summary><b>52 enhanced-support languages</b> (click to expand)</summary>
+
+<p>The underlying encoder was pretrained on text from 200+ languages, producing general-purpose embeddings for any of them. The following 52 languages receive explicit retrieval-pair and cross-lingual training for higher-quality retrieval:</p>
+<p>Albanian (sq), Arabic (ar), Azerbaijani (az), Bengali (bn), Bulgarian (bg), Catalan (ca), Chinese (zh), Croatian (hr), Czech (cs), Danish (da), Dutch (nl), English (en), Estonian (et), Finnish (fi), French (fr), Georgian (ka), German (de), Greek (el), Hebrew (he), Hindi (hi), Hungarian (hu), Icelandic (is), Indonesian (id), Italian (it), Japanese (ja), Kazakh (kk), Khmer (km), Korean (ko), Latvian (lv), Lithuanian (lt), Malay (ms), Marathi (mr), Norwegian (no), Persian (fa), Polish (pl), Portuguese (pt), Romanian (ro), Russian (ru), Serbian (sr), Slovak (sk), Slovenian (sl), Spanish (es), Swahili (sw), Swedish (sv), Tagalog (tl), Telugu (te), Thai (th), Turkish (tr), Ukrainian (uk), Urdu (ur), Uzbek (uz), Vietnamese (vi).</p>
+<p>Additionally, the models are trained on <strong>programming code</strong> (Python, Go, Java, JavaScript, PHP, Ruby, SQL, C, C++) and support cross-lingual code retrieval.</p>
+</details>
+
+<h2>
+	<a id="enterprise-ready-by-design" href="#enterprise-ready-by-design" rel="nofollow">
+		
+	</a>
+	<span>
+		Enterprise-Ready by Design
+	</span>
+</h2>
+<p>Both embedding models are trained on a mixture of IBM‑curated datasets, publicly available data, and internally generated or synthetic data. Public web‑derived data used in training is selected and filtered using IBM‑developed quality, deduplication, and governance processes intended to reduce risk in downstream commercial use. We intentionally avoid the use of the MS‑MARCO training dataset and datasets with explicit non‑commercial licensing restrictions. The models are pretrained using <a href="https://huggingface.co/datasets/ibm-granite/GneissWeb">GneissWeb</a>, an IBM‑curated dataset derived from publicly available web content and processed using IBM’s data preparation and governance tooling—along with additional IBM‑curated and other publicly available sources. Datasets undergo IBM governance review to assess licensing considerations, ownership signals, and personal data risks. These processes are designed to contribute to responsible use and enterprise deployment.</p>
+<h2>
+	<a id="a-strong-sub-100m-multilingual-model" href="#a-strong-sub-100m-multilingual-model" rel="nofollow">
+		
+	</a>
+	<span>
+		A Strong Sub-100M Multilingual Model
+	</span>
+</h2>
+<p>The standout of this release is <strong>granite-embedding-97m-multilingual-r2</strong>. At 97 million parameters, it scores <strong>60.3 on Multilingual MTEB Retrieval</strong> across 18 languages — the highest retrieval score we've found for any open multilingual embedding model under 100M parameters. The next-best model in that size class, multilingual-e5-small, scores 50.9 on the same benchmark — a <strong>+9.4 point gap</strong> on a mature benchmark.</p>
+<p>At roughly one-third the size of the 311M full-size model, it retains the majority of its retrieval quality across multilingual, code, and long-document benchmarks — a <strong>+12.2 point gain on MTEB Multilingual Retrieval</strong> over its direct predecessor, driven by a new architecture, better training data, and a novel pruning methodology (more on that below). The full-size <strong>granite-embedding-311m-multilingual-r2</strong> scores <strong>65.2</strong> on the same benchmark, a <strong>+13.0 point gain</strong> over its R1 predecessor.</p>
+<h2>
+	<a id="what-changed-from-r1" href="#what-changed-from-r1" rel="nofollow">
+		
+	</a>
+	<span>
+		What Changed from R1
+	</span>
+</h2>
+<p>The Granite Embedding Multilingual R1 models were built on XLM-RoBERTa encoders with a 512-token context window. The R2 generation is a ground-up rebuild:</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/642ae74b25442667e9bd72ed/jhz201_Ud5zUWfA3k4ITA.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/642ae74b25442667e9bd72ed/jhz201_Ud5zUWfA3k4ITA.png" alt="Granite Embedding R2 Architecture"></a></p>
+<p><a href="https://huggingface.co/blog/modernbert">ModernBERT</a> is a recent encoder architecture that revisits the original BERT design with techniques from the last five years of transformer research. The shift brings several practical benefits: alternating attention lengths reduce computation on long sequences (improves throughput on long sequences significantly), rotary position embeddings allow the 32K context window without the positional interpolation hacks that plague older architectures, and Flash Attention 2.0 support speeds up encoding on modern GPUs.</p>
+<p>The new multilingual tokenizers are worth highlighting. Rather than reusing XLM-RoBERTa's 250K-token vocabulary, we adopted existing tokenizers with strong multilingual and code coverage. The 311M model uses the Gemma 3 tokenizer (262K tokens); the 97M model starts from the GPT-OSS tokenizer and prunes it down to a compact 180K-token vocabulary that preserves broad multilingual coverage while reducing the embedding table's parameter footprint. Tokenizer efficiency matters more than people realize — a 32K-token window sounds impressive until your tokenizer burns half of it encoding a single paragraph of Thai.</p>
+<h2>
+	<a id="training-the-full-size-311m-model" href="#training-the-full-size-311m-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Training the Full-Size 311M Model
+	</span>
+</h2>
+<p>The 311M model is a 22-layer ModernBERT encoder with a 262K-token multilingual vocabulary, trained through a multi-stage pipeline:</p>
+<ol>
+<li><strong>Knowledge distillation</strong>: The model learns from multiple teacher models simultaneously. The teachers are Granite 3.3 Instruct and Mistral v0.2 Instruct decoder models, further finetuned for text embeddings, which transfer retrieval-specific knowledge into the 311M encoder architecture.</li>
+<li><strong>Contrastive fine-tuning</strong>: Standard contrastive training on multilingual retrieval pairs — queries matched with relevant and hard-negative passages across 52 languages and code — sharpens the model's ability to distinguish relevant from irrelevant results.</li>
+<li><strong>Model merging</strong>: After training, we merge checkpoints from different training stages and configurations. This combines the strengths of models optimized for different objectives (e.g., multilingual breadth vs. English depth) into a single set of weights without additional training compute.</li>
+<li><strong>Matryoshka Representation Learning</strong>: The model is trained with Matryoshka objectives so that its 768-dimensional embeddings can be truncated to 512, 384, 256, or 128 dimensions with minimal quality loss (see <a href="#matryoshka-embeddings-311m" rel="nofollow">Matryoshka Embeddings</a> below).</li>
+</ol>
+<p>The result is a model that scores 65.2 on MTEB Multilingual Retrieval and 56.3 on the overall average — a +14.5 point average gain over its R1 predecessor.</p>
+<h2>
+	<a id="building-the-compact-97m-multilingual-model" href="#building-the-compact-97m-multilingual-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Building the compact 97M Multilingual model
+	</span>
+</h2>
+<p>The 97M model is trained through a combination of <strong>vocabulary selection</strong> and <strong>knowledge distillation</strong>:</p>
+<ol>
+<li><strong>Vocabulary selection</strong>: The 262K-token vocabulary is reduced to a purpose-trained 180K-token vocabulary that preserves broad multilingual coverage while cutting the embedding table size substantially.</li>
+<li><strong>Knowledge distillation</strong>: The pruned model is then finetuned using knowledge distillation from multiple teacher models (including a <a href="https://huggingface.co/ibm-granite/granite-4.1-8b">Granite 4.1 8B</a> and Mistral Instruct decoder-based teacher) and contrastive training to improve retrieval quality.</li>
+</ol>
+<p>This approach transfers retrieval-specific knowledge from multiple strong teachers, while reducing the model parameters without sacrificing language coverage. The result is a highly efficient compact model  — scoring 60.3 on MTEB Multilingual Retrieval vs. 65.2 for the full-size model, while being approximately 3x smaller. </p>
+<h2>
+	<a id="benchmark-results" href="#benchmark-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Benchmark Results
+	</span>
+</h2>
+<h3>
+	<a id="multilingual-retrieval" href="#multilingual-retrieval" rel="nofollow">
+		
+	</a>
+	<span>
+		Multilingual Retrieval
+	</span>
+</h3>
+<p>Performance across the main benchmark suite sorted by model size. Scores are averages across tasks within each benchmark (higher is better):</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Params</th>
+<th>Active Params</th>
+<th>Embed Dim</th>
+<th>MTEB Multilingual Retrieval (18)</th>
+<th>Code (12)</th>
+<th>English Retrieval (10)</th>
+<th>LongEmbed (6)</th>
+<th>RaR-b (17)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>F2LLM-v2-80M</td>
+<td>80M</td>
+<td>32M</td>
+<td>320</td>
+<td>50.1</td>
+<td>68.0</td>
+<td>47.5</td>
+<td>31.7</td>
+<td>17.9</td>
+</tr>
+<tr>
+<td>multilingual-e5-small</td>
+<td>118M</td>
+<td>22M</td>
+<td>384</td>
+<td>50.9</td>
+<td>53.5</td>
+<td>46.5</td>
+<td>38.8</td>
+<td>20.3</td>
+</tr>
+<tr>
+<td>granite-embedding-107m-multilingual (R1)</td>
+<td>107M</td>
+<td>11M</td>
+<td>384</td>
+<td>48.1</td>
+<td>40.7</td>
+<td>47.9</td>
+<td>34.3</td>
+<td>17.1</td>
+</tr>
+<tr>
+<td>paraphrase-multilingual-MiniLM-L12-v2</td>
+<td>118M</td>
+<td>22M</td>
+<td>384</td>
+<td>36.6</td>
+<td>23.5</td>
+<td>35.9</td>
+<td>20.9</td>
+<td>10.9</td>
+</tr>
+<tr>
+<td>jina-embeddings-v5-text-nano</td>
+<td>212M</td>
+<td>113M</td>
+<td>768</td>
+<td>63.3</td>
+<td>71.2</td>
+<td>58.8</td>
+<td>63.6</td>
+<td>25.2</td>
+</tr>
+<tr>
+<td>harrier-oss-v1-270m</td>
+<td>268M</td>
+<td>100M</td>
+<td>640</td>
+<td>66.4</td>
+<td>62.4</td>
+<td>52.1</td>
+<td>64.9</td>
+<td>32.9</td>
+</tr>
+<tr>
+<td>multilingual-e5-base</td>
+<td>278M</td>
+<td>86M</td>
+<td>768</td>
+<td>52.7</td>
+<td>52.6</td>
+<td>49.0</td>
+<td>40.5</td>
+<td>23.4</td>
+</tr>
+<tr>
+<td>granite-embedding-278m-multilingual (R1)</td>
+<td>278M</td>
+<td>86M</td>
+<td>768</td>
+<td>52.2</td>
+<td>48.5</td>
+<td>51.5</td>
+<td>37.7</td>
+<td>18.9</td>
+</tr>
+<tr>
+<td>embeddinggemma-300m</td>
+<td>308M</td>
+<td>106M</td>
+<td>768</td>
+<td>62.5</td>
+<td>68.7</td>
+<td>54.6</td>
+<td>55.4</td>
+<td>26.1</td>
+</tr>
+<tr>
+<td>gte-multilingual-base</td>
+<td>305M</td>
+<td>113M</td>
+<td>768</td>
+<td>57.2</td>
+<td>57.5</td>
+<td>50.8</td>
+<td>62.1</td>
+<td>19.0</td>
+</tr>
+<tr>
+<td>snowflake-arctic-embed-m-v2.0</td>
+<td>305M</td>
+<td>113M</td>
+<td>768</td>
+<td>54.8</td>
+<td>55.2</td>
+<td>58.4</td>
+<td>55.4</td>
+<td>23.3</td>
+</tr>
+<tr>
+<td>multilingual-e5-large</td>
+<td>560M</td>
+<td>304M</td>
+<td>1024</td>
+<td>53.7</td>
+<td>55.8</td>
+<td>51.5</td>
+<td>40.4</td>
+<td>25.4</td>
+</tr>
+<tr>
+<td>text-embedding-3-small (OpenAI, API only)</td>
+<td>—</td>
+<td>—</td>
+<td>1536</td>
+<td>50.7</td>
+<td>—</td>
+<td>53.8</td>
+<td>53.6</td>
+<td>23.2</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><strong>granite-embedding-97m-multilingual-r2</strong></td>
+<td><strong>97M</strong></td>
+<td><strong>28M</strong></td>
+<td><strong>384</strong></td>
+<td><strong>60.3</strong></td>
+<td><strong>60.4</strong></td>
+<td><strong>50.1</strong></td>
+<td><strong>65.6</strong></td>
+<td><strong>24.9</strong></td>
+</tr>
+<tr>
+<td><strong>granite-embedding-311m-multilingual-r2</strong></td>
+<td><strong>311M</strong></td>
+<td><strong>110M</strong></td>
+<td><strong>768</strong></td>
+<td><strong>65.2 (#2)</strong></td>
+<td><strong>63.8 (#3)</strong></td>
+<td><strong>52.6 (#5)</strong></td>
+<td><strong>71.7 (#1)</strong></td>
+<td><strong>28.0 (#2)</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>A few things stand out:</p>
+<ul>
+<li><strong>The 97M R2 model beats multilingual-e5-base and gte-multilingual-base</strong> (~300M parameter models) on average and on most individual benchmarks, despite being roughly 3x smaller.</li>
+<li><strong><code>paraphrase-multilingual-MiniLM-L12-v2</code> — a widely-used framework default — scores 36.6</strong>, a full <strong>+23.7 points</strong> behind the 97M R2 model, which is also slightly smaller (97M vs 110M parameters) with the same 384-dimensional output.</li>
+<li><strong>LongEmbed is the biggest R1-to-R2 gain</strong>: +31.3 points for the 97M model, +34.0 for the 311M. This is the direct payoff of the 32K context window — R1's 512-token limit meant your legal contract was being judged by its first page. Many practical multilingual workloads involve long documents (legal contracts, technical manuals, research papers, multi-page reports) that R1 simply could not see in full.</li>
+<li><strong>Code retrieval improves dramatically</strong>: +19.7 (97M) and +15.3 (311M) over R1, reflecting the new code training set, larger context window, and better training methodology.</li>
+<li><strong>In the broader competitive field</strong>, harrier-oss-v1-270m leads on MTEB Multilingual Retrieval (66.4) and RaR-b (32.9), while jina-embeddings-v5-text-nano leads on Code (71.2) and English Retrieval (58.8). The 311M Granite model is competitive on average (56.3) and leads on LongEmbed (71.7), while offering substantially higher encoding throughput than jina-embeddings-v5-text-nano (see speed table below).</li>
+</ul>
+<h3>
+	<a id="speed-and-throughput" href="#speed-and-throughput" rel="nofollow">
+		
+	</a>
+	<span>
+		Speed and Throughput
+	</span>
+</h3>
+<p>Encoding speed matters for production workloads, especially when you're indexing millions of documents or need low-latency query encoding. We measured latency and throughput on a single NVIDIA H100 GPU using 512-token chunks:</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/642ae74b25442667e9bd72ed/1ltJtX2knfzUA5BekMQsh.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/642ae74b25442667e9bd72ed/1ltJtX2knfzUA5BekMQsh.png" alt="Speed vs. Quality: 97M model matches 300M-class quality at 3x the parameter efficiency" title="Speed vs Throughput For Top Multilingual Embedding Models under 500M params"></a></p>
+<p>The 97M model encodes over 2,500 documents per second — comparable throughput to multilingual-e5-small — while delivering substantially higher retrieval quality. The 311M model, at ~1,800 docs/sec, performs better than jina-embeddings-v5-text-nano on retrieval quality (65.2 vs. 63.3) at over 5.5x the encoding speed (note: speed numbers are computed with the latest transformer code, which had a speed regression vs the last 4.57 version - for both the Jina and granite models - see our technical report for details). harrier-oss-v1-270m offers the best combination of speed and retrieval score among the competitors listed here.</p>
+<h2>
+	<a id="matryoshka-embeddings-311m" href="#matryoshka-embeddings-311m" rel="nofollow">
+		
+	</a>
+	<span>
+		Matryoshka Embeddings (311M)
+	</span>
+</h2>
+<p>The 311M model supports <a href="https://arxiv.org/abs/2205.13147" rel="nofollow">Matryoshka Representation Learning</a>, which lets you truncate embeddings from the full 768 dimensions down to 512, 384, 256, or 128 with graceful quality degradation. This is useful when storage, memory, or similarity-computation cost is a concern — a 256-dimensional embedding takes one-third the storage of a 768-dimensional one, and cosine similarity is proportionally cheaper to compute.</p>
+<p>Here's how retrieval quality holds up across embedding dimensions:</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/642ae74b25442667e9bd72ed/myYhY1YHLY9Vs3l0gyMJB.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/642ae74b25442667e9bd72ed/myYhY1YHLY9Vs3l0gyMJB.png" alt="Matryoshka embeddings: graceful quality degradation across truncated dimensions" title="Performance Change While Prunning the Embeddings to Fewer Entries"></a></p>
+<p>The quality loss from dimension reduction is remarkably small. Cutting from 768 to 256 dimensions — a <strong>3x reduction</strong> in storage and similarity-computation cost — drops MTEB Multilingual Retrieval by just 0.5 points (65.2 → 64.7) and Code Retrieval by 0.5 points (63.9 → 63.4). Even at 128 dimensions (a <strong>6x reduction</strong>), the model still scores 63.7 on MTEB Multilingual Retrieval and 62.3 on Code — retaining over <strong>97%</strong> of its full-dimension performance. In practice, this means you can substantially reduce your index size and search latency with minimal impact on result quality. (Note,results in the above picture were evaluated with a context length of 1024 for English and Multilingual Retrieval, and 8192 for Code).</p>
+<p>For comparison, the 311M model truncated to 384 dimensions (the same dimensionality as the 97M model's native output) still outperforms the 97M model across all three benchmarks. If you need 384-dimensional embeddings and can afford the 311M model's encoding cost, Matryoshka truncation is the stronger option.</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> SentenceTransformer
+
+model = SentenceTransformer(<span>"ibm-granite/granite-embedding-311m-multilingual-r2"</span>)
+
+<span># Full 768-dimensional embeddings</span>
+full = model.encode([<span>"example text"</span>])
+<span>print</span>(full.shape)  <span># (1, 768)</span>
+
+<span># Truncated to 384 dimensions</span>
+small = model.encode([<span>"example text"</span>], truncate_dim=<span>384</span>)
+<span>print</span>(small.shape)  <span># (1, 384)</span>
+</code></pre>
+<p>The 97M model does not support Matryoshka — 384 dimensions is already compact.</p>
+<h3>
+	<a id="cross-lingual-retrieval" href="#cross-lingual-retrieval" rel="nofollow">
+		
+	</a>
+	<span>
+		Cross-lingual Retrieval
+	</span>
+</h3>
+<p>Average performance on cross-lingual tasks within MTEB Retrieval. <a href="https://huggingface.co/datasets/facebook/belebele">Belebele</a> measures cross-lingual passage matching across 122 languages; MLQA measures extractive cross-lingual question answering retrieval across 7 languages.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Belebele Retrieval</th>
+<th>MLQA Retrieval</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>granite-embedding-107m-multilingual (R1)</td>
+<td>55.1</td>
+<td>60.5</td>
+</tr>
+<tr>
+<td>granite-embedding-278m-multilingual (R1)</td>
+<td>62.2</td>
+<td>63.0</td>
+</tr>
+<tr>
+<td>granite-embedding-97m-multilingual-r2</td>
+<td>52.9</td>
+<td>60.5</td>
+</tr>
+<tr>
+<td><strong>granite-embedding-311m-multilingual-r2</strong></td>
+<td><strong>66.5</strong></td>
+<td><strong>67.1</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The 311M R2 model gains +4.3 on Belebele and +4.1 on MLQA over its R1 predecessor, showing improved cross-lingual transfer at the larger scale across both benchmarks.</p>
+<p>The 97M R2 model scores lower on Belebele (52.9 vs 55.1, −2.2) while matching its R1 predecessor on MLQA (60.5). The Belebele gap is a tradeoff inherent in the pruning and vocabulary reduction process — the R2 model's training prioritized the broader 18-language MTEB Multilingual Retrieval set (where it gains +12.2 over R1) and long-document retrieval (+31.3), while the smaller vocabulary (180K vs. 250K tokens) and reduced layer count (12 vs. 22) affect narrow cross-lingual transfer tasks. If cross-lingual transfer across many language pairs is your primary use case, the full-size 311M model is the better choice.</p>
+<h2>
+	<a id="deployment-options" href="#deployment-options" rel="nofollow">
+		
+	</a>
+	<span>
+		Deployment Options
+	</span>
+</h2>
+<p>Both models ship with multiple deployment paths for production use. Install the core library with:</p>
+<pre><code>pip install sentence-transformers
+</code></pre>
+<p><strong>Sentence Transformers</strong> (recommended for most users):</p>
+<pre><code><span>from</span> sentence_transformers <span>import</span> SentenceTransformer, util
+
+model = SentenceTransformer(<span>"ibm-granite/granite-embedding-97m-multilingual-r2"</span>)
+
+queries = [
+    <span>"What is the tallest mountain in Japan?"</span>,          <span># English</span>
+    <span>"Wer hat das Lied Achy Breaky Heart geschrieben?"</span>, <span># German</span>
+    <span>"ドイツの首都はどこですか？"</span>,                            <span># Japanese</span>
+]
+
+passages = [
+    <span>"富士山は、静岡県と山梨県にまたがる活火山で、標高3776.12 mで日本最高峰の独立峰である。"</span>,  <span># Japanese</span>
+    <span>"Achy Breaky Heart is a country song written by Don Von Tress."</span>,                        <span># English</span>
+    <span>"Berlin ist die Hauptstadt und ein Land der Bundesrepublik Deutschland."</span>,                <span># German</span>
+]
+
+q_emb = model.encode(queries)
+p_emb = model.encode(passages)
+<span>print</span>(util.cos_sim(q_emb, p_emb))
+<span># Each query scores highest against its matching passage — across languages</span>
+</code></pre>
+<p><strong>LangChain</strong> (<code>pip install langchain-huggingface</code>):</p>
+<pre><code><span>from</span> langchain_huggingface <span>import</span> HuggingFaceEmbeddings
+
+embeddings = HuggingFaceEmbeddings(
+    model_name=<span>"ibm-granite/granite-embedding-97m-multilingual-r2"</span>
+)
+
+docs = embeddings.embed_documents([
+    <span>"富士山は日本最高峰の独立峰です。"</span>,
+    <span>"Mount Fuji is Japan's highest peak."</span>,
+])
+query = embeddings.embed_query(<span>"What is Japan's tallest mountain?"</span>)
+<span># Drop-in replacement anywhere LangChain accepts an Embeddings object</span>
+</code></pre>
+<p><strong>LlamaIndex</strong> (<code>pip install llama-index-embeddings-huggingface</code>):</p>
+<pre><code><span>from</span> llama_index.embeddings.huggingface <span>import</span> HuggingFaceEmbedding
+<span>from</span> llama_index.core <span>import</span> Settings
+
+embed_model = HuggingFaceEmbedding(
+    model_name=<span>"ibm-granite/granite-embedding-97m-multilingual-r2"</span>
+)
+Settings.embed_model = embed_model  <span># applies globally to any index or pipeline</span>
+</code></pre>
+<details>
+<summary><b>Haystack</b> (<code>pip install sentence-transformers haystack-ai</code>)</summary>
+
+<pre><code><span>from</span> haystack.components.embedders <span>import</span> (
+    SentenceTransformersDocumentEmbedder,
+    SentenceTransformersTextEmbedder,
+)
+<span>from</span> haystack.components.retrievers.in_memory <span>import</span> InMemoryEmbeddingRetriever
+<span>from</span> haystack.dataclasses <span>import</span> Document
+<span>from</span> haystack.document_stores.in_memory <span>import</span> InMemoryDocumentStore
+
+doc_embedder = SentenceTransformersDocumentEmbedder(
+    model=<span>"ibm-granite/granite-embedding-97m-multilingual-r2"</span>
+)
+query_embedder = SentenceTransformersTextEmbedder(
+    model=<span>"ibm-granite/granite-embedding-97m-multilingual-r2"</span>
+)
+doc_embedder.warm_up()
+query_embedder.warm_up()
+
+<span># Embed and index documents</span>
+document_store = InMemoryDocumentStore()
+result_docs = doc_embedder.run(documents=[
+    Document(content=<span>"富士山は日本最高峰の独立峰です。"</span>),
+    Document(content=<span>"Mount Fuji is Japan's highest peak."</span>),
+    Document(content=<span>"Achy Breaky Heart is a country song written by Don Von Tress."</span>),
+    Document(content=<span>"Berlin ist die Hauptstadt und ein Land der Bundesrepublik Deutschland."</span>),
+])
+document_store.write_documents(result_docs[<span>"documents"</span>])
+
+<span># Embed query and retrieve</span>
+result_query = query_embedder.run(text=<span>"What is Japan's tallest mountain?"</span>)
+retriever = InMemoryEmbeddingRetriever(document_store=document_store)
+results = retriever.run(query_embedding=result_query[<span>"embedding"</span>], top_k=<span>2</span>)
+<span>for</span> doc <span>in</span> results[<span>"documents"</span>]:
+    <span>print</span>(<span>f"<span>{doc.score:<span>.3</span>f}</span>  <span>{doc.content}</span>"</span>)
+<span># 0.961  Mount Fuji is Japan's highest peak.</span>
+<span># 0.913  富士山は日本最高峰の独立峰です。</span>
+</code></pre>
+</details>
+
+<details>
+<summary><b>Milvus</b> (<code>pip install pymilvus sentence-transformers</code>)</summary>
+
+<pre><code><span>from</span> pymilvus <span>import</span> MilvusClient
+<span>from</span> sentence_transformers <span>import</span> SentenceTransformer
+
+model = SentenceTransformer(<span>"ibm-granite/granite-embedding-97m-multilingual-r2"</span>)
+
+<span># Use "./milvus.db" for local persistence or a server URI for production</span>
+client = MilvusClient(<span>":memory:"</span>)
+client.create_collection(collection_name=<span>"multilingual_docs"</span>, dimension=<span>384</span>)
+
+docs = [
+    <span>"富士山は日本最高峰の独立峰です。"</span>,
+    <span>"Mount Fuji is Japan's highest peak."</span>,
+    <span>"Achy Breaky Heart is a country song written by Don Von Tress."</span>,
+    <span>"Berlin ist die Hauptstadt und ein Land der Bundesrepublik Deutschland."</span>,
+]
+embeddings = model.encode(docs).tolist()
+client.insert(
+    collection_name=<span>"multilingual_docs"</span>,
+    data=[{<span>"id"</span>: i, <span>"vector"</span>: emb, <span>"text"</span>: doc} <span>for</span> i, (emb, doc) <span>in</span> <span>enumerate</span>(<span>zip</span>(embeddings, docs))],
+)
+
+query_emb = model.encode([<span>"What is Japan's tallest mountain?"</span>]).tolist()
+results = client.search(
+    collection_name=<span>"multilingual_docs"</span>,
+    data=query_emb,
+    limit=<span>2</span>,
+    output_fields=[<span>"text"</span>],
+)
+<span>for</span> hit <span>in</span> results[<span>0</span>]:
+    <span>print</span>(<span>f"<span>{hit[<span>'distance'</span>]:<span>.3</span>f}</span>  <span>{hit[<span>'entity'</span>][<span>'text'</span>]}</span>"</span>)
+<span># 0.961  Mount Fuji is Japan's highest peak.</span>
+<span># 0.913  富士山は日本最高峰の独立峰です。</span>
+</code></pre>
+</details>
+
+<p>Both models also ship with pre-converted <strong>ONNX</strong> and <strong>OpenVINO</strong> weights for optimized CPU/accelerator inference, work as embedding endpoints via <strong><a href="https://docs.vllm.ai/" rel="nofollow">vLLM</a></strong> (<code>vllm serve ... --task embed</code>), and can be converted to GGUF for <strong><a href="https://ollama.com/" rel="nofollow">Ollama</a></strong> using <a href="https://github.com/ggerganov/llama.cpp" rel="nofollow">llama.cpp</a>. See the model cards for full deployment examples.</p>
+<h2>
+	<a id="for-framework-integrators" href="#for-framework-integrators" rel="nofollow">
+		
+	</a>
+	<span>
+		For Framework Integrators
+	</span>
+</h2>
+<p>If you maintain an embedding framework, vector store, or RAG pipeline library and are evaluating these models as a default, here's what you need to know:</p>
+<ul>
+<li><strong>License</strong>: Apache 2.0, trained without MS-MARCO </li>
+<li><strong>Drop-in behavior</strong>: No task-specific instruction prefix required — behaves like <code>all-MiniLM-L6-v2</code> at the API level. Existing code that calls <code>.encode()</code> works unchanged.</li>
+<li><strong>Dimensionality</strong>: 384-dimensional output (97M) and 768-dimensional output (311M), matching the most common existing defaults. No index migration required.</li>
+<li><strong>Model size</strong>: The 97M model's weights are 195 MB (safetensors) — less than half the size of <code>paraphrase-multilingual-MiniLM-L12-v2</code> (471 MB), the most common multilingual default. The quantized ONNX weights are just 98 MB, comparable to <code>all-MiniLM-L6-v2</code> (91 MB) while covering 200+ languages.</li>
+<li><strong>CPU-friendly</strong>: Ships with ONNX and OpenVINO weights for optimized CPU inference. No GPU dependency for a getting-started tutorial.</li>
+<li><strong>Multilingual by default</strong>: If your current default is English-only, this is a one-line swap that gives every user in your community support for 200+ languages — without touching their code.</li>
+<li><strong>Stable identifier</strong>: <code>ibm-granite/granite-embedding-97m-multilingual-r2</code> on Hugging Face, maintained by IBM under the Granite model family.</li>
+</ul>
+<p>To discuss adopting these models as a default in your project, open an issue at <a href="https://github.com/ibm-granite/granite-embedding-models" rel="nofollow">ibm-granite/granite-embedding-models</a>.</p>
+<h2>
+	<a id="which-model-should-you-use" href="#which-model-should-you-use" rel="nofollow">
+		
+	</a>
+	<span>
+		Which Model Should You Use?
+	</span>
+</h2>
+<p>These two multilingual models are part of the broader <strong>Granite Embedding R2</strong> family, which also includes two high-performing English-focused models: <a href="https://huggingface.co/ibm-granite/granite-embedding-english-r2">granite-embedding-english-r2</a> (149M parameters) and <a href="https://huggingface.co/ibm-granite/granite-embedding-small-english-r2">granite-embedding-small-english-r2</a> (47M parameters). If your data is predominantly English, the English models offer higher retrieval quality on English benchmarks at a smaller footprint, since they don't need to allocate capacity across 200+ languages.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>If you need...</th>
+<th>Use</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Best multilingual retrieval quality</td>
+<td><a href="https://huggingface.co/ibm-granite/granite-embedding-311m-multilingual-r2">granite-embedding-311m-multilingual-r2</a></td>
+</tr>
+<tr>
+<td>Flexible embedding dimensions (storage/speed tradeoff)</td>
+<td>granite-embedding-311m-multilingual-r2 (Matryoshka)</td>
+</tr>
+<tr>
+<td>Maximum throughput / edge deployment / low latency</td>
+<td><a href="https://huggingface.co/ibm-granite/granite-embedding-97m-multilingual-r2">granite-embedding-97m-multilingual-r2</a></td>
+</tr>
+<tr>
+<td>Best cross-lingual transfer across many language pairs</td>
+<td>granite-embedding-311m-multilingual-r2</td>
+</tr>
+<tr>
+<td>Predominantly English data</td>
+<td><a href="https://huggingface.co/ibm-granite/granite-embedding-english-r2">granite-embedding-english-r2</a> or <a href="https://huggingface.co/ibm-granite/granite-embedding-small-english-r2">granite-embedding-small-english-r2</a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="try-the-models" href="#try-the-models" rel="nofollow">
+		
+	</a>
+	<span>
+		Try The Models
+	</span>
+</h2>
+<p>Both models are available now on Hugging Face under the <a href="https://huggingface.co/collections/ibm-granite/granite-embedding-models">IBM Granite Embedding collection</a>:</p>
+<ul>
+<li><a href="https://huggingface.co/ibm-granite/granite-embedding-311m-multilingual-r2">granite-embedding-311m-multilingual-r2</a></li>
+<li><a href="https://huggingface.co/ibm-granite/granite-embedding-97m-multilingual-r2">granite-embedding-97m-multilingual-r2</a></li>
+</ul>
+<p>You can try the small models interactively (on CPU) via a Granite Embedding demo <a href="https://huggingface.co/spaces/ibm-granite/granite-embedding">here</a> on Hugging Face Spaces, or run the full examples notebook in Google Colab: </p>
+<p><a href="https://colab.research.google.com/github/ibm-granite/granite-embedding-models/blob/main/code/multilingual_r2_examples.ipynb" rel="nofollow"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a></p>
+<p>You can access our detailed technical report covering the full training methodology, per-language evaluations, and pruning ablations here <a href="https://arxiv.org/abs/2605.13521" rel="nofollow">Granite Multilingual Embedding R2 report</a>. For questions, feedback, or issues, visit <a href="https://github.com/ibm-granite/granite-embedding-models" rel="nofollow">ibm-granite/granite-embedding-models</a> on GitHub.</p>
+<p><strong>Framework maintainers:</strong> If you'd like to adopt these models as a default in your project, open an issue at <a href="https://github.com/ibm-granite/granite-embedding-models" rel="nofollow">ibm-granite/granite-embedding-models</a> — we're happy to help with integration, testing, and any questions about licensing or deployment.</p>
+<p>Give them a try, and if the embeddings spark joy, smash that ❤️ button on Hugging Face. Our models have feelings too, and every +1 keeps them warm at night.</p>
+</div></div>

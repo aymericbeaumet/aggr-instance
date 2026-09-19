@@ -1,0 +1,107 @@
+<div id="readability-page-1" class="page"><div>
+
+<p>We’re open-sourcing <a href="https://github.com/basecamp/upright">Upright</a>, the synthetic monitoring system we built to watch over Basecamp, HEY, Fizzy and our many other services.</p>
+
+<p>Upright runs health checks from multiple geographic locations and tells us when something breaks. It’s a Rails engine that you deploy to cheap VPS nodes around the world using <a href="https://dev.37signals.com/kamal-2/">Kamal</a>. Each node runs probes against your services and reports back via Prometheus metrics, so you can alert with AlertManager and visualize with Grafana.</p>
+
+
+
+<hr>
+
+<h2 id="why-we-built-it">Why we built it</h2>
+
+<p>We’ve used Pingdom for years and it’s generally worked fine, but has been somewhat of a black box. We couldn’t customize checks, couldn’t run authenticated browser flows without handing over more cash, and couldn’t control exactly where checks ran from. Occasionally, probes would fail and trigger a page, but the issue would resolve itself before we could investigate.</p>
+
+<p>We wanted something we owned, something we could extend, and something that fit into the open source observability stack we already use.</p>
+
+<p>Upright started as an internal tool to complement our existing monitoring. It now handles all of our synthetic monitoring across five global sites.</p>
+
+<hr>
+
+<h2 id="what-it-does">What it does</h2>
+
+<p>Upright supports four types of probes:</p>
+
+<p><strong>Playwright probes</strong> are the headline feature. These are real browser checks that can log into your app, navigate through flows, and verify that things work end-to-end. When a check fails, Upright captures a video recording and logs so you can see exactly what went wrong. You write them as Ruby classes using the <a href="https://playwright-ruby-client.vercel.app/docs/api/page">Playwright API</a>.</p>
+
+<p><strong>HTTP probes</strong> are simple health checks — hit a URL, check the status code. They run every 30 seconds from every site. Logs are in a familiar cURL format.</p>
+
+<p><strong>SMTP probes</strong> verify EHLO responsiveness, STARTTLS support, and SSL certificate validity.</p>
+
+<p><strong>Traceroute probes</strong> map the network path to your services with hop-by-hop latency tracking, thanks to MTR reports.</p>
+
+<p>All probes run from every site you deploy to, optionally staggered by a few seconds. Upright uses this multi-site data to distinguish between real outages and regional blips. If one site in Amsterdam can’t reach your app but four others can, that’s a regional issue, not a full outage.</p>
+
+<hr>
+
+<h2 id="how-its-built">How it’s built</h2>
+
+<p>Upright is a Rails engine. You create a new Rails app, add the gem, run the install generator, and you have a working monitoring system. It uses:</p>
+
+<ul>
+  <li><strong>SQLite</strong> for probe results storage</li>
+  <li><a href="https://dev.37signals.com/solid-queue-v1-0/"><strong>Solid Queue</strong></a> for background and recurring jobs</li>
+  <li><strong>Kamal</strong> for multi-server deployment</li>
+  <li><a href="https://dev.37signals.com/prometheus-metrics-at-37signals/"><strong>Prometheus</strong></a> for metrics and uptime queries</li>
+  <li><strong>AlertManager</strong> for notifications</li>
+  <li><strong>OpenTelemetry</strong> for tracing and logging</li>
+  <li><strong>Dark and light mode</strong> for the dashboard UI</li>
+</ul>
+
+<p>The architecture is simple: deploy Upright to a few cheap VPS nodes (DigitalOcean, Hetzner, etc.), point DNS subdomains at each one, and configure your probes. Our setup runs across five sites — four DigitalOcean droplets (2 vCPU, 4GB RAM, ~$24/mo each) and one Hetzner server (3 vCPU, 4GB RAM) — for about $110/mo total. You could run a minimal two-site setup purely on Hetzner for under $20/mo.</p>
+
+<p>Each node identifies itself via environment variables and runs probes independently. Metrics are scraped locally with an <a href="https://dev.37signals.com/kamal-prometheus/">OpenTelemetry collector</a>, and then fed back to the primary site which runs Prometheus and Alertmanager.</p>
+
+<p>We actually send the metrics to three Prometheus instances, one in each of our datacenters as well as the primary Upright instance, providing full redundancy.</p>
+
+<hr>
+
+<h2 id="getting-started">Getting started</h2>
+
+<div><pre><code>rails new my-upright <span>--database</span><span>=</span>sqlite3 <span>--skip-test</span>
+<span>cd </span>my-upright
+bundle add upright
+bin/rails generate upright:install
+bin/rails db:migrate
+bin/dev
+</code></pre></div>
+
+<p>The install generator creates everything you need: Prometheus and AlertManager configs, OpenTelemetry collector config, probe directories, Kamal deploy templates, and a Docker Compose file for local development services.</p>
+
+<p>Define an HTTP probe in <code>probes/http_probes.yml</code>:</p>
+
+<div><pre><code><span>-</span> <span>name</span><span>:</span> <span>"</span><span>37signals.com"</span>
+  <span>url</span><span>:</span> <span>"</span><span>https://37signals.com/"</span>
+
+<span>-</span> <span>name</span><span>:</span> <span>"</span><span>Help</span><span> </span><span>Ticket</span><span> </span><span>Creation"</span>
+  <span>url</span><span>:</span> <span>"</span><span>https://help.37signals.com/billing/tickets/new"</span>
+  <span>expected_status</span><span>:</span> <span>301</span>
+</code></pre></div>
+
+<p>Or write a Playwright probe that logs into your app and checks a real user flow:</p>
+
+<div><pre><code><span>class</span> <span>Probes::Playwright::Bc4ProjectProbe</span> <span>&lt;</span> <span>Upright</span><span>::</span><span>Probes</span><span>::</span><span>Playwright</span><span>::</span><span>Base</span>
+  <span>authenticate_with_form</span> <span>:bc4</span>
+
+  <span>def</span> <span>probe_name</span> <span>=</span> <span>"Basecamp 4: view project"</span>
+
+  <span>def</span> <span>check</span>
+    <span>page</span><span>.</span><span>goto</span><span>(</span><span>"https://3.basecamp.com/5228151"</span><span>)</span>
+
+    <span>page</span><span>.</span><span>get_by_text</span><span>(</span><span>"37s Monitoring HQ"</span><span>).</span><span>visible?</span>
+  <span>end</span>
+<span>end</span>
+</code></pre></div>
+
+<p>Check out the <a href="https://github.com/basecamp/upright">README</a> for the full setup guide, including multi-site Kamal deployment, alerting rules, and authentication configuration.</p>
+
+<hr>
+
+<h2 id="try-it-out">Try it out</h2>
+
+<p>Upright is available now on <a href="https://rubygems.org/gems/upright">RubyGems</a> and <a href="https://github.com/basecamp/upright">GitHub</a> under the MIT license.</p>
+
+
+
+
+            </div></div>

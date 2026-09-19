@@ -1,0 +1,81 @@
+<div id="readability-page-1" class="page"><div>
+<p>Every Eval Ever (EEE) and Hugging Face Community Evals are now intercompatible. We enable cross-posting and interpreting evaluation results, while linking to open models, leaderboards, and a unified standardized metadata store.</p>
+<p>EEE <a href="https://evalevalai.com/infrastructure/2026/02/17/everyevalever-launch/" rel="nofollow">launched</a> in February 2026 as a project of the <a href="https://evalevalai.com/" rel="nofollow">EvalEval Coalition</a>, the first cross-institutional effort to improve how AI evaluation results get reported by both first and third party evaluators. Hugging Face launched <a href="https://huggingface.co/blog/community-evals">Community Evals</a> in February 2026 to decentralize how benchmark scores get reported on the Hub. Combined, they patch gaps in how users, researchers, and policymakers trust, understand, and choose evaluations and models.</p>
+<p>Evaluation results are how we measure model capabilities, compare models against each other, and reason about safety and governance, and yet they are scattered and hard to compare. They live in papers, leaderboards, blog posts, and harness logs, among others, each in its own format. The same model on the same benchmark often returns different scores depending on who ran it and how; LLaMA 65B, for one, has been reported at both 63.7 and 48.8 on <a href="https://huggingface.co/blog/open-llm-leaderboard-mmlu">MMLU</a>. These gaps can arise from <a href="https://huggingface.co/papers/2606.14516">evaluation settings that we found are commonly unreported</a>.</p>
+<p>EEE is our fix for the reporting side. It's one JSON schema for an evaluation result that records: </p>
+<ul>
+<li>who ran it  </li>
+<li>which model  </li>
+<li>how it was accessed  </li>
+<li>generation settings  </li>
+<li>what the metric actually means  </li>
+<li>[recommended] companion JSONL file for per-sample outputs.</li>
+</ul>
+<p>The schema was built with feedback from researchers and policy researchers, and it takes in results from any source, so harness logs, leaderboard scrapes, and paper numbers all end up in the same shape. The <a href="https://github.com/evaleval/every_eval_ever" rel="nofollow">GitHub repository</a> has the converters, examples, and a contributor guide. Since launching, the <a href="https://huggingface.co/datasets/evaleval/EEE_datastore">datastore</a> on Hugging Face has grown to around 229,000 evaluation results across more than 22,000 models and 2,200 benchmarks, pulled from 31 different reporting formats. Reproducing just those runs from scratch would cost somewhere in the hundreds of thousands of dollars, which is a reasonable argument for not letting the data scatter once someone has paid to generate it.</p>
+<p>Learn more about the schema and how to contribute <a href="https://evalevalai.com/infrastructure/2026/02/17/everyevalever-launch/" rel="nofollow">here</a>.</p>
+<p>Now, it comes with better integration and attribution. Contributors can now send EEE results to Hugging Face Community Evals. We built a converter that takes your EEE records and writes the small YAML files Hugging Face expects, so you don't have to keep the same result in two formats by hand.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6413251362e6057cbb6259bd/czIJDDShvtMBs2M2T7B45.gif" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6413251362e6057cbb6259bd/czIJDDShvtMBs2M2T7B45.gif" alt="Verified Evaluators on Eval Cards"></a></p>
+<p>This is new functionality for everyone who reports or reads evaluations, not only existing EEE contributors. First-party evaluators reporting on their own models and third-party evaluators reporting on someone else's can both submit to Community Evals and to EEE, and anyone browsing the Hub gets results that trace back to a full record. When you submit your data through your organization's official Hugging Face account, your results show up with a <a href="https://evalcards.evalevalai.com/help/get-verified" rel="nofollow">verified</a> checkmark on EvalEval, a signal to readers that the numbers come straight from the source. The rest of this post walks through what Community Evals are and what the converter does.</p>
+<h2>
+	<a id="how-hugging-face-community-evals-works-together-with-evaleval" href="#how-hugging-face-community-evals-works-together-with-evaleval" rel="nofollow">
+		
+	</a>
+	<span>
+		How Hugging Face Community Evals works together with EvalEval
+	</span>
+</h2>
+<p>Hugging Face Community Evals has two sides.</p>
+<p>A benchmark lives in a dataset repo that registers itself by adding an <code>eval.yaml</code>. Once registered, that dataset page collects and displays a leaderboard of every score reported against it across the Hub. The list of <a href="https://huggingface.co/datasets?benchmark=benchmark:official&amp;sort=trending">official benchmarks</a> grows over time.</p>
+<p>A model's scores live in <code>.eval_results/*.yaml</code> inside the model repo. They show up on the model card and feed into the matching benchmark leaderboard. Both the model author's own results and results submitted by anyone else through a pull request get aggregated, and each score carries a badge saying whether it was author-submitted, community-submitted, or independently verified. Anyone can add a score to any model by opening a PR with the right YAML file, and the model author can close PRs or hide results on their own repo.</p>
+<p>Here is what one of these leaderboards looks like:</p>
+
+
+<p><em>Community Evals Leaderboard for <a href="https://huggingface.co/datasets/cais/hle">Humanity's Last Exam</a> on the Hub</em></p>
+<p>This is where EEE and Community Evals fit together. When you send a result to both, two things happen: First, your score appears on the Hugging Face model page and gets pulled into the benchmark's leaderboard. And second, it carries a source badge that links straight back to the full EEE record, where the generation config, the harness version, the reproducibility notes, and any instance-level data live.</p>
+
+
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/eee_commevals/smollm2.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/eee_commevals/smollm2.png" alt="EvalEval as source on SmolLM2 Model Page"></a></p>
+<p><em>An Evaluation (MMLU-Pro) from EEE Datastore (a) cross-linked at the file level to a Hugging Face model card (b). The Source EvalEval badge links to the full JSON record.</em></p>
+<p><strong>The two destinations do different jobs toward the same goal. Hugging Face puts your result where people look at models, with a link back to the source. EEE keeps the full structured record that makes the result interpretable, and powers <a href="https://evalevalai.com/projects/eval-cards/" rel="nofollow">Eval Cards</a> on top of it.</strong> Send your data to both and the same evaluation ends up visible and legible at once, which is the point of reporting one at all.</p>
+<p>You can see that cross-compatibility below. The same GPQA scores that surface on the model card above also render in Eval Cards, which composes the EEE run data with benchmark and model metadata into one interpretable record. Same evaluation, a different surface:</p>
+
+
+<h2>
+	<a id="how-it-works" href="#how-it-works" rel="nofollow">
+		
+	</a>
+	<span>
+		How it works
+	</span>
+</h2>
+<p>Hugging Face stores eval scores in the model repo as a YAML under <code>.eval_results/</code>. The required fields are just the benchmark dataset, the task, and the value. The source block is the part that creates the backlink to EEE.</p>
+<pre><code>- dataset:
+    id: openai/gsm8k
+    task_id: gsm8k
+  value: 96.8
+  date: '2024-07-16'
+  notes: '8-shot CoT'
+  source:
+    url: https://huggingface.co/datasets/evaleval/EEE_datastore/blob/main/flat/objects/&lt;xx&gt;/&lt;yy&gt;/&lt;uuid&gt;.json
+    name: EvalEval
+</code></pre>
+<p><strong>The converter fills this in from your existing records.</strong> It maps <code>source_data.hf_repo</code> to <code>dataset.id</code>, <code>evaluation_name</code> to <code>task_id</code>, <code>score_details.score</code> to <code>value</code>, and <code>evaluation_timestamp</code> to <code>date</code>, then drops in the datastore object URL as the source link to the per-record EEE JSON. It currently handles four of the official benchmarks: MMLU-Pro, GPQA, HLE, and GSM8K.</p>
+<p><strong>The converter does more than reshape fields.</strong> You point it at one EEE datastore collection and it downloads that collection along with the records it references, checks the object hashes, and finds the scores that map to a supported benchmark. Before it writes anything live it audits what already exists: it reads every <code>.eval_results</code> YAML on the model's main branch and in open PRs, and compares by dataset and task rather than by filename. If a score is already there it is marked <code>already_present</code>, if a different score is there it is flagged as a <code>score_conflict</code>, and if the model repo doesn't resolve on the Hub it is marked <code>missing_hf_model</code>. Everything else is marked <code>ready</code>.</p>
+<p><strong>Nothing gets pushed without your sign-off.</strong> The tool writes local YAML previews and a review file you can inspect, shows a report of what is ready and what needs attention, and only opens PRs after you type <code>OPEN PRS</code> and enter a commit message. Reruns reuse the cached results for a collection unless you pass <code>--force</code>.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/eee_commevals/terminal%20shot.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/eee_commevals/terminal%20shot.png" alt="TUI of the Converter"></a></p>
+<p><em>The converter's review step. Excluded entries (here, models with no matching Hub repo) are listed with their EEE source URLs, and the ready PRs wait on an explicit OPEN PRS confirmation.</em></p>
+<h2>
+	<a id="start-here" href="#start-here" rel="nofollow">
+		
+	</a>
+	<span>
+		Start here
+	</span>
+</h2>
+<p>Submit your full records to <a href="https://huggingface.co/datasets/evaleval/EEE_datastore">the EEE datastore</a>. </p>
+<p>Utilizing EEE requires only one additional step, which the converter largely automates. The <a href="https://github.com/evaleval/every_eval_ever/tree/main/tools/hf-community-evals" rel="nofollow">community eval converter tool</a> can be found in the GitHub repository. To process a collection, execute the following:</p>
+<pre><code>uv run tools/hf-community-evals/community_evals_converter.py MMLU-Pro \
+  --datastore evaleval/EEE_datastore@main
+</code></pre>
+<p>Review the previews and the report it generates, then type <code>OPEN PRS</code> when you're ready to submit. Full documentation for the schema, CLI, and converters is at <a href="https://evalevalai.com/every_eval_ever/hf-community-evals/" rel="nofollow">evalevalai.com/every_eval_ever/hf-community-evals</a>.</p>
+</div></div>

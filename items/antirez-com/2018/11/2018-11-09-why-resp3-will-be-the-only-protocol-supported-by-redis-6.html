@@ -1,0 +1,44 @@
+<div id="readability-page-1" class="page"><div id="content">
+<section id="newslist"><article data-news-id="125"><h2><a href="https://antirez.com/news/125">Why RESP3 will be the only protocol supported by Redis 6</a></h2></article></section><topcomment><article data-comment-id="125-" id="125-"><span><span><a href="https://antirez.com/user/antirez">antirez</a></span> 2871 days ago. 140025 views.  </span><pre>[EDIT! I'm reconsidering all this because Marc Gravell
+ from Stack Overflow suggested that we could just switch protocol for backward compatibility per-connection, sending a command to enable RESP3. That means no longer need for a global configuration that switches the behavior of the server. Put in that way it is a lot more acceptable for me, and I'm reconsidering the essence of the blog post]
+
+A few weeks after the release of Redis 5, I’m here starting to implement RESP3, and after a few days of work it feels very well to see this finally happening. RESP3 is the new client-server protocol that Redis will use starting from Redis 6. The specification at <a rel="nofollow" href="https://github.com/antirez/resp3">https://github.com/antirez/resp3</a> should explain in clear terms how this evolution of our old protocol, RESP2, should improve the Redis ecosystem. But let’s say that the most important thing is that RESP3 is more “semantic” than RESP2. For instance it has the concept of maps, sets (unordered lists of elements), attributes of the returned data, that may augment the reply with auxiliary information, and so forth. The final goal is to make new Redis clients have less work to do for us, that is, just deciding a set of fixed rules in order to convert every reply type from RESP3 to a given appropriate type of the client library programming language.
+
+In the future of Redis I see clients that are smarter under the hood, trying to do their best in order to handle connections, pipelining, and state, and apparently a lot more simpler in the user-facing side, to the point that the ideal Redis client is like:
+
+    result = redis.call(“GET”,keyname);
+
+Of course on top of that you can build more advanced abstractions, but the bottom layer should look like that, and the returned reply should not require any filtering that is ad-hoc for specific commands: RESP3 return type should contain enough information to return an appropriate data type. So HGETALL will return a RESP3 “map”, while LRANGE will return an “array”, and EXISTS will return a RESP3 “boolean”.
+
+This also allows new commands to work as expected even if the client library was not *specifically* designed to handle it. With RESP2 instead what happened was that likely the command worked using mechanisms like "method missing" or similar, but later when the command was *really* implemented in the client library, the returned type changed, introducing a subtle incompatibility.
+
+However, while the new protocol is an incremental improvement over the old one, it will introduce breaking incompatibilities in the client-library side (of course) and *in the application layer* as well. Because for instance, ZSCORE will now return a double, and not a string, so application code should be updated, or, alternatively, client libraries could implement a compatibility option that will turn the RESP3 replies back to their original RESP2 types. 
+
+Lua scripts will also no longer work if not modified for the new protocol, because also Lua will see more semantical types returned by the redis.call() command. Similarly Lua will be able to return all the new data types implemented in RESP3.
+
+Because of all that, people are scared about my decision: I’m going to ship Redis 6 with support for *only* RESP3. There will be no compatibility mode to switch a Redis 6 server to RESP2, so you either upgrade your client library and upgrade your application (or use the client library backward compatibility mode), or you cannot switch to Redis 6.
+
+I’ve good reasons to do so, and I want to explain why I’m taking this decision, and how I’m mitigating the problems for users and client library authors. Let’s start from the mitigations:
+
+* Redis 5 will be fully supported for 2 years after the release of Redis 6. Everything critical will be back-ported to Redis 5 and patch-level releases will be available constantly.
+
+* Redis 6 is expected to be released in about 1 or 1.5 years. However Redis 6 will be switched to RESP3 in about 1 month. So people will use, experiment, and deal with an unstable Redis version that uses the new protocol for a lot of time. Given that unlike many other softwares, Redis unstable has a lot of casual users, both because it’s the default branch on Github, and because traditionally Redis unstable is never really so unstable, this will grant a lot of prior exposure.
+
+* I’m still not 100% sure about that, but the Lua scripting engine may have a compatibility mode in order to return the same types as of Redis 5. The compatibility however will not be enabled by default, and will be opt-in for each script executed, by calling a special redis.resp2_compat() function before calling Redis commands. So every Redis 6 server will behave the same regardless of its configuration, as Redis always did in the last 10 years.
+
+Those are the mitigations. And this is, instead, why I’ll not have Redis 6 supporting both versions:
+
+1) It is more or less completely useless. If people switch Redis 6 to RESP2 mode, they are still in the past and are just waiting for Redis 7 to go out without RESP2 support and break everything. In the meantime, when you deal with a Redis 6 installation, you never know *what it replies*, depending on how it is configured. So the same client library may return an Hash or an Array for the same command.
+
+2) It’s more work and more complexity without a good reason (see “1”). Many commands will require a check for the old protocol in order to see in what format to reply.
+
+3) By binding the new Redis 6 features together with a protocol change, we are giving good reasons to users to do the switch and port their clients and applications. At some point everything will be over and we can focus on new things. Otherwise we’ll have a set of Redis 6 users that switched to the new server for the new features but are still with the old protocol, and Redis 7 will be the same drama again. 
+
+4) If somebody tells you that adapting the client libraries is a terrible work, well, I’ll beg to differ. Yes, there is some change to do, but now that I’m implementing the server side, I see that it’s not so terrible. What is terrible instead is that most client work is not payed at all and happens just because of passion and willingness to share with others. I bet that we’ll see many implementations of RESP3 in short time.
+
+5) RESP3 is designed so that clients can automatically detect if it’s RESP2 or RESP3, and switch, so new clients will work both with Redis &lt;= 5 and Redis 6.
+
+Well that’s all. I hope it clarifies my point of view and the reasons behind it, and also at the same time the mitigations that will be enabled during the protocol switch may serve to convince users that it will not be a very “hard” breakage.</pre></article></topcomment>
+
+
+<p><a href="https://disqus.com">blog comments powered by <span>Disqus</span></a></p></div></div>

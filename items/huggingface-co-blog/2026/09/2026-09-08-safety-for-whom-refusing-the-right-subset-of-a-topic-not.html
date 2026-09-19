@@ -1,0 +1,55 @@
+<div id="readability-page-1" class="page"><div>
+<p>Most safety alignment work treats harm as a property of a topic. A prompt is unsafe because it falls into a general category such as weapons, fraud, or self-harm, and guard models like <a href="https://huggingface.co/meta-llama/Llama-Guard-3-8B">LlamaGuard-3</a> encode exactly this kind of topic-level taxonomy. Benchmarks like <a href="https://arxiv.org/abs/2308.01263" rel="nofollow">XSTest</a> and <a href="https://arxiv.org/abs/2405.20947" rel="nofollow">OR-Bench</a> then probe the failure mode this creates, models that refuse safe prompts because they contain a dangerous-looking word, and refusal-calibration work tries to pull that number back down.</p>
+<p>Real deployments rarely fit the topic-level picture. The same base model may be adapted for a general assistant, an educational product, an enterprise system, or a public-sector service, and each setting needs different boundaries within the same topic. A civics tutor and a public-sector assistant can share a model yet require opposite behaviour on politics: both should answer factual questions about an election, but only one may need to refuse a request to write targeted political manipulation. A topic-level guard cannot express that split. LlamaGuard-3, for example, covers elections only as "factually incorrect information about electoral systems and processes," which excludes persuasion and manipulation and, at the same time, excludes the factual prompts a deployment must keep answering.</p>
+<p>Our latest paper, <a href="https://huggingface.co/papers/2609.04482"><em>Safety for Whom? Boundary-Aware Self-Distillation for Controlled LLM Safety Refusal</em></a>, studies this narrower problem directly. The question is not whether an entire topic should be refused, but which subset of that topic is incompatible with a given deployment policy, and how to train and measure a model against that boundary.</p>
+<h2>
+	<a id="narrow-boundary-safety" href="#narrow-boundary-safety" rel="nofollow">
+		
+	</a>
+	<span>
+		Narrow-boundary safety
+	</span>
+</h2>
+<p>We formalise the setting as a topic universe, all political prompts in our experiments, that contains a target-harmful subset the deployment wants to refuse. The intended policy is not to refuse all of politics, but to refuse the harmful subset while continuing to answer the benign complement. The ideal behaviour is a sharp step: refuse inside the subset, answer everywhere else in the topic.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/668e37fd9c9aa124a3c867e8/g_Xngr05EUhlIBNT-mG8s.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/668e37fd9c9aa124a3c867e8/g_Xngr05EUhlIBNT-mG8s.png" alt="Narrow-boundary safety. The topic universe of political prompts contains a smaller subset that the deployment should refuse, while the benign complement should still be answered. The ideal refusal is a sharp step, but a trained model's refusal probability is smoother and can overshoot into benign territory near the boundary."></a></p>
+<p><em>The narrow-boundary setting. A deployment may need to refuse only the political prompts that ask for manipulation or targeted persuasion, while still answering other political prompts, rather than refusing all of politics. A trained model's refusal is smoother than the ideal split and can spill into benign territory near the boundary. Source: paper Figure 1.</em></p>
+<p>A trained model never learns that sharp step. It learns a refusal probability that only approximates the target, and cross-entropy training that raises refusal inside the harmful subset can also push refusal outward into the benign complement. So the real problem is not only raising refusal on harmful prompts, but shaping the behaviour near the boundary itself. We operationalise that boundary as pairs of prompts that share a topic anchor and differ only in intent, one that should be refused and one that should be answered.</p>
+<p>We use political persuasion as the testbed, since manipulative persuasion can cause real harm while factual political information stays legitimate, which is exactly the case where topic-level refusal is too blunt.</p>
+<h2>
+	<a id="where-self-generated-safety-tuning-breaks" href="#where-self-generated-safety-tuning-breaks" rel="nofollow">
+		
+	</a>
+	<span>
+		Where self-generated safety tuning breaks
+	</span>
+</h2>
+<p>The natural way to build training data here is self-generation: take the target model, steer it toward a refusal on each harmful prompt, and keep the traces a guard model verifies as genuine refusals. This is the recipe behind methods like <a href="https://arxiv.org/abs/2601.23143" rel="nofollow">ThinkSafe</a>, and we adopt it as our reference, applied to political prompts and measured component by component. Framing the problem as a boundary rather than a topic exposes three weaknesses in that standard pipeline.</p>
+<p>The first is a coverage gap. A single steering attempt does not always produce an accepted refusal, and those prompts are silently dropped from the training set. In our audited pool, single-shot generation drops 19.88% of prompts, 8,009 of them, and these failed prompts may well be the hardest examples. We repair this instead of discarding it: an escalating retry strategy, resampling the same prompt through progressively stronger steering, brings the residual failures down to 0.20%, or 79 prompts. Coverage repair leaves 40,293 harmful training prompts where the naive pipeline would have thrown thousands away.</p>
+<p>The second is downside reactions. Safety tuning tends to produce false refusals on benign prompts that look superficially dangerous. To compensate, we build in-distribution benign data, including 11,955 verified surface-dangerous benign prompts across 18 semantic types, so the model sees safe prompts with dangerous-looking wording during training rather than only at evaluation.</p>
+<p>The third is that ordinary harmful and benign splits do not measure the shape of the boundary at all. A model can improve its harmful-refusal rate simply by expanding refusal into nearby permissible prompts, and a topic-level metric will call that an improvement. Held-out harmful-benign pairs, 1,539 per side, let us measure both sides of the boundary directly.</p>
+<h2>
+	<a id="the-trade-off-and-a-trap-it-hides" href="#the-trade-off-and-a-trap-it-hides" rel="nofollow">
+		
+	</a>
+	<span>
+		The trade-off, and a trap it hides
+	</span>
+</h2>
+<p>Training on political refusal data works in the obvious sense. On <a href="https://huggingface.co/Qwen/Qwen3-8B">Qwen3-8B</a>, the escalated-coverage model raises in-distribution political refusal from 9.47% to 84.75%, and it also transfers: the mean unsafe-response rate across three broader harmfulness benchmarks, <a href="https://www.harmbench.org" rel="nofollow">HarmBench</a>, StrongREJECT, and <a href="https://arxiv.org/abs/2406.18510" rel="nofollow">WildJailbreak</a>, scored by LlamaGuard-3, falls from 26.26% to 0.14% in the strongest configuration.</p>
+<p>Reported alone, those numbers look like a clean win. They are not. At the same checkpoint, over-refusal on XSTest rises from 2.00% to 74.00%. The configuration with the lowest harmful-response rate is also the one that refuses nearly three quarters of plainly safe prompts. It is a blunt refusal machine, not a safer model, and you cannot see that unless you measure the benign side. This is the central message: data composition decides where a checkpoint sits in the space of safety against over-refusal, so the two axes have to be reported together.</p>
+<p>Two of our data components pull the over-refusal number back down without giving up the safety gain. Replacing externally adopted compliance responses with verified responses generated by the target model itself lowers XSTest over-refusal from 15.20% to 5.20% under single-shot generation, at a modest harmfulness cost. And the harmful-benign boundary pairs do the most precise work of all.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68db932961906f42259438b7/6W8oCYwy3TnSfdaBsH74C.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68db932961906f42259438b7/6W8oCYwy3TnSfdaBsH74C.png" alt="Pairwise boundary data reduces over-refusal at the boundary. Adding the benign side of the boundary pairs drops comply-side over-refusal from roughly 0.49 down to 0.03 to 0.08, while harmful-side refusal falls only slightly, from about 0.92 to 0.88."></a></p>
+<p><em>Left: over-refusal on the comply-worthy side of the held-out boundary, lower is better. Runs with the benign boundary data (PB) fall to 0.03 to 0.08; without it, the number rises toward 0.49. Right: refusal on the harmful side, higher is better, which falls only slightly. Source: paper Figure 6.</em></p>
+<p>Concretely, adding the benign boundary data reduces over-refusal on the comply-worthy side of the held-out pairs from 32.94% to 4.16%. Refusal on the harmful side drops only from 91.88% to 87.72%. In other words, most of the false refusals near the boundary disappear while almost all of the genuine refusals survive. There is a real recall cost, and it is small and measurable, which is the point: you can only trade it off deliberately if you are measuring both sides.</p>
+<h2>
+	<a id="what-this-changes" href="#what-this-changes" rel="nofollow">
+		
+	</a>
+	<span>
+		What this changes
+	</span>
+</h2>
+<p>The practical takeaway is that safety tuning should not be assessed by harmful-refusal rate alone. A model that refuses more is not automatically safer, and on a narrow boundary the same move that raises refusal on harmful prompts can quietly make the model useless on the legitimate prompts right next to them. Composition of the training data, coverage repair, in-distribution compensation, and boundary pairs are what control that trade-off, and both sides of the intended boundary have to be evaluated for the numbers to mean anything.</p>
+<p>This work is part of <a href="https://multiversecomputing.com" rel="nofollow">Multiverse Computing's</a> research into making model behaviour controllable and measurable at the level real deployments care about, rather than at the level of broad topic categories. The same generation pipeline extends to other topics beyond politics, and the paper reports the full set of data-composition ablations behind the results above.</p>
+<p>Want the full technical details, including the coverage-repair strategies, the loss routing that separates harmful cross-entropy from benign forward-KL preservation, and the complete held-out boundary evaluation? Read the full paper, or get in touch with our team to talk about deployment-specific safety for your own models.</p>
+</div></div>

@@ -1,0 +1,360 @@
+<div id="readability-page-1" class="page"><div>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/adding-mcp-tools-to-reachy-mini/reachy_mini_window.jpg" alt="Reachy Mini looking out the window">
+  <figcaption><em>Reachy Mini no longer has to look out the window to tell you the weather</em></figcaption>
+</figure>
+
+<p>The Reachy Mini conversation app can now use tools hosted in public Hugging Face Spaces, called over MCP. You can give your robot a new ability, like checking the weather or searching the web, by adding a Space from the Hub instead of editing the app. The tool keeps running in the Space itself, so no code is downloaded onto your machine. And you can publish your own tools for other people to use.</p>
+<p>Adding a tool takes one command:</p>
+<pre><code>reachy-mini-conversation-app tool-spaces add pollen-robotics/reachy-mini-weather-tool
+</code></pre>
+<p>Then start the app as usual:</p>
+<pre><code>reachy-mini-conversation-app
+</code></pre>
+<p>Now you can just ask:</p>
+<pre><code>What's the weather in Paris today?
+</code></pre>
+<p>Below, we look at what a tool is, how profiles control what the robot can use, and the current limits of the remote path.</p>
+<h2>
+	<a id="built-in-tools" href="#built-in-tools" rel="nofollow">
+		
+	</a>
+	<span>
+		Built-in tools
+	</span>
+</h2>
+<p>When you talk to the robot, what you get back isn't only a voice, it's a system that reacts to the conversation: the robot can move and respond non-verbally, when it's applicable. The part we want to focus on here is the tools that make that possible. A tool is something the model can do during a conversation: play an emotion, move the head, look through the camera. Each tool has a name and a short description. The model reads those, decides when one is useful, calls it, and uses what comes back.</p>
+<p>Today every tool is local and ships inside the app, and most of them are about the robot's body:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>move_head</code></td>
+<td>Queue a head pose change</td>
+</tr>
+<tr>
+<td><code>dance</code> / <code>stop_dance</code></td>
+<td>Play or clear a dance from the dances library</td>
+</tr>
+<tr>
+<td><code>play_emotion</code> / <code>stop_emotion</code></td>
+<td>Play or clear a recorded emotion clip</td>
+</tr>
+<tr>
+<td><code>head_tracking</code></td>
+<td>Toggle head-tracking offsets</td>
+</tr>
+<tr>
+<td><code>camera</code></td>
+<td>Capture a frame and analyze it</td>
+</tr>
+<tr>
+<td><code>idle_do_nothing</code></td>
+<td>Explicitly stay idle on an idle turn</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="how-profiles-control-tools" href="#how-profiles-control-tools" rel="nofollow">
+		
+	</a>
+	<span>
+		How profiles control tools
+	</span>
+</h2>
+<p>A tool in the code isn't usable until it's enabled in <strong>a profile</strong>, a folder with two files that matter here: <code>instructions.txt</code> (the prompt) and <code>tools.txt</code> (the tools that are turned on).</p>
+<p>The <code>default</code> profile enables the full set:</p>
+<pre><code># profiles/default/tools.txt
+dance
+stop_dance
+play_emotion
+stop_emotion
+camera
+idle_do_nothing
+head_tracking
+move_head
+</code></pre>
+<p>If a name isn't in <code>tools.txt</code>, the model can't call it.</p>
+<p>You can also write your own tool: add a Python file to the profile (or <code>external_tools/</code>), give it a name and description, and list that name in <code>tools.txt</code>.</p>
+<p>Today there are built-in tools and custom local tools, and <code>tools.txt</code> decides which are active. This works well for the robot's body and keeps the trusted core small.</p>
+<h2>
+	<a id="the-limits-of-local-tools" href="#the-limits-of-local-tools" rel="nofollow">
+		
+	</a>
+	<span>
+		The limits of local tools
+	</span>
+</h2>
+<p>The constraint here is that every tool has to be local Python. For <code>move_head</code> or <code>play_emotion</code> that's right: they talk to the hardware and belong in the app but a lot of useful things have nothing to do with the body, like web search, weather, or lookups. For those, keeping everything local is mostly friction:</p>
+<ul>
+<li>sharing a tool means handing someone your Python files</li>
+<li>updating it means sending those files again</li>
+<li>changing it means editing the app, even though the capability is really separate from it</li>
+</ul>
+<h2>
+	<a id="calling-tools-from-spaces" href="#calling-tools-from-spaces" rel="nofollow">
+		
+	</a>
+	<span>
+		Calling tools from Spaces
+	</span>
+</h2>
+<p>Remote tools add a third kind, alongside the built-in and custom local tools you already have, for capabilities that are easier to publish, share, and update on their own:</p>
+<ul>
+<li>built-in robot tools stay local and trusted</li>
+<li>shareable remote tools can live in public Hugging Face Spaces</li>
+<li>you can still use custom one-off tools from <code>external_tools/</code>
+It's a good fit for stateless capabilities like search, weather, and lookups: anything you want to iterate on without touching the app itself. And because anyone can publish a compatible Space, it's easy to share tools and build on each other's work.</li>
+</ul>
+<p>We started with two canary tools, small test tools to exercise the new flow:</p>
+<ul>
+<li><a href="https://huggingface.co/spaces/pollen-robotics/reachy-mini-search-tool">pollen-robotics/reachy-mini-search-tool</a></li>
+<li><a href="https://huggingface.co/spaces/pollen-robotics/reachy-mini-weather-tool">pollen-robotics/reachy-mini-weather-tool</a></li>
+</ul>
+<p>They're enough to exercise the whole feature: install from the Hub, discover the remote tools, enable them per profile, and let the realtime backend call them exactly like built-in tools.</p>
+<p>To use both at once, add each Space and their tools stack in the same profile:</p>
+<pre><code>reachy-mini-conversation-app tool-spaces add pollen-robotics/reachy-mini-search-tool
+reachy-mini-conversation-app tool-spaces add pollen-robotics/reachy-mini-weather-tool
+</code></pre>
+<p>Now the robot can search the web and check the weather in the same conversation, which is exactly what the <code>canary_web_search_weather</code> profile below does.</p>
+<h2>
+	<a id="install-list-remove" href="#install-list-remove" rel="nofollow">
+		
+	</a>
+	<span>
+		Install, list, remove
+	</span>
+</h2>
+<pre><code># install + enable in active profile
+reachy-mini-conversation-app tool-spaces add &lt;owner/space-name&gt;
+ 
+# enable in a specific profile
+reachy-mini-conversation-app tool-spaces add &lt;owner/space-name&gt; --profile &lt;NAME&gt;
+ 
+# install without enabling
+reachy-mini-conversation-app tool-spaces add &lt;owner/space-name&gt; --install-only
+ 
+# list installed spaces
+reachy-mini-conversation-app tool-spaces list
+ 
+# remove an installed space
+reachy-mini-conversation-app tool-spaces remove &lt;owner/space-name&gt;
+</code></pre>
+<p><code>add</code> validates the Space on the Hub, probes the MCP endpoint, discovers its tools, and by default appends the tool IDs to the active profile's <code>tools.txt</code>. The active profile is <code>default</code> unless you've set <code>REACHY_MINI_CUSTOM_PROFILE</code>. Use <code>--install-only</code> to skip that step.</p>
+<blockquote>
+<p><code>tools.txt</code> is the gatekeeper: a remote tool is only active if its ID appears in the profile's <code>tools.txt</code>, alongside whatever built-in tools you want.</p>
+</blockquote>
+<h3>
+	<a id="where-the-manifest-lives" href="#where-the-manifest-lives" rel="nofollow">
+		
+	</a>
+	<span>
+		Where the manifest lives
+	</span>
+</h3>
+<p>Installed sources are persisted in:</p>
+<ul>
+<li><code>installed_tool_spaces.json</code> in managed app mode</li>
+<li><code>external_content/installed_tool_spaces.json</code> in terminal mode</li>
+</ul>
+<h2>
+	<a id="tool-naming" href="#tool-naming" rel="nofollow">
+		
+	</a>
+	<span>
+		Tool naming
+	</span>
+</h2>
+<p>Each installed Space gets a local alias derived from its slug, with hyphens, dots, and slashes collapsing to underscores:</p>
+<pre><code>pollen-robotics/reachy-mini-search-tool → pollen_robotics_reachy_mini_search_tool
+</code></pre>
+<p>Remote tools are then namespaced with a double underscore:</p>
+<pre><code>pollen_robotics_reachy_mini_search_tool__search_web
+pollen_robotics_reachy_mini_weather_tool__get_day_brief
+</code></pre>
+<p>This keeps remote tool names from colliding with built-in ones and lets multiple Spaces coexist in the same profile.</p>
+<p>The implementation also strips redundant Space-name prefixes when possible, so a verbose remote tool name becomes a cleaner local ID. If stripping would cause a collision between two tools from the same Space, the code falls back to the fully namespaced name.</p>
+<p>There is also a duplicate safety check at registry level: <code>Tool.name</code> values must be unique across the entire merged tool set. The app fails fast if two sources claim the same name.</p>
+<h2>
+	<a id="example-profiles" href="#example-profiles" rel="nofollow">
+		
+	</a>
+	<span>
+		Example profiles
+	</span>
+</h2>
+<p>For this work we created two focused canary profiles to isolate the MCP experiment from the full embodied tool set.</p>
+<p>The first keeps a few expressive tools (emotions, head movement) and adds web search on top:</p>
+<pre><code># profiles/canary_web_search/tools.txt
+play_emotion
+stop_emotion
+idle_do_nothing
+move_head
+pollen_robotics_reachy_mini_search_tool__search_web
+</code></pre>
+<p>The second is the same, plus the weather tool alongside search:</p>
+<pre><code># profiles/canary_web_search_weather/tools.txt
+play_emotion
+stop_emotion
+idle_do_nothing
+move_head
+pollen_robotics_reachy_mini_search_tool__search_web
+pollen_robotics_reachy_mini_weather_tool__get_day_brief
+</code></pre>
+<p>The small physical tool set means Reachy Mini can still react expressively while answering current questions from the web.</p>
+<h2>
+	<a id="why-the-prompts-matter" href="#why-the-prompts-matter" rel="nofollow">
+		
+	</a>
+	<span>
+		Why the prompts matter
+	</span>
+</h2>
+<p>The remote-tool plumbing gets the tools into the model. The prompts decide how the model uses them.</p>
+<p>That was especially visible in the search-plus-weather canary. A combined question like:</p>
+<pre><code>Should I bring a jacket in Bordeaux today, and is there anything major happening downtown tonight?
+</code></pre>
+<p>can be handled in at least three ways: weather first then search, search first then weather, or both in the same turn. If the prompt is vague, the model serialises the calls and creates unnecessary latency. So the canary prompts became part of the feature, not just incidental configuration.</p>
+<h4>
+	<a id="canary_web_searchinstructionstxt" href="#canary_web_searchinstructionstxt" rel="nofollow">
+		
+	</a>
+	<span>
+		<code>canary_web_search/instructions.txt</code>
+	</span>
+</h4>
+<pre><code>[default_prompt]
+
+## CANARY WEB SEARCH RULES
+You have one remote tool for current web information.
+Use it when the user asks for up-to-date facts, news, live availability, or anything else that may have changed recently.
+
+When the search result already answers the question, answer directly in plain language.
+Lead with the answer, not with tool chatter.
+For remote lookups that may take a moment, you may give one very short English acknowledgment such as "Let me check that and I'll be right back," then continue.
+Answer in English unless the user explicitly asks for another language.
+Mention uncertainty briefly if the result snippet is incomplete or ambiguous.
+Only mention links when they add value or the user asks for sources.
+
+Keep responses short and spoken-style, as if read aloud by a voice assistant. One or two sentences is usually enough. Skip preamble, lists, headers, and filler. Give just the fact or direct answer the user needs.
+</code></pre>
+<h4>
+	<a id="canary_web_search_weatherinstructionstxt" href="#canary_web_search_weatherinstructionstxt" rel="nofollow">
+		
+	</a>
+	<span>
+		<code>canary_web_search_weather/instructions.txt</code>
+	</span>
+</h4>
+<pre><code>[default_prompt]
+
+## CANARY SEARCH AND WEATHER RULES
+You have two remote tools:
+- a weather brief tool for compact day weather at a location
+- a web search tool for broader current web information
+
+Use the weather tool for today's conditions, temperature, rain chance, sunrise, sunset, or simple advice like whether to bring a jacket.
+Use web search for news, events, business hours, travel information, severe alerts, or broader current context.
+
+When the user's question mixes a weather part and a current-info part (for example, "should I bring a jacket in Bordeaux today, and is there anything major happening downtown tonight?"), call both tools in parallel in the same turn. Do not wait for one result before starting the other unless the weather result is needed to narrow the search.
+
+Then merge the results into a single short answer. Cover the weather part first, then the events or news part, in plain connected sentences. Do not label the sections or mention which tool gave which piece.
+
+When the user asks about events, news, or what is happening, give them the actual answer from the search results: name specific events, venues, or headlines. Do not tell the user to check websites, visit listing sites, or look something up themselves. If the search returns nothing concrete, say plainly that you didn't find any notable events, rather than redirecting them elsewhere.
+
+For remote lookups that may take a moment, you may give one very short English acknowledgment such as "Let me check that and I'll be right back," then continue.
+Answer in English unless the user explicitly asks for another language.
+Do not talk about tool usage unless the user asks.
+
+Keep responses short and spoken-style, as if read aloud by a voice assistant. One or two sentences is usually enough. Skip preamble, lists, headers, and filler. Give just the fact or direct answer the user needs.
+</code></pre>
+<h2>
+	<a id="what-works-today-and-what-doesnt" href="#what-works-today-and-what-doesnt" rel="nofollow">
+		
+	</a>
+	<span>
+		What works today, and what doesn't
+	</span>
+</h2>
+<div>
+	<table>
+		<thead><tr>
+<th>Capability</th>
+<th>Supported</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Install by slug for public, MCP-compatible Gradio Spaces (standard <code>/gradio_api/mcp/</code> endpoint)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Multiple Spaces at once</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Per-profile enablement via <code>tools.txt</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Namespaced remote tool IDs</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Backend-agnostic registration (OpenAI, Gemini, Hugging Face)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>No arbitrary code downloaded into the local app</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Private or authenticated Spaces</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Non-Gradio Spaces</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Arbitrary raw MCP URLs or non-Hugging Face MCP servers</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Guaranteed parallel tool orchestration</td>
+<td>❌</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Two things are worth calling out. First, the Space has to actually behave like an MCP server; if tool discovery fails, the install fails. Second, prompt instructions can encourage parallel calls but cannot guarantee them. If deterministic orchestration matters for a use case, that logic should move from the prompt into code.</p>
+<h2>
+	<a id="tips-for-publishing-a-tool-space" href="#tips-for-publishing-a-tool-space" rel="nofollow">
+		
+	</a>
+	<span>
+		Tips for publishing a tool Space
+	</span>
+</h2>
+<p>If you want others to use your tool, publish it as a public Gradio Space that exposes the standard MCP endpoint, and keep the tools stateless so they work well over the network. Whether a Space installs depends on this runtime behavior, not on tags.</p>
+<p>Tags aren't required for installation, but they help people find compatible Spaces:</p>
+<ul>
+<li><code>reachy-mini-tool</code></li>
+<li><code>mcp</code></li>
+</ul>
+<h2>
+	<a id="conclusion" href="#conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion
+	</span>
+</h2>
+<p>The app now has three kinds of tools sharing one registry: built-in, local custom, and remote MCP tools, and profiles still decide which of them a given assistant can reach. A small, trusted core stays at the center while the optional capabilities around it can be added, tested, and swapped without touching the app itself.</p>
+<p>What we're most curious about now is what people build. If you publish a tool Space, tag it <code>reachy-mini-tool</code> and <code>mcp</code> so others can find it. We'd love to see what Reachy Mini ends up able to do!</p>
+<p><em>Acknowledgements: Many thanks to <a href="https://huggingface.co/FabienDanieau">Fabien Danieau</a> for proofreading this post and helping test the workflow, to <a href="https://huggingface.co/andito">Andres Marafioti</a> for helping test it, and to <a href="https://huggingface.co/RemiFabre">Remi Fabre</a> and the Pollen Robotics team for the ideas and feedback that shaped the remote tools workflow.</em></p>
+</div></div>

@@ -1,0 +1,333 @@
+---
+title: 'Introducing OlmoEarth embeddings: Custom embedding exports from OlmoEarth Studio for downstream analysis'
+link: https://huggingface.co/blog/allenai/olmoearth-embeddings
+source: huggingface-co-blog
+published: 2026-08-12T16:14:36Z
+updated: 2026-08-12T16:14:36Z
+first_seen: 2026-09-19T21:30:23.395188495Z
+content: extracted
+html: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.html
+preview:
+  file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.preview-ad116fc11047.webp
+  width: 256
+  height: 152
+  color: '#134547'
+images:
+- source: https://cdn-uploads.huggingface.co/production/uploads/638e39b249de7ae552d977b5/u9KR_QjSYF7mJIbRE3Ni8.jpeg
+  original:
+    file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-771457584acf.jpg
+    width: 2048
+    height: 1217
+  color: '#093234'
+- source: https://www.datocms-assets.com/64837/1776965297-olmoearth-embeddings-blog-google-docs-image-1.png
+  original:
+    file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-a9bdee8053d9.png
+    width: 2048
+    height: 1217
+  variants:
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-51691301293e.webp
+    width: 320
+    height: 190
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-060cc2715206.webp
+    width: 640
+    height: 380
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-ffb55b8aa28f.webp
+    width: 960
+    height: 570
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-8a47ef09590d.webp
+    width: 1280
+    height: 761
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-731ca628a18d.webp
+    width: 1600
+    height: 951
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-3a4eae0dc5d6.webp
+    width: 2048
+    height: 1217
+  color: '#0a3235'
+- source: https://www.datocms-assets.com/64837/1776965912-olmoearth-embeddings-blog-google-docs-image-2-1.png
+  original:
+    file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-f4da77de9a3c.png
+    width: 2048
+    height: 1274
+  variants:
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-ddac5fefc2d3.webp
+    width: 320
+    height: 199
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-642d141d6aba.webp
+    width: 640
+    height: 398
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-6b18bed719bd.webp
+    width: 960
+    height: 597
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-57a8733cd44e.webp
+    width: 1280
+    height: 796
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-4d0f816e823c.webp
+    width: 1600
+    height: 995
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-bc4dcd026b3f.webp
+    width: 2048
+    height: 1274
+  color: '#111111'
+- source: https://www.datocms-assets.com/64837/1776966011-olmoearth-embeddings-blog-google-docs-image-3.png
+  original:
+    file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-6891859979e2.png
+    width: 1118
+    height: 988
+  variants:
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-779af4eabdae.webp
+    width: 320
+    height: 283
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-d59b040d9d09.webp
+    width: 640
+    height: 566
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-9b09d609980f.webp
+    width: 960
+    height: 848
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-ae691ff59070.webp
+    width: 1118
+    height: 988
+  color: '#878764'
+- source: https://www.datocms-assets.com/64837/1776966099-olmoearth-embeddings-blog-google-docs-image-4-2.png
+  original:
+    file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-a991f1bd6cf6.png
+    width: 2048
+    height: 1076
+  variants:
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-7ebd2caffba0.webp
+    width: 320
+    height: 168
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-86a0f4b292d3.webp
+    width: 640
+    height: 336
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-c652c0be143c.webp
+    width: 960
+    height: 504
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-974c87177640.webp
+    width: 1280
+    height: 673
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-b43e13d762e5.webp
+    width: 1600
+    height: 841
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-8d4543b393af.webp
+    width: 2048
+    height: 1076
+  color: '#571658'
+- source: https://www.datocms-assets.com/64837/1776966200-olmoearth-embeddings-blog-google-docs-image-5-2.png
+  original:
+    file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-8f75bfc41995.png
+    width: 1970
+    height: 2048
+  variants:
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-a59c6f4c5281.webp
+    width: 320
+    height: 333
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-b74d3f954f97.webp
+    width: 640
+    height: 665
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-8c7497f99a0c.webp
+    width: 960
+    height: 998
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-ce613a60ac37.webp
+    width: 1280
+    height: 1331
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-392dbbb6474e.webp
+    width: 1970
+    height: 2048
+  color: '#25380b'
+- source: https://www.datocms-assets.com/64837/1776966290-olmoearth-embeddings-blog-google-docs-image-6-2.png
+  original:
+    file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-5ea7b3f3f8d3.png
+    width: 2048
+    height: 731
+  variants:
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-eeea26f6b54a.webp
+    width: 320
+    height: 114
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-4cb316904459.webp
+    width: 640
+    height: 228
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-2728f689081e.webp
+    width: 960
+    height: 343
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-10d29d6e45ab.webp
+    width: 1280
+    height: 457
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-979a930877d8.webp
+    width: 1600
+    height: 571
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-8d63fdaa60c9.webp
+    width: 2048
+    height: 731
+  color: '#3258bd'
+- source: https://www.datocms-assets.com/64837/1776966463-olmoearth-embeddings-blog-google-docs-image-7-1.png
+  original:
+    file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-181772c16b84.png
+    width: 2048
+    height: 691
+  variants:
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-c0b59558db12.webp
+    width: 320
+    height: 108
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-47e90f81ef7e.webp
+    width: 640
+    height: 216
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-fe028c3b167e.webp
+    width: 960
+    height: 324
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-22eb7d2d2e1d.webp
+    width: 1280
+    height: 432
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-dcfb875cf052.webp
+    width: 1600
+    height: 540
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-ffc4ced8f053.webp
+    width: 2048
+    height: 691
+  color: '#190836'
+- source: https://www.datocms-assets.com/64837/1776966500-olmoearth-embeddings-blog-google-docs-image-8-2.png
+  original:
+    file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-c1b6558e25f1.png
+    width: 2048
+    height: 875
+  variants:
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-f29bac9d99d0.webp
+    width: 320
+    height: 137
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-aa804a8153a0.webp
+    width: 640
+    height: 273
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-07b95d43658a.webp
+    width: 960
+    height: 410
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-2b6d59a33abc.webp
+    width: 1280
+    height: 547
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-68c61f81b983.webp
+    width: 1600
+    height: 684
+  - file: 2026-08-12-introducing-olmoearth-embeddings-custom-embedding-exports.image-8637ed033375.webp
+    width: 2048
+    height: 875
+  color: '#133784'
+---
+
+📄 Tech Report: [https://allenai.org/papers/olmoearth](https://allenai.org/papers/olmoearth) | 📊 Documentation: [https://docs.olmoearth.allenai.org/embeddings](https://docs.olmoearth.allenai.org/embeddings) | 💻 Learn more about OlmoEarth: [https://allenai.org/olmoearth](https://allenai.org/olmoearth)
+
+[![OlmoEarth embeddings concept illustration: a grid of numeric embedding values connected by lines to points on a globe](https://www.datocms-assets.com/64837/1776965297-olmoearth-embeddings-blog-google-docs-image-1.png)](https://www.datocms-assets.com/64837/1776965297-olmoearth-embeddings-blog-google-docs-image-1.png)
+
+[OlmoEarth Studio](https://olmoearth.allenai.org/), our platform for building Earth observation models, now lets you compute and export **embedding vectors**—compact numerical representations of Earth-observation data produced by our open source OlmoEarth foundation models. The [source code](https://github.com/allenai/olmoearth_pretrain) and [model weights](https://huggingface.co/collections/allenai/olmoearth) are publicly available alongside the [research paper](https://allenai.org/papers/olmoearth), so the community can inspect exactly how these embeddings are generated.
+
+Embeddings are a fast, cost-effective entry point for leveraging OlmoEarth: they support a wide range of downstream tasks, from similarity search to segmentation to unsupervised exploration. Locations with similar surface characteristics end up with similar vectors; locations that differ land far apart. OlmoEarth embeddings have shown strong performance in our own benchmarking and in [independent evaluations](https://arxiv.org/abs/2603.02080). The exported Cloud-Optimized GeoTIFFs (COGs) are lightweight and easy to share. Choose your area of interest, time range, encoder variant, resolution, and imagery sources via the Studio UI or API, and get back a COG you can use however you like. If your application requires higher performance, Studio also supports [supervised fine-tuning (SFT)](https://docs.olmoearth.allenai.org/model-fine-tuning).
+
+Custom-computed embeddings are now available for users of OlmoEarth Studio. [Reach out](https://allenai.org/olmoearth) if you're interested in gaining access. Instructions for using the publicly available OlmoEarth models to compute your own embeddings are available [here](https://github.com/allenai/rslearn/blob/master/docs/examples/OlmoEarthEmbeddings.md).
+
+## [](https://huggingface.co/blog/allenai/olmoearth-embeddings#computing-embeddings-in-studio) Computing embeddings in Studio
+
+[![World map of OlmoEarth embeddings with each land pixel colored by its k-means cluster, revealing coherent biome and land-cover structure across continents](https://www.datocms-assets.com/64837/1776965912-olmoearth-embeddings-blog-google-docs-image-2-1.png)](https://www.datocms-assets.com/64837/1776965912-olmoearth-embeddings-blog-google-docs-image-2-1.png)
+
+*Global structure in OlmoEarth embeddings from seasonal Sentinel-2 imagery across 1.1M samples. Colors indicate 15 k-means clusters in a PCA-reduced embedding space.*
+
+Computing embeddings follows the same workflow as any other prediction in Studio. First configure a model and run it, and then download the results. Several parameters tailor the output:
+
+- **Area of interest:** Draw or upload any polygon; Studio handles imagery acquisition and tiling.
+- **Time span:** 1-12 monthly periods.
+- **Encoder variant:** Nano (128-dim, 1.4M params), Tiny (192-dim, 6.2M params), or Base (768-dim, 89M params).
+- **Spatial resolution:** 10 meter, 20 meter, 40 meter, or 80 meter per pixel.
+- **Imagery sources:** Sentinel-2 L2A, Sentinel-1 RTC, or both.
+
+[![Four false-color renderings of the same embedding raster side by side, each mapping the embedding bands to color differently](https://www.datocms-assets.com/64837/1776966011-olmoearth-embeddings-blog-google-docs-image-3.png)](https://www.datocms-assets.com/64837/1776966011-olmoearth-embeddings-blog-google-docs-image-3.png)
+
+*Different visualization options applied to the same embedding raster.*
+
+Studio delivers a COG with one band per embedding dimension. Vectors are stored as **signed 8-bit integers** (int8). Values range from -127 to +127, with -128 reserved for nodata. To recover floating-point vectors, see [dequantize\_embeddings](https://github.com/allenai/olmoearth_pretrain/blob/main/olmoearth_pretrain/evals/embedding_transforms.py) in olmoearth\_pretrain.
+
+Because everything is computed on demand rather than pulled from a pre-computed global archive, your embeddings reflect exactly the conditions you care about. You can generate monthly embeddings to capture seasonal dynamics, not just annual snapshots.
+
+## [](https://huggingface.co/blog/allenai/olmoearth-embeddings#what-you-can-do-with-olmoearth-embeddings) What you can do with OlmoEarth embeddings
+
+The examples below all use OlmoEarth-v1-Tiny (192-dim) embeddings at 40-meter resolution with Sentinel-2 L2A composites (annual for most examples; monthly for change detection). Tiny is a lightweight encoder but still highly performant; for your own applications, you can swap it for a larger variant at the cost of higher compute and storage.
+
+### [](https://huggingface.co/blog/allenai/olmoearth-embeddings#similarity-search-finding-more-like-this) Similarity search: Finding "more like this"
+
+Pick a query pixel, extract its embedding, and compute cosine similarity against every other pixel. The result is a heatmap showing where the landscape looks most and least like your query pixel.
+
+[![Sentinel-2 imagery of farmland around Merced, California with the query pixel boxed in blue, beside the matching cosine-similarity heatmap in which the urban core and road corridors glow yellow against dark cropland](https://www.datocms-assets.com/64837/1776966099-olmoearth-embeddings-blog-google-docs-image-4-2.png)](https://www.datocms-assets.com/64837/1776966099-olmoearth-embeddings-blog-google-docs-image-4-2.png)
+
+This query sits near the Merced urban center in California. Urban fabric and road corridors light up coherently while agricultural parcels stay dark. The model distinguishes built-up surfaces from cropland without any labels.
+
+Switching the query to a small agricultural window, we define the query vector as the mean of the embedding vectors over that window, then pull Sentinel-2 imagery at the highest- and lowest-similarity locations to see what the model treats as similar and dissimilar.
+
+[![Embedding cosine similarity, query versus highest and lowest: an overview tile and the blue query patch above three high-similarity agricultural patches at 0.91, 0.89, and 0.89, and three low-similarity patches at -0.05 (airport), 0.03 (reservoir), and 0.08 (arid rangeland)](https://www.datocms-assets.com/64837/1776966200-olmoearth-embeddings-blog-google-docs-image-5-2.png)](https://www.datocms-assets.com/64837/1776966200-olmoearth-embeddings-blog-google-docs-image-5-2.png)
+
+The most similar patches (0.89 and above) are all agricultural parcels with irrigated fields. The least similar (around zero) are an airport with surrounding bare ground, a reservoir with dry terrain, and arid rangeland. No training data, no labels, just a dot product in embedding space.
+
+### [](https://huggingface.co/blog/allenai/olmoearth-embeddings#few-shot-segmentation-labeling-the-landscape) Few-shot segmentation: Labeling the landscape
+
+Similarity search tells you "where is it like this?" but sometimes you need discrete labels across a region. Because the representations are already rich, a simple linear classifier can produce a wall-to-wall land-cover map from very few labeled pixels.
+
+To test this, we labeled just *60 pixels* (20 per class) over Ca Mau, Vietnam, a coastal mangrove region. Using [ESA WorldCover 2021](https://esa-worldcover.org/en) as the label source for three classes (mangrove, water, other), we randomly sampled 20 pixels per class, trained a logistic regression with per-feature standardization, and predicted every pixel in the region.
+
+[![Few-shot classification from 60 labeled pixels over Ca Mau, Vietnam: Sentinel-2 RGB, the ESA WorldCover reference map, and the predicted mangrove/water/other map at F1 0.84](https://www.datocms-assets.com/64837/1776966290-olmoearth-embeddings-blog-google-docs-image-6-2.png)](https://www.datocms-assets.com/64837/1776966290-olmoearth-embeddings-blog-google-docs-image-6-2.png)
+
+From 60 labeled pixels, the classifier produces a coherent map with *weighted F1 = 0.84*. Mangrove stands, tidal channels, and open water are delineated across the entire region. The classifier saturates quickly: increasing from 30 to 300 labels barely changes accuracy, because the embeddings are doing most of the heavy lifting.
+
+The core of the analysis is a few lines of Python:
+
+```
+import rasterio
+import numpy as np
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+
+# Load the 192-band embedding COG exported from Studio
+with rasterio.open("embeddings.tif") as ds:
+    emb = ds.read().astype(np.float32)  # (192, H, W)
+
+C, H, W = emb.shape
+X = emb.reshape(C, -1).T  # (H*W, 192)
+
+# Train on labeled pixels, predict everywhere
+clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000))
+clf.fit(X[train_idx], labels[train_idx])
+prediction = clf.predict(X).reshape(H, W)
+```
+
+This is a *linear probe*, a standard evaluation for foundation models. The fact that a logistic regression over 192 dimensions recovers land-cover boundaries from so few labels means the Tiny encoder has organized these ecological distinctions during pretraining. Larger variants (Base, 768-dim) encode even richer representations.
+
+If you have ground-truth polygons, field survey points, or a coarse existing map, you can train a similar classifier and produce a wall-to-wall map for your own region of interest.
+
+### [](https://huggingface.co/blog/allenai/olmoearth-embeddings#change-detection-spotting-what-shifted) Change detection: Spotting what shifted
+
+Because Studio can generate embeddings at any temporal resolution (monthly through annual), you can compare two time periods directly to identify where surface conditions have changed. Below, we computed monthly Sentinel-2 embeddings for the same region in September 2023 and September 2024 and measured per-pixel cosine distance. The Park Fire (July-September 2024) burn scar in Butte County, California lights up immediately.
+
+[![Wildfire change detection from OlmoEarth embeddings: Sentinel-2 imagery of Butte County, California in September 2023 and September 2024, beside a cosine-distance map where the Park Fire burn scar glows orange and yellow](https://www.datocms-assets.com/64837/1776966463-olmoearth-embeddings-blog-google-docs-image-7-1.png)](https://www.datocms-assets.com/64837/1776966463-olmoearth-embeddings-blog-google-docs-image-7-1.png)
+
+No labels or training required—just two embedding COGs and a few lines of Python.
+
+### [](https://huggingface.co/blog/allenai/olmoearth-embeddings#unsupervised-exploration-seeing-what-the-model-sees) Unsupervised exploration: Seeing what the model sees
+
+Sometimes you have no query location or reference labels. You just want to understand what structure exists in the embeddings. Principal Component Analysis (PCA) is a clean way to do this: reduce to three dimensions, map to R/G/B, and display as a false-color image. Similar embeddings get similar colors automatically.
+
+[![OlmoEarth embedding structure over Flevoland, the Netherlands: Sentinel-2 RGB beside a PCA false-color image mapping PC1, PC2, and PC3 to red, green, and blue, which reproduces the polder parcel grid](https://www.datocms-assets.com/64837/1776966500-olmoearth-embeddings-blog-google-docs-image-8-2.png)](https://www.datocms-assets.com/64837/1776966500-olmoearth-embeddings-blog-google-docs-image-8-2.png)
+
+Flevoland, in the Netherlands, is a reclaimed polder landscape with a regular grid of agricultural parcels. The PCA false-color image reproduces those boundaries with high fidelity. Different crop types, water bodies, and urban areas each get distinct hues. The embedding has internalized landscape structure without ever being told what a parcel or crop is.
+
+This kind of unsupervised view is a quick way to see what structure the model has picked up across your area of interest.
+
+### [](https://huggingface.co/blog/allenai/olmoearth-embeddings#from-export-to-insight) From export to insight
+
+Similarity search, few-shot segmentation, change detection, and PCA exploration are simple operations on standard raster data that run in seconds. The power comes from the embeddings: learned representations that compress earth observation data into vectors capturing rich information about each location from many sensors and millions of training examples.
+
+Custom embedding exports are available now. Create a project, configure an embeddings model, and [compute your embeddings](https://docs.olmoearth.allenai.org/embeddings). The exported GeoTIFF works with any geospatial tool: QGIS, GDAL, rasterio, or your own scripts. For end-to-end code reproducing the examples in this post, see the [embeddings tutorial](https://github.com/allenai/olmoearth_projects/tree/main/tutorials/embeddings), which includes working code for [similarity search](https://github.com/allenai/olmoearth_projects/tree/main/tutorials/embeddings/src/olmoearth_embeddings_tutorial/similarity), [few-shot segmentation](https://github.com/allenai/olmoearth_projects/tree/main/tutorials/embeddings/src/olmoearth_embeddings_tutorial/segmentation), [change detection](https://github.com/allenai/olmoearth_projects/tree/main/tutorials/embeddings/src/olmoearth_embeddings_tutorial/change_detection), and [PCA visualization](https://github.com/allenai/olmoearth_projects/tree/main/tutorials/embeddings/src/olmoearth_embeddings_tutorial/pca). To get hands-on without any local setup, try the [Colab notebook](https://colab.research.google.com/drive/1JnhFn0IfDJEn49S4sKuCS-mv_b4T2tU0?usp=sharing).
+
+## [](https://huggingface.co/blog/allenai/olmoearth-embeddings#going-further-fine-tuning) Going further: fine-tuning
+
+The examples in this post all use frozen embeddings with no task-specific training. Embeddings are a great entry point for leveraging OlmoEarth: they enable fast, cost-effective generation of results, work well in resource-constrained environments, and are easy to share. For applications that require higher performance, OlmoEarth Studio also supports [SFT](https://docs.olmoearth.allenai.org/model-fine-tuning), training a task-specific model head on your own labels, which typically outperforms linear probes on frozen features.
+
+### [](https://huggingface.co/blog/allenai/olmoearth-embeddings#limitations) Limitations
+
+While we are always working to improve our pretraining approaches, it's important to check the quality of the embeddings for your use case using some of the techniques described above. Performance also depends on the quality of the input imagery—persistent cloud cover, atmospheric artifacts, or missing observations in the composite period can affect the resulting vectors.
+
+*Sentinel-2 L2A imagery from the European Space Agency, accessed via Microsoft Planetary Computer. ESA WorldCover 2021 v200 for mangrove reference. The global clustering visualization uses OlmoEarth-v1-Base (768-dim) with seasonal Sentinel-2 composites at patch size 8, instance-level embeddings over 1.1M pretraining samples.*

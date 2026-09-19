@@ -1,0 +1,37 @@
+<div id="readability-page-1" class="page"><div id="content">
+<section id="newslist"><article data-news-id="78"><h2><a href="https://antirez.com/news/78">Queues and databases</a></h2></article></section><topcomment><article data-comment-id="78-" id="78-"><span><span><a href="https://antirez.com/user/antirez">antirez</a></span> 4450 days ago. 304375 views.  </span><pre>Queues are an incredibly useful tool in modern computing, they are often used in order to perform some possibly slow computation at a latter time in web applications. Basically queues allow to split a computation in two times, the time the computation is scheduled, and the time the computation is executed. A “producer”, will put a task to be executed into a queue, and a “consumer” or “worker” will get tasks from the queue to execute them. For example once a new user completes the registration process in a web application, the web application will add a new task to the queue in order to send an email with the activation link. The actual process of sending an email, that may require retrying if there are transient network failures or other errors, is up to the worker.
+
+Technically speaking we can think at queues as a form of inter-process messaging primitive, where the receiving process needs to acknowledge the reception of the message. Messages can not be fire-and-forget, since the queue needs to understand if the message can be removed from the queue, so some form of acknowledgement is strictly required.
+
+When receiving a message triggers the execution of a task, like it happens in the kind of queues we are talking about, the moment the message reception is acknowledged changes the semantic of the queue. When the worker process acknowledges the reception of the message *before* processing the message, if the worker fails the message can be lost before the task is performed at all. If the acknowledge is sent only *after* the message gets processed, if the worker fails or because of network partitions the queue may re-deliver the message again. This happens whatever the queue consistency properties are, so, even if the queue is modeled using a system providing strong consistency, the indetermination still holds true:
+
+* If messages are acknowledged before processing, the queue will have an at-most-once delivery property. This means messages can be processed zero or one time.
+* If messages are acknowledged after processing, the queue will have an at-least-once delivery property. This means messages can be processed from 1 to infinite number of times.
+
+While both of this cases are not perfect, in the real world the second behavior is often preferred, since it is usually much simpler to cope with the case of multiple delivery of the message (triggering multiple executions of the task) than a system that from time to time does not execute a given task at all. An example of at-least-once delivery system is Amazon SQS (Simple Queue Service).
+
+There is also a fundamental reason why at-least-once delivery systems are to be preferred, that has to do with distributed systems: the other semantics (at-most-once delivery) requires the queue to be strongly consistent: once the message is acknowledged no other worker must be able to acknowledge the same message, which is a strong property.
+
+Once we move our focus to at-least-once delivery systems, we may notice that to model the queue with a CP system is a waste, and also a disadvantage:
+
+* Anyway, we can’t guarantee more than at-least-once delivery.
+* Our queue lose the ability to work into a minority side of a network partition.
+* Because of the consistency requirements the queue needs agreement, so we are burning performances and adding latency without any good reason.
+
+Since messages may be delivered multiple times, what we want conceptually is a commutative data structure and an eventually consistent system. Messages can be stored into a set data structure replicated into N nodes, with the merge function being the union among the sets. Acknowledges, received by workers after execution of messages, are also conceptually elements of the set, marking a given element as processed. This is a trivial example which is not particularly practical for a real world system, but shows how a given kind of queue is well modeled by a given set of properties of a distributed system.
+
+Practically speaking there are other useful things our queue may try to provide:
+
+* Guaranteed delivery to a single worker at least for a window of time: while multiple delivery is allowed, we want to avoid it as much as possible.
+* Best-effort checks to avoid to re-delivery a message after a timeout if the message was already processed. Again, we can’t guarantee this property, but we may try hard to reduce re-issuing a message which was actually already processed.
+* Enough internal state to handle, during normal operations, messages as a FIFO, so that messages arriving first are processed first.
+* Auto cleanup of the internal data structures.
+
+On top of this we need to retain messages during network partitions, so that conceptually (even if practically we could use different data structures) the set of messages to deliver are the union of all the messages of all the nodes.
+
+Unfortunately while many Redis based queues implementations exist, no one try to use N Redis independent nodes and the offered primitives as a building block for a distributed system with such characteristics. Using Redis data structures and performances, and algorithms providing certain useful guarantees, may provide a queue system which is very practical to use, easy to administer and scale, while providing excellent performances (messages / second) per node.
+
+Because I find the topic is interesting and this is an excellent use case for Redis, I’m very slowly working at a design for such a Redis based queue system. I hope to show something during the next weeks, time permitting.</pre></article></topcomment>
+
+
+<p><a href="https://disqus.com">blog comments powered by <span>Disqus</span></a></p></div></div>

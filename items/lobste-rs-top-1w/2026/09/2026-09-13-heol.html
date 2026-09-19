@@ -1,0 +1,137 @@
+<div id="readability-page-1" class="page"><div><h2>Heol is a Lisp system for the Uxn virtual machine.</h2>
+
+<img src="https://wiki.xxiivv.com/media/refs/heol.png" height="120">
+
+<p>Heol is a 16-bit <a href="https://wiki.xxiivv.com/site/lisp.html">Lisp</a> designed to fit comfortably inside <a href="https://wiki.xxiivv.com/site/uxn.html">Uxn</a> with <a href="https://wiki.xxiivv.com/site/varvara.html">Varvara</a> bindings.  Execution consists of reducing expressions, atoms return their value, lists are treated as function applications where the first element is a function name and the rest, arguments. Arguments are evaluated before being passed to the function.</p>
+
+
+
+<h3>Lists</h3>
+
+<p>The <kbd>(cons value list)</kbd> procedure
+constructs pairs, the <kbd>(car list)</kbd> procedure extracts the first elements of
+the list, and the <kbd>(cdr list)</kbd> procedure extracts the rest.</p>
+
+<pre>(cons 'a '(b c)) <i>; (a b c)</i>
+(car '(a b c)) <i>; a</i>
+(cdr '(a b c)) <i>; (b c)</i>
+</pre>
+
+<h3>Logic</h3>
+
+<p>The <kbd>(eq? a b)</kbd> procedure results in a flag either #t or () provided
+that the values of the expressions being compared are both atoms, and either
+they are both the same number, or they are both the same symbol:</p>
+
+<pre>(eq? 'a 'a) <i>; #t</i>
+(eq? 'a 'b) <i>; ()</i>
+</pre>
+
+<p>Given three expressions, the <kbd>(if flag when-true else)</kbd> returns the value
+of the second if the value of the expression flag is #t, otherwise returns the
+value of the third. </p>
+
+<pre>(if #t 
+	123 
+	456)
+</pre>
+
+<h3>Arithmetic</h3>
+
+<p>Arithmetic operators apply on all the items of a list and follow the <a href="https://wiki.xxiivv.com/site/notation.html">prefix notation</a>: </p>
+
+<pre>(* (+ 1 3 5) 19) <i>; 171</i></pre>
+
+<h3>Procedures</h3>
+
+<p>A <kbd>(lambda args exp)</kbd> expression evaluates to a procedure. The
+environment which is in effect when a lambda expression is evaluated is
+enclosed in the newly created procedure, this is referred to as a closure.
+Given an expression, the <kbd>(quote exp)</kbd> procedure returns that
+expression as a value.</p>
+
+<pre>((lambda (x) (* x x)) 3) <i>; 9</i>
+</pre>
+
+<p>The <kbd>(define name exp)</kbd> expression binds an expression to a name, making it possible to utilize that reference throughout the code.</p>
+
+<pre>(define double
+	(lambda (x) (+ x x)))
+
+(double 5)  <i>; 10</i>
+</pre>
+
+<h3>Sequencing operations</h3>
+
+<p>Heol does not have an explicit way of sequencing reduction(progn, begin, etc..) instead it uses <kbd>(and x1 x2 ... xk)</kbd>. One difference to be mindful of, is that <kbd>and</kbd> will not evaluate any argument after the first nil value. This can still be an efficient way, for example, of printing a value and returning another.</p>
+
+<pre>(and
+	(print 'hello)
+	42) <i>; Prints "Hello", but returns 42</i></pre>
+
+<h3>Loops</h3>
+
+<p>We now have the parts needed to make a loop and print the state of each step.</p>
+
+<pre>(define count-down 
+	(lambda (n)
+		(if (&lt; n 0)
+			n 
+			(and 
+				(print n)
+				(count-down (- n 1))))))
+
+(count-down 9)
+</pre>
+<pre>9876543210</pre>
+
+<img src="https://wiki.xxiivv.com/media/refs/kauffman_themselves.png" width="160">
+
+<h3>Programs</h3>
+
+<p>If we put it all together now:</p>
+
+<pre>(define fac 
+	(lambda (n)
+		(if (&lt; n 2)
+			1 
+			(* n (fac (- n 1))))))
+
+(print (fac 5)) <i>; 120</i>
+</pre>
+
+<h3>Summary</h3>
+
+<ul>
+	<li><kbd>(eval x)</kbd> return evaluated x (such as when x was quoted)</li>
+	<li><kbd>(quote x)</kbd> special form, returns x unevaluated "as is"</li>
+	<li><kbd>(cons x y)</kbd> construct pair (x . y)</li>
+	<li><kbd>(car p)</kbd> car of pair p</li>
+	<li><kbd>(cdr p)</kbd> cdr of pair p</li>
+	<li><kbd>(if x y z)</kbd> if x is non-() then y else z</li>
+	<li><kbd>(let* (v1 x1) (v2 x2) ... y)</kbd> binds each variable vi to xi to evaluate y</li>
+	<li><kbd>(lambda v x)</kbd> construct a closure</li>
+	<li><kbd>(define v x)</kbd> define a named value globally </li>
+	<li><kbd>(+ n1 n2 ... nk)</kbd> sum of n1 to nk</li>
+	<li><kbd>(- n1 n2 ... nk)</kbd> difference of n1 to nk</li>
+	<li><kbd>(* n1 n2 ... nk)</kbd> product of n1 to nk</li>
+	<li><kbd>(/ n1 n2 ... nk)</kbd> quotient of n1 to nk</li>
+	<li><kbd>(% n1 n2 ... nk)</kbd> remainder of n1 to nk</li>
+	<li><kbd>(&lt; n1 n2)</kbd> #t if n1&lt;n2, otherwise ()</li>
+	<li><kbd>(eq? x y)</kbd> #t if x equals y, otherwise ()</li>
+	<li><kbd>(pair? x)</kbd> #t if x is a non-empty list, a cons cell or closure</li>
+	<li><kbd>(or x1 x2 ... xk)</kbd> first x that is not (), otherwise ()</li>
+	<li><kbd>(and x1 x2 ... xk)</kbd> last x if all x are not (), otherwise ()</li>
+	<li><kbd>(not x)</kbd> #t if x is (), otherwise ()</li>
+	<li><kbd>(dotimes (i x) fn)</kbd> run fn for x times</li>
+	<li><kbd>(print x)</kbd> print value of x, returns x</li>
+	<li><kbd>(deo port x)</kbd> send x to a <a href="https://wiki.xxiivv.com/site/varvara.html">Varvara port</a></li>
+</ul>
+
+<ul>
+	<li><a href="https://wiki.xxiivv.com/etc/heol.tal.txt">Source</a>, Latest.</li>
+	<li><a href="https://git.sr.ht/~rabbits/heol" target="_blank">Repository</a>, Uxntal</li>
+</ul>
+
+<img src="https://wiki.xxiivv.com/media/refs/chine_nual.png" width="120">
+<ul></ul><p><b>incoming: </b><a href="https://wiki.xxiivv.com/site/functional.html">functional</a> <a href="https://wiki.xxiivv.com/site/oscean.html">oscean</a> <a href="https://wiki.xxiivv.com/site/2026.html">2026</a> <a href="https://wiki.xxiivv.com/site/2025.html">2025</a> </p></div></div>

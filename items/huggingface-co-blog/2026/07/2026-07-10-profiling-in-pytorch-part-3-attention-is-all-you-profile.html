@@ -1,0 +1,659 @@
+<div id="readability-page-1" class="page"><div>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/profile-3-thumbnail.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/profile-3-thumbnail.png" alt="Thumbnail of the blog post"></a></p>
+
+
+<p>The series "Profiling in PyTorch" is meant to make you comfortable reading profiler traces and tables. In <a href="https://huggingface.co/blog/torch-profiler">Part 1</a> we profiled basic math operations like addition and multiplication. We saw how the profiler table uncovers hotspots, and how the profiler trace shows the order in which an algorithm runs over time.</p>
+<p>In <a href="https://huggingface.co/blog/torch-mlp-fusion">Part 2</a> we wrapped that addition and multiplication into a torch linear layer. We then stacked several linear layers on top of each other (a multilayer perceptron) and profiled that. Along the way we also profiled fused and hand-tuned kernels.</p>
+<p>From the perspective of the Transformer architecture, the next logical step for us to profile is yet another fundamental algorithm, attention. While being infamous for its quadratic-time complexity, many clever tricks exist to mitigate that issue and make it fast. Our goal here is not to cover every trick in detail. Instead, we want to see how each one looks different under the profiler.</p>
+<blockquote>
+<p>The scripts for this blog post live here: <a href="https://huggingface.co/datasets/ariG23498/profiling-pytorch/blob/main/04_a_naive_attention.py"><code>04_a_naive_attention.py</code></a>, <a href="https://huggingface.co/datasets/ariG23498/profiling-pytorch/blob/main/04_b_inplace_ops_attention.py"><code>04_b_inplace_ops_attention.py</code></a>, <a href="https://huggingface.co/datasets/ariG23498/profiling-pytorch/blob/main/04_c_sdpa_attention.py"><code>04_c_sdpa_attention.py</code></a>, and <a href="https://huggingface.co/datasets/ariG23498/profiling-pytorch/blob/main/04_d_kernels_attention.py"><code>04_d_kernels_attention.py</code></a>. Like before, it helps to open them in a separate tab and walk through the code as you read. We use an <code>NVIDIA A100-SXM4-80GB</code> GPU to run the scripts. It is really easy to set up a GPU on the Hugging Face infrastructure and experiment with the scripts using <a href="https://huggingface.co/docs/hub/spaces-dev-mode">Dev Mode with Spaces</a>. One could also run the scripts with the <a href="https://huggingface.co/docs/huggingface_hub/en/guides/jobs">Hugging Face Jobs pipeline</a>.</p>
+</blockquote>
+<h2>
+	<a id="naive-attention" href="#naive-attention" rel="nofollow">
+		
+	</a>
+	<span>
+		Naive attention
+	</span>
+</h2>
+<p>Attention works with Queries (<code>q</code>), Keys (<code>k</code>), and Values (<code>v</code>). The interaction between them can be written as a short sequence of steps:</p>
+<ol>
+<li>Build the attention scores <code>scores</code>: <code>matmul(q, k.T)</code></li>
+<li>Scale the scores: <code>scores * scale</code></li>
+<li>Apply a causal mask to the scores: <code>scores.masked_fill(mask, "-inf")</code></li>
+<li>Normalize the scores with softmax to get the attention weights <code>attn</code>: <code>softmax(scores)</code></li>
+<li>Reweight the values with those weights: <code>matmul(attn, v)</code></li>
+</ol>
+<p>So attention is really a collection of primitive operations. Some of them we already know (the matmuls), and the rest are easy to spot. Let's write a naive attention module in PyTorch and profile it.</p>
+<pre><code><span>class</span> <span>NaiveCausalAttention</span>(nn.Module):
+    <span>def</span> <span>__init__</span>(<span>self, head_dim</span>):
+        <span>super</span>().__init__()
+        self.scale = <span>1.0</span> / math.sqrt(head_dim)
+
+    <span>def</span> <span>forward</span>(<span>self, q, k, v, mask</span>):
+        scores = torch.matmul(q, k.transpose(-<span>2</span>, -<span>1</span>))
+        scores = scores * self.scale
+        scores = scores.masked_fill(mask, <span>float</span>(<span>"-inf"</span>))
+        attn = torch.softmax(scores, dim=-<span>1</span>)
+        out = torch.matmul(attn, v)
+        <span>return</span> out
+</code></pre>
+<p>Before opening the trace, let's do our usual exercise and guess what we should see. Tracing the <code>forward</code> of this module, we expect:</p>
+<ul>
+<li>a matmul kernel (<code>q . k.T</code>)</li>
+<li>a mul kernel (the scaling)</li>
+<li>an operation for the masking</li>
+<li>a softmax kernel</li>
+<li>a matmul kernel (<code>atten . v</code>)</li>
+</ul>
+<pre><code>uv run 04_a_naive_attention.py
+uvx trace-util -f traces/ -b &lt;hf_uname&gt;/traces
+</code></pre>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cpu-profile-naive.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cpu-profile-naive.png" alt="CPU lane of the naive attention profiler trace, with the `attn_fwd` block expanded to show its matmul, mul, masked_fill and softmax operations"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 1: The CPU lane of the profile trace for naive attention highlighting the discrete operations</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Figure 1 shows the CPU lane of the profile (the GPU lane is folded so it does not overwhelm us). Inside <code>attn_fwd</code> (our annotated forward call) we can see exactly the operations we guessed. The matmul is an old friend by now, and the new operations are easy to spot:</p>
+<ul>
+<li><code>mul</code>: the scaling</li>
+<li><code>masked_fill</code>: the causal masking</li>
+<li><code>softmax</code>: the softmax kernel</li>
+</ul>
+<p>Now let's unfold the GPU lane and see which kernels were actually launched.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/gpu-profile-naive.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/gpu-profile-naive.png" alt="Profiler trace of naive attention showing the CPU lane above the GPU lane, with each `attn_fwd` step mapping to a cluster of GPU kernels"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 2: GPU and CPU lanes of the profile trace for naive attention highlighting a collection of kernels corresponding to one profiler step.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Figure 2 shows the GPU lane next to the CPU lane. Let's zoom into a single <code>attn_fwd</code> block on the GPU lane to look at the kernels one by one.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/each-kernels-naive.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/each-kernels-naive.png" alt="Zoomed-in GPU lane of naive attention showing the individual kernels for one step: two matmuls, a mul, a memory copy, a masking kernel and a softmax"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 3: Zoomed in GPU lane of the profiler trace for naive attention implementation.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Figure 3 lets us read off the individual kernels for one profiler step:</p>
+<ol>
+<li>matmul (query and key)</li>
+<li>mul (scaling)</li>
+<li>memory copy 🤔</li>
+<li>causal masking</li>
+<li>softmax (produces the attention weights)</li>
+<li>matmul (attention weights and values)</li>
+</ol>
+<p>Five of these are expected. The memory copy is the odd one out, so where does this come from? The clue is that PyTorch has in-place operations. When you operate on a tensor the ordinary (out-of-place) way, PyTorch often makes a copy, applies the requested operation to it, and returns the copy. Following the sequence of operations, the culprit here is our <a href="https://docs.pytorch.org/docs/2.13/generated/torch.Tensor.masked_fill.html" rel="nofollow"><code>masked_fill</code></a>.</p>
+<p>What if we replaced this with an in-place operation?</p>
+<h2>
+	<a id="naive-attention-with-inplace-causal-masking" href="#naive-attention-with-inplace-causal-masking" rel="nofollow">
+		
+	</a>
+	<span>
+		Naive attention with inplace causal masking
+	</span>
+</h2>
+<p>All we change is <code>masked_fill</code> to <code>masked_fill_</code> (note the trailing underscore, PyTorch's convention for in-place operations), and we run the same script.</p>
+<pre><code>def forward(self, q, k, v, mask):
+    # q, k, v: [batch, heads, seq, head_dim]
+    scores = torch.matmul(q, k.transpose(-2, -1))  # [batch, heads, seq, seq]
+    scores = torch.mul(scores, self.scale)
+<span>-    scores = scores.masked_fill(mask, float("-inf"))</span>
+<span>+    scores.masked_fill_(mask, float("-inf"))</span>
+    attn = torch.softmax(scores, dim=-1)
+    out = torch.matmul(attn, v)  # [batch, heads, seq, head_dim]
+    return out
+</code></pre>
+<p>Let's look at the trace and see if something changed.</p>
+<pre><code>uv run 04_b_inplace_ops_attention.py
+uvx trace-util -f traces/ -b &lt;hf_uname&gt;/traces
+</code></pre>
+<div>
+	<table>
+		<thead><tr>
+<th>Type</th>
+<th>CPU stream</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 4: Naive masking</td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cpu-profile-naive.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cpu-profile-naive.png" alt="CPU lane of naive attention with out-of-place `masked_fill`, showing several dispatch ops for the masking step"></a></td>
+</tr>
+<tr>
+<td>Figure 5: In place masking</td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cpu-profile-inplace.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cpu-profile-inplace.png" alt="CPU lane of naive attention with in-place `masked_fill_`, showing fewer dispatch ops for the masking step"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The in-place version (Figure 5) wraps far fewer CPU ops inside the masking step than the out-of-place version (Figure 4). This is an encouraging signal. Let's unfold the GPU lane to confirm what happened there.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Type</th>
+<th>GPU stream</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 6: Naive masking</td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/each-kernels-naive.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/each-kernels-naive.png" alt="GPU kernels for naive attention including a separate Memcpy kernel before the masking"></a></td>
+</tr>
+<tr>
+<td>Figure 7: In place masking</td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/each-kernels-inpace.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/each-kernels-inpace.png" alt="GPU kernels for naive attention with in-place masking, with the Memcpy kernel gone"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>On the GPU lane the <code>Memcpy</code> kernel is gone for good (Figures 6 and 7). With a one line change we shaved a whole kernel off each forward pass. This may not look like much on its own, but remember this is a single attention operation. In the context of a transformer based large model (LLMs, Diffusion models, etc.), it repeats once per layer, and there are many layers, so the saving adds up quickly (and if it earns you a raise, sharing at least 10% with us feels only fair).</p>
+<blockquote>
+<p>Out-of-place is PyTorch's default for a reason. To compute gradients, autograd has to remember the tensor values it saw on the forward pass, because many backward formulas reuse them. An in-place operation overwrites those values in memory, so the backward pass would read the wrong numbers. Due to the fact that we run <code>forward</code> under <code>torch.no_grad</code>, in-place is safe for us, with no backward pass and nothing to corrupt. It is also noteworthy that in-place operations do not only save time (like we see in our case) but also memory (due to no extra copy) which is great for large tensors like logits!</p>
+</blockquote>
+<h2>
+	<a id="scaled-dot-product-attention" href="#scaled-dot-product-attention" rel="nofollow">
+		
+	</a>
+	<span>
+		Scaled Dot Product Attention
+	</span>
+</h2>
+<p>We just built attention from primitives, and even shaved off a <code>Memcpy</code>. The good news is that the PyTorch team has done all of this for us, and packaged the whole pipeline into a single function:</p>
+<pre><code><span>from</span> torch.nn <span>import</span> functional <span>as</span> F
+
+F.scaled_dot_product_attention(q, k, v, is_causal=<span>True</span>)
+</code></pre>
+<p>This one line replaces our hand written module, and <code>is_causal=True</code> even saves us from building the mask by hand. It is worth pausing to appreciate how much this one call hides. And it hides more than just code lines. Scaled Dot Product Attention (SDPA) does not have a single implementation. Under the hood it <em>dispatches</em> to one of the several backends and picks the fastest one that supports our inputs (dtype, head dimension, mask, hardware, etc.).</p>
+<p>The <a href="https://docs.pytorch.org/tutorials/intermediate/scaled_dot_product_attention_tutorial.html" rel="nofollow">official SDPA tutorial</a> walks us through this selection, and the backends themselves are listed in the <code>torch.nn.attention.SDPBackend</code> enum:</p>
+<pre><code><span>from</span> torch.nn.attention <span>import</span> SDPBackend
+
+BACKENDS = {
+    <span>"math"</span>: SDPBackend.MATH,
+    <span>"flash"</span>: SDPBackend.FLASH_ATTENTION,
+    <span>"efficient"</span>: SDPBackend.EFFICIENT_ATTENTION,
+    <span>"cudnn"</span>: SDPBackend.CUDNN_ATTENTION,
+}
+</code></pre>
+<p>Normally SDPA chooses for us, but we can pin a specific backend with the <code>torch.nn.attention.sdpa_kernel</code> context manager. This is what we do in our scripts. This lets us profile each backend on its own and read how differently they show up in the trace. Let's go one at a time.</p>
+<h3>
+	<a id="math-backend" href="#math-backend" rel="nofollow">
+		
+	</a>
+	<span>
+		Math backend
+	</span>
+</h3>
+<pre><code>uv run 04_c_sdpa_attention.py --backend math
+uvx trace-util -f traces/ -b &lt;hf_uname&gt;/traces
+</code></pre>
+<p>Before we open anything, let's guess. We have replaced hand written attention (matmul, mul, mask, softmax, matmul) with a single one liner, so we should expect the trace to get <em>simpler and faster</em>. Fewer kernels, less CPU dispatch, maybe even a fused kernel. Let's check the profiler table first.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Metric</th>
+<th>Where to look?</th>
+<th>Naive in-place</th>
+<th>SDPA math</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>*_fwd</code> CUDA time avg</td>
+<td>The "CUDA time avg" column for the <code>*_fwd</code> op</td>
+<td>1.955 ms</td>
+<td>7.239 ms</td>
+</tr>
+<tr>
+<td>Self CUDA time total</td>
+<td>At the bottom of the profiler table</td>
+<td>7.194 ms</td>
+<td>27.279 ms</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>This is our first surprise, the one liner is <code>3.7x</code> slower.</p>
+<div>
+	<table>
+		<thead><tr>
+<th></th>
+<th>Profiler Trace</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 8: Profiler trace of naive in-place attention showing five GPU kernel launches for one forward</td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/inplace-kernel-launches.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/inplace-kernel-launches.png" alt="GPU lane of naive in-place attention with five kernel launches for one forward pass"></a></td>
+</tr>
+<tr>
+<td>Figure 9: Profiler trace of the SDPA math backend showing 20 GPU kernel launches for a single attention forward</td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/math-kernel-launches.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/math-kernel-launches.png" alt="GPU lane of the SDPA math backend with twenty kernel launches for a single attention forward pass"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Opening the trace (Figure 9) shows why the alarm bells ring, the math backend launches <code>20</code> GPU kernels per forward instead of the <code>5</code> launched with our naive attention implementation (Figure 8). This is the opposite of what we guessed. Let's figure out why this happens.</p>
+<h4>
+	<a id="tensor-cores-left-vacant" href="#tensor-cores-left-vacant" rel="nofollow">
+		
+	</a>
+	<span>
+		Tensor cores left vacant
+	</span>
+</h4>
+<p>In <a href="https://huggingface.co/blog/torch-mlp-fusion#where-did-the-transpose-go-kernel-layouts-and-pre-ops">Part 2</a> we learned to read a kernel name like a fingerprint. Let's use that habit here:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Run</th>
+<th>matmul kernel</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 10: Naive attention</td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/tensor-core-kernels.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/tensor-core-kernels.png" alt="Matmul kernel name for naive attention in Perfetto, carrying the s16816 bfloat16 Tensor-core GEMM signature"></a></td>
+</tr>
+<tr>
+<td>Figure 11: SDPA with math backend</td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cuda-core-kernels.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cuda-core-kernels.png" alt="Matmul kernel name for the SDPA math backend, carrying the sgemm FP32 CUDA-core signature"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The A100s we used to capture these traces ship with <a href="https://www.nvidia.com/en-us/data-center/tensor-cores/" rel="nofollow">Tensor Cores</a>, specialised hardware for accelerated matmuls that is known to be far faster than the ordinary CUDA cores. To see why that matters here, it helps to know what lives inside a GPU. A Streaming Multiprocessor (SM) is the compute unit of a GPU, and each SM has two kinds of arithmetic units, the CUDA cores and the Tensor Cores. CUDA cores are general purpose and process a handful of elements at a time, while Tensor Cores multiply and accumulate a whole small matrix tile in a single instruction. So the question is simple, "Is each backend actually using the fast path?"</p>
+<p>The kernel names answer it. The <code>s16816</code> in the naive kernel (Figure 10) is the signature of a <code>bfloat16</code> Tensor Core matmul (the <code>16x8x16</code> Tensor Core instruction), so the naive version is on the fast path. <code>sgemm</code> (Figure 11) is the classic single precision (<code>FP32</code>) matmul that runs on the ordinary CUDA cores. In other words, the math backend never touches the Tensor Cores at all: to trade speed for numerical accuracy it upcasts tensors to <code>FP32</code> (doubling the data moved, even when the inputs are in <code>bf16</code>) and falls back to the slower CUDA cores.</p>
+<h4>
+	<a id="causal-masks-built" href="#causal-masks-built" rel="nofollow">
+		
+	</a>
+	<span>
+		Causal masks built
+	</span>
+</h4>
+<p>In the naive version we built the causal mask once and reused it. Here we passed <code>is_causal=True</code> and the math backend materialized one for us, on <em>every</em> single call. You can watch it happen on the CPU lane:</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/mask-math.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/mask-math.png" alt="CPU lane of the SDPA math backend showing the ops that rebuild the causal mask: aten::ones, aten::tril, aten::scalar_tensor, aten::fill_ and aten::where"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 12: CPU lane showing the ops for masking</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Here is what we see in Figure 12</p>
+<pre><code>aten::ones -&gt; aten::tril            build a [<span>seq</span>, <span>seq</span>] lower-triangular matrix
+aten::scalar_tensor -&gt; aten::fill_  make the -inf fill value
+aten::<span>where</span>                         turn it into an additive bias (0 or -inf)
+</code></pre>
+<p>On the GPU this shows up as a <code>triu_tril_kernel</code>, several <code>where</code> kernels, and an <code>add_</code>. The convenience flag that let us stop thinking about the mask did not remove the work, it just moved it one layer down, where the mask is rebuilt from scratch every forward.</p>
+<h4>
+	<a id="the-safe-softmax" href="#the-safe-softmax" rel="nofollow">
+		
+	</a>
+	<span>
+		The safe softmax
+	</span>
+</h4>
+<p>Our hand written version called plain <code>aten::softmax</code>. The math backend calls <code>aten::_safe_softmax</code>, and the difference is again visible as extra kernels (Figure 13):</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/safe-softmax-extra-kernels.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/safe-softmax-extra-kernels.png" alt="GPU lane of the SDPA math backend showing the extra kernels that aten::_safe_softmax launches compared to a plain softmax"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 13: Safe softmax highlighting the extra kernels compared to generic softmax</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>A row that is fully masked (every entry <code>-inf</code>) would make an ordinary softmax compute <code>exp(-inf)/sum(exp(-inf)) = 0/0 = NaN</code>. <code>_safe_softmax</code> guards against exactly that. Our naive kernel never bothered, and would have quietly produced <code>NaN</code>s in that corner case.</p>
+<h4>
+	<a id="so-what-is-the-math-backend-for" href="#so-what-is-the-math-backend-for" rel="nofollow">
+		
+	</a>
+	<span>
+		So what is the math backend for?
+	</span>
+</h4>
+<p>Put together, the math backend is the reference implementation. It is a straightforward, dtype-safe, NaN-safe decomposition of attention into primitive ATen ops. It is essentially the naive attention we wrote by hand, but more careful. That carefulness is exactly what makes it extremely slow.</p>
+<p>Its job is not to be fast, but to <em>always</em> work. This makes it the perfect baseline. Every backend we profile next (flash, efficient, cudnn) is trying to collapse the <code>20</code> GPU kernels into essentially one fused kernel that stays in bf16 and never materializes the intermediate matrices at all.</p>
+<h3>
+	<a id="efficient-backend" href="#efficient-backend" rel="nofollow">
+		
+	</a>
+	<span>
+		Efficient backend
+	</span>
+</h3>
+<pre><code>uv run 04_c_sdpa_attention.py --backend efficient
+uvx trace-util -f traces -b &lt;hf_uname&gt;/traces
+</code></pre>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/efficient-backend.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/efficient-backend.png" alt="Profiler trace of the SDPA efficient backend showing a single fused fmha_cutlassF attention kernel per forward"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 14: The profiler trace for sdpa with efficient backend</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Where the math backend launched 20 kernels across one profiler step, the efficient backend launches only one <code>fmha_cutlassF_bf16_aligned_64x64_rf_sm80</code> (as seen in Figure 14).</p>
+<p>Let's decode the name of the kernel:</p>
+<ul>
+<li><code>fmha</code> (fused multi-head attention): All the primitive ops in attention is "fused" in one op now.</li>
+<li><code>cutlassF</code>: built on CUTLASS (NVIDIA's open-source templates for tensor-core GEMMs), <code>F</code> for forward.</li>
+<li><code>bf16_aligned</code>: runs in bfloat16 (no FP32 upcast, unlike math).</li>
+<li><code>64x64</code>: the tile size.</li>
+<li><code>rf</code> (register file): the working set is kept in registers, the fastest memory on the chip.</li>
+<li><code>sm80</code>: compiled for Ampere (the A100's compute capability 8.0).</li>
+</ul>
+<p>This is the memory efficient attention kernel that grew out of Meta's <a href="https://github.com/facebookresearch/xformers" rel="nofollow">xformers</a> library and was upstreamed into PyTorch. When people say "the xformers backend," this <code>fmha_cutlassF</code> kernel is what they mean.</p>
+<h3>
+	<a id="flash-backend" href="#flash-backend" rel="nofollow">
+		
+	</a>
+	<span>
+		Flash backend
+	</span>
+</h3>
+<pre><code>uv run 04_c_sdpa_attention.py --backend flash
+uvx trace-util -f traces -b &lt;hf_uname&gt;/traces
+</code></pre>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/flash-backend.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/flash-backend.png" alt="Profiler trace of the SDPA flash backend"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 15: The flash backend trace, one fused <code>pytorch_flash</code> kernel per forward</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The <code>void pytorch_flash</code> kernel (Figure 15) is <a href="https://arxiv.org/abs/2307.08691" rel="nofollow">FlashAttention-2</a> (Tri Dao's implementation), vendored into PyTorch.</p>
+<p>Before we read the trace any further, it is worth answering the question you should be asking by now: <em>why is there a whole backend named "flash", and why does it matter so much?</em></p>
+<h4>
+	<a id="why-flash-attention-exists" href="#why-flash-attention-exists" rel="nofollow">
+		
+	</a>
+	<span>
+		Why flash attention exists?
+	</span>
+</h4>
+<p>Let's go back to the math backend for a moment. Its real problem was not the count of 20 kernels, it was what those kernels handed to each other.</p>
+<p>Step 1 builds the full score matrix <code>attn = q . k.T</code>, which is <code>[seq, seq]</code> <strong>per head</strong>. For a sequence length of 4096 that is <code>4096 x 4096 ≈ 16 million</code> numbers for a single head. That matrix is written out to the HBM (the GPU's main memory), if there is even enough space to do so. Then, it is read back to be scaled, written again for the mask, read again for the softmax, and so on. Attention's cost is dominated by this <strong>back and forth traffic to HBM</strong>, not by the matmuls themselves.</p>
+<p>FlashAttention attacks exactly this. Instead of computing the whole <code>s</code> matrix and only then reducing it, it walks over <code>k</code> and <code>v</code> in <strong>tiles</strong>, keeps a running softmax as it goes (the "online softmax" trick), and accumulates the output one tile at a time. The full <code>[seq, seq]</code> score matrix is <strong>never written to HBM</strong>, it only ever lives on-chip. This is the single idea that lets the entire attention pipeline collapse into one fused kernel that stays in bf16 on the Tensor cores.</p>
+<h4>
+	<a id="why-flash-looks-wrong-under-the-profiler" href="#why-flash-looks-wrong-under-the-profiler" rel="nofollow">
+		
+	</a>
+	<span>
+		Why flash looks "wrong" under the profiler
+	</span>
+</h4>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/flash-occupancy.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/flash-occupancy.png" alt="Perfetto footprint of the flash kernel reporting an estimated achieved occupancy of 13%"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 16: Estimated occupancy of flash kernel is seen to be 13%</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Here is where flash surprises people who read profiler footprints. It is the fastest backend, yet the profiler reports it with very <strong>low occupancy</strong> (shown in Figure 16). To see why that is fine, we need three quick definitions.</p>
+<p>A GPU kernel is essentially a series of instructions executed by many small execution units. These individual execution units (threads) take care of loading variables, adding them together, storing them back, etc. For each kernel, we launch many, many threads, and to keep track of them, we group them by blocks.</p>
+<p>Blocks are scheduled onto Streaming Multiprocessors (SMs), the main compute units of a GPU. A block lives entirely on one SM, and an SM can host multiple blocks at once <em>if it has enough resources</em>. Those resources include registers, shared memory, maximum resident threads, and maximum resident warps. So when we say a kernel has low <strong>occupancy</strong>, we mean each SM has fewer resident warps than it could theoretically support.</p>
+<blockquote>
+<p>If you want to know more about threads, blocks, grids, etc. here is a <a href="https://huggingface.co/blog/mi300kernels#a-quick-introduction-to-the-mi300x">great resource</a>.</p>
+</blockquote>
+<p>If you click the flash kernel in the trace, its footprint tells the story (Figure 17).</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/flash-reg-count.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/flash-reg-count.png" alt="Resource footprint of the pytorch_flash kernel in Perfetto, showing a high per-thread register count and large shared memory usage per block"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 17: The flash kernel footprint, heavy on registers and shared memory per block.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Flash uses a lot of per-thread registers and a large amount of shared memory per block. For example, if a block has 128 threads and each thread uses 255 registers, that block needs <code>128 × 255 = 32,640</code> registers. On an Ampere SM with 65,536 registers, only two such blocks fit at once. Each 128-thread block has <code>128 / 32 = 4</code> warps, so two blocks give only 8 resident warps. Against a maximum of 64 resident warps, that is roughly 13% occupancy. Flash has low occupancy not because it is poorly optimized, but because each block is deliberately very "heavy" in on-chip resource usage.</p>
+<p>And that is the whole point. High occupancy helps <em>hide latency</em> by keeping many warps ready to run, but it does not make the work itself efficient. Flash spends those registers and that shared memory on purpose, to keep attention tiles on-chip, reuse data aggressively, and avoid ever materializing the full attention matrix in global memory.</p>
+<h3>
+	<a id="cudnn-backend" href="#cudnn-backend" rel="nofollow">
+		
+	</a>
+	<span>
+		cuDNN backend
+	</span>
+</h3>
+<pre><code>uv run 04_c_sdpa_attention.py --backend cudnn
+uvx trace-util -f traces -b &lt;hf_uname&gt;/traces
+</code></pre>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cudnn-backend.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cudnn-backend.png" alt="Profiler trace of the SDPA cuDNN backend showing a single cudnn_generated attention kernel per forward"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 18: The cuDNN backend trace, a single generated attention kernel per forward.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>By now the pattern is familiar. Like flash and efficient, cuDNN gives us one fused, flash-style kernel per forward (Figure 18). So the natural question is: <strong>if flash already fuses attention, why does PyTorch ship yet another flash backend?</strong> The answer is <em>who writes the kernel and how it is built</em>, and that difference is what makes the trace look different.</p>
+<h4>
+	<a id="how-is-cudnn-kernel-different" href="#how-is-cudnn-kernel-different" rel="nofollow">
+		
+	</a>
+	<span>
+		How is cuDNN kernel different
+	</span>
+</h4>
+<p>Flash and efficient are <strong>fixed, pre-compiled kernels</strong> vendored into PyTorch. You get the same binary every time. cuDNN is NVIDIA's own deep learning library, and its attention kernel is <strong>generated and tuned for the specific problem</strong> at hand. It is closer in spirit to <code>torch.compile</code>'s codegen than to a fixed cuBLAS binary. You can read that straight off the (very long) kernel name:</p>
+<pre><code>cudnn_generated_fort_native_sdpa_sm80_flash_fprop_wmma_f16_knob_6_128x64x64_4x1x1_cga1x1x1_kernel0_0
+</code></pre>
+<ul>
+<li><code>cudnn_generated</code>: not a pre-shipped binary, it was generated by cuDNN.</li>
+<li><code>flash_fprop</code>: a flash attention style forward pass. So the algorithm is the same family as the flash backend.</li>
+<li><code>wmma_f16</code>: it uses the warp-level matrix multiply-accumulate (WMMA) API, the Tensor-core path on the 16-bit float pipeline.</li>
+<li><code>knob_6</code>: cuDNN picks from a set of pre-tuned configurations ("knobs"). Different shapes select different knobs, much like cuBLAS picking a tile variant.</li>
+<li><code>128x64x64</code>: the tile dimensions it chose.</li>
+</ul>
+<p>That one fact, <em>generated per problem</em>, explains everything else that looks unusual in the trace.</p>
+<ol>
+<li><p>No transposes: The CPU lane goes from <code>_cudnn_attention_forward</code> straight to a couple of <code>aten::empty</code> allocations and then the kernel, with zero <code>aten::transpose</code> (Figures 19, 20 and 21). Flash and efficient each insert four (metadata) transposes to reshape the tensors while cuDNN consumes the native <code>[B, H, S, D]</code> layout directly because its generator emits a kernel for that layout.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Variant</th>
+<th>Trace</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 19: Flash</td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/flash-transpose.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/flash-transpose.png" alt="CPU lane of the flash backend showing four aten::transpose ops before the fused attention kernel"></a></td>
+</tr>
+<tr>
+<td>Figure 20: Efficient</td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/efficient-trasnpose.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/efficient-trasnpose.png" alt="CPU lane of the efficient backend showing four aten::transpose ops before the fused attention kernel"></a></td>
+</tr>
+<tr>
+<td>Figure 21: cuDNN</td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cudnn-backend.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cudnn-backend.png" alt="CPU lane of the cuDNN backend going straight to aten::empty allocations and the kernel, with no transpose ops"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+</li>
+<li><p>It launches through <code>cuLaunchKernelEx</code>, not <code>cudaLaunchKernel</code>: Every other kernel in this whole series went through the runtime API <code>cudaLaunchKernel</code>. cuDNN uses the driver-level <em>extended</em> launch, which carries launch attributes (Figure 22).</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cudnn-launch.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cudnn-launch.png" alt="CPU lane of the cuDNN backend showing the cuLaunchKernelEx driver-level launch instead of cudaLaunchKernel"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 22: CPU lane of the cuDNN backend showing the cuLaunchKernelEx driver-level launch instead of cudaLaunchKernel</td>
+</tr>
+</tbody>
+	</table>
+</div>
+</li>
+<li><p>The profiler reports 0% achieved occupancy: Do not take that at face value, it is a measurement gap, not a stalled GPU. CUPTI (the profiling backend) cannot attribute occupancy to a driver-API (<code>cuLaunchKernelEx</code>) launch the way it does for <code>cudaLaunchKernel</code>, so the field reads 0. The footprint fills in the truth (Figure 23): <code>240 registers × 256 threads = 61,440</code> registers per block against the SM's 65,536, so only <strong>one block</strong> fits per SM (8 warps ≈ 12.5%), right in line with flash.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cudnn-footprint.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/torch-attention-profile/cudnn-footprint.png" alt="Perfetto footprint of the cuDNN kernel reporting 0% achieved occupancy, with 240 registers per thread and 256 threads per block"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Figure 23: cuDNN kernel reporting 0% achieved occupancy, with 240 registers per thread and 256 threads per block</td>
+</tr>
+</tbody>
+	</table>
+</div>
+</li>
+</ol>
+<h4>
+	<a id="the-cost-moved-to-the-cpu" href="#the-cost-moved-to-the-cpu" rel="nofollow">
+		
+	</a>
+	<span>
+		The cost moved to the CPU
+	</span>
+</h4>
+<p>The "no transposes" story tempts us to expect cuDNN to be the <em>leanest</em> backend on the CPU. It is the opposite.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>backend</th>
+<th>CUDA avg time</th>
+<th>CPU avg time</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>efficient</td>
+<td>277.9 µs</td>
+<td>117 µs</td>
+</tr>
+<tr>
+<td>flash</td>
+<td>146.8 µs</td>
+<td>138 µs</td>
+</tr>
+<tr>
+<td>cudnn</td>
+<td>186.3 µs</td>
+<td><strong>214 µs</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Even with zero transpose ops, cuDNN spends about <strong>214 µs per forward on the CPU</strong>, more than flash (138) or efficient (117). Almost all of it sits in <code>aten::scaled_dot_product_attention</code> self time (26% of the whole run) and <code>_cudnn_attention_forward</code>. That is cuDNN's runtime engine selecting and preparing the plan (the "knob" search) on every call.</p>
+<p>Fewer visible ATen ops did not mean less CPU work, it <strong>moved the work into the library</strong>, where the profiler can only show it as one fat, opaque bar. When a trace suddenly gets <em>cleaner</em>, the work has not always disappeared, sometimes it has just moved somewhere the profiler cannot break down.</p>
+<p>On the GPU, cuDNN (186.3 µs) lands between efficient and flash. On this very flash-friendly shape, hand-written FlashAttention-2 edges it out. cuDNN often wins on <em>other</em> shapes (larger head dimensions, different sequence lengths) precisely because its generator retunes per problem, but that retuning is also what you just paid for on the CPU.</p>
+<h2>
+	<a id="everything-we-covered-at-a-glance" href="#everything-we-covered-at-a-glance" rel="nofollow">
+		
+	</a>
+	<span>
+		Everything we covered, at a glance
+	</span>
+</h2>
+<p>Before we wrap up, here is a single table to review every attention variant we profiled and the one lesson each trace taught us.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Variant</th>
+<th>What we changed</th>
+<th>Kernels / forward</th>
+<th>What the trace revealed</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Naive attention</td>
+<td>Attention built by hand from primitives (matmul, mul, mask, softmax, matmul)</td>
+<td>6</td>
+<td>A hidden <code>Memcpy</code> from the out-of-place <code>masked_fill</code>.</td>
+</tr>
+<tr>
+<td>Naive in-place</td>
+<td><code>masked_fill</code> → <code>masked_fill_</code></td>
+<td>5</td>
+<td>One line drops the <code>Memcpy</code> kernel entirely.</td>
+</tr>
+<tr>
+<td>SDPA math</td>
+<td><code>F.scaled_dot_product_attention</code> pinned to the math backend</td>
+<td>20</td>
+<td>The reference: FP32 on CUDA cores, mask rebuilt every call, <code>_safe_softmax</code>. Correct but ~3.7x slower.</td>
+</tr>
+<tr>
+<td>SDPA efficient</td>
+<td>Efficient (xformers) backend</td>
+<td>1</td>
+<td>One fused <code>fmha_cutlassF</code> kernel, stays in bf16 on Tensor cores.</td>
+</tr>
+<tr>
+<td>SDPA flash</td>
+<td>Flash backend</td>
+<td>1</td>
+<td>One fused <code>pytorch_flash</code> kernel (FlashAttention-2). Fastest, despite "wrong-looking" 13% occupancy.</td>
+</tr>
+<tr>
+<td>SDPA cuDNN</td>
+<td>cuDNN backend</td>
+<td>1</td>
+<td>A per-problem generated kernel: no transposes, <code>cuLaunchKernelEx</code>, but the cost moved to a fat CPU bar.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="concluding-the-series" href="#concluding-the-series" rel="nofollow">
+		
+	</a>
+	<span>
+		Concluding the series
+	</span>
+</h2>
+<p>If you take away only one thing from the whole series, let it be the habit we repeated before every single trace which is to <strong>guess first, then look.</strong></p>
+<p>State out loud what you expect the trace to contain, open it, and treat any mismatch as the most interesting thing on the screen. Every real insight in these three posts, the hidden <code>Memcpy</code>, the <code>addmm</code> epilogue, the 20 kernel math backend, flash's "wrong-looking" occupancy, cuDNN's fat CPU bar, came from a guess that did not match the trace.</p>
+<p>Profiling is not a separate, intimidating skill reserved for GPU experts. It is just the discipline of looking closely and asking "wait, why is <em>that</em> happening?" until the answer clicks. You now have the vocabulary and the reflexes to do that on your own models. Open a trace, form a guess, and go find the mismatch.</p>
+<p>Thanks for reading the <strong>Profiling in PyTorch</strong> series. Now go profile something. 🤗</p>
+<p>Thanks to <a href="https://huggingface.co/NoeFlandre">Noe Flandre</a> for their reviews on the early draft of the post!</p>
+<blockquote>
+<p>The blog post was polished using an LLM. This in no way means that we have let an agent run in the background and let it generate the blog. Some of us in the team are non-english speakers and think LLMs (which are mostly trained in the English Language) can rectify silly grammar mistakes or rephrase sentences that sound less intimidating and cleaner. Hope this helps with the idea of "why should I read, if this was LLM generated". 🤗</p>
+</blockquote>
+</div></div>

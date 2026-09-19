@@ -1,0 +1,66 @@
+<div id="readability-page-1" class="page"><div id="content">
+<section id="newslist"><article data-news-id="118"><h2><a href="https://antirez.com/news/118">Clarifications on the Incapsula Redis security report</a></h2></article></section><topcomment><article data-comment-id="118-" id="118-"><span><span><a href="https://antirez.com/user/antirez">antirez</a></span> 3031 days ago. 137915 views.  </span><pre>A few days ago I started my day with my Twitter feed full of articles saying something like: “75% of Redis servers infected by malware”. The obvious misquote referred to a research by Incapsula where they found that 75% of the Redis instances left open on the internet, without any protection, on a public IP address, are infected [1].
+
+[1] <a rel="nofollow" href="https://www.incapsula.com/blog/report-75-of-open-redis-servers-are-infected.html">https://www.incapsula.com/blog/report-75-of-open-redis-servers-are-infected.html</a>
+
+Many folks don’t need any clarification about all this, because if you have some grip on computer security and how Redis works, you can contextualize all this without much efforts. However I’m writing this blog post for two reasons. The obvious one is that it can help the press and other users that are not much into security and/or Redis to understand what’s going on. The second is that the exposed Redis instances are a case study about safe defaults that should be interesting for the security circles.
+
+The Incapsula report
+===
+
+Let’s start with the Incapsula report. What they did was to analyze exposed Redis instances on the internet. Instances that everybody from any place of the internet can access, because they are listening for connections in a public IP address, without any password protecting them. It is like if they were HTTP servers, but it’s Redis instead, that is not designed to be left exposed.
+
+This is far from a new story. Because of Redis popularity the number of total Redis installations is pretty huge, and a fraction of these installations are left exposed. It’s like that since the start basically. People spin a virtual machine in some cloud provider, install Redis, find that they cannot access it, open the port of the VM to anyone, and the instance is at this point running unprotected. They only thing that changed is that most of those instances in the past were left running unaffected in many cases. Maybe some script kiddie could connect and call “INFO” or a few more commands to check what there was inside, and that was it most of the times. Now the new crypto mining obsession is providing attackers a very good reason to break into other people’s systems. Actually the best of the reasons: money. So the same exposed instances are now cracked in order to install some software to mine some kind of crypto currency. Incapsula checked the percentage of instances that look violated.
+
+The way they collected the kind of attacks used against Redis instances was by running, on purpose, a set of exposed instances, to monitor how the attackers could target them. Many of the attacks look like variations on my own example attack [2].
+
+[2] <a rel="nofollow" href="http://antirez.com/news/96">http://antirez.com/news/96</a>
+
+Also it is worth to note that to scan the IPv4 address space in order to find exposed instances of any kind of service is trivial. You could use, for instance, masscan. However you could do that 20 years ago using my own hping, and I remember doing this back then with success indeed.
+
+TLDR: there are open Redis instances on the internet because they are misconfigured. Attackers profit from them by installing some kind of mining software, or for other reasons. But there is more… keep reading.
+
+Protected mode
+===========
+
+Security is a terrible field in my opinion. I worked in such field, and decided to go away once it started to be no longer an underground affair. People are very opinionated about security issues, while, at the same time, there is little real care about, for instance, performing security auditings on real world systems (something that Google project zero is changing a bit, btw). So after receiving for the Nth time some PGP encrypted email saying that Redis was vulnerable to a temp file creation attack, I wrote the blog post at [2], just to tell: “maybe you are missing the point of Redis security”. I basically published an attack against my own system that I could find in a few minutes of research, and that was very serious. The message was, again, Redis is not designed to be left exposed. And if you really want to play hack3rzzz look, there are more interesting things to do. However by doing that I put on the hands of script kiddies a great weapon to break into thousands of Redis instances open everywhere.
+
+In order to pay back from my fault, in an attempt to atone my sin, I started to think about what I could do to make the situation simpler. One problem of Redis 3.x was that by default it would listen to all the IP addresses, so it was simple to misconfigure: just open the port, or have no firewalling at all, and the instance is exposed. The security mantra about that was “run with safe defaults”. That is, in the case of Redis, a networked cache, to have a default configuration that basically more or less does not work for most real world users out of the box. And what was worse, people that don’t have a clue would just “bind *” to fix the problem, and we are back at the initial condition. So I tried to find something a bit smarter, a feature that I named “protected mode”, with great disappointment of a group of 386 processors that manifested in front of my houses for days.
+
+The idea of protected mode is to listen to every address, but if the connection is not local, the server replies with an error explaining *why* it is not working as expected, what to do, and the risks involved in just doing the silly thing of opening the instance to everybody by disabling protected mode. This is an example of how the feature works:
+
+$ nc 192.168.1.194 6379
+-DENIED Redis is running in protected mode because protected mode is enabled, no bind address was specified, no authentication password is requested to clients. In this mode connections are only accepted from the loopback interface. If you want to connect from external computers to Redis you may adopt one of the following solutions: 1) Just disable protected mode sending the command 'CONFIG SET protected-mode no' from the loopback interface by connecting to Redis from the same host the server is running, however MAKE SURE Redis is not publicly accessible from internet if you do so. Use CONFIG REWRITE to make this change permanent. 2) Alternatively you can just disable the protected mode by editing the Redis configuration file, and setting the protected mode option to 'no', and then restarting the server. 3) If you started the server manually just for testing, restart it with the '--protected-mode no' option. 4) Setup a bind address or an authentication password. NOTE: You only need to do one of the above things in order for the server to start accepting connections from the outside.
+
+The advantage here is that:
+
+1. The user knows what to do in order to fix this situation. It’s much better than “connection refused”.
+
+2. We try to avoid that the user disables protected mode without understanding what is the risk involved, and that there are other solutions (setting a password or binding to certain interfaces).
+
+Disillusion
+========
+
+So my illusion was that, maybe, it could be more helpful than the safe defaults. But unfortunately you can’t fix the fact that a percentage of users just don’t care, that some don’t even know they are installing Redis, and that it’s there just as a side effect of being a dependency for something else, or is installed by a script, or is included in the ABI image you are running and so forth.
+
+Initially by grepping on Shodan it looked like Redis 4.0 protected mode was, actually, helping quite a lot! The open instances I could find replied “-DENIED” for the most part. That was great. However after the publication of [1] I asked Shodan (btw they rock and were super helpful on Twitter) if I could have the version breakdown of the exposed Redis instances. And the result is, there are still tons of Redis 4.0 instances exposed [3].
+
+[3] <a rel="nofollow" href="https://asciinema.org/a/8heQvivQkFmUrisbb9FQLfMBj">https://asciinema.org/a/8heQvivQkFmUrisbb9FQLfMBj</a>
+
+It is true that they are less than the 3.0 instances, but they are still a lot. By investigating more I was even told that there are VM images where Redis protected mode is *removed* by the installation script by default, since sometimes people are annoyed by security features. They want things to just work over the network out of the box, so this is what they do, remove the annoyance. Then such image becomes popular, and many folks install it without knowing what’s going on, and when Redis 4 is installed protected mode is off and the instance is exposed.
+
+I think this is a lesson about safe defaults that can be trivially disabled by users. It looks like that in some way they could help, but just in reducing by some percentage the number of incidents, not to make them a rare exception.
+
+What’s next?
+=========
+
+One of the fundamental problems in the Redis security model is that the server can be reconfigured via the normal API, using special commands like the CONFIG command. This is a very valuable feature of Redis, but it makes much simpler to break into the instance once you have access to the Redis API, and normal applications using Redis don’t need this level of access.
+
+So in the course of Redis 6, what will happen is that we’ll introduce ACLs. Again, the way this feature will be introduced will try to be a “no pain” experience for existing users. If you connect without any credential, Redis will log in the client automatically using the “default” user, that can do everything applications normally do, but will deny all the administrative commands. Of course it will be possible to make it more strict by configuring things differently, create new users that can only call certain commands on keys matching a given pattern, and so forth.
+
+In the course of Redis 6 we plan to also merge support for SSL connections, while this is unlikely to have any impact on the issue discussed here, because by default Redis will run unencrypted and the feature will be opt-in, however SSL is also one step forward for a more secure Redis experience in certain environments.
+
+However my hopes are on ACLs, because it looks unlikely that the casual user will make the default account able to run the administrative commands. Especially because we plan to log connections originating from the local host as the “admin” user directly. If this goes as I hope, we’ll continue to see Redis 6 instances exposed, because it is inevitable, but at least those Redis 6 instances should make it harder to compromise the whole system. At least in theory: Redis EVAL command allows execution of Lua scripts, and such feature should be allowed by default since is a fundamental Redis feature. We try to have a kinda sandboxed Lua execution environment, but if you followed IT security for some time, you know that sandboxes are always imperfect, and more an exercise in finding how to escape them than a sealing solution. This time however I’ll avoid publishing an attack just to make a point.</pre></article></topcomment>
+
+
+<p><a href="https://disqus.com">blog comments powered by <span>Disqus</span></a></p></div></div>

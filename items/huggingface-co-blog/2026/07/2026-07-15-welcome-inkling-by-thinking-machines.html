@@ -1,0 +1,1124 @@
+<div id="readability-page-1" class="page"><div>
+<blockquote>
+Inkling now comes in smaller size 🤗 Inkling-Small is out by Thinking Machines Lab. We have updated this post with <a href="#benchmarks" rel="nofollow">performance</a>, and <a href="#deploying-inkling-and-inkling-small" rel="nofollow">deployment configurations</a> for the Inkling-Small and the Inkling-Small-NVFP4 variants. Here’s <a href="https://huggingface.co/collections/thinkingmachines/inkling">the collection</a> with all the Inkling models. We made it easier for you to deploy Inkling-Small with one-click on Inference Endpoints (getting up to 160 TPS). We also ship <a href="https://huggingface.co/spaces/HuggingFaceM4/hf-realtime-voice">a real-time voice and image demo</a> where you can interact with the model.
+</blockquote>
+<p><a href="https://huggingface.co/thinkingmachines/Inkling">Inkling</a> is a large (1T params!) open model to natively accept image, text, and audio inputs.</p>
+<p>TLDR; Inkling by Thinking Machines is out on Hugging Face. Inkling is a huge multimodal LLM that understands all modalities (image, audio, text), has agentic capabilities, and supports 1M context. It comes in full BF16 and a well-calibrated NVFP4 variant, and includes speculative MTP layers for faster inference. There’s day-0 support in transformers, SGLang, vLLM, and llama.cpp. Thinking Machine Labs also released Inkling-Small with 276B total and 12B active parameters, as well as support for MXFP8 and NVFP4 weights, with the same architecture as Inkling.</p>
+<h2>
+	<a id="what-makes-inkling-special" href="#what-makes-inkling-special" rel="nofollow">
+		
+	</a>
+	<span>
+		What makes Inkling special?
+	</span>
+</h2>
+<p>Inkling is the first large open model with <strong>~1T parameters</strong> and <strong>1M context window</strong> to natively receive <strong>image, text, and audio inputs</strong>, trained on <strong>45 trillion tokens of text, images, audio and video.</strong> It’s focused on reasoning across modalities such as audio, images, and text; and is intended for domain adaptation via fine-tuning. We’ve tinkered with this model to build some demos and explore the architecture, and we think it’s great for building a new wave of multimodal reasoning apps.</p>
+<h2>
+	<a id="overall-capabilities-and-architecture" href="#overall-capabilities-and-architecture" rel="nofollow">
+		
+	</a>
+	<span>
+		Overall Capabilities and Architecture
+	</span>
+</h2>
+<p>Inkling is a decoder-only multimodal Mixture-of-Experts model with 975B total and 41B active parameters. There are a lot of things going on, so let’s break each part down:</p>
+<ul>
+<li>Decoder-only: This means that the architecture supports causal autoregressive generation, like in most state-of-the-art LLMs.</li>
+<li>Multimodal: The model can ingest text, audio, and images.</li>
+<li>Mixture of Experts (MoE): The feed forward networks inside each layer are sparse, achieving faster inference because only 41B parameters are active at any given time. The model has 256 experts, as we’ll see later.</li>
+</ul>
+<p>Here’s a quick glance of the architecture.</p>
+<p><strong>Relative attention:</strong> Instead of RoPE, which is the usual method to inject positional information in transformers models, Inkling uses relative attention to encode position information. Each attention layer learns position directly in the attention logits. Aside from key-query-values, there's a fourth projection producing a per-token, per-head relative feature R. This projection tensor is then tweaked with distance information (distance between the key and the query vector) and propagated into the attention module.</p>
+<p><a href="https://huggingface.co/buckets/huggingface/inkling-blog-assets/resolve/relative_attention.png" rel="nofollow"><img src="https://huggingface.co/buckets/huggingface/inkling-blog-assets/resolve/relative_attention.png" alt="Inkling relative attention architecture"></a></p>
+<p><strong>Hybrid attention:</strong> The decoder layers alternate between global attention (attending to the full context length at once) and sliding window attention (attending to a fixed context window in a sliding fashion). The architecture has a pattern of 5:1 sliding window to global attention layers. This hybrid attention scheme provides efficiency in computation. The final layer uses global attention to help build feature-rich representations.</p>
+<p><strong>Short convolution:</strong> The model uses a distinctive short 1D convolution, or <code>SConv</code> over the hidden states. SConv reads the current token and the previous <code>W-1</code> hidden states, with <code>W</code> being the sliding window size. The intuition here is that SConv helps with local attention while freeing the attention and MoE modules from local representations.</p>
+<p><a href="https://huggingface.co/buckets/huggingface/inkling-blog-assets/resolve/sconv.png" rel="nofollow"><img src="https://huggingface.co/buckets/huggingface/inkling-blog-assets/resolve/sconv.png" alt="Inkling short convolution architecture"></a></p>
+<p><strong>MoE with shared experts sink:</strong> In Inkling, the router scores both routed experts and shared experts. Top-k selection is performed over 6 experts, plus 2 shared experts always active.</p>
+<p><strong>Vision understanding:</strong> The model includes a simple hierarchical MLP patchifier consisting of several linear layers. Each layer merges pixels progressively, until the final layer produces one embedding per patch.</p>
+<p><strong>Audio understanding:</strong> The architecture employs a discretized mel spectrogram, where each of the audio chunks (of 100 ms) are converted to the mel scale and then classified into the exact mel spectrogram bin.</p>
+<p>The multimodal towers are relatively simple modules, unlike other models that employ separate encoders for each modality. Each image patch passes through the image embedding tower and the audio chunk is passed through the audio embedding tower to get both media embeddings. Image inputs also include an additional temporal dimension for video processing. We expect this capability to be useful for downstream fine-tuning, but we haven’t evaluated out-of-the-box video performance. The tower folds the patch grid, a small local block of neighboring tokens is stacked into the channel dimension and goes through hMLP. The audio waveform is converted to mel scale, which is then classified into a discrete mel bin. These mel bin values are embedded in the audio embedding tower and the embeddings are then summed to construct the final audio input.</p>
+<h2>
+	<a id="inference-support" href="#inference-support" rel="nofollow">
+		
+	</a>
+	<span>
+		Inference Support
+	</span>
+</h2>
+<p>Inkling comes with day-0 transformers support and is supported in major inference engines like SGLang and vLLM.</p>
+<p>This model is huge. The bf16 checkpoint requires 2 TB of VRAM, while the nvfp4 version requires 600 GB of VRAM. You can try the model through serverless inference routers like Inference Providers, or use ggml quants for local deployment with llama.cpp.</p>
+<h3>
+	<a id="transformers" href="#transformers" rel="nofollow">
+		
+	</a>
+	<span>
+		Transformers
+	</span>
+</h3>
+<p>The easiest way to infer with <code>transformers</code> directly is to use the <code>any-to-any</code> pipeline. You can use either the 16 bit <code>"thinkingmachines/Inkling"</code> on Hopper or later GPUs, or the quantized NVFP4 checkpoint <code>"thinkingmachines/Inkling-NVFP4"</code> on Blackwell Nvidia GPUs. Make sure to have the latest version of transformers (5.14.0 was released today) (<code>pip install -U transformers</code>).</p>
+<pre><code><span>from</span> transformers <span>import</span> pipeline
+
+model_id = <span>"thinkingmachines/Inkling"</span>
+<span># model_id = "thinkingmachines/Inkling-NVFP4"</span>
+
+pipe = pipeline(<span>"any-to-any"</span>, model=model_id)
+</code></pre>
+<p>After initializing the pipeline, you can pass in the prompt as follows.</p>
+<pre><code>image_url = (
+    <span>"https://huggingface.co/datasets/merve/vl-test-suite/"</span>
+    <span>"resolve/main/pills.jpg"</span>
+)
+messages = [
+    {
+        <span>"role"</span>: <span>"user"</span>,
+        <span>"content"</span>: [
+            {
+                <span>"type"</span>: <span>"image"</span>,
+                <span>"image"</span>: image_url,
+            },
+            {
+                <span>"type"</span>: <span>"text"</span>,
+                <span>"text"</span>: <span>"Do components in this supplement interact with each other?"</span>,
+            },
+        ],
+    },
+]
+output = pipe(
+    messages,
+    max_new_tokens=<span>2000</span>,
+    return_full_text=<span>False</span>,
+    reasoning_effort=<span>"medium"</span>,
+)
+output[<span>0</span>][<span>"generated_text"</span>]
+</code></pre>
+<p>Going one level lower, you can use Auto classes. For inference, you can use the <code>AutoModelForMultimodalLM</code> class for models and <code>AutoProcessor</code> class for processors. For different reasoning tasks, the tokenizer takes in a <code>reasoning_effort</code> argument. Existing options for reasoning effort are <code>"none"</code>, <code>"minimal"</code>, <code>"low"</code>, <code>"medium"</code>, <code>"high"</code>, <code>"xhigh"</code>, and <code>"max"</code>.</p>
+<pre><code><span>from</span> transformers <span>import</span> AutoModelForMultimodalLM, AutoProcessor
+
+model_id = <span>"thinkingmachines/Inkling"</span>
+processor = AutoProcessor.from_pretrained(model_id)
+model = AutoModelForMultimodalLM.from_pretrained(
+    model_id,
+    dtype=<span>"auto"</span>,
+    device_map=<span>"auto"</span>,
+)
+
+messages = [
+    {<span>"role"</span>: <span>"system"</span>, <span>"content"</span>: <span>"You should only answer with a number."</span>},
+    {<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"What is 17 * 23?"</span>},
+]
+
+inputs = processor.apply_chat_template(
+    messages,
+    add_generation_prompt=<span>True</span>,
+    tokenize=<span>True</span>,
+    return_dict=<span>True</span>,
+    return_tensors=<span>"pt"</span>,
+    reasoning_effort=<span>"high"</span>,
+).to(model.device)
+
+output = model.generate(**inputs, max_new_tokens=<span>2000</span>)
+generated_tokens = output[<span>0</span>][inputs[<span>"input_ids"</span>].shape[<span>1</span>] :]
+<span>print</span>(processor.decode(generated_tokens, skip_special_tokens=<span>False</span>))
+</code></pre>
+<p>For multimodal inference, you can use the same classes. We provide example snippets for each different modality in the model card.</p>
+<details>
+<summary>Text with image inference</summary>
+
+<pre><code><span>from</span> transformers <span>import</span> AutoModelForMultimodalLM, AutoProcessor
+
+model_id = <span>"thinkingmachines/Inkling"</span>
+processor = AutoProcessor.from_pretrained(model_id)
+model = AutoModelForMultimodalLM.from_pretrained(
+    model_id,
+    dtype=<span>"auto"</span>,
+    device_map=<span>"auto"</span>,
+)
+
+image_url = (
+    <span>"https://huggingface.co/datasets/merve/vl-test-suite/"</span>
+    <span>"resolve/main/pills.jpg"</span>
+)
+messages = [
+    {
+        <span>"role"</span>: <span>"user"</span>,
+        <span>"content"</span>: [
+            {
+                <span>"type"</span>: <span>"image"</span>,
+                <span>"image"</span>: image_url,
+            },
+            {
+                <span>"type"</span>: <span>"text"</span>,
+                <span>"text"</span>: <span>"Do any of the components in this supplement interact?"</span>,
+            },
+        ],
+    },
+]
+
+inputs = processor.apply_chat_template(
+    messages,
+    tokenize=<span>True</span>,
+    add_generation_prompt=<span>True</span>,
+    reasoning_effort=<span>"medium"</span>,
+    return_dict=<span>True</span>,
+    return_tensors=<span>"pt"</span>,
+).to(model.device)
+input_len = inputs[<span>"input_ids"</span>].shape[-<span>1</span>]
+
+outputs = model.generate(**inputs, max_new_tokens=<span>2000</span>)
+response = processor.decode(outputs[<span>0</span>][input_len:], skip_special_tokens=<span>False</span>)
+
+processor.parse_response(response)
+</code></pre>
+</details>
+
+<p>Inkling also takes in audio input. Below is an example inference snippet, which still uses the same <code>AutoModelForMultimodalLM</code> class.</p>
+<details>
+<summary>Text with audio inference</summary>
+
+<pre><code><span>from</span> transformers <span>import</span> AutoModelForMultimodalLM, AutoProcessor
+
+model_id = <span>"thinkingmachines/Inkling"</span>
+
+processor = AutoProcessor.from_pretrained(model_id)
+model = AutoModelForMultimodalLM.from_pretrained(
+    model_id,
+    dtype=<span>"auto"</span>,
+    device_map=<span>"auto"</span>,
+)
+
+audio_url = (
+    <span>"https://huggingface.co/datasets/merve/vl-test-suite/"</span>
+    <span>"resolve/main/example_audio.mp3"</span>
+)
+messages = [
+    {
+        <span>"role"</span>: <span>"user"</span>,
+        <span>"content"</span>: [
+            {<span>"type"</span>: <span>"text"</span>, <span>"text"</span>: <span>"Transcribe the following speech to text."</span>},
+            {
+                <span>"type"</span>: <span>"audio"</span>,
+                <span>"audio"</span>: audio_url,
+            },
+        ],
+    },
+]
+
+inputs = processor.apply_chat_template(
+    messages,
+    tokenize=<span>True</span>,
+    return_dict=<span>True</span>,
+    return_tensors=<span>"pt"</span>,
+    add_generation_prompt=<span>True</span>,
+).to(model.device)
+input_len = inputs[<span>"input_ids"</span>].shape[-<span>1</span>]
+
+outputs = model.generate(**inputs, max_new_tokens=<span>512</span>)
+response = processor.decode(outputs[<span>0</span>][input_len:], skip_special_tokens=<span>False</span>)
+
+processor.parse_response(response)
+</code></pre>
+</details>
+
+<p>For more realistic parallel deployment in a cluster of several nodes, please refer to the <a href="#slurm-scripts" rel="nofollow">Slurm</a> section below.</p>
+<h3>
+	<a id="sglang" href="#sglang" rel="nofollow">
+		
+	</a>
+	<span>
+		SGLang
+	</span>
+</h3>
+<p>SGLang is one of the fastest deployment frameworks for Inkling at the time of release, as it includes a custom model implementation. The launch command below shards the model across 8 GPUs and serves an OpenAI-compatible API on port 30000.</p>
+<pre><code>pip install sglang
+
+python3 -m sglang.launch_server \
+ --model-path thinkingmachine/Inkling \
+ --tp-size 8 \
+ --served-model-name inkling \
+ --host 0.0.0.0 \
+ --port 30000
+</code></pre>
+<p>Match <code>--tp-size</code> to your GPU count. Add <code>--mem-fraction-static</code> (e.g. <code>0.85</code>) if you need to leave more headroom for the KV cache.</p>
+<h3>
+	<a id="vllm" href="#vllm" rel="nofollow">
+		
+	</a>
+	<span>
+		vLLM
+	</span>
+</h3>
+<p>vLLM is strong for production serving. A single <code>vllm serve</code> command downloads the weights from the Hub, shards the model across your GPUs with tensor parallelism, and starts an OpenAI-compatible server on port 8000. You can view the vLLM Recipe for the model <a href="https://recipes.vllm.ai/thinkingmachines/Inkling" rel="nofollow">here</a> to customize to your hardware.</p>
+<pre><code><span># </span><span>Requires nightly or vllm&gt;=0.26 (once released)</span>
+uv pip install -U vllm --pre \
+  --extra-index-url https://wheels.vllm.ai/nightly/cu130 \
+  --extra-index-url https://download.pytorch.org/whl/cu130 \
+  --index-strategy unsafe-best-match
+
+vllm serve thinkingmachines/Inkling-NVFP4 \
+  --trust-remote-code \
+  --tokenizer-mode inkling \
+  --tensor-parallel-size 8 \
+  --enable-auto-tool-choice \
+  --tool-call-parser inkling \
+  --reasoning-parser inkling \
+  --served-model-name inkling
+</code></pre>
+<p>In practice, you might need multiple nodes and a distribution tool like SLURM (see below). Key parameters are <code>--tensor-parallel-size</code> to the number of GPUs on your node, and use <code>--max-model-len</code> to cap the context window if you hit KV-cache memory limits.</p>
+<pre><code>curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "inkling",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+</code></pre>
+<h3>
+	<a id="remote-inference-with-hugging-face-inference-providers" href="#remote-inference-with-hugging-face-inference-providers" rel="nofollow">
+		
+	</a>
+	<span>
+		Remote Inference with Hugging Face Inference Providers
+	</span>
+</h3>
+<p>You can infer with this model using several inference providers through Hugging Face. You can see all the code snippets to consume <a href="https://huggingface.co/thinkingmachines/inkling?inference_provider=fastest&amp;language=python&amp;client=openai&amp;inference_api=true">here</a>. Below you can see how to use with the OpenAI client.</p>
+<pre><code><span>import</span> os
+
+<span>from</span> openai <span>import</span> OpenAI
+
+client = OpenAI(
+    base_url=<span>"https://router.huggingface.co/v1"</span>,
+    api_key=os.environ[<span>"HF_TOKEN"</span>],
+)
+
+completion = client.chat.completions.create(
+    model=<span>"thinkingmachines/Inkling:auto"</span>,
+    messages=[
+        {
+            <span>"role"</span>: <span>"user"</span>,
+            <span>"content"</span>: <span>"What is the capital of France?"</span>,
+        },
+    ],
+)
+
+<span>print</span>(completion.choices[<span>0</span>].message)
+</code></pre>
+<p>Using the <code>“:auto”</code> suffix routes to your preferred provider in your settings; you can also use <code>“cheapest”</code> or <code>“:fastest”</code> as well. For this release, we cover the inference costs for 2 hours within the release for everyone.</p>
+<p>Note: audio support in Inference Providers is work in progress and will be added shortly.</p>
+<h3>
+	<a id="local-inference-with-llamacpp-and-unsloth" href="#local-inference-with-llamacpp-and-unsloth" rel="nofollow">
+		
+	</a>
+	<span>
+		Local Inference with llama.cpp and Unsloth
+	</span>
+</h3>
+<p>You can use <code>llama.cpp</code> to run quantized versions of the model on limited hardware. Unsloth have quantized the model down to 1-bit precision, reducing VRAM consumption by 95% over the original model.</p>
+<pre><code>llama serve -hf unsloth/inkling-GGUF:UD-IQ1_S
+</code></pre>
+<p>This starts an OpenAI-compatible server running at <a href="http://localhost:8080" rel="nofollow"><code>http://localhost:8080</code></a><code>/v1</code> that you connect to in your preferred tool or clients. Heading there, you can start chatting with the model, and set it up with your favorite MCPs, pass in images or files conveniently and more!</p>
+<p>Llama cpp also ships with a built-in UI that supports tools, mcp, and agentic workloads. Checkout Inkling running at 1-bit precision in the llama app:</p>
+<video controls="" width="100%" autoplay="" loop="" muted="">
+  <source src="https://huggingface.co/buckets/huggingface/inkling-blog-assets/resolve/thinky.mp4" type="video/mp4">
+</video>
+
+<p>Inkling GGUFs are also runnable in Unsloth Studio with dynamic 1-bit GGUFs which retain ~74.2% of top-1% accuracy whilst being 86% smaller.</p>
+<p><a href="https://huggingface.co/buckets/huggingface/inkling-blog-assets/resolve/unsloth.png" rel="nofollow"><img src="https://huggingface.co/buckets/huggingface/inkling-blog-assets/resolve/unsloth.png" alt="Inkling running in Unsloth Studio"></a></p>
+<h2>
+	<a id="use-cases" href="#use-cases" rel="nofollow">
+		
+	</a>
+	<span>
+		Use Cases
+	</span>
+</h2>
+<h3>
+	<a id="agentic-coding-with-pi" href="#agentic-coding-with-pi" rel="nofollow">
+		
+	</a>
+	<span>
+		Agentic coding with Pi
+	</span>
+</h3>
+<p>Pi is a minimal coding agent harness you can use with different language models. You can use Pi with either an inference engine server endpoint, such as llama.cpp, or with Inference Providers on Hugging Face by adding this to your <code>~/.pi/agent/models.json</code> after installation.</p>
+<pre><code><span>{</span>
+  <span>"providers"</span><span>:</span> <span>{</span>
+    <span>"inference-providers"</span><span>:</span> <span>{</span>
+      <span>"baseUrl"</span><span>:</span> <span>"https://router.huggingface.co/v1"</span><span>,</span>
+      <span>"api"</span><span>:</span> <span>"openai-completions"</span><span>,</span>
+      <span>"apiKey"</span><span>:</span> <span>"hf_..."</span><span>,</span>
+      <span>"models"</span><span>:</span> <span>[</span>
+        <span>{</span>
+          <span>"id"</span><span>:</span> <span>"thinkingmachines/Inkling"</span>
+        <span>}</span>
+      <span>]</span>
+    <span>}</span>
+  <span>}</span>
+<span>}</span>
+</code></pre>
+<p>Then you can start Pi in your project directory by calling <code>pi</code> and you’re good to go! In this demo, we give the model a hard math reasoning problem and it uses tools in pi to solve it.</p>
+<p><a href="https://huggingface.co/buckets/huggingface/inkling-blog-assets/resolve/visual-reasoning.gif" rel="nofollow"><img src="https://huggingface.co/buckets/huggingface/inkling-blog-assets/resolve/visual-reasoning.gif" alt="Visual reasoning gif demo"></a></p>
+<p>Inkling is focused on broad multimodality reasoning and low token consumption, so try it out with document processing or audio tasks.</p>
+<h3>
+	<a id="multi-token-prediction-drafters" href="#multi-token-prediction-drafters" rel="nofollow">
+		
+	</a>
+	<span>
+		Multi Token Prediction Drafters
+	</span>
+</h3>
+<p>MTP adds extra layers to the model that predict several tokens at once, not just the next one. During inference, the extra layers act as “drafters” for speculative decoding, speeding up generation without compromising performance. With MTP, you get the exact same generated outputs, multipliers in generation speed-up at small memory cost in VRAM (due to serving the drafter). Thinking Machines also provides an MTP drafter with this release.</p>
+<pre><code><span>import</span> torch
+<span>from</span> transformers <span>import</span> AutoModelForMultimodalLM, AutoProcessor
+
+processor = AutoProcessor.from_pretrained(<span>"thinkingmachines/Inkling"</span>)
+model = AutoModelForMultimodalLM.from_pretrained(
+    <span>"thinkingmachines/Inkling"</span>,
+    dtype=torch.bfloat16,
+    device_map=<span>"auto"</span>,
+)
+
+<span># Preprocess the inputs.</span>
+...
+generated = model.generate(
+    **inputs,
+    max_new_tokens=<span>1000</span>,
+    do_sample=<span>False</span>,
+    use_mtp=<span>True</span>,
+)
+<span>print</span>(processor.decode(generated[<span>0</span>], skip_special_tokens=<span>True</span>))
+</code></pre>
+<h3>
+	<a id="multimodal-vision" href="#multimodal-vision" rel="nofollow">
+		
+	</a>
+	<span>
+		Multimodal Vision
+	</span>
+</h3>
+<p>We have prepared a small suite of reasoning questions from expert-level sources and university entrance exams. We have taken photos of the screen with watermarks in the screenshot to challenge the model. The model has solved all of them on high one, failed one in highest and medium reasoning efforts, so we provide a link to the model answers for you to check out how the model sounds and provide the number of tokens the model has taken to solve each of them. Note that we provide no system prompts in these vibe evals, and these reasoning questions should often be run with a good system prompt. The vibe eval images and results live <a href="https://huggingface.co/buckets/merve/inkling">here</a>.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Category</th>
+<th>Question</th>
+<th>Number of Tokens (Reasoning Effort Medium)</th>
+<th>Number of Tokens (Reasoning Effort High)</th>
+<th>Number of Tokens (Reasoning Effort Max)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Open-ended Drug Interactions</td>
+<td>Which components interact here?</td>
+<td>1,893 ✅</td>
+<td>2,367 ✅</td>
+<td>3,688 ✅</td>
+</tr>
+<tr>
+<td>Physics Question (MMMU-Pro)</td>
+<td>Answer the question in the image.</td>
+<td>1,357 ✅</td>
+<td>3,323 ✅</td>
+<td>3,314 ✅</td>
+</tr>
+<tr>
+<td>Multilingual Physics Question</td>
+<td>Answer the Turkish question given in the image.</td>
+<td>1,435 ✅</td>
+<td>2,129 ✅</td>
+<td>3,162 ✅</td>
+</tr>
+<tr>
+<td>Bar Exam</td>
+<td>Answer the question in the image.</td>
+<td>1,117 ✅</td>
+<td>2,137 ✅</td>
+<td>1,676 ✅</td>
+</tr>
+<tr>
+<td>Infographics Question Answering (Open-ended)</td>
+<td>Based on the information presented, approximately how many times larger is the projected summer warming period in the Arctic than the time over which substantial Arctic warming has already been observed?</td>
+<td>1,378 ❌</td>
+<td>3,859 ✅</td>
+<td>6000 (exceeded token budget)</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Few notes on vibes:</strong></p>
+<ul>
+<li>Instead of directly answering the question on infographic, the model first turns text on image to text to ground itself.</li>
+<li>Prompting matters a lot to save tokens in reasoning, for instance, asking vague questions like “which components interact here?” with an image of the back of a pill, the model first needs to see what we mean by interactions here.</li>
+<li>Multi-choice question answers helped the model a lot in structuring its own reasoning, for open-ended questions the model struggled compared to MCQA, however, this is a common issue for many models. The usual chain of thought was OCR → characterize → evaluate each option → answer.</li>
+<li>0.7 reasoning effort (medium) seems to provide a good trade-off.</li>
+</ul>
+<h3>
+	<a id="multimodal-audio" href="#multimodal-audio" rel="nofollow">
+		
+	</a>
+	<span>
+		Multimodal Audio
+	</span>
+</h3>
+<p>We have vibe-evaluated the model on some audio reasoning examples from BigBenchAudio and a few multilingual audio examples of <a href="https://huggingface.co/datasets/iNLP-Lab/GlobeAudio">GlobeAudio</a> (Russian and Chinese multi-choice questions asking the last word in transcription). The <a href="https://huggingface.co/datasets/ArtificialAnalysis/big_bench_audio">BigBenchAudio</a> examples we tested consist of logical statements and questions that either ask for formal fallacies (whether an argument can be logically deduced from the context given in audio) or object counting (stating multiple distinctive objects in the audio, asking for the total count of a certain one). Although this benchmark is initially made for speech-to-speech reasoning, we just want to see audio reasoning capabilities of this model. For GlobeAudio, the questions are relatively straightforward, so we ran with reasoning efforts of 0.1. We ran the first example of each language within GlobeAudio. All tests pass on all questions and efforts, except for second formal fallacy example on lowest effort, so we only provide the number of tokens spent in each question against reasoning effort. Vibe eval results and audio files live <a href="https://huggingface.co/buckets/merve/inkling">here</a>.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>GlobeAudio</th>
+<th>Question</th>
+<th>Number of completion tokens (Reasoning effort lowest)</th>
+<th>Number of completion tokens (Reasoning effort medium)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Russian (asks for last word)</td>
+<td>Какое последнее слово в аудиозаписи? 1. Россия 2. Свидетелем 3. Москва 4. Событий Choose the single correct option and answer with its exact text.</td>
+<td>130</td>
+<td>179</td>
+</tr>
+<tr>
+<td>Russian (asks for profession of the speaker)</td>
+<td>Кем, скорее всего, работает говорящая? 1. Репортершей 2. Блоггершей 3. Учительницей истории 4. Ведущей развлекательного шоу Choose the single correct option and answer with its exact text.</td>
+<td>105</td>
+<td>136</td>
+</tr>
+<tr>
+<td>Chinese (asks for speaking rate)</td>
+<td>播报员的语速有何变化？ 1. 突然变快 2. 突然变慢 3. 保持不变 4. 时快时慢 Choose the single correct option and answer with its exact text.</td>
+<td>111</td>
+<td>289</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<div>
+	<table>
+		<thead><tr>
+<th>Big Bench Audio</th>
+<th>Completion Tokens (lowest)</th>
+<th>Completion Tokens (medium)</th>
+<th>Number of completion tokens ( highest)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Formal Fallacy (10)</td>
+<td>285</td>
+<td>335</td>
+<td>444</td>
+</tr>
+<tr>
+<td>Formal Fallacy (39)</td>
+<td>275 (fails)</td>
+<td>555</td>
+<td>778</td>
+</tr>
+<tr>
+<td>Object Counting (680)</td>
+<td>150</td>
+<td>233</td>
+<td>161</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Some notes on the vibes:</strong></p>
+<ul>
+<li>Similar to vision, the model first transcribes the speech before answering the question.</li>
+<li>It resists decoys: in Russian test, the model picked the right answer despite other answers appearing in the audio.</li>
+<li>Similar to vision, usual chain of thought is transcribe → characterize → evaluate each option → answer.</li>
+<li>The effort helps reasoning and not hearing. Audio question answering was much cheaper than images.</li>
+</ul>
+<h3>
+	<a id="post-training" href="#post-training" rel="nofollow">
+		
+	</a>
+	<span>
+		Post-training
+	</span>
+</h3>
+<p>If you would like to use Inkling for post-training, Thinking Machines have built <code>tinker</code>, a managed tool for post-training open weight models. Their cookbook includes examples for fine-tuning, distillation, and reinforcement learning.</p>
+<p>We post trained Inkling with tinker and OpenEnv, an agentic RL environment tool. We used the ECHO algorithm that trains a model to predict the environment without a verifier, applying next-token cross-entropy loss to tokens produced by the environment, alongside the usual policy learning on agent actions. This teaches the policy an implicit world model without requiring a separate model, teacher, or additional rollouts. Check out the <a href="https://github.com/huggingface/OpenEnv/blob/main/examples/echo_world_model/backends/tinker_echo_demo.py" rel="nofollow">example</a>.</p>
+<p><a href="https://huggingface.co/buckets/huggingface/inkling-blog-assets/resolve/trackio.png" rel="nofollow"><img src="https://huggingface.co/buckets/huggingface/inkling-blog-assets/resolve/trackio.png" alt="Inkling post-training metrics"></a></p>
+<details>
+<summary>RL Example with Tinker and OpenEnv</summary>
+
+<pre><code>git clone https://github.com/huggingface/OpenEnv.git
+cd OpenEnv
+
+# Add TINKER_API_KEY=... to .env, then run:
+uv run --env-file .env \
+  examples/echo_world_model/backends/tinker_echo_demo.py
+</code></pre>
+</details>
+
+<p>If you’re working with Transformers Reinforcement Learning we suggest using Inkling as a teacher model in a knowledge distillation setup. For example, take advantage of Inkling’s document understanding abilities to improve the performance of a smaller (on-device) model. In <a href="https://github.com/huggingface/trl/blob/main/examples/gold_chatbot_arena/gold_chatbot_arena.py" rel="nofollow">this example</a>, we use the transformer reinforcement learning library and the GOLD algorithm to distill knowledge. GOLD is handy here because it matches token logits between different tokenizers, so you can distill to any model on the hub.</p>
+<h2>
+	<a id="deploying-inkling-and-inkling-small" href="#deploying-inkling-and-inkling-small" rel="nofollow">
+		
+	</a>
+	<span>
+		Deploying Inkling and Inkling-Small
+	</span>
+</h2>
+<p>Below you can find each Inkling checkpoint as well as their VRAM requirements.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model Variant</th>
+<th>Aggregated VRAM</th>
+<th>Recommended GPU Configurations</th>
+<th>Deployment Notes</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Inkling (BF16)</strong></td>
+<td>2 TB</td>
+<td>• 8× NVIDIA B300 / GB200<br>• 16× NVIDIA H200</td>
+<td>Full precision deployment; requires multi-node interconnect for H200 clusters.</td>
+</tr>
+<tr>
+<td><strong>Inkling (NVFP4)</strong></td>
+<td>600 GB</td>
+<td>• 4× NVIDIA B300 / GB200 (W4A4)<br>• 8× NVIDIA H200 (W4A16)</td>
+<td>W4A4 requires Blackwell architecture (SM100+).</td>
+</tr>
+<tr>
+<td><strong>Inkling-Small (BF16)</strong></td>
+<td>600 GB</td>
+<td>• 4× NVIDIA B300 / GB200 (W4A4)<br>• 8× NVIDIA H200 (W4A16)</td>
+<td>Does not require Blackwell architecture; easily deployed to 8× H200s.</td>
+</tr>
+<tr>
+<td><strong>Inkling-Small (NVFP4)</strong></td>
+<td>180 GB</td>
+<td>• 1× NVIDIA B300 (W4A4)<br>• 2× NVIDIA H200 (W4A16)</td>
+<td>W4A4 supported on single Blackwell GPU; W4A16 supported on 2× H200s.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="deploying-inkling-on-a-cluster" href="#deploying-inkling-on-a-cluster" rel="nofollow">
+		
+	</a>
+	<span>
+		Deploying Inkling on a cluster
+	</span>
+</h2>
+<p>To deploy Inkling on a cluster, we provide SLURM scripts serving with transformers API, as well as how to query the endpoint with different modalities. You can adapt these scripts to vLLM or SGlang by updating the commands. These scripts live <a href="https://huggingface.co/buckets/merve/inkling">here</a>.</p>
+<ul>
+<li><a href="https://huggingface.co/buckets/merve/inkling/tree/slurm/submit_inkling_generate.sbatch">Submit inference job</a></li>
+<li><a href="https://huggingface.co/buckets/merve/inkling/tree/slurm/generate_inkling.py">Python generation script</a></li>
+</ul>
+<h2>
+	<a id="deploying-inkling-small-on-inference-endpoints" href="#deploying-inkling-small-on-inference-endpoints" rel="nofollow">
+		
+	</a>
+	<span>
+		Deploying Inkling-Small on Inference Endpoints
+	</span>
+</h2>
+<p>You can deploy an Inkling-Small NVFP4 checkpoint using Inference Endpoints. We provide a pre-tested configuration to deploy it on 8 RTX PRO 6000s with an aggregated VRAM of·768 GB, giving large space for KV cache, costs $ 22 per hourly uptime (scales to zero when unused). To deploy, run hf endpoints catalog deploy --repo thinkingmachines/Inkling-Small-NVFP4 using the Hugging Face CLI or alternatively, head to <a href="https://endpoints.huggingface.co/new/thinkingmachines/Inkling-Small-NVFP4" rel="nofollow">https://endpoints.huggingface.co/new/thinkingmachines/Inkling-Small-NVFP4</a>. With this setup, you can get 140 TPS (single user inference, prepared for multi-user support with continuous batching)</p>
+<p>Once the endpoint is up, you can query as follows. </p>
+<pre><code>curl <span>"YOUR_ENDPOINT_HERE"</span> \
+-X POST \
+-H <span>"Authorization: Bearer <span>$HF_TOKEN</span>"</span> \
+-H <span>"Content-Type: application/json"</span> \
+-d <span>'{</span>
+<span>    "model": "thinkingmachines/Inkling-Small-NVFP4",</span>
+<span>    "messages": [</span>
+<span>        {</span>
+<span>            "role": "user",</span>
+<span>            "content": [</span>
+<span>                {</span>
+<span>                    "type": "image_url",</span>
+<span>                    "image_url": {</span>
+<span>                        "url": "https://endpoints.hf.co/media-examples/img1.png"</span>
+<span>                    }</span>
+<span>                },</span>
+<span>                {</span>
+<span>                    "type": "text",</span>
+<span>                    "text": "Describe this image in one sentence."</span>
+<span>                }</span>
+<span>            ]</span>
+<span>        }</span>
+<span>    ],</span>
+<span>    "stream": true,</span>
+<span>    "max_tokens": 100</span>
+<span>}'</span>
+</code></pre>
+<h2>
+	<a id="benchmark-results" href="#benchmark-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Benchmark Results
+	</span>
+</h2>
+<div>
+	<table>
+		<thead><tr>
+<th></th>
+<th></th>
+<th>Inkling Small</th>
+<th>Inkling</th>
+<th>Nemotron 3 Ultra</th>
+<th>Kimi K2.5</th>
+<th>Kimi K2.6</th>
+<th>GLM 5.2</th>
+<th>DeepSeek V4 Pro</th>
+<th>Gemini 3.1 Pro (high)</th>
+<th>Claude Fable 5 (max)</th>
+<th>GPT 5.6 Sol (xhigh)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Reasoning</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>HLE (text only)</td>
+<td>31.6%</td>
+<td>29.7%</td>
+<td>26.6%</td>
+<td>29.4%</td>
+<td>35.9%</td>
+<td>40.1%</td>
+<td>35.9%</td>
+<td>44.7%</td>
+<td>53.3%</td>
+<td>47.2%</td>
+</tr>
+<tr>
+<td></td>
+<td>HLE (with tools)</td>
+<td>47.8%</td>
+<td>46.0%</td>
+<td>37.4%</td>
+<td>50.2%</td>
+<td>54.0%</td>
+<td>54.7%</td>
+<td>48.2%</td>
+<td>51.4%</td>
+<td>64.5%</td>
+<td>55.0%</td>
+</tr>
+<tr>
+<td></td>
+<td>AIME 2026</td>
+<td>95.5%</td>
+<td>97.1%</td>
+<td>94.2%</td>
+<td>95.8%</td>
+<td>96.4%</td>
+<td>99.2%</td>
+<td>96.7%</td>
+<td>98.3%</td>
+<td>–</td>
+<td>99.9%</td>
+</tr>
+<tr>
+<td></td>
+<td>GPQA Diamond</td>
+<td>89.5%</td>
+<td>87.2%</td>
+<td>86.7%    0</td>
+<td>87.9%</td>
+<td>91.1%</td>
+<td>89.5%</td>
+<td>88.8%</td>
+<td>94.1%</td>
+<td>92.6%</td>
+<td>94.1%</td>
+</tr>
+<tr>
+<td><strong>Agentic (coding)</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>SWEBench Verified</td>
+<td>80.2%</td>
+<td>77.6%</td>
+<td>70.7%</td>
+<td>76.8%</td>
+<td>80.2%</td>
+<td>–</td>
+<td>80.6%</td>
+<td>80.6%</td>
+<td>95.0%</td>
+<td>–</td>
+</tr>
+<tr>
+<td></td>
+<td>SWEBench Pro (Public)</td>
+<td>55.9%</td>
+<td>54.3%</td>
+<td>46.4%</td>
+<td>50.7%</td>
+<td>58.6%</td>
+<td>62.1%</td>
+<td>55.4%</td>
+<td>54.2%</td>
+<td>80.0%</td>
+<td>64.6%</td>
+</tr>
+<tr>
+<td></td>
+<td>Terminal Bench 2.1 (Best Harness)</td>
+<td>64.69</td>
+<td>63.8</td>
+<td>56.4</td>
+<td>51.3</td>
+<td>71.3</td>
+<td>82.7</td>
+<td>64</td>
+<td>73.8</td>
+<td>84.6</td>
+<td>89.5</td>
+</tr>
+<tr>
+<td></td>
+<td>GDPVal-AA v2</td>
+<td>1269</td>
+<td>1233</td>
+<td>1164</td>
+<td>1009</td>
+<td>1190</td>
+<td>1514</td>
+<td>1307</td>
+<td>962</td>
+<td>1760</td>
+<td>1748</td>
+</tr>
+<tr>
+<td><strong>Agentic (general)</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>MCP Atlas</td>
+<td>79.2%</td>
+<td>74.1%</td>
+<td>44.7%</td>
+<td>64.0%</td>
+<td>68.1%</td>
+<td>77.8%</td>
+<td>73.2%</td>
+<td>78.2%</td>
+<td>83.3%</td>
+<td>81.8%</td>
+</tr>
+<tr>
+<td></td>
+<td>Tau 3 Banking</td>
+<td>15.5%</td>
+<td>23.7%</td>
+<td>13.8%</td>
+<td>13.2%</td>
+<td>20.6%</td>
+<td>26.8%</td>
+<td>25.8%</td>
+<td>16.5%</td>
+<td>26.8%</td>
+<td>33.0%</td>
+</tr>
+<tr>
+<td><strong>Factuality</strong></td>
+<td></td>
+<td></td>
+<td>0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>BrowseComp (w/ Ctx)</td>
+<td>77.4%</td>
+<td>77.1%</td>
+<td>–</td>
+<td>74.9%</td>
+<td>83.2%</td>
+<td>–</td>
+<td>83.4%</td>
+<td>85.9%</td>
+<td>88.0%</td>
+<td>89.4%</td>
+</tr>
+<tr>
+<td></td>
+<td>SimpleQA Verified</td>
+<td>20.6%</td>
+<td>43.9%</td>
+<td>32.4%</td>
+<td>36.9%</td>
+<td>38.7%</td>
+<td>38.1%</td>
+<td>57.0%</td>
+<td>77.3%</td>
+<td>68.3%</td>
+<td>71.6%</td>
+</tr>
+<tr>
+<td></td>
+<td>AA Omniscience</td>
+<td>-9</td>
+<td>1.0%</td>
+<td>-1.0%</td>
+<td>-8.0%</td>
+<td>6.0%</td>
+<td>4.0%</td>
+<td>-10.0%</td>
+<td>33.0%</td>
+<td>40.0%</td>
+<td>22.0%</td>
+</tr>
+<tr>
+<td><strong>Chat</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>IFBench</td>
+<td>82.2%</td>
+<td>79.8%</td>
+<td>81.4%</td>
+<td>70.2%</td>
+<td>76.0%</td>
+<td>73.3%</td>
+<td>76.5%</td>
+<td>77.1%</td>
+<td>63.5%</td>
+<td>72.7%</td>
+</tr>
+<tr>
+<td></td>
+<td>Global-MMLU-Lite</td>
+<td>86.7%</td>
+<td>88.7%</td>
+<td>85.6%</td>
+<td>84.0%</td>
+<td>88.4%</td>
+<td>89.2%</td>
+<td>89.3%</td>
+<td>92.7%</td>
+<td>93.3%</td>
+<td>91.8%</td>
+</tr>
+<tr>
+<td><strong>Vision</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>0</td>
+<td>0</td>
+<td></td>
+<td>0</td>
+</tr>
+<tr>
+<td></td>
+<td>MMMU Pro (Standard 10)</td>
+<td>74.0%</td>
+<td>73.3%</td>
+<td>–</td>
+<td>75.0%</td>
+<td>79.0%</td>
+<td>–</td>
+<td>–</td>
+<td>82.0%</td>
+<td>84.2%</td>
+<td>83.0%</td>
+</tr>
+<tr>
+<td></td>
+<td>Charxiv RQ</td>
+<td>77.4%</td>
+<td>78.1%</td>
+<td>–</td>
+<td>77.5%</td>
+<td>80.4%</td>
+<td>–</td>
+<td>–</td>
+<td>80.2%</td>
+<td>86.5%</td>
+<td>84.7%</td>
+</tr>
+<tr>
+<td></td>
+<td>Charxiv RQ (with python)</td>
+<td>82.3%</td>
+<td>82.0%</td>
+<td>–</td>
+<td>78.7%</td>
+<td>86.7%</td>
+<td>–</td>
+<td>–</td>
+<td>89.9%</td>
+<td>89.4%</td>
+<td>87.8%</td>
+</tr>
+<tr>
+<td><strong>Audio</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Audio MC</td>
+<td>54.9%</td>
+<td>56.6%</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>66.8%</td>
+<td>–</td>
+<td>–</td>
+</tr>
+<tr>
+<td></td>
+<td>MMAU</td>
+<td>77.0%</td>
+<td>77.2%</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>82.5%</td>
+<td>–</td>
+<td>–</td>
+</tr>
+<tr>
+<td></td>
+<td>VoiceBench</td>
+<td>90.1%</td>
+<td>91.4%</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>–</td>
+<td>94.3%     0</td>
+<td>–</td>
+<td>–</td>
+</tr>
+<tr>
+<td><strong>Safety</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>FORTRESS (Adversarial)</td>
+<td>71.6%</td>
+<td>78.0%</td>
+<td>77.6%</td>
+<td>54.1%</td>
+<td>65.6%</td>
+<td>71.3%</td>
+<td>36.0%</td>
+<td>65.2%</td>
+<td>96.0%</td>
+<td>82.4%            stationary</td>
+</tr>
+<tr>
+<td></td>
+<td>FORTRESS (Benign)</td>
+<td>96.9%</td>
+<td>95.9%</td>
+<td>90.5%</td>
+<td>98.3%</td>
+<td>97.2%</td>
+<td>90.0%</td>
+<td>98.5%</td>
+<td>98.0%</td>
+<td>55.1%</td>
+<td>98.1%</td>
+</tr>
+<tr>
+<td></td>
+<td>StrongREJECT</td>
+<td>98.4%</td>
+<td>98.6%</td>
+<td>98.7%</td>
+<td>99.5%</td>
+<td>99.8%</td>
+<td>98.5%</td>
+<td>98.6%</td>
+<td>98.0%</td>
+<td>98.7%</td>
+<td>98.5%</td>
+</tr>
+</tbody>
+	</table>
+</div>
+</div></div>

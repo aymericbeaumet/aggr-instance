@@ -1,0 +1,197 @@
+<div id="readability-page-1" class="page"><div>
+                <p>I’m one of the core developers of <a href="https://veloren.net/">Veloren</a>. Sadly, I don’t get
+much time to work on the project nowadays: if you’re a parent too you’ll understand, I’m
+sure.</p>
+<p>In this post I want to document some of the unusual choices that have been made during
+Veloren’s development. If you’re working on a game you might find some of them
+interesting.</p>
+<p><img src="https://blog.jsbarretto.com/img/veloren6.webp" alt="A mountain view"></p>
+<h2 id="ecs">ECS</h2>
+<p>Veloren is built on an ECS (Entity Component System) rather than a more traditional
+object-oriented class hierarchy. Nowadays - and especially in the Rust ecosystem - this
+is much more common, but when we started the project in 2018 it was surprisingly rarely
+used for anything but demoware and we had to invent a lot of concepts internally to make
+it work for our needs.</p>
+<p>We’ve benefitted massively from this decision: Veloren scales far better than most
+multiplayer games and will happily hit 50% core utilisation on a 48 thread server with
+over 500 players connected and 10s of thousands of entities interacting in the game
+world. Most MMOs can only achieve these numbers by either reducing the scope of gameplay
+(fewer cross-entity interactions) or aggressively sharding players across different
+world spaces.</p>
+<p><img src="https://blog.jsbarretto.com/img/veloren2.png" alt="A lot of players"></p>
+<p>ECS does have some unexpected quirks. In a traditional game engine, different kinds of
+entities are separated by a compile-time bifurcation at the type level, with
+polymorphism between classes being an opt-in for specific cases. With an ECS,
+polymorphism is the default and a taxonomy of entities is something that must be opted
+into. This has resulted in some interesting side effects:</p>
+<ul>
+<li>
+<p>We once had a bug in which players were assigned an <code>ItemDrop</code> component based on the
+items they were carrying. Due to a slightly botched transition between the way loot
+was implemented, this resulted in players being able to ‘pick up’ other players when
+nearby. This would drop the player’s entity, kicking them from the game server.</p>
+</li>
+<li>
+<p>When we first implemented mounts (the ability for characters to ride things like
+horses), the cycle detection logic (that prevents mutually-mounted entities) and the
+control passthrough logic (which allows the rider to pass control instructions to the
+mount) were both faulty. This meant that players could construct enormous towers of
+entities all riding the one below, or even create mount cycles, which resulted in
+amusing Bethesda-style catherine wheels of chaos as the physics engine tried
+desperately to resolve the contradictory mounting constraints.</p>
+</li>
+</ul>
+<h2 id="player__npc_duality">Player / NPC duality</h2>
+<p>To the maximum possible extent, player characters and NPCs are the same. For example,
+both:</p>
+<ul>
+<li>
+<p>Interact with the physics engine in the same way. NPCs cannot teleport, phase through
+blocks, or artificially control their physics properties. If the NPC’s agent code
+isn’t smart enough to account for the NPC’s momentum and friction when traversing a
+cliff edge, they will fall off.</p>
+</li>
+<li>
+<p>Have exactly the same movement control options. All movement and control options go
+through the <a href="https://docs.veloren.net/veloren_common/comp/controller/struct.Controller.html"><code>Controller</code></a>
+ECS component, which acts as a sort of virtual gamepad. For players, <code>Controller</code>
+inputs are provided by the player’s keyboard, mouse, and physical gamepad inputs. For
+NPCs, <code>Controller</code> inputs are provided by the game’s <code>agent</code> decision tree system.</p>
+</li>
+<li>
+<p>Are governed by the same movement controller code. <code>Controller</code> inputs are constrained
+by the physical abilities of the character’s body and translated into inputs for the
+physics engine with exactly the same code.</p>
+</li>
+<li>
+<p>Have the exact same skill tree and experience system. In previously iterations of the
+game sound effects would even get played when a nearby NPC levelled up!</p>
+</li>
+</ul>
+<p><img src="https://blog.jsbarretto.com/img/veloren4.png" alt="Yes, trains are entities too"></p>
+<h2 id="chonks">Chonks</h2>
+<p>Veloren is a voxel game. Usually, voxel games take one of several approaches to storing
+their terrain data:</p>
+<ul>
+<li>
+<p>Big 3D arrays of blocks, addressed via some sort of hash table into a series of chunks</p>
+</li>
+<li>
+<p><a href="https://en.wikipedia.org/wiki/Run-length_encoding">RLE</a>-encoded voxel data, usually
+grouped into chunks</p>
+</li>
+<li>
+<p>Octrees, where the whole world is defined as a recursive tree of increasingly smaller
+voxel 2x2x2 cubes</p>
+</li>
+</ul>
+<p>In practice, each approach has big problems. Big arrays are fast but provide little
+scope for compression. RLE only compresses well when the voxel data appears as large
+groups of homogenous blocks, and has awful random access performance. Octrees are
+extremely unfriendly to modern CPU caches.</p>
+<p>Veloren uses neither. Instead, it has a data structure we’ve internally called ‘chonks’
+(an affectionate portmantaeu of ‘column’ and ‘chunk’). It uses an internal single-level
+index table in which groups of NxNxN blocks can be represented as either ‘homogeneous’
+(self-similar) or ‘heterogenous’ (each requiring a different index in the table). Each
+chonk is also split into an arbitrary number of fixed-size vertical ‘sub-chunks’, each
+offset from the vertical origin. All in all, this is a good tradeoff between cache
+coherence and compression and provided excellent random access performance.</p>
+<h2 id="world_pregeneration">World pre-generation</h2>
+<p>Most voxel games, like Minecraft, generate more of the world as players explore.
+Instead, Veloren pre-generates the entire world on startup at a lower resolution and
+‘fills in’ small details when players get close using a variety of different
+interpolation and noise-based techniques.</p>
+<p>This up-front generation step means that Veloren can support complex world features that
+simply cannot be implemented with local constraint solving only, such as long rivers
+that always flow downhill.</p>
+<p><img src="https://blog.jsbarretto.com/img/veloren8.png" alt="A world map"></p>
+<p>In addition, we get to spend time performing some simulation of the world before the
+game starts, resulting in more interesting features.</p>
+<details>
+<summary> A short aside on what 'procedural generation' even is </summary>
+<p>If you ask most folk to describe procedural generation, they might say something like
+‘random game content’. This is exactly backward: procedural generation is about defining
+constraints between elements of gameplay that tickle the habitual pattern-matching
+tendencies of the human brain.</p>
+<p>The best procedural generation systems will weave complex narrative threads through a
+world not via some random walk through a combinatoral space, but instead by ensuring
+self-consistency. If you find a river, you should be able to walk to is source. If you
+come across a monster, you should be able to find its lair. If you slay the monster, the
+way characters in the nearby town talk about your character should change.</p>
+<p>Good procedural generation systems need almost no randomness, because randomness is what
+players bring to the table: the purpose of a procedural generator is to push back
+against that randomness and coerce it into a self-consistent system with consequences.</p>
+</details>
+<p>Another advantage of this low-resolution pre-generation step is that we can produce
+accurate LoD (Level of Detail) stand-ins for distant terrain, resulting in a virtually
+unlimited view distance even on low-power hardware.</p>
+<p><img src="https://blog.jsbarretto.com/img/veloren1.png" alt="A screenshot demonstrating the high view distance"></p>
+<h2 id="physicallybased_world_generation">Physically-based world generation</h2>
+<p>Most voxel games make heavy use of <em>teleological</em> procedural generation. This generation
+philosophy focusses on aesthetic outputs; are the colours artistically fitting? are the
+mountains interesting enough? does the world ‘look right’? Common to this philosophy are
+techniques like procedural noise or semi-stochastic algorithms like <a href="https://en.wikipedia.org/wiki/Model_synthesis">Wave Function
+Collapse</a>.</p>
+<p>Instead, Veloren leans much more heavily on top-level <em>ontological</em> procedural
+generation. Instead of focussing on outputs, the focus is instead on defining an interal
+model of the world that recreates the physical inputs to processes and then simulates
+their effect on the world.</p>
+<p>The most obvious example of this is our physically-based
+<a href="https://gitlab.com/veloren/veloren/-/blob/master/world/src/sim/erosion.rs">hydraulic erosion model</a>
+that produces the mountainous terrain and complex river systems the game is so well
+known for.</p>
+<p>Another example is our procedural path generator, which uses a simplified model
+traversal cost model to find energy-efficient routes between sites.</p>
+<p>I believe that the physically-based nature of many of Veloren’s procedural elements are
+key to the coherent and ‘bigger-than-you’ feeling that Veloren produces.</p>
+<p><img src="https://blog.jsbarretto.com/img/veloren5.png" alt="A desert mesa"></p>
+<h2 id="rtsim">RTSim</h2>
+<p>Veloren doesn’t stop doing physically-based simulation after initial world generation.
+The game has an internal world simulation system known as ‘rtsim’ (Real Time SIMulation)
+which uses the aforementioned low-resolution world data to continue simulating the whole
+world, even when no players are nearby.</p>
+<p>Every NPC in the world has a dual residing within rtsim. When an NPC leaves the active
+view distance of a player, they don’t get despawned: instead, they’re subsumed into
+rtsim where the game continues to track their movements and simulate the effect of their
+high-level decision tree logic.</p>
+<p>Rtsim is becoming an increasingly complicated part of Veloren and many of the more
+interesting dynamic aspects of the game now reside in it: quest simulation, faction
+dynamics, and even elements of the game economy are now tracked by it as the game runs.
+It’s possible to observe raids on sites by pirates and travelling bandits as they move
+across the world, for example. NPCs and in particular merchants will also migrate across
+the world.</p>
+<p>Rtsim is designed to scale: most Veloren worlds contain upward of 10s of thousands of
+NPCs, and rtsim is capable of tracking them all simultaneously.</p>
+<p><img src="https://blog.jsbarretto.com/img/veloren3.png" alt="A large town"></p>
+<h2 id="no_invisible_walls">No invisible walls</h2>
+<p>A game design constraint that we set ourselves quite early on was that of avoiding
+‘invisible walls’: these might be physical, like the boundaries on the edge of a game’s
+world map, or they might be conceptual, like a game refusing to permit interaction
+between two elements in the world for arbitrary reasons.</p>
+<p>Imposing this constraint has created significant problems for game balance, as well as
+designing proper interaction between gameplay elements. It is not clear, for example,
+how the game even <em>should</em> react when a mischievous player decides to pull a mighty boss
+out of their dungeon and into a nearby town. But, Veloren permits you to do this, and
+that constraint has encourages us to design game systems <em>defensively</em> with the
+expectation that they may have to continue functioning in extremely unusual
+circumstances.</p>
+<h2 id="one_world_space">One world space</h2>
+<p>Many game decide to split their world into distinct areas for the purpose of performance
+or artistic decisions, with loading screens separating them. Veloren chooses to avoid
+this entirely and places all gameplay elements into the same physical world space.</p>
+<p>One feature of the game where this results in complexity is the elaborate cave system
+that weaves underneath the world. This cave system can sometimes be up to a kilometre
+under the surface of the world, and often is many levels deep, so keeping the game
+performant when there’s a cave network under the player’s feet has been a challenge.</p>
+<p>A surprising problem to solve here is lighting. Veloren has a much more diverse lighting
+model than most voxel games and supports baked voxel lighting, point lights, directed
+shadow mapping, reflections, an ambient light model, volumetric fog and clouds (which
+both result in light scattering), etc. Ensuring that no lighting information from the
+surface makes its way down into the deepest cave, even in the middle of the day, was
+surprisingly complicated: global effects like lightning strikes have a tendency to leak
+ambient lighting data through shadow maps and appear in screen-space reflections even
+when care is taken to isolate them, and a lot of time has been spent ensuring that the
+visibility of these effects from the player’s perspective is properly accounted for.</p>
+<p><img src="https://blog.jsbarretto.com/img/veloren7.png" alt="A sinkhole leading to a cave"></p>
+
+            </div></div>
