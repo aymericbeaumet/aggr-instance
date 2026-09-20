@@ -8,7 +8,7 @@ first_seen: 2026-09-11T13:49:02.099995368Z
 authors:
 - nasutton12
 summary: 'Article URL: https://nasutton.notion.site/Nine-coding-harnesses-vs-your-laptop-3d139990182b80d59fa3cf500f0450ba?pvs=74 Comments URL: https://news.ycombinator.com/item?id=49651221 Points: 135 # Comments: 46'
-content: feed
+content: extracted
 html: 2026-09-10-nine-coding-harnesses-vs-your-laptop.html
 preview:
   file: 2026-09-10-nine-coding-harnesses-vs-your-laptop.preview-7b8898cdfbf6.webp
@@ -22,9 +22,6 @@ images:
     width: 1200
     height: 625
   variants:
-  - file: 2026-09-10-nine-coding-harnesses-vs-your-laptop.image-a19ce4a657dc.webp
-    width: 48
-    height: 25
   - file: 2026-09-10-nine-coding-harnesses-vs-your-laptop.image-bf2b8b46e3a1.webp
     width: 320
     height: 167
@@ -38,12 +35,22 @@ images:
     width: 1200
     height: 625
   color: '#fdfdfd'
+- source: https://nasutton.notion.site/images/notion-logo-block-main.svg
+  original:
+    file: 2026-09-10-nine-coding-harnesses-vs-your-laptop.image-5871859fd98b.png
+    width: 335
+    height: 350
+  variants:
+  - file: 2026-09-10-nine-coding-harnesses-vs-your-laptop.image-9e9d2cc0728b.webp
+    width: 320
+    height: 334
+  - file: 2026-09-10-nine-coding-harnesses-vs-your-laptop.image-1f7b49d2f9a0.webp
+    width: 335
+    height: 350
+  color: '#010101'
 ---
 
-Article URL: [https://nasutton.notion.site/Nine-coding-harnesses-vs-your-laptop-3d139990182b80d59fa3cf500f0450ba?pvs=74](https://nasutton.notion.site/Nine-coding-harnesses-vs-your-laptop-3d139990182b80d59fa3cf500f0450ba?pvs=74)
+![Notion](https://nasutton.notion.site/images/notion-logo-block-main.svg)
 
-Comments URL: [https://news.ycombinator.com/item?id=49651221](https://news.ycombinator.com/item?id=49651221)
-
-Points: 135
-
-\# Comments: 46
+JavaScript must be enabled in order to use Notion.\
+Please enable JavaScript to continue.

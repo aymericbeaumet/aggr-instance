@@ -6,7 +6,7 @@ published: 2025-11-13T05:00:00Z
 updated: 2025-11-13T05:00:00Z
 first_seen: 2026-09-19T21:30:23.395188495Z
 summary: "On vous montre comment nous avons conçu un outil d’IA qui gère nos podcasts de bout en bout, pas une simple surcouche de chatbot mais un système qui tourne vraiment. Au programme : principes de diffusion et d’auto-encodeurs, lien texte‑image via CLIP, arbitrages entre créativité et mémorisation, datasets web et galères de fine‑tuning. Retour d’expérience concret sur les essais, les impasses et les choix techniques qui mènent à un outil utile en production. Sources Mammouth AI Mammouth AI — Politique de confidentialité et technique En plateau Michaël de Marliave — animateur Matthieu Lambda — chroniqueur Arthur della Faille — invité \uFEFF➤ Pour découvrir Mammouth IA : https://mammouth.ai/ ➤ Pour le Merch Micode et Underscore_ : https://traphic.fr/collections/micode ⚠️ Précommandes avant le 15 Janvier ! Hébergé par Acast. Visitez acast.com/privacy pour plus d'informations."
-content: feed
+content: extracted
 html: 2025-11-13-generation-ia-d-images-4-ans-de-recherche-resumes-en-20.html
 preview:
   file: 2025-11-13-generation-ia-d-images-4-ans-de-recherche-resumes-en-20.preview-4b3c259ae5e0.webp
@@ -26,35 +26,14 @@ images:
     width: 1400
     height: 1400
   color: '#000002'
+- source: https://i.ytimg.com/vi/0u3QcumK0hw/hqdefault.jpg
+  original:
+    file: 2025-11-13-generation-ia-d-images-4-ans-de-recherche-resumes-en-20.image-98747a329e45.jpg
+    width: 480
+    height: 360
+  color: '#000001'
 extra:
   audio_url: https://sphinx.acast.com/p/acast/s/micode-underscore/e/69148f21543edcb560fe8de2/media.mp3
   duration_seconds: 1630
   thumbnail: https://assets.pippa.io/shows/6139142f588d8c5deac642d6/bfc14ec5-2f3a-4a84-8cc0-51fa75131de1.jpg
 ---
-
-On vous montre comment nous avons conçu un outil d’IA qui gère nos podcasts de bout en bout, pas une simple surcouche de chatbot mais un système qui tourne vraiment. Au programme : principes de diffusion et d’auto-encodeurs, lien texte‑image via CLIP, arbitrages entre créativité et mémorisation, datasets web et galères de fine‑tuning. Retour d’expérience concret sur les essais, les impasses et les choix techniques qui mènent à un outil utile en production.
-
-* * *
-
-**Sources**
-
-- [Mammouth AI](http://mammouth.ai)
-- [Mammouth AI — Politique de confidentialité et technique](https://info.mammouth.ai/fr/docs/about-privacy/)
-
-**En plateau**
-
-- Michaël de Marliave — animateur
-- Matthieu Lambda — chroniqueur
-- Arthur della Faille — invité
-
-**﻿**➤ Pour découvrir Mammouth IA : https://mammouth.ai/
-
-\
-
-➤ Pour le Merch Micode et Underscore\_ : [https://traphic.fr/collections/micode](https://www.youtube.com/redirect?event=video_description&redir_token=QUFFLUhqbVRfTU9vNjFxdzVmdk9wVllEbU9GRVpjY2hxd3xBQ3Jtc0trN3ItTGwyMkhSUHRWR2JWaU1YaGJGTGJ4LVBReFcwVDhIdGpkQTduUEx6V1lZVnFRSXJLVjdSVVNwM3NFZkRjMmdpUzQ5V01hZGlVckoyd3huLV9NLXNWa19RTTljclhxNFIyOHBzNHk1LTJSLW5jcw&q=https%3A%2F%2Ftraphic.fr%2Fcollections%2Fmicode&v=5Oo0u5RZ7HA)
-
-⚠️ Précommandes avant le 15 Janvier !
-
-* * *
-
-Hébergé par Acast. Visitez [acast.com/privacy](https://acast.com/privacy) pour plus d'informations.
