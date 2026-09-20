@@ -6,7 +6,7 @@ published: 2026-01-29T04:00:00Z
 updated: 2026-01-29T04:00:00Z
 first_seen: 2026-09-19T21:30:23.395188495Z
 summary: "Comment des robots 3D préparent vos commandes en un clin d'œil : nous recevons Renaud Heitz, cofondateur et CTO d’Exotec. Il explique le fonctionnement de leur système d’entreposage automatisé (robots opérant jusqu’à plus de 12 m, 4 m/s) et les choix techniques qui le distinguent des solutions historiques, y compris chez Amazon. On explore aussi les cas d’usage concrets (e‑commerce, réassort de magasins, pharmacie) et ce que cette logistique change pour la livraison en 24 h. En plateau Michaël de Marliave — animateur Matthieu Lambda — chroniqueur Renaud Heitz — invité (Exotec) \uFEFF➤ Pour découvrir Mammouth IA : https://mammouth.ai/ ➤ Pour le Merch Micode et Underscore_ : https://traphic.fr/collections/micode ⚠️ Précommandes avant le 15 Janvier ! Hébergé par Acast. Visitez acast.com/privacy pour plus d'informations."
-content: feed
+content: extracted
 html: 2026-01-29-la-prouesse-robotique-derriere-la-livraison-en-24h-renaud.html
 preview:
   file: 2026-01-29-la-prouesse-robotique-derriere-la-livraison-en-24h-renaud.preview-c380b14921a7.webp
@@ -26,30 +26,14 @@ images:
     width: 1400
     height: 1400
   color: '#030317'
+- source: https://i.ytimg.com/vi/JDbVGYv5X_0/hqdefault.jpg
+  original:
+    file: 2026-01-29-la-prouesse-robotique-derriere-la-livraison-en-24h-renaud.image-abe67af58714.jpg
+    width: 480
+    height: 360
+  color: '#000001'
 extra:
   audio_url: https://sphinx.acast.com/p/acast/s/micode-underscore/e/69708a1d6a445e577f23e39b/media.mp3
   duration_seconds: 1653
   thumbnail: https://assets.pippa.io/shows/6139142f588d8c5deac642d6/0c0bb4ea-fc49-4e08-ad1e-ca16c269ab5a.jpeg
 ---
-
-Comment des robots 3D préparent vos commandes en un clin d'œil : nous recevons Renaud Heitz, cofondateur et CTO d’Exotec. Il explique le fonctionnement de leur système d’entreposage automatisé (robots opérant jusqu’à plus de 12 m, 4 m/s) et les choix techniques qui le distinguent des solutions historiques, y compris chez Amazon. On explore aussi les cas d’usage concrets (e‑commerce, réassort de magasins, pharmacie) et ce que cette logistique change pour la livraison en 24 h.
-
-* * *
-
-**En plateau**
-
-- Michaël de Marliave — animateur
-- Matthieu Lambda — chroniqueur
-- Renaud Heitz — invité (Exotec)
-
-**﻿**➤ Pour découvrir Mammouth IA : https://mammouth.ai/
-
-\
-
-➤ Pour le Merch Micode et Underscore\_ : [https://traphic.fr/collections/micode](https://www.youtube.com/redirect?event=video_description&redir_token=QUFFLUhqbVRfTU9vNjFxdzVmdk9wVllEbU9GRVpjY2hxd3xBQ3Jtc0trN3ItTGwyMkhSUHRWR2JWaU1YaGJGTGJ4LVBReFcwVDhIdGpkQTduUEx6V1lZVnFRSXJLVjdSVVNwM3NFZkRjMmdpUzQ5V01hZGlVckoyd3huLV9NLXNWa19RTTljclhxNFIyOHBzNHk1LTJSLW5jcw&q=https%3A%2F%2Ftraphic.fr%2Fcollections%2Fmicode&v=5Oo0u5RZ7HA)
-
-⚠️ Précommandes avant le 15 Janvier !
-
-* * *
-
-Hébergé par Acast. Visitez [acast.com/privacy](https://acast.com/privacy) pour plus d'informations.
