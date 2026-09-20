@@ -8,7 +8,7 @@ first_seen: 2026-09-19T00:12:15.276274218Z
 authors:
 - CameronBanga
 summary: 'Article URL: https://developer.apple.com/documentation/xcode-release-notes/xcode-27_1-release-notes Comments URL: https://news.ycombinator.com/item?id=49758419 Points: 109 # Comments: 63'
-content: feed
+content: extracted
 html: 2026-09-18-xcode-27-1-beta-release-notes.html
 preview:
   file: 2026-09-18-xcode-27-1-beta-release-notes.preview-87e375c28fc3.webp
@@ -24,10 +24,10 @@ images:
   color: '#010101'
 ---
 
-Article URL: [https://developer.apple.com/documentation/xcode-release-notes/xcode-27\_1-release-notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27_1-release-notes)
+## This page requires JavaScript.
 
-Comments URL: [https://news.ycombinator.com/item?id=49758419](https://news.ycombinator.com/item?id=49758419)
+Please turn on JavaScript in your browser and refresh the page to view its content.
 
-Points: 109
+## Automated tools and assistive tools:
 
-\# Comments: 63
+A Markdown version of the page content is available: [View Markdown](https://developer.apple.com/documentation/xcode-release-notes/xcode-27_1-release-notes.md)
