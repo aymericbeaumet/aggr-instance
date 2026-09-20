@@ -6,7 +6,7 @@ published: 2026-01-19T04:00:00Z
 updated: 2026-01-19T04:00:00Z
 first_seen: 2026-09-19T21:30:23.395188495Z
 summary: "Retour sur l’attaque d’Ashley Madison, le site de rencontres pour personnes mariées, et sur la manière dont un mystérieux groupe de pirates a mis au jour les données de 37 millions d’utilisateurs. Du modèle économique biaisé aux promesses de confidentialité non tenues, on explore les failles techniques et morales qui ont précipité ce fiasco. Conséquences judiciaires, chantages, divorces : récit d’un piratage qui a bouleversé des vies et révélé une immense arnaque. En plateau Michaël de Marliave — animateur \uFEFF➤ Pour découvrir Mammouth IA : https://mammouth.ai/ ➤ Pour le Merch Micode et Underscore_ : https://traphic.fr/collections/micode ⚠️ Précommandes avant le 15 Janvier ! Hébergé par Acast. Visitez acast.com/privacy pour plus d'informations."
-content: feed
+content: extracted
 html: 2026-01-19-le-hack-qui-a-expose-37-millions-de-maris-infideles-micode.html
 preview:
   file: 2026-01-19-le-hack-qui-a-expose-37-millions-de-maris-infideles-micode.preview-cde25226b7e9.webp
@@ -26,28 +26,14 @@ images:
     width: 1400
     height: 1400
   color: '#060318'
+- source: https://i.ytimg.com/vi/ZkMP6YD52L8/hqdefault.jpg
+  original:
+    file: 2026-01-19-le-hack-qui-a-expose-37-millions-de-maris-infideles-micode.image-024a4bec9868.jpg
+    width: 480
+    height: 360
+  color: '#000000'
 extra:
   audio_url: https://sphinx.acast.com/p/acast/s/micode-underscore/e/695791d3c4b2cc952c8d18ee/media.mp3
   duration_seconds: 2136
   thumbnail: https://assets.pippa.io/shows/6139142f588d8c5deac642d6/d310a9f2-1a5b-49dc-8612-b20bc943a6bf.jpg
 ---
-
-Retour sur l’attaque d’Ashley Madison, le site de rencontres pour personnes mariées, et sur la manière dont un mystérieux groupe de pirates a mis au jour les données de 37 millions d’utilisateurs. Du modèle économique biaisé aux promesses de confidentialité non tenues, on explore les failles techniques et morales qui ont précipité ce fiasco. Conséquences judiciaires, chantages, divorces : récit d’un piratage qui a bouleversé des vies et révélé une immense arnaque.
-
-* * *
-
-**En plateau**
-
-- Michaël de Marliave — animateur
-
-**﻿**➤ Pour découvrir Mammouth IA : https://mammouth.ai/
-
-\
-
-➤ Pour le Merch Micode et Underscore\_ : [https://traphic.fr/collections/micode](https://www.youtube.com/redirect?event=video_description&redir_token=QUFFLUhqbVRfTU9vNjFxdzVmdk9wVllEbU9GRVpjY2hxd3xBQ3Jtc0trN3ItTGwyMkhSUHRWR2JWaU1YaGJGTGJ4LVBReFcwVDhIdGpkQTduUEx6V1lZVnFRSXJLVjdSVVNwM3NFZkRjMmdpUzQ5V01hZGlVckoyd3huLV9NLXNWa19RTTljclhxNFIyOHBzNHk1LTJSLW5jcw&q=https%3A%2F%2Ftraphic.fr%2Fcollections%2Fmicode&v=5Oo0u5RZ7HA)
-
-⚠️ Précommandes avant le 15 Janvier !
-
-* * *
-
-Hébergé par Acast. Visitez [acast.com/privacy](https://acast.com/privacy) pour plus d'informations.
