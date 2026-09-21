@@ -1,0 +1,1465 @@
+<div id="readability-page-1" class="page"><div>
+  
+
+        <div>
+          <div>
+  
+
+            <div>
+    
+
+              
+    
+
+              <p>Let's do something ridiculously ambitious and very inadvisable</p>
+        
+
+              <p><span>Sep 17, 2026</span>
+        
+
+                <span>&nbsp;—&nbsp;</span></p>
+      
+
+            </div>
+    
+<section>
+<p>
+<a href="https://en.wikipedia.org/wiki/Golden_spike"><img src="https://upload.wikimedia.org/wikipedia/commons/e/ec/The-Golden-Spike-7Oct2012.jpg?utm_source=en.wikipedia.org&amp;utm_campaign=imageinfo&amp;utm_content=thumbnail_unscaled"></a>
+</p>
+<p>
+There was an incredible moment on May 10th, 1869, when railroad builders finally reached their goal of <b>joining the east coast rail network with the west coast rail network.</b>
+</p>
+<p>
+In that moment, the first United States transcontinental railroad was born. <a href="#note0" data-noteid="0">0</a>
+</p>
+<p>
+After six years of work, <a href="#note1" data-noteid="1">1</a> the two rail networks finally joined up in Promontory Summit, Utah.
+</p>
+<p>
+To commemmorate the moment, they drove a 17.6-karat <b>golden spike</b> into the final tie of the railroad.
+</p>
+
+</section>
+<section>
+<p>
+To me, the phrase "<a href="https://en.wikipedia.org/wiki/Golden_spike">golden spike</a>" means an incredibly difficult task joining two separate, distant systems. <a href="#note2" data-noteid="2">2</a>
+</p>
+
+</section>
+<section>
+<p>
+Here in the compiler world, it often feels like every compiler is <i>worlds</i> apart from every other compiler.
+</p>
+<p>
+When a language wants to call into another language, one usually has to do acrobatic rituals involving the C ABI, writing "C bindings" (wrapper functions), and sometimes making deals with various deities.
+</p>
+<p>
+And even with all that, cross-language generics <a href="#note3" data-noteid="3">3</a> don't work (C doesn't have generics), and things definitely won't be memory-safe across the boundary (because C!).
+</p>
+
+</section>
+<section>
+<p>
+<b>This is why it's so tricky to build a language on top of Rust.</b> And then, having memory safety and generics across the C boundary is impossible. And even if it were possible, integrating two compilers is <i>very, very difficult.</i>
+</p>
+
+</section>
+<section>
+<p>
+And so I thought to myself, that <i>this sounds like a worthy goal for 2026!</i>
+</p>
+
+</section>
+<section>
+<p>
+So here we are!
+</p>
+<p>
+This post is going to be about the start of my <i>ridiculously over-ambitious</i> endeavor to create a language with <b>true Rust interop,</b> with a compiler that talks to <span>rustc</span> seamlessly enough that we can use my Rust graphics library <a href="#note4" data-noteid="4">4</a> with cross-language generics, memory safety, linear types, Nick Smith's <a href="https://verdagon.dev/blog/group-borrowing">group borrow checking</a>, and a bunch of other juicy, juicy features.
+</p>
+
+</section>
+
+<section>
+<p>
+Tentatively, I'm calling this new language "Valen" <a href="#note5" data-noteid="5">5</a>  <a href="#note6" data-noteid="6">6</a> since it's similar (but different enough) to my existing language <a href="https://vale.dev/">Vale</a>.
+</p>
+
+</section>
+<section>
+<p>
+So read on, and this post will explain the journey so far!
+</p>
+
+</section>
+<section>
+<p>
+This entire endeavor is <i>extremely experimental</i> and many things have holes and sharp edges (see side-note <a href="#note7" data-noteid="7">7</a>). It's going to be a glorious few months of cleaning, rewriting, and solidifying this horror before I unleash it on the world. Feel free to check out the <a href="https://github.com/valen-lang/valen">source code</a>, and beware, here be dragons! <a href="#note8" data-noteid="8">8</a></p>
+
+
+</section>
+
+      </div>
+  
+<div>
+
+      <nav>
+      <p>The Golden Spike, and Resurrecting the Vale(n) Programming Language</p>
+    
+<ul>
+<ul>
+<li>
+<a href="#a-wish-a-hope-and-a-dream-language"> A wish, a hope, and a dream language</a>
+</li>
+<li>
+<a href="#the-goal"> The Goal</a>
+</li>
+<li>
+<a href="#the-central-question"> The central question</a>
+</li>
+<li>
+<a href="#cross-language-generics"> Cross-language generics</a>
+</li>
+<li>
+<a href="#interop-done-properly"> Interop, Done Properly</a>
+</li>
+<li>
+<a href="#the-dance"> The dance</a>
+</li>
+<li>
+<a href="#the-current-design"> The current design</a>
+</li>
+<li>
+<a href="#the-golden-spike-but-even-more-golden"> The Golden Spike, but even more Golden</a>
+</li>
+<li>
+<a href="#memory-safety-across-the-boundary"> Memory safety across the boundary</a>
+</li>
+<li>
+<a href="#resurrecting-valen"> Resurrecting Vale(n)</a>
+</li>
+<li>
+<a href="#thats-all-for-now"> That's all for now!</a>
+</li>
+</ul>
+</ul>
+
+      </nav>
+      
+    
+
+      <div>
+    
+<div id="note0" data-noteid="0">
+<p><span>0</span></p><section>
+<p>
+ 0% of this article was written by AI. <a href="https://verdagon.dev/blog/personal-ai-policy">More thoughts here</a>.
+</p>
+<p>
+My stance: if you want someone to take the time to read something, take the time to write it by hand.
+</p>
+<p>
+Thanks for reading =)
+</p>
+
+</section>
+</div>
+<div id="note1" data-noteid="1">
+<p><span>1</span></p><section>
+<p>
+ It was an <i>absolute clusterfuck,</i> to put it lightly. My favorite part (<a href="https://cprr.org/Museum/Bowman_Last_Spike_CHS.html">source</a>):
+</p>
+<p>
+...2 days before this date new troubles arose for the Union Pacific at Piedmont where the car in which Dr. T. C. Durant, the vice-president, was riding was disconnected from the train and shunted onto a side line by some 400 workers (one reporter says 500) who demanded their pay, unpaid since January 1.
+</p>
+<p>
+Absolute madlads!
+</p>
+
+</section>
+</div>
+<div id="note2" data-noteid="2">
+<p><span>2</span></p><section>
+<p>
+On Google Earth, I joined the local-editing app to cloud storage, finally enabling online editing. We called that project "golden spike" too. This whole rust interop endeavor brings me back to that moment!
+</p>
+
+</section>
+</div>
+<div id="note3" data-noteid="3">
+<p><span>3</span></p><section>
+<p>
+Explained more below, but basically, being able to use <span>SomeRustStruct&lt;OtherLangStruct&gt;</span>.
+</p>
+
+</section>
+</div>
+<div id="note4" data-noteid="4">
+<p><span>4</span></p><section>
+<p>
+ It's a <a href="https://wgpu.rs/">wgpu</a>-based screen-space-refraction graphics library, which I call "Glass Domino".
+</p>
+<p>
+Oh man, I <i>really</i> want to ramble more about how it works, and how it actually pulls off overlapping refractors in a performant way. But stay focused, Evan! This post is about compilers and languages!
+
+</p>
+
+</section>
+</div>
+<div id="note5" data-noteid="5">
+<p><span>5</span></p><section>
+<p>
+And since its compiler is <span>valenc</span>, we can pronounce it like "Valence", which sounds nice!
+</p>
+
+</section>
+</div>
+<div id="note6" data-noteid="6">
+<p><span>6</span></p><section>
+<p>
+Also, it's pretty funny to me that now V, Val, Vale, Vala, and Valen are all languages that have existed. I'm tempted to release a tiny Rust-interop language for others to use, and call it Va.
+</p>
+
+</section>
+</div>
+<div id="note7" data-noteid="7">
+<p><span>7</span></p><section>
+<p>
+ To be clear about what works today:
+</p>
+<ul>
+<li>
+Valen has linear types, but we can't yet declare that an existing Rust type is linear.
+</li>
+<li>
+Valen has group borrowing (except for closures), and it borrow checks across the boundary.
+</li>
+<li>
+Structs work across the boundary, even Valen structs that implement Rust traits. But they must be zero-sized (filled structs work in my separate prototype, not yet in Valen).
+</li>
+<li>
+Generational references are temporarily disabled, hopefully coming back soon.
+</li>
+</ul>
+
+</section>
+</div>
+<div id="note8" data-noteid="8">
+<p><span>8</span></p><section>
+<p>
+Green dragons, specifically.
+</p>
+
+</section>
+</div>
+
+        </div>
+    
+</div>
+
+    </div>
+    <div>
+      <div>
+  
+<section>
+<h3 id="a-wish-a-hope-and-a-dream-language">
+ A wish, a hope, and a dream language</h3>
+<p>
+Rust is one of my favorite languages <a href="#note9" data-noteid="9">9</a> because of its speed, safety, and ecosystem... but there are definitely some things that would make it <b>simpler and overall nicer</b> for my use cases.
+</p>
+
+</section>
+<section>
+<p>
+My wish list:
+</p>
+<ul>
+<li>
+A <a href="https://verdagon.dev/blog/group-borrowing">borrow checker without shared-xor-mutable</a>
+</li>
+<li>
+Faster run-time performance <a href="#note10" data-noteid="10">10</a>
+</li>
+<li>
+Resource safety via <a href="https://www.youtube.com/watch?v=IpuvQUVB8Cg&amp;t=2s">linear types</a>
+</li>
+<li>
+<a href="https://verdagon.dev/blog/impossible-optimization">Zig-style comptime</a> <a href="#note11" data-noteid="11">11</a>
+</li>
+<li>
+<a href="https://verdagon.dev/blog/generational-references">Generational references</a>
+</li>
+<li>
+An <span>Rc</span> that can hold mutable data without <span>RefCell</span> or <span>Cell</span>
+</li>
+<li>
+...and a lot of other features <a href="#note12" data-noteid="12">12</a>
+</li>
+</ul>
+
+</section>
+<section>
+<p>
+But I don't just want a new language, because I wouldn't have access to Rust's ecosystem of libraries.
+</p>
+
+</section>
+<section>
+<p>
+So how do we do all that, while being able to call into Rust code?
+</p>
+
+</section>
+
+      </div>
+  
+<div>
+    
+<div id="note9" data-noteid="9">
+<p><span>9</span></p><section>
+<p>
+You guessed it, it's a three-way tie between C++, Scala, and Rust!
+</p>
+
+</section>
+</div>
+<div id="note10" data-noteid="10">
+<p><span>10</span></p><section>
+<p>
+ I <i>think</i> this is possible, but I still have to implement it to benchmark it, so take it with a grain of salt:
+</p>
+<p>
+To see what I mean, look at the "sneak peek" example on the <a href="https://verdagon.dev/blog/group-borrowing">group borrowing post</a>. I'm pretty sure that's faster than the corresponding Rust program, because the Rust program has to do two extra <span>entities.get_mut(id)</span> lookups (plus some extra error-handling branching).
+</p>
+<p>
+Also, group borrowing should be able to express <span>noalias</span>/<span>alias.scope</span> information to LLVM, so it doesn't lose those optimizations. For more on this, see <a href="https://docs.google.com/document/d/1OxnwYe704m3TtUhNnR5lQzyOxEoZKUV-omMA5sGJHmQ/edit?usp=sharing">this doc</a>.
+
+</p>
+
+</section>
+</div>
+<div id="note11" data-noteid="11">
+<p><span>11</span></p><section>
+<p>
+Zero-cost compiler-optimized DSLs, anyone?
+</p>
+
+</section>
+</div>
+<div id="note12" data-noteid="12">
+<p><span>12</span></p><section>
+<p>
+...because I ran out of space. But we're in a side-note now! The other things are: a better <span>async</span> story, better enums, better <a href="https://llvm.org/docs/LangRef.html">mustprogress</a> optimizations, closures implementing traits, universal function call syntax, good compile times, and <i>maybe</i> if we're lucky we can bring back some subset of <a href="https://verdagon.dev/blog/perfect-replayability-prototyped">perfect replayability</a>.
+</p>
+
+</section>
+</div>
+
+        </div>
+
+    </div>
+    <div>
+      <div>
+  
+<section>
+<h3 id="the-goal">
+ The Goal</h3>
+<p>
+This seemed impossible for a <i>lot</i> of reasons, explained in <a href="https://verdagon.dev/blog/exploring-seamless-rust-interop-part-2">Crossing the Impossible FFI Boundary, and My Gradual Descent Into Madness</a>.
+</p>
+
+</section>
+<section>
+<p>
+I had forgotten that the post included this image:
+</p>
+<p>
+<img src="https://i.imgflip.com/8twhkv.jpg">
+</p>
+<p>
+Hopefully we don't have to do that! (<i>...foreshadowing intensifies...</i> <a href="#note13" data-noteid="13">13</a>)
+</p>
+
+</section>
+<section>
+<p>
+Anyway, the <b>more concrete, specific goal</b> was for this program to work: <a href="#note14" data-noteid="14">14</a>
+</p>
+
+    <div>
+      
+      <pre><code><span>import</span> rust<span>.</span>nobiliav<span>.</span>NobiliaWindow<span>;</span>
+<span>import</span> rust<span>.</span>nobiliav<span>.</span>FrameInput<span>;</span>
+<span>import</span> rust<span>.</span>nobiliav<span>.</span>MainLoopCallback<span>;</span>
+<span>...</span> <span>// Import constants</span>
+
+<span>exported</span> <span>func</span> <span>main</span><span>(</span><span>)</span> <span>int</span> <span>{</span>
+  w <span>=</span> NobiliaWindow<span>.</span><span>new</span><span>(</span>1200<span>,</span> 900<span>)</span><span>;</span>
+  <span>...</span> <span>// set up the terrain and entities</span>
+
+  w<span>.</span><span>main_loop</span><span>(</span>
+    <span>// Make a Valen closure that implements the Rust `trait MainLoopCallback`</span>
+    &amp;<span>MainLoopCallback</span><span>(</span><span>(</span><span>win</span><span>,</span> <span>input</span><span>)</span> =&gt; <span>{</span>
+      key <span>=</span> input<span>.</span><span>key</span><span>(</span><span>)</span><span>;</span>
+      <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_left</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+        win<span>.</span><span>rotate_camera</span><span>(</span><span>-</span>4<span>,</span> 0<span>)</span><span>;</span>
+      <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_right</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+        win<span>.</span><span>rotate_camera</span><span>(</span>4<span>,</span> 0<span>)</span><span>;</span>
+      <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_up</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+        win<span>.</span><span>rotate_camera</span><span>(</span>0<span>,</span> 4<span>)</span><span>;</span>
+      <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_down</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+        win<span>.</span><span>rotate_camera</span><span>(</span>0<span>,</span> <span>-</span>4<span>)</span><span>;</span>
+      <span>}</span>
+    <span>}</span><span>)</span><span>)</span><span>;</span>
+  
+  <span>return</span> 0<span>;</span>
+<span>}</span></code></pre>
+    </div>
+  
+
+</section>
+<section>
+<p>
+Of course, this required answering a <i>lot</i> of very hard questions.
+</p>
+<p>
+I'll ask them in the code:
+</p>
+
+    <div>
+      
+      <pre><code><span>// How do we know what things are importable from Rust?</span>
+<span>import</span> rust<span>.</span>nobiliav<span>.</span>NobiliaWindow<span>;</span>
+<span>import</span> rust<span>.</span>nobiliav<span>.</span>FrameInput<span>;</span>
+<span>import</span> rust<span>.</span>nobiliav<span>.</span>MainLoopCallback<span>;</span>
+<span>...</span>
+<span>exported</span> <span>func</span> <span>main</span><span>(</span><span>)</span> <span>int</span> <span>{</span>
+  <span>// How do we know what static methods exist in a Rust type?</span>
+  <span>// How does Valen know what parameters rustc expects here?</span>
+  w <span>=</span> NobiliaWindow<span>.</span><span>new</span><span>(</span>1200<span>,</span> 900<span>)</span><span>;</span>
+  <span>...</span>
+  w<span>.</span><span>main_loop</span><span>(</span>
+    <span>// How do we make a Valen closure implement a Rust trait?</span>
+    <span>// How do we know the methods on a Rust trait?</span>
+    &amp;<span>MainLoopCallback</span><span>(</span>
+      <span>// How will Rust call BACK into Valen code? Monomorphizer integration?</span>
+      <span>// Can the optimizer inline a Valen function into a Rust function and vice versa?</span>
+      <span>(</span><span>win</span><span>,</span> <span>input</span><span>)</span> =&gt; <span>{</span>
+        key <span>=</span> input<span>.</span><span>key</span><span>(</span><span>)</span><span>;</span>
+        <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_left</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+          win<span>.</span><span>rotate_camera</span><span>(</span><span>-</span>4<span>,</span> 0<span>)</span><span>;</span>
+        <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_right</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+          win<span>.</span><span>rotate_camera</span><span>(</span>4<span>,</span> 0<span>)</span><span>;</span>
+        <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_up</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+          win<span>.</span><span>rotate_camera</span><span>(</span>0<span>,</span> 4<span>)</span><span>;</span>
+        <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_down</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+          win<span>.</span><span>rotate_camera</span><span>(</span>0<span>,</span> <span>-</span>4<span>)</span><span>;</span>
+        <span>}</span>
+      <span>}</span>
+    <span>)</span>
+  <span>)</span><span>;</span>
+  <span>return</span> 0<span>;</span>
+<span>}</span></code></pre>
+    </div>
+  
+
+</section>
+<section>
+<p>
+However, these questions hide the real, central question underneath it all.
+</p>
+
+</section>
+
+      </div>
+  
+<div>
+    
+<div id="note13" data-noteid="13">
+<p><span>13</span></p><section>
+<p>
+ Back then, I thought I would need to reimplement Rust's generics and traits systems.
+</p>
+<p>
+That would be unfortunate, especially because Valen <i>already has</i> a generics and traits system (evolved from the Vale compiler).
+</p>
+<p>
+Then I realized I could do something clever: when some Valen code wants to call a Rust function, the Valen compiler <i>shouldn't</i> look at the Rust signature. Instead, it should first (lazily) generate the <i>corresponding function signature in Valen AST,</i> which Valen already understands.
+</p>
+<p>
+That probably doesn't make much sense, but swing by the <a href="https://discord.gg/SNB8yGH">Valen discord</a> and I'm happy to explain more.
+</p>
+
+</section>
+</div>
+<div id="note14" data-noteid="14">
+<p><span>14</span></p><section>
+<p>
+ Okay, I <i>have to</i> geek out about this part real quick. See the <span>MainLoopCallback((win, input) =&gt; { ... })</span> part?
+</p>
+<p>
+That's us <i>creating a new subclass</i> of the Rust <span>trait MainLoopCallback</span>, <i>inline.</i>
+</p>
+<p>
+This is called an <a href="https://vale.dev/guide/interfaces#open-interface-constructors">open interface constructor</a>, and existed in the Vale compiler too.
+</p>
+<p>
+It was one of its most complicated features, because it sat at the intersection of interfaces, generics, <i>and</i> closures. The perfect storm.
+</p>
+<p>
+When I was migrating the Vale compiler to Rust for this endeavor (which was a whole ordeal worthy of its own blog post), I had to triage which features to bring back up, and I <i>definitely</i> didn't want to deal with open interface constructors yet. And then I did anyway!
+
+</p>
+
+</section>
+</div>
+
+        </div>
+
+    </div>
+    <div>
+      <div>
+  
+<section>
+<h3 id="the-central-question">
+ The central question</h3>
+<p>
+As many of you know, the most common way for other languages to call into Rust is if the Rust library exposes its functions as <span>extern "C"</span>, and exposes its types as <span>repr(C)</span>.
+</p>
+<p>
+This is because C is the de-facto universal translator between low-level languages.
+</p>
+<p>
+It's also because <a href="https://www.reddit.com/r/rust/comments/ss2p6c/what_does_it_mean_when_people_say_that_rust_does/">Rust doesn't have a stable ABI yet.</a> <a href="#note15" data-noteid="15">15</a>
+</p>
+
+</section>
+<section>
+<p>
+"What's an ABI?" you might ask.
+</p>
+<p>
+To simplify a bit, an "ABI" is basically how Rust answers these questions:
+</p>
+<ul>
+<li>
+"If the user calls a function, passing a struct by value, do we compile it to pass-by-reference, or do we pass it in a register?"
+</li>
+<li>
+"If the user specifies a bool, then a u64 integer, then a bool, do we put those two bools next to each other to save space?" <a href="#note16" data-noteid="16">16</a>
+</li>
+</ul>
+<p>
+Alas, Rust hasn't yet committed to an ABI.
+</p>
+<p>
+So, using the C ABI (with <span>extern "C"</span> and <span>repr(C)</span>) is the only option for other languages to call into Rust.
+</p>
+
+</section>
+<section>
+<p>
+<b>But C doesn't have generics.</b> There's no such thing as <span>void do_something&lt;T&gt;(T* thing)</span> in C.
+</p>
+<p>
+This means that other languages can't call into generic Rust functions.
+</p>
+
+</section>
+<section>
+<p>
+<b>This is a problem for us,</b> because... well, recall this <span>main_loop</span> call from above:
+</p>
+
+    <div>
+      
+      <pre><code><span>exported</span> <span>func</span> <span>main</span><span>(</span><span>)</span> <span>int</span> <span>{</span>
+  <span>...</span>
+  w<span>.</span><span>main_loop</span><span>(</span>&amp;<span>MainLoopCallback</span><span>(</span><span>(</span><span>win</span><span>,</span> <span>input</span><span>)</span> =&gt; <span>{</span> <span>...</span> <span>}</span><span>)</span><span>)</span><span>;</span>
+  <span>...</span>
+<span>}</span></code></pre>
+    </div>
+  
+<p>
+Here's what Rust's <span>main_loop</span> actually is:
+</p>
+
+    <div>
+      
+      <pre><code><span>impl</span> <span>NobiliaWindow</span> <span>{</span>
+  <span>pub</span> <span>fn</span> <span>main_loop</span><span>&lt;</span><span>C</span><span>:</span> <span>MainLoopCallback</span><span>&gt;</span><span>(</span><span>&amp;</span><span>mut</span> <span>self</span><span>,</span> <span>cb</span><span>:</span> <span>&amp;</span><span>mut</span> <span>C</span><span>)</span> <span>{</span>
+    ..<span>.</span>
+  <span>}</span>
+  ...
+<span>}</span><span></span></code></pre>
+    </div>
+  
+<p>
+That's right, that parameter right there is <i>generic</i>, taking anything that implements <span>trait MainLoopCallback</span>.
+</p>
+
+</section>
+<section>
+<p>
+But the C ABI has no generics! But we need generics. Blast! We're stuck.
+</p>
+
+</section>
+<section>
+<p>
+So <b>the central question,</b> the central mystery to solve, is <i>how do we do cross-language generics?</i>
+</p>
+
+</section>
+
+      </div>
+  
+<div id="note15" data-noteid="15">
+<p><span>15</span></p><section>
+<p>
+"ABI" stands for "Application Binary Interface".
+</p>
+
+</section>
+</div>
+
+    </div>
+    <div>
+      <div>
+  
+<section>
+<h3 id="cross-language-generics">
+ Cross-language generics</h3>
+<p>
+There are actually two levels to this question:
+</p>
+<ol>
+<li>
+How do we call into a Rust generic function?
+</li>
+<li>
+How do we call into a Rust generic function <i>that calls back into Valen?</i> <a href="#note17" data-noteid="17">17</a>
+</li>
+</ol>
+
+</section>
+<section>
+<p>
+Here's a simpler example to illustrate the first level:
+</p>
+
+    <div>
+      
+      <pre><code><span>import</span> rust<span>.</span>std<span>.</span>vec<span>.</span>Vec<span>;</span>
+
+<span>exported</span> <span>func</span> <span>main</span><span>(</span><span>)</span> <span>int</span> <span>{</span>
+  my_vec <span>=</span> <span>Vec</span>&lt;<span>int</span><span>&gt;</span><span>(</span><span>)</span><span>;</span>
+  my_vec<span>.</span><span>push</span><span>(</span>21<span>)</span><span>;</span>
+  my_vec<span>.</span><span>push</span><span>(</span>42<span>)</span><span>;</span>
+  <span>// Returns 42</span>
+  <span>return</span> my_vec<span>.</span><span>pop</span><span>(</span><span>)</span><span>.</span><span>unwrap</span><span>(</span><span>)</span><span>;</span>
+<span>}</span></code></pre>
+    </div>
+  
+<p>
+When we say <span>my_vec.push(21)</span>, we're calling the generic function <span>Vec&lt;T&gt;::push</span>.
+</p>
+
+</section>
+<section>
+<p>
+Luckily, in the <a href="https://verdagon.dev/blog/exploring-seamless-rust-interop-part-2">Madness</a> post, I managed to get it working for C:
+</p>
+
+    <div>
+      
+      <pre><code><span>// Import a rust type directly (no bindings!)</span>
+<span>#pragma</span> rsuse VecInt = std::vec::Vec&lt;u64&gt;
+<span>// Must specify each method you want to use</span>
+<span>#pragma</span> rsfn VecInt_with_capacity = VecInt::with_capacity
+<span>#pragma</span> rsfn VecInt_capacity = VecInt::capacity
+<span>#pragma</span> rsfn VecInt_drop = VecInt::drop
+<span>// Plus the magic incantation, and...</span>
+<span>#include</span> <span>"rust_deps/rust_deps.h"</span>
+
+<span>#include</span> <span>&lt;stdio.h&gt;</span>
+
+<span>int</span> <span>main</span><span>(</span><span>)</span> <span>{</span>
+  <span>// ...presto, we can use rust libraries!</span>
+  <span>VecInt</span> <span>argv</span> <span>=</span> <span>VecInt_with_capacity</span><span>(</span><span>42</span><span>)</span><span>;</span>
+  <span>printf</span><span>(</span><span>"Capacity: %lu<span>\n</span>"</span><span>,</span> <span>VecInt_capacity</span><span>(</span><span>&amp;</span><span>argv</span><span>)</span><span>)</span><span>;</span>
+  <span>VecInt_drop</span><span>(</span><span>argv</span><span>)</span><span>;</span>
+  <span>return</span> <span>0</span><span>;</span>
+<span>}</span></code></pre>
+    </div>
+  
+
+    <div>
+      
+      <pre><code>Capacity: 42</code></pre>
+    </div>
+  
+
+</section>
+<section>
+<p>
+I called this my "most cursed exploration" because of the acrobatics it had to do:
+</p>
+<ul>
+<li>
+It ran <span>rustdoc</span> (yes, the documentation generator!) and parsed its json output with the <span>rustdoc_types</span> library, to figure out what types were usable, and what <span>impl</span>s had what methods.
+</li>
+<li>
+It ran <span>rustc</span> with a "scouting program" that literally just prints sizes; <span>println!("{}", size_of::&lt;Vec::&lt;u64&gt;&gt;())</span> prints 24 bytes. (Thanks to matklad and literallyvoid for helping me improve this part!)
+</li>
+<li>
+It then ran <span>rustc</span> again with a "instantiation program" which generated a "wrapper C library" that the C program could statically link to.
+</li>
+<li>
+Vale's memory safety approach didn't really line up with Rust's, so a user had to stick to certain patterns.
+</li>
+</ul>
+
+</section>
+<section>
+<p>
+And it had some limitations:
+</p>
+<ul>
+<li>
+We need to fully spell out the generic args, like <span>VecInt = std::vec::Vec&lt;u64&gt;</span>.
+</li>
+<li>
+We need to import <i>every</i> method we use, in a <span>#pragma rsfn</span>.
+</li>
+</ul>
+<p>
+But the hardest limitation is that we can't make a C type implement a Rust trait.
+</p>
+<p>
+That means you can't use <span>HashMap::get</span>, because its <span>k</span> key must implement the <span>Hash</span> and <span>Eq</span> traits.
+</p>
+
+</section>
+<section>
+<p>
+Still, as cursed as it was, the 2024 solution was actually a pretty good start.
+</p>
+
+</section>
+<section>
+<p>
+Above, I said that there are two levels to the cross-language generics question:
+</p>
+<ol>
+<li>
+How do we call into a Rust generic function?
+</li>
+<li>
+How do we call into a Rust generic function that calls back into Valen?
+</li>
+</ol>
+<p>
+The 2024 solution solved most of #1 in spirit, even though it got information from Rust in an odd way.
+</p>
+<p>
+And it hinted that there might be an answer to #2, if a language was designed with it in mind and Did Things Properly™.
+</p>
+
+</section>
+
+      </div>
+  
+<div id="note17" data-noteid="17">
+<p><span>17</span></p><section>
+<p>
+ How do we stare into the void, and have the <a href="https://verdagon.dev/images/voidcat.jpg">void stare back?</a>
+
+</p>
+
+</section>
+</div>
+
+    </div>
+    <div>
+      <div>
+  
+<section>
+<h3 id="interop-done-properly">
+ Interop, Done Properly</h3>
+<p>
+Of course, there's no such thing as "doing things properly", because <b>everything I'm about to say is <i>very</i> unsupported by the Rust compiler.</b>
+</p>
+
+</section>
+<section>
+<p>
+But I felt like the next step in the endeavor would be to talk to <span>rustc</span> directly, <a href="#note18" data-noteid="18">18</a> instead of invoking it (twice!) from the outside. <a href="#note19" data-noteid="19">19</a>
+</p>
+
+</section>
+<section>
+<p>
+And it turns out, one can actually <b>run the rust compiler as a library,</b> using <a href="https://rustc-dev-guide.rust-lang.org/rustc-driver/intro.html">rustc_driver</a>'s <span>run_compiler</span> function!
+</p>
+
+    <div>
+      
+      <pre><code><span>use</span> rustc_driver<span>::</span><span>{</span><span>Callbacks</span><span>,</span> <span>Compilation</span><span>}</span><span>;</span>
+..<span>.</span>
+fn <span>main</span><span>(</span><span>)</span> <span>{</span>
+  ...
+  let callbacks = <span>ValenRustInteropCallbacks</span> <span>{</span> ..<span>.</span> <span>}</span><span>;</span>
+  ..<span>.</span>
+  <span>rustc_driver</span><span>::</span>run_compiler<span>(</span><span>&amp;</span>rustc_args<span>,</span> <span>&amp;</span><span>mut</span> callbacks<span>)</span><span>;</span></code></pre>
+    </div>
+  
+<p>
+The two arguments to <span>run_compiler</span> influence what <span>rustc</span> does.
+</p>
+<ul>
+<li>
+<span>rustc_args</span> tells <span>rustc</span> <b>what Rust libraries we want to use</b>, so it loads and compiles them, so the Valen typing pass can ask questions about them. <a href="#note20" data-noteid="20">20</a>
+</li>
+<li>
+<span>callbacks</span> specifies observers that tell us when <span>rustc</span> has loaded and compiled all of its dependencies. <a href="#note21" data-noteid="21">21</a> Then, the Valen typing pass can ask <span>rustc</span> questions about the Rust crates it depends on, and generate Rust MIR functions from our Valen code.
+</li>
+</ul>
+
+</section>
+<section>
+<p>
+However, there was a problem with that: Valen couldn't lower to Rust's MIR, because it didnt't have the capabilities Valen needed:
+</p>
+<ul>
+<li>
+MIR's mutable references are unique, which means it can't do our <a href="https://verdagon.dev/blog/group-borrowing">Group Borrowing</a> memory safety approach, which allows shared mutable references.
+</li>
+<li>
+MIR doesn't let us specify LLVM's alias groups / <span>!alias.scope</span> on load/store instructions, which is something that makes group borrowing faster.
+</li>
+<li>
+MIR can't express <span>comptime</span> metaprogramming, which is on my dream language wish list.
+</li>
+</ul>
+<p>
+Rust's MIR was designed for Rust. So it's a great target for Rust code, not Valen code... alas.
+</p>
+<p>
+If anyone wants to know how to do this the MIR way, let me know! Happy to point you in the right direction.
+</p>
+
+</section>
+<section>
+<p>
+Of course, if Valen used its own IR and backend instead of Rust's, that would mean that the compilers would need to <b>work with each other</b> in a very interesting dance.
+</p>
+
+</section>
+
+      </div>
+  
+<div>
+    
+<div id="note18" data-noteid="18">
+<p><span>18</span></p><section>
+<p>
+Of course, doing this requires using the private, unstable APIs. Yikes!
+</p>
+
+</section>
+</div>
+<div id="note19" data-noteid="19">
+<p><span>19</span></p><section>
+<p>
+Well... the current one <i>also</i> invokes it twice. But... in a better way. In my opinion. Not so much cursed. At most "hexed" perhaps.
+</p>
+
+</section>
+</div>
+<div id="note20" data-noteid="20">
+<p><span>20</span></p><section>
+<p>
+ To do this, we actually:
+</p>
+<ul>
+<li>
+Parse the Valen source files, looking for any imports (like <span>import rust.glass_domino.Window</span>).
+</li>
+<li>
+Generate a Rust <span>lib.rs</span> file containing equivalents (like <span>use glass_domino::Window;</span>).
+</li>
+<li>
+Add that "lib.rs" path into <span>rustc_args</span>.
+</li>
+<li>
+Add dependency libraries' paths to <span>rustc_args</span> (like <span>--extern glass_domino=target/.../libglass_domino.rlib</span>) so <span>rustc</span> knows where to find it (well, <span>cargo</span> does this).
+</li>
+</ul>
+<p>
+(This is how it still works today)
+
+</p>
+
+</section>
+</div>
+<div id="note21" data-noteid="21">
+<p><span>21</span></p><section>
+<p>
+This is <span>rustc</span>'s <span>after_expansion</span> callback, run after <span>rustc</span> has processed various things, including the <span>use</span> statements that bring dependencies' information into the current crate's compile.
+</p>
+
+</section>
+</div>
+
+        </div>
+
+    </div>
+    <div>
+      <div>
+  
+<section>
+<h3 id="the-dance">
+ The dance</h3>
+<p>
+"The dance" is how <span>rustc</span>'s monomorphizer and <span>valenc</span>'s monomorphizer <b>need to work together</b> to fully discover all of the functions that they are calling in each other.
+</p>
+
+</section>
+<section>
+<p>
+A "monomorphizer" is what turns a generic function <span>foo&lt;T&gt;</span> into its substituted functions <span>foo&lt;i32&gt;</span>, <span>foo&lt;bool&gt;</span>, <span>foo&lt;String&gt;</span> etc. depending on what types one calls <span>foo&lt;T&gt;</span> with. <a href="#note22" data-noteid="22">22</a>
+</p>
+
+</section>
+<section>
+<p>
+To illustrate, here's an example program showing <b>Valen calling Rust calling Valen:</b>
+</p>
+<div>
+<div>
+      
+      <pre><code><span>exported</span> <span>func</span> <span>main</span><span>(</span><span>)</span> <span>{</span>
+  vs <span>=</span> <span>MyStruct</span><span>(</span><span>)</span><span>;</span>
+  <span>rust_func</span>&lt;<span>MyStruct</span><span>&gt;</span><span>(</span>&amp;vs<span>)</span><span>;</span>
+<span>}</span>
+
+<span>struct</span> <span>MyStruct</span> <span>{</span> <span>}</span>
+<span>impl</span> <span>RustTrait</span> <span>for</span> <span>MyStruct</span> <span>{</span>
+  <span>func</span> <span>method</span>&lt;N <span>int</span><span>&gt;</span><span>(</span><span>self</span>: &amp;<span>MyStruct</span><span>)</span> <span>{</span>
+    <span>print</span><span>(</span><span>"hello from valen! "</span> <span>+</span> N<span>)</span><span>;</span>
+  <span>}</span>
+<span>}</span></code></pre>
+    </div>
+<div>
+      
+      <pre><code><span>trait</span> <span>RustTrait</span> <span>{</span>
+  <span>fn</span> <span>method</span><span>&lt;</span><span>const</span> <span>N</span><span>:</span> <span>i32</span><span>&gt;</span><span>(</span><span>&amp;</span><span>self</span><span>)</span><span>;</span>
+<span>}</span>
+
+<span>fn</span> <span>rust_func</span><span>&lt;</span><span>T</span><span>:</span> <span>RustTrait</span><span>&gt;</span><span>(</span><span>x</span><span>:</span> <span>&amp;</span><span>T</span><span>)</span> <span>{</span>
+  x<span>.</span><span>method</span><span>::</span><span>&lt;</span><span>4</span><span>&gt;</span><span>(</span><span>)</span><span>;</span>
+  x<span>.</span><span>method</span><span>::</span><span>&lt;</span><span>6</span><span>&gt;</span><span>(</span><span>)</span><span>;</span>
+<span>}</span></code></pre>
+    </div>
+</div>
+
+</section>
+<section>
+<p>
+For a second, <b>let's pretend that</b> <span>main</span>, <span>rust_func</span>, and <span>method</span> were <b>all Rust functions.</b>
+</p>
+<p>
+If that were the case, <span>rustc</span> would do this:
+</p>
+<p>
+(For readability, I'll shorten "monomorphizer" and "monomorphize" to "mono")
+</p>
+<ul>
+  <li>rustc starts mono'ing <span>main</span>.
+    <ul>
+      <li>rustc sees <span>rust_func&lt;MyStruct&gt;</span>, wants it to be mono'd.
+        <ul>
+          <li>rustc starts mono'ing <span>rust_func&lt;MyStruct&gt;</span>.
+            <ul>
+              <li>rustc sees <span>x.method::&lt;4&gt;</span>, wants it to be mono'd.
+                <ul>
+                  <li>rustc monos <span>MyStruct::method::&lt;4&gt;</span>.</li>
+                </ul>
+              </li>
+              <li>rustc sees <span>x.method::&lt;6&gt;</span>, wants it to be mono'd.
+                <ul>
+                  <li>rustc monos <span>MyStruct::method::&lt;6&gt;</span>.</li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<p>
+And that would have been easy; a simple task for <span>rustc</span>.
+</p>
+
+</section>
+<section>
+<p>
+<b>However,</b> <span>main</span> and <span>method</span> <b>are Valen functions.</b>
+</p>
+<p>
+So it's more like this, where <span>rustc</span> and <span>valenc</span> need to <b>talk to each other:</b>
+</p>
+<p>
+(Only difference below: four "rustc"s become "<b>valenc</b>"s)
+</p>
+<ul>
+  <li><b>valenc</b> starts mono'ing <span>main</span>.
+    <ul>
+      <li><b>valenc</b> sees <span>rust_func&lt;MyStruct&gt;</span>, wants it to be mono'd.
+        <ul>
+          <li>rustc starts mono'ing <span>rust_func&lt;MyStruct&gt;</span>.
+            <ul>
+              <li>rustc sees <span>x.method::&lt;4&gt;</span>, wants it to be mono'd.
+                <ul>
+                  <li><b>valenc</b> monos <span>MyStruct.method&lt;4&gt;</span>.</li>
+                </ul>
+              </li>
+              <li>rustc sees <span>x.method::&lt;6&gt;</span>, wants it to be mono'd.
+                <ul>
+                  <li><b>valenc</b> monos <span>MyStruct.method&lt;6&gt;</span>.</li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+
+</section>
+<section>
+<p>
+In other words, we need to make <span>rustc</span>'s monomorphizer and <span>valenc</span>'s monomorphizer able to call each other.
+</p>
+
+</section>
+<section>
+<p>
+So our design needs to enable that. <a href="#note23" data-noteid="23">23</a>
+</p>
+
+</section>
+
+      </div>
+  
+<div>
+    
+<div id="note22" data-noteid="22">
+<p><span>22</span></p><section>
+<p>
+It's sometimes also called "instantiator" (or very rarely, "elaborator").
+</p>
+
+</section>
+</div>
+<div id="note23" data-noteid="23">
+<p><span>23</span></p><section>
+<p>
+Even this explanation is a simplification though. <span>valenc</span> doesn't actually call <i>into</i> <span>rustc</span>'s monomorphizer. Instead, it monomorphizes the Valen function then returns to <span>rustc</span> a list of the Rust functions it would like to be mono'd. This let me do this all with one less patch in the Rust fork.
+</p>
+
+</section>
+</div>
+
+        </div>
+
+    </div>
+    <div>
+      <div>
+  
+<section>
+<h3 id="the-current-design">
+ The current design</h3>
+<p>
+The current design works like this:
+</p>
+<ul>
+<li>
+(Like before) <span>rustc_args</span> tells <span>rustc</span> <b>what Rust libraries we want to use</b>, so it loads and compiles them, so the Valen typing pass can ask questions about them.
+</li>
+<li>
+<span>callbacks</span> specifies observers that tell us:
+</li>
+<ul>
+<li>
+When <span>rustc</span> has loaded and compiled all of its dependencies, so the Valen typing pass can ask <span>rustc</span> questions about the Rust crates it depends on, and generate <b>empty</b> Rust functions corresponding to the Valen <span>exported</span> functions (such as <span>main</span>).
+</li>
+<li>
+When <span>rustc</span> is monomorphizing one of those empty Rust MIR functions, we can intercept that call, make Valen monomorphize it instead, and also tell <span>rustc</span> what <i>other</i> Rust functions this Valen function calls (so <span>rustc</span> can monomorphize those too).
+</li>
+<li>
+When <span>rustc</span> is about to ask the <span>rustc</span> LLVM backend to lower this (empty) function to LLVM, we intercept that, have Valen's LLVM backend lower it to LLVM instead.
+</li>
+</ul>
+</ul>
+
+</section>
+<section>
+<p>
+Of course, those last two capabilities definitely don't exist in <span>rustc</span>.
+</p>
+
+</section>
+<section>
+<p>
+So, I did the nuclear option. I <b>patched the Rust compiler</b> to add those last two callbacks.
+</p>
+<p>
+Honestly, this was the riskiest part of the whole endeavor. The patches are small (~100 lines), but one of them is basically a hack that assumes <span>rustc</span> is using LLVM, which of course isn't always true. <a href="#note24" data-noteid="24">24</a> It works, but it's definitely not upstreamable.
+</p>
+<p>
+Luckily, I already have a better approach in mind for the next iteration...
+</p>
+<p><b>If you want to help me with this, please <a href="https://verdagon.dev/blog/revval@verdagon.dev">email me</a>!</b> And it would benefit more than just Valen; when I last chatted with the <a href="https://github.com/carbon-language/carbon-lang">Carbon</a> team, they said they were interested in reusing Rust libraries too. We might be trailblazing for other languages!
+</p>
+
+</section>
+<section>
+<p>
+Of course, that's just the <span>rustc</span> side of this. I then had to rearchitect the Valen compiler to actually use these capabilities. That took most of 2026, and was a massive endeavor that will definitely get its own post (stay tuned!).
+</p>
+
+</section>
+<section>
+<h3 id="the-golden-spike-but-even-more-golden">
+ The Golden Spike, but even more Golden</h3>
+<p>
+I have a little game engine I've been experimenting with, to try and figure out new ways to do <a href="https://lettier.github.io/3d-game-shaders-for-beginners/screen-space-refraction.html">screen-space refraction</a>, like this: <a href="#note25" data-noteid="25">25</a>
+</p>
+
+
+</section>
+<section>
+<p>
+I thought, this would be a perfect goal to set. This would be Valen's first contact with Rust, like the golden spike that completed the first transcontinental railroad across the US.
+</p>
+
+</section>
+<section>
+<p>
+If I could get it working, then I could finally start developing the game that I've been <a href="https://verdagon.dev/blog/yak-shave-language-engine-game">trying to start on since the dawn of time</a>.
+</p>
+
+</section>
+<section>
+<p>
+My first goal was actually something like this, where <span>main</span> owns the <span>while</span> loop:
+</p>
+
+    <div>
+      
+      <pre><code><span>import</span> rust<span>.</span>nobiliav<span>.</span>NobiliaWindow<span>;</span>
+<span>import</span> rust<span>.</span>nobiliav<span>.</span>FrameInput<span>;</span>
+<span>import</span> rust<span>.</span>nobiliav<span>.</span>MainLoopCallback<span>;</span>
+<span>...</span>
+<span>exported</span> <span>func</span> <span>main</span><span>(</span><span>)</span> <span>int</span> <span>{</span>
+  w <span>=</span> NobiliaWindow<span>.</span><span>new</span><span>(</span>1200<span>,</span> 900<span>)</span><span>;</span>
+  <span>...</span>
+  <span>while</span> w<span>.</span><span>running</span><span>(</span><span>)</span> <span>{</span>
+    input <span>=</span> w<span>.</span><span>tick</span><span>(</span><span>)</span><span>;</span>
+    key <span>=</span> input<span>.</span><span>key</span><span>(</span><span>)</span><span>;</span>
+    <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_left</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+      w<span>.</span><span>rotate_camera</span><span>(</span><span>-</span>4<span>,</span> 0<span>)</span><span>;</span>
+    <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_right</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+      w<span>.</span><span>rotate_camera</span><span>(</span>4<span>,</span> 0<span>)</span><span>;</span>
+    <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_up</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+      w<span>.</span><span>rotate_camera</span><span>(</span>0<span>,</span> 4<span>)</span><span>;</span>
+    <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_down</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+      w<span>.</span><span>rotate_camera</span><span>(</span>0<span>,</span> <span>-</span>4<span>)</span><span>;</span>
+    <span>}</span>
+  <span>}</span>
+  <span>return</span> 0<span>;</span>
+<span>}</span></code></pre>
+    </div>
+  
+<p>
+but <i>apparently</i> wgpu (and apps in general nowadays?!) don't let us own our own event loop. I remember the good ol' days when you could just <span>GetMessage(&amp;msg, ...)</span> or <span>EvtGetEvent(&amp;event, ...)</span> in a <span>while(true)</span> and everyone was happy.
+</p>
+
+</section>
+<section>
+<p>
+I was faced with a choice: do something less awesome, or expand the scope of my golden spike to include Rust calling <i>back into Valen.</i>
+</p>
+<p>
+You all know me. You know what I chose!
+</p>
+
+</section>
+<section>
+<p>
+I decided to implement something like a closure:
+</p>
+
+    <div>
+      
+      <pre><code><span>import</span> rust<span>.</span>nobiliav<span>.</span>NobiliaWindow<span>;</span>
+<span>import</span> rust<span>.</span>nobiliav<span>.</span>FrameInput<span>;</span>
+<span>import</span> rust<span>.</span>nobiliav<span>.</span>MainLoopCallback<span>;</span>
+<span>...</span>
+<span>exported</span> <span>func</span> <span>main</span><span>(</span><span>)</span> <span>int</span> <span>{</span>
+  w <span>=</span> NobiliaWindow<span>.</span><span>new</span><span>(</span>1200<span>,</span> 900<span>)</span><span>;</span>
+  <span>...</span>
+  w<span>.</span><span>main_loop</span><span>(</span>&amp;<span>MainLoopCallback</span><span>(</span><span>(</span><span>win</span><span>,</span> <span>input</span><span>)</span> =&gt; <span>{</span>
+    key <span>=</span> input<span>.</span><span>key</span><span>(</span><span>)</span><span>;</span>
+    <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_left</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+      win<span>.</span><span>rotate_camera</span><span>(</span><span>-</span>4<span>,</span> 0<span>)</span><span>;</span>
+    <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_right</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+      win<span>.</span><span>rotate_camera</span><span>(</span>4<span>,</span> 0<span>)</span><span>;</span>
+    <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_up</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+      win<span>.</span><span>rotate_camera</span><span>(</span>0<span>,</span> 4<span>)</span><span>;</span>
+    <span>}</span> <span>else</span> <span>if</span> <span>(</span>key <span>==</span> <span>key_arrow_down</span><span>(</span><span>)</span><span>)</span> <span>{</span>
+      win<span>.</span><span>rotate_camera</span><span>(</span>0<span>,</span> <span>-</span>4<span>)</span><span>;</span>
+    <span>}</span>
+  <span>}</span><span>)</span><span>)</span><span>;</span>
+  <span>return</span> 0<span>;</span>
+<span>}</span>
+</code></pre>
+    </div>
+  
+<p>
+After a <i>lot</i> of work (that led to discovering <i>the dance</i> and the current design), it finally all connected!
+</p>
+
+</section>
+<section>
+<p>
+At last, I got my first render: <a href="#note26" data-noteid="26">26</a>
+</p>
+<p>
+<img src="https://verdagon.dev/images/golden-spike-first-render.png">
+</p>
+
+</section>
+<section>
+<p>
+And with that first render, <b>the golden spike was hammered into place, and the transcontinental compiler was born.</b>
+</p>
+
+</section>
+<section>
+<p>
+Over <i>half a year</i> of work, theorizing, planning, hacking, refactoring, and rearchitecting had <b>finally come to fruition.</b>
+</p>
+
+</section>
+<section>
+<p>
+Of course, we aren't done yet!
+</p>
+<p>
+We don't just want Rust interop, we want <i>memory-safe</i> Rust interop!
+</p>
+
+</section>
+
+      </div>
+  
+<div>
+    
+<div id="note24" data-noteid="24">
+<p><span>24</span></p><section>
+<p>
+<span>rustc</span> also has GCC and Cranelift backends.
+</p>
+
+</section>
+</div>
+<div id="note25" data-noteid="25">
+<p><span>25</span></p><section>
+<p>
+Rendered by a working Valen program calling into a Rust graphics library!
+</p>
+
+</section>
+</div>
+<div id="note26" data-noteid="26">
+<p><span>26</span></p><section>
+<p>
+Don't look too closely at it. You'll start noticing oddities (like semitransparent refractive grass!)
+</p>
+
+</section>
+</div>
+
+        </div>
+
+    </div>
+    <div>
+      <div>
+  
+<section>
+<h3 id="memory-safety-across-the-boundary">
+ Memory safety across the boundary</h3>
+<p>
+Like I said above, I'm designing a memory safety approach that builds on <a href="https://verdagon.dev/blog/group-borrowing">Group Borrowing</a>, which is a more flexible form of borrow checking that allows for shared mutable references.
+</p>
+
+</section>
+<section>
+<p>
+If my guess is right, a well-designed blend could have even more benefits than we talked about in that article:
+</p>
+<ul>
+<li>
+We could have a mutable reference into an otherwise-immutable object
+</li>
+<li>
+Rc could hold mutable objects without <span>RefCell</span> or <span>Cell</span> (something I call "the holy grail", long story!)
+</li>
+<li>
+In some cases, it could even be faster at run-time <a href="#note27" data-noteid="27">27</a>
+</li>
+</ul>
+<p>
+These three points are theoretical until I can prove them, so take them with a grain of salt! Stay tuned for more posts on them.
+</p>
+
+</section>
+<section>
+<p>
+With careful enough language design, group borrowing can actually be a superset of Rust's borrow checking, making it so we can borrow-check over the boundary.
+</p>
+
+</section>
+<section>
+<p>
+This post is long so I'll save the details for the next one, but TL;DR: it's not complete yet, but this prototype is doing some borrow checking over the boundary!
+</p>
+
+</section>
+
+      </div>
+  
+<div id="note27" data-noteid="27">
+<p><span>27</span></p><section>
+<p>
+ To see what I mean, look at the "sneak peek" example on the <a href="https://verdagon.dev/blog/group-borrowing">group borrowing post</a>. I'm pretty sure that's faster than the corresponding Rust program, because the Rust program has to do two extra <span>entities.get_mut(id)</span> lookups (plus some extra error-handling branching).
+</p>
+<p>
+Disclaimer: this is unproven still, since I haven't yet implemented and benchmarked it, so take it with a grain of salt.
+</p>
+<p>
+Also, group borrowing should be able to express <span>noalias</span>/<span>alias.scope</span> information to LLVM, so it doesn't lose those optimizations. For more on this, see <a href="https://docs.google.com/document/d/1OxnwYe704m3TtUhNnR5lQzyOxEoZKUV-omMA5sGJHmQ/edit?usp=sharing">this doc</a>.
+
+</p>
+
+</section>
+</div>
+
+    </div>
+    <div>
+      <div>
+  
+<section>
+<h3 id="resurrecting-valen">
+ Resurrecting Vale(n)</h3>
+<p>
+Vale is my greatest achievement, my own personal crown jewel of memory safety design. It was a blend of generational references and region borrowing, both of which had never been seen before. It directly inspired Mojo to add linear types, even before I worked for them.
+</p>
+<p>
+Vale was also pretty unique in that it was a "high-level high-performance" language (as opposed to a lower-level "systems programming" language). This let it be much more strict about memory safety, which allowed for a lot of interesting features like <a href="https://verdagon.dev/blog/perfect-replayability-prototyped">Perfect Replayability</a>.
+</p>
+
+</section>
+<section>
+<p>
+This new language is a different beast altogether.
+</p>
+<ul>
+<li>
+It uses group borrowing (purely compile-time memory safety) instead of generational references + region borrowing.
+</li>
+<li>
+It's a systems programming language, which means even more freedom and speed (via group borrowing), though it wouldn't be as safe (because it'll have <span>unsafe</span> like Rust).
+</li>
+</ul>
+<p>
+It's so different, that it truly deserves its own name. <a href="#note28" data-noteid="28">28</a>
+</p>
+<p>
+And thus, <b>Valen</b> is born!
+</p>
+
+</section>
+
+      </div>
+  
+<div id="note28" data-noteid="28">
+<p><span>28</span></p><section>
+<p>
+Besides, switching Vale's memory safety model <i>for the third time</i> would really confuse people. First it was <a href="https://verdagon.dev/blog/raii-next-steps">constraint references</a>, then it was normal generational references, then it was probabilistic generational references + region borrowing. Asking people to keep track of what it is at any given moment is becoming a tall order!
+</p>
+
+</section>
+</div>
+
+    </div>
+    <div>
+      <div>
+  
+<section>
+<h3 id="thats-all-for-now">
+ That's all for now!</h3>
+<p>
+These are ideas I've been itching to try for <i>years</i>, and they're finally all coming together into something beautiful. <a href="#note29" data-noteid="29">29</a>
+</p>
+<p>
+This post represents my work for most of a year, and I had to keep it from exploding into a 40-page tome like some of my other posts, so I'll wrap things up here.
+</p>
+
+</section>
+<section>
+<p>
+This is just the tip of the iceberg, so stay tuned by subscribing to my <a href="https://verdagon.dev/rss.xml">RSS feed</a>, <a href="https://www.reddit.com/r/Valen/">r/valen</a>, or joining the <a href="https://discord.gg/SNB8yGH">Valen discord</a>.
+</p>
+
+</section>
+<section>
+<p>
+Cheers!
+</p>
+<p>
+- Evan Ovadia
+</p>
+
+</section>
+
+<section>
+<p>
+PS. If anyone has a Fosstodon account, please <a href="https://fosstodon.org/invites">send me an invite</a> (my email is revval át verdagon dot dev), thank you!
+</p>
+
+</section>
+
+      </div>
+  
+<div id="note29" data-noteid="29">
+<p><span>29</span></p><section>
+<p>
+And more than that: benefits are emerging from the design that even I didn't foresee. Group borrowing and linear types combine to form something <i>very interesting...</i>
+</p>
+
+</section>
+</div>
+
+    </div>
+    
+  
+
+    </div></div>

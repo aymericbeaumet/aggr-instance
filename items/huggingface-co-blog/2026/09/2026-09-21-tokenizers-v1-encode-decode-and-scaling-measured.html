@@ -1,0 +1,280 @@
+<div id="readability-page-1" class="page"><div>
+<figure>
+  
+</figure>
+
+<p>The tokenizer has not historically been the bottleneck within ML workflows. Compute-wise, tokenization is light compared to the heavy modeling happening in the rest of the pipeline. Yet, in some cases, it has rapidly become key to accelerating (or slowing down) your machine learning work.</p>
+<p>As models become faster and workloads scale, that balance begins to shift. Training on massive datasets, serving many concurrent requests, or repeatedly processing long inputs can put enough pressure on the tokenizer that it starves the model of data.</p>
+<p>This is why we have chosen to heavily focus on performance for the upcoming version 1 of tokenizers. Tokenization should be light and should scale with your workflow. Your GPUs should never sit idle waiting for the CPU to complete its tokenization.</p>
+<hr>
+<p>In this article, we look at what makes v1 faster than v0.23, often by tens of times.</p>
+<p>This work was entirely possible thanks to the rest of the ecosystem. Tokenization is a very active area of open source work, and libraries such as <a href="https://github.com/marcelroed/gigatoken" rel="nofollow">gigatoken</a>, <a href="https://crates.io/crates/tiktoken-rs" rel="nofollow">tiktoken</a>, <a href="https://crates.io/crates/kitoken" rel="nofollow">kitoken</a>, <a href="https://crates.io/crates/tokie" rel="nofollow">tokie</a>, <a href="https://crates.io/crates/fastokens" rel="nofollow">fastokens</a>, <a href="https://crates.io/crates/wordchipper" rel="nofollow">wordchipper</a> and <a href="https://www.npmjs.com/package/ai-tokenizer" rel="nofollow">ai-tokenizer</a>, as well as many others, have each pushed on what a fast tokenizer can be. We read that work, and several of the ideas below reached us because another project showed they were worth trying. </p>
+<p>Before this refactor, tokenizers was nowhere near the performance it could have had, so contributing to it may not have seemed worth it. With this refactor, we hope to make clear that we intend tokenizers to be a library worth contributing to.</p>
+<p>We also thank IBM, NVIDIA, and the ExecuTorch team for contributing patches and helping us test across a wide range of hardware to broaden platform support.</p>
+<h2>
+	<a id="results" href="#results" rel="nofollow">
+		
+	</a>
+	<span>
+		Results
+	</span>
+</h2>
+<p>We showcase results for the release candidate of tokenizers v1 against other widely used alternatives. We go over single-threaded, multi-threaded, scaling across threads, per-model comparison, per-language comparison, latency, decoding throughput, memory heap, as well as crate size.</p>
+<p>We run this from the <a href="https://github.com/huggingface/tokbench" rel="nofollow">tokbench</a> repository, and add a command to rerun the benchmarks on your hardware if you would like to do so.</p>
+<figure>
+  
+</figure>
+
+<h2>
+	<a id="what-v1-is" href="#what-v1-is" rel="nofollow">
+		
+	</a>
+	<span>
+		What V1 Is
+	</span>
+</h2>
+<p>v1 will produce the same token IDs as v0.23. The goal was to preserve the output, the API, the vocabulary and the merge ranks, and improve everything that <strong>can</strong> be improved. That includes breadth. The library stays general across tokenizer families rather than specialising on BPE, so v1 loads everything v0.23 loaded.</p>
+<p>A tokenizer converts text into the list of integers a model reads. tokenizers runs that conversion in four stages. Normalization applies operations such as lowercasing or Unicode normalization to the raw text. Pre-tokenization splits the text into smaller pieces called pre-tokens. The model turns each pre-token into tokens and maps them to IDs in its vocabulary. Post-processing adds any special tokens the model expects.</p>
+<p>The model stage is where most of the work described here happens. Eight of the ten model families measured in this article use byte pair encoding, or BPE. BPE starts from the bytes of a pre-token and repeatedly joins the highest ranked adjacent pair until no ranked pair remains. The ranking is learned when the tokenizer is trained and ships with it, so the same text always produces the same IDs. A merge never crosses a pre-token boundary. The other two families use WordPiece and Unigram, the two other model types the library supports.</p>
+<p>The <a href="https://huggingface.co/docs/tokenizers/pipeline">tokenization pipeline</a> page documents the four stages. <a href="https://huggingface.co/docs/transformers/tokenizer_summary">Tokenization algorithms</a> documents BPE, WordPiece and Unigram.</p>
+<figure>
+  
+</figure>
+
+<p>Each stage was worked on. These are the changes that mattered:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>change</th>
+<th>what it does</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>workspace split</td>
+<td>one crate became a workspace: <code>tk-encode</code> is the required runtime, and <code>tk-serialize</code>, <code>tk-convert</code> and <code>tk-train</code> are linked only when an application needs them</td>
+</tr>
+<tr>
+<td>no-alloc model</td>
+<td>the merge working set lives in a caller-owned scratch buffer; the loop never touches the allocator</td>
+</tr>
+<tr>
+<td>bitcannon</td>
+<td>the split pattern becomes Boolean operations over bitstreams, using SIMD instructions to find splits instead of a regex engine</td>
+</tr>
+<tr>
+<td>merge-loop rewrite</td>
+<td>the pieces being merged form an intrusive doubly-linked list inside one preallocated buffer, so a merge updates two indices instead of moving data</td>
+</tr>
+<tr>
+<td>word cache</td>
+<td>a thread-local memo from pre-token bytes to finished ids, so a repeated word is merged once</td>
+</tr>
+<tr>
+<td>native parallelism</td>
+<td>one shared tokenizer encodes from many threads at once; each thread draws its scratch buffer and word cache from its own sub-pool, so threads no longer queue on a single lock (<a href="https://github.com/huggingface/tokenizers/pull/2365" rel="nofollow">#2365</a>)</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="the-split-bitstreams-instead-of-a-regex" href="#the-split-bitstreams-instead-of-a-regex" rel="nofollow">
+		
+	</a>
+	<span>
+		The Split: Bitstreams Instead Of A Regex
+	</span>
+</h3>
+<p>BPE models use a regular expression to split the input text into smaller, easier to process chunks called pre-tokens. Merges happen inside a pre-token and never across the boundary between two of them, so this split decides what the rest of the pipeline sees.</p>
+<p>That regular expression is a fixed parameter of the model. It ships with the tokenizer and never changes at runtime, so there is no need for a general-purpose regex engine to interpret it on every encode. An equivalent splitting function can be written by hand, once, for the pattern a given model actually uses.</p>
+<p>A hand-written function can then use the SIMD instructions (single instruction, multiple data) of a modern CPU, which apply one operation to many bytes at once and suit UTF-8 text well. bitcannon views the input's bytes as parallel streams of bits, so boundaries fall out of boolean operations across whole registers instead of a scan that advances one character at a time. It decides 64 bytes per register operation. The same idea drives <a href="https://www.cs.sfu.ca/~ashriram/papers/2012_HPCA_Parabix.pdf" rel="nofollow">Parabix</a> for text processing and <a href="https://arxiv.org/abs/1902.08318" rel="nofollow">simdjson</a> for JSON.</p>
+<p>This depends on recognising the pattern. A handful of grammars cover most byte-level BPE models, and a tokenizer whose pattern is not among them keeps the regex path and none of this speed-up. That is why the gains above vary as much as they do.</p>
+<figure>
+  
+</figure>
+
+<h3>
+	<a id="the-word-cache" href="#the-word-cache" rel="nofollow">
+		
+	</a>
+	<span>
+		The Word Cache
+	</span>
+</h3>
+<p>Real text contains many repeated words. Because BPE always produces the same token IDs for a given pre-token, v1 can save the result after processing it once. A thread-local cache maps each pre-token's bytes to its token IDs, allowing later occurrences to skip the merge process.</p>
+<p>Naturally, as the input grows, the number of unique words can grow more slowly than the total number of words. Repeated words then account for an increasing share of the input. New words still appear, which accounts for the occasional misses in the animation below.</p>
+<figure>
+  
+</figure>
+
+<p>Reproduce the shared-prefix result with:</p>
+<pre><code>tokbench measure prefix-sharing \
+  --engine pipeline \
+  --engine hf-tokenizers \
+  --compare-to pipeline-no-cache \
+  --corpus agentic_swe
+</code></pre>
+<p>Caching works best when the input contains repeated pre-tokens. Input with few repeated pre-tokens can pay for lookups without receiving many hits.</p>
+<h3>
+	<a id="the-merge-loop" href="#the-merge-loop" rel="nofollow">
+		
+	</a>
+	<span>
+		The Merge Loop
+	</span>
+</h3>
+<p>The next major cost comes from the BPE merge loop. For each pre-token, the loop repeatedly finds the highest-priority adjacent pair and merges it. The previous implementation allocated new memory for every call and built a new priority queue for every pre-token.</p>
+<p>v1 reuses a scratch buffer owned by the caller, removing those repeated allocations. It stores symbols in a flat array and links adjacent symbols by their positions in that array, which makes updates during merging cheaper. It also processes a batch of pre-tokens in a single model call.</p>
+<p>Each candidate pair is also packed into a single 64-bit value, with the merge rank in the high bits. Comparing two candidates is then just comparing two integers, and "no merge here" is the largest possible value, so the loop finds its next merge without a branch.</p>
+<h2>
+	<a href="#method" rel="nofollow">
+		
+	</a>
+	<span>
+		Method
+	</span>
+</h2>
+<p>Small differences in benchmark design can produce large differences in tokenizer performance. We used the following rules to keep the comparison consistent across engines.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>rule</th>
+<th>why</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>one timing loop</td>
+<td>every engine runs the identical loop; no per-engine fast path</td>
+</tr>
+<tr>
+<td>load excluded</td>
+<td>vocabulary load is timed separately, never inside encode</td>
+</tr>
+<tr>
+<td>id-hash verified</td>
+<td>FNV-1a over the output ids must match the baseline exactly</td>
+</tr>
+<tr>
+<td>common cells only</td>
+<td>medians are over cells every engine ran and verified</td>
+</tr>
+<tr>
+<td>complete sweep per process</td>
+<td>each repeat starts in a new process and retains every cell</td>
+</tr>
+<tr>
+<td>physical-core pinning</td>
+<td>workers are pinned to eight distinct physical cores, never sibling SMT threads</td>
+</tr>
+<tr>
+<td>independent Jobs</td>
+<td>separate Jobs measure host-to-host variation</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Repeatedly encoding one document can be faster than encoding a stream of distinct documents on the same build. The first approach measures performance when the entire document is already represented in the cache. The second measures performance on new input while allowing previously seen pre-tokens to remain cached.</p>
+<p>Both conditions are sometimes described as "warm," even though they measure different workloads. Our headline results use distinct documents, and the complete corpus is too large to fit in the cache. Tokenizer benchmarks should identify which workload they use because the choice can dominate the result.</p>
+<h2>
+	<a id="what-this-adds-up-to" href="#what-this-adds-up-to" rel="nofollow">
+		
+	</a>
+	<span>
+		What This Adds Up To
+	</span>
+</h2>
+<p>Across the ten model families v1's encode path covers, it encodes text <strong>3 to 30 times faster</strong> than v0.23 with one thread on an Apple M4 Max. The low end is t5-base, the high end gpt2. It scales at <strong>76%</strong> of linear across eight workers. Throughout these changes, v1 produces exactly the same token IDs as the released library.</p>
+<p>The overall improvement comes from several changes working together: a hand-written splitter in place of a regex engine, a cache that answers a repeated word without merging it again, a merge loop that never touches the allocator, and one model call per batch of pre-tokens instead of one per pre-token. Each reduces the work done at a different point in the pipeline.</p>
+<p>The next priority is support for more model families. We will move additional models onto the new merge loop before <code>1.0.0</code>. Once the release candidates stabilize, the next step will be bringing about the improvements within the transformers library and the rest of the ecosystem which depend on the tokenizers library.</p>
+<p>This post is generated from <a href="https://github.com/huggingface/tokbench" rel="nofollow">tokbench</a> results and will be updated as support expands.</p>
+<h2>
+	<a id="getting-it" href="#getting-it" rel="nofollow">
+		
+	</a>
+	<span>
+		Getting It
+	</span>
+</h2>
+<p>A release candidate for v1 is on crates.io. The API you call is the one you already call, so the only thing that changes is which build you install.</p>
+<p>It is the ordinary install:</p>
+<pre><code>cargo add tokenizers --pre
+</code></pre>
+<p>Training is behind a default-on feature that pulls a C++ dependency with it. If you only need to encode, turn it off to exclude the training implementation:</p>
+<pre><code>cargo add tokenizers --pre --no-default-features --features http
+</code></pre>
+<p>Encoding is unchanged: same call, same ids.</p>
+<pre><code><span>use</span> tokenizers::tokenizer::{<span>Result</span>, Tokenizer};
+
+<span>fn</span> <span>main</span>() <span>-&gt;</span> <span>Result</span>&lt;()&gt; {
+    <span>let</span> <span>tokenizer</span> = Tokenizer::<span>from_pretrained</span>(<span>"deepseek-ai/DeepSeek-V4-Flash"</span>, <span>None</span>)?;
+
+<span>let</span> <span>encoding</span> = tokenizer.<span>encode</span>(<span>"The tokenizer is no longer the bottleneck."</span>, <span>false</span>)?; <span>println!</span>(<span>"{:?}"</span>, encoding.<span>get_ids</span>()); <span>// [671, 17840, 9160, 344, 1119, 5827, 270, 111127, 16] println!("{:?}", encoding.get_tokens()); // ["The", "Ġtoken", "izer", "Ġis", "Ġno", "Ġlonger", "Ġthe", "Ġbottleneck", "."]</span>
+
+<span>Ok</span>(()) } ```
+
+For a batch, `encode_batch` is what scales across cores. It is the call the scaling view above measures.
+
+```rust
+<span>let</span> <span>encodings</span> = tokenizer.<span>encode_batch</span>(documents, <span>false</span>)?;
+</code></pre>
+<p>Every figure in this post was measured against this crate. The Python bindings wrap the same code and are built from <code>bindings/python</code>, but they add per-call overhead that none of these measurements include.</p>
+<h2>
+	<a id="progress-towards-v1" href="#progress-towards-v1" rel="nofollow">
+		
+	</a>
+	<span>
+		Progress Towards V1
+	</span>
+</h2>
+<p>The benchmarks in this post cover the completed release-candidate work listed first. The remaining sections show what is still required for <code>1.0.0</code> and what we plan to explore afterward.</p>
+<h3>
+	<a id="release-candidate-implemented" href="#release-candidate-implemented" rel="nofollow">
+		
+	</a>
+	<span>
+		Release Candidate: Implemented
+	</span>
+</h3>
+<p>This work is in the Rust pre-release on crates.io:</p>
+<pre><code>cargo add tokenizers --pre
+</code></pre>
+<ul>
+<li>workspace split: divide the single crate into <code>tk-encode</code>, <code>tk-serialize</code>, <code>tk-convert</code> and <code>tk-train</code>, so an application links only what it uses</li>
+<li>bitcannon: replace regex splitting on the encoding path with bitstream operations covering GPT-2, cl100k, o200k, Tekken and DeepSeek. This replaced the finite-state machines that shipped first <a href="https://github.com/huggingface/tokenizers/pull/2201" rel="nofollow">#2201</a> <a href="https://github.com/huggingface/tokenizers/pull/2317" rel="nofollow">#2317</a></li>
+<li>WordCache: reuse the token IDs of previously processed pre-tokens <a href="https://github.com/huggingface/tokenizers/pull/2262" rel="nofollow">#2262</a>, <code>af5a3e3</code></li>
+<li>faster lookup and merging structures: add FlatCache, MPHF RankStore, incremental merging, and BucketVocabStore <a href="https://github.com/huggingface/tokenizers/pull/2190" rel="nofollow">#2190</a> <a href="https://github.com/huggingface/tokenizers/pull/2188" rel="nofollow">#2188</a></li>
+<li>reusable model memory: move temporary model state into scratch buffers so tokenization does not allocate on each call <a href="https://github.com/huggingface/tokenizers/pull/2175" rel="nofollow">#2175</a> <a href="https://github.com/huggingface/tokenizers/pull/2183" rel="nofollow">#2183</a></li>
+<li>pipeline post-processing: expose post-processing as the <code>STAGE_POST</code> pipeline stage <a href="https://github.com/huggingface/tokenizers/pull/2182" rel="nofollow">#2182</a></li>
+<li>batched model calls: process multiple pre-token spans in one call <a href="https://github.com/huggingface/tokenizers/pull/2304" rel="nofollow">#2304</a></li>
+<li>faster decoding: write decoded bytes directly into a reusable buffer, avoid intermediate strings and copies, accelerate token lookup, support buffered streaming, and decode batches in parallel</li>
+<li><code>role_to_token</code> support <a href="https://github.com/huggingface/tokenizers/pull/2343" rel="nofollow">#2343</a></li>
+<li>Node.js bindings <a href="https://github.com/huggingface/tokenizers/pull/2281" rel="nofollow">#2281</a></li>
+</ul>
+<h3>
+	<a id="100" href="#100" rel="nofollow">
+		
+	</a>
+	<span>
+		1.0.0
+	</span>
+</h3>
+<ul>
+<li>one encoding implementation: use <code>tk-encode</code> during training validation so training and inference cannot produce different tokenization results</li>
+<li>optional offsets and masks: compute this metadata only when requested, keeping it off the token-ID-only path</li>
+<li>rework normalizers</li>
+<li>bitnorm support, building on atomnorm <a href="https://github.com/huggingface/tokenizers/pull/2209" rel="nofollow">#2209</a></li>
+<li>spm precompiled</li>
+<li>simpler Python bindings: reduce locking, wrapper types, and handwritten dispatch code while preserving subclassing, serialization, custom decoders, mutation behavior, and support for free-threaded CPython</li>
+<li>inference-only C and C++ bindings for ExecuTorch and llama.cpp, with possible JVM, Swift, and Go bindings to follow</li>
+</ul>
+<h3>
+	<a id="after-100" href="#after-100" rel="nofollow">
+		
+	</a>
+	<span>
+		After 1.0.0
+	</span>
+</h3>
+<ul>
+<li>tok-devices: explore GPU encoding and batch decoding while keeping text and token IDs on the device. The decoder would upload the vocabulary once, calculate output positions in parallel, and gather the corresponding bytes on the GPU. This would be an optional component intended for large batches, subject to further prototyping and measurement.</li>
+</ul>
+</div></div>

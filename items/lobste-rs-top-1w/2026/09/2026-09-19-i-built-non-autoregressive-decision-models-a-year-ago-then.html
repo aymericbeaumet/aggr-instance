@@ -1,0 +1,1126 @@
+<div id="readability-page-1" class="page"><div data-article-id="4681599" id="article-body">
+                <h3>
+  <a name="from-our-march-2025-arxiv-paper-on-rl-conversion-trajectories-to-building-a-sub40ms-openweight-system-1-decision-engine-with-rlcd" href="#from-our-march-2025-arxiv-paper-on-rl-conversion-trajectories-to-building-a-sub40ms-openweight-system-1-decision-engine-with-rlcd">
+  </a>
+  From our March 2025 arXiv paper on RL conversion trajectories to building a sub-40ms open-weight System 1 decision engine with RLCD.
+</h3>
+
+<p>Everyone in AI right now is talking about a new kind of model: an architecture that is not auto-regressive, does not generate text, and gives lightning fast probability predictions over a structured JSON schema. </p>
+
+<p>Seeing the hype online feels both validating and deeply frustrating. </p>
+
+<p>I worked on this literally one year back in March 2025. I spent months of hard work, sweat, and sleepless nights building it, published an arXiv paper (<a href="https://arxiv.org/abs/2503.23303" target="_blank" rel="noopener noreferrer">arXiv:2503.23303</a>), released the model weights on Hugging Face (<a href="https://huggingface.co/DeepMostInnovations/sales-conversion-model-reinf-learning" target="_blank" rel="noopener noreferrer">sales-conversion-model-reinf-learning</a>), published the open dataset (<a href="https://huggingface.co/datasets/DeepMostInnovations/saas-sales-conversations" target="_blank" rel="noopener noreferrer">saas-sales-conversations</a>), built a PyPi package, and posted the whole approach on Reddit (<a href="https://www.reddit.com/r/LocalLLaMA/s/6eGEwsAz43" target="_blank" rel="noopener noreferrer">r/LocalLLaMA post</a>).</p>
+
+<p>Then in September 2025, I published a second paper (<a href="https://arxiv.org/abs/2510.01237" target="_blank" rel="noopener noreferrer">arXiv:2510.01237</a>), laying out the exact framework for schema-based decisions guided by reinforcement learning. For anyone curious, the guiding brain in my system was always reinforcement learning, not just an embedding model or an autoregressive LLM.</p>
+
+<p>And then in September 2026, a well-funded frontier lab called TypeSafe AI (founded by Diogo Almeida, a co-inventor of ChatGPT at OpenAI) launched Jev. They proposed the exact same non-autoregressive decision concept as if it was a brand-new scientific breakthrough. Except they launched without technical papers, without open weights, and with zero open training datasets. </p>
+
+<p>My earlier model used PPO over sequence representations to output turn-by-turn conversion trajectories (probabilities from 0.0 to 1.0) in vertical sales conversations. Jev generalized parallel sampling using what they called RLCD (Reinforcement Learning for Calibrated Decisions) to output confidence distributions and schema choices horizontally, charging $0.042 per million input tokens with typical response times around 150 ms.</p>
+
+<p>It is incredibly frustrating when something you poured your heart into for months as an open-source researcher gets overlooked because it was built for a vertical use case, while a funded lab packages the same core idea horizontally and gets all the glory. But that is the open-source story in general 🙂.</p>
+
+<p>Instead of staying bitter, I decided to take everything I learned from my March 2025 and September 2025 papers, fix every architectural limitation of the old approach, and build a completely open, horizontal System 1 decision model: <strong>RL Agent</strong>.</p>
+
+<p>And because we built it properly on a bidirectional encoder, our model runs in <strong>33 to 38 milliseconds on a GPU</strong>, making it roughly 4x faster than Jev's published 150 ms latency, and it is 100% open-source.</p>
+
+<p>Here is the full story of how it works, the architecture, the math of RLCD with strictly proper scoring rules, and why non-autoregressive decision models are the future.</p>
+
+
+<hr>
+
+<h2>
+  <a name="1-the-real-problem-why-llms-are-terrible-for-decisions" href="#1-the-real-problem-why-llms-are-terrible-for-decisions">
+  </a>
+  1. The Real Problem: Why LLMs are Terrible for Decisions
+</h2>
+
+<p>Every modern AI pipeline has a giant bottleneck: we use generative LLMs for simple reflex decisions.</p>
+
+<p>When a customer support ticket arrives, or an email hits your inbox, or a user submits a prompt to your API, you usually only need to answer a few simple questions:</p>
+
+<ul>
+<li>Which department should this go to?</li>
+<li>Is this email a phishing attack?</li>
+<li>Is this prompt trying to jailbreak the system?</li>
+<li>How urgent is this issue on a scale of 0 to 3?</li>
+</ul>
+
+<p>Calling an 8B or 70B generative LLM for this is complete overkill. You wait 500ms to 2,000ms for tokens to stream out, spend real money on inference, and then have to write regex or JSON parsers to extract a clean label from free-form text. Worst of all, LLMs love to hallucinate and generate fake confidence. When an LLM outputs <code>"confidence: 0.95"</code>, it is just predicting tokens that sound confident. There is zero mathematical calibration behind it.</p>
+
+<p>We needed a model that works like the human brain's System 1: instant, reflex decisions with honest, calibrated probabilities, taking only 30 to 40 milliseconds on standard hardware.</p>
+
+
+<hr>
+
+<h2>
+  <a name="2-the-three-decision-primitives" href="#2-the-three-decision-primitives">
+  </a>
+  2. The Three Decision Primitives
+</h2>
+
+<p>Following the System 1 philosophy, RL Agent accepts a <strong>state</strong> (raw text, email, ticket, or JSON document) along with one or more <strong>typed questions</strong>, and evaluates all of them in a single, parallel forward pass.</p>
+
+<p>It uses three primitives:</p>
+
+<ol>
+<li>
+<strong>choice</strong>: Pick one option from a dictionary of criteria. Returns the chosen label, probabilities for each candidate option, and a confidence score. (Great for department routing, intent detection, topic classification).</li>
+<li>
+<strong>score</strong>: Place the state on an ordinal rubric like levels 0, 1, 2, 3. Returns an expected score value, probabilities across levels, and confidence. (Great for customer frustration, urgency, prompt harm severity).</li>
+<li>
+<strong>noul</strong>: A direct boolean question returning calibrated probability P(true) from 0.0 to 1.0. (Great for detecting phishing, spam, jailbreaks, or churn risk).</li>
+</ol>
+
+<p>Because the output space is strictly probabilities and numbers, the model never generates text, cannot hallucinate, and broken JSON is physically impossible.</p>
+
+
+<hr>
+
+<h2>
+  <a name="3-model-architecture-421m-parameters" href="#3-model-architecture-421m-parameters">
+  </a>
+  3. Model Architecture: 421M Parameters
+</h2>
+
+<p>In my March 2025 work, I used frozen sequence embeddings combined with a separate PPO value network. It worked for turn-by-turn sales prediction, but it was not end-to-end and could not handle dynamic new questions at runtime.</p>
+
+<p>For RL Agent, we built a 421M-parameter end-to-end architecture with two tightly coupled components:<br>
+</p>
+
+<div>
+<pre><code>State (Text or JSON) + Typed Questions &amp; Options
+                       │
+                       ▼
+Prompt Construction:
+[CLS] &lt;type&gt; question: &lt;instructions&gt; [SEP] [MASK] opt0 [MASK] opt1 ... [SEP] &lt;state&gt; [SEP]
+                       │
+                       ▼
+┌──────────────────────────────────────────────────────────────┐
+│ ENCODER: ModernBERT-large (395M, Bidirectional)              │
+│ • 28 layers, hidden dim 1024, 16 heads, GeGLU MLP            │
+│ • Full sequence bidirectional attention across state and opts│
+└──────────────────────────────┬───────────────────────────────┘
+                               │ Hidden states [L × 1024]
+                               ▼
+               + Question-Type Embedding (choice=0, score=1, noul=2)
+                               │
+┌──────────────────────────────▼───────────────────────────────┐
+│ DECISION HEAD TRANSFORMER (~25.2M parameters)                │
+│ • 2 TransformerEncoder layers (d=1024, 16 heads, FFN=4096)   │
+│ • Pre-LayerNorm, Dropout 0.1                                 │
+└──────────────┬───────────────────────────────┬───────────────┘
+               │                               │
+               ▼ Extract [MASK] markers        ▼ Pooled [CLS] state
+┌──────────────────────────────┐ ┌─────────────────────────────┐
+│ OPTION SCORER (~1.05M)       │ │ ACT / ESCALATE HEAD (~0.26M)│
+│ • LayerNorm(1024)            │ │ • Input: [CLS] (1024)       │
+│ • Linear(1024 -&gt; 1024)       │ │   + 4 distribution stats    │
+│ • GELU()                     │ │ • Linear(1028 -&gt; 256)       │
+│ • Linear(1024 -&gt; 1)          │ │ • GELU()                    │
+│ Yields 1 scalar logit per opt│ │ • Linear(256 -&gt; 2)          │
+└──────────────┬───────────────┘ └─────────────┬───────────────┘
+               │                               │
+               ▼                               ▼
+       Logits ÷ Temperature           P(Act) vs P(Escalate)
+         -&gt; Softmax                                  
+               │
+               ▼
+ [ Probabilities + Confidence ]
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<h3>
+  <a name="modernbertlarge-backbone" href="#modernbertlarge-backbone">
+  </a>
+  ModernBERT-large Backbone
+</h3>
+
+<p>We use <strong>ModernBERT-large</strong> (395M parameters) as our base encoder. ModernBERT has 28 layers, hidden dimension 1024, 16 attention heads, GeGLU intermediate layers (dim 2624), and supports 8,192 tokens via rotary position embeddings (RoPE). Because it is fully bidirectional, every token attends to all parts of the state and options simultaneously.</p>
+
+<h3>
+  <a name="the-mask-option-extraction-mechanism" href="#the-mask-option-extraction-mechanism">
+  </a>
+  The [MASK] Option Extraction Mechanism
+</h3>
+
+<p>For every question, our <code>build_sequence</code> function packs the prompt:<br>
+</p>
+
+<div>
+<pre><code><span>[</span><span>CLS</span><span>]</span><span> </span><span>choice</span><span> </span><span>question:</span><span> </span><span>Which</span><span> </span><span>team</span><span> </span><span>should</span><span> </span><span>handle</span><span> </span><span>`body`?</span><span> </span><span>[</span><span>SEP</span><span>]</span><span>
+</span><span>[</span><span>MASK</span><span>]</span><span> </span><span>billing:</span><span> </span><span>payments</span><span> </span><span>[</span><span>MASK</span><span>]</span><span> </span><span>tech:</span><span> </span><span>bugs</span><span> </span><span>[</span><span>MASK</span><span>]</span><span> </span><span>other:</span><span> </span><span>general</span><span> </span><span>[</span><span>SEP</span><span>]</span><span>
+</span><span>{</span><span>"subject"</span><span>:</span><span> </span><span>"Refund request"</span><span>,</span><span> </span><span>"body"</span><span>:</span><span> </span><span>"I was billed twice..."</span><span>}</span><span> </span><span>[</span><span>SEP</span><span>]</span><span>
+</span></code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>Each option gets a <code>[MASK]</code> token. After passing through ModernBERT and the 2-layer decision head transformer, we use <code>torch.gather</code> to pull the hidden states specifically at those marker positions. </p>
+
+<p>The Option Scorer MLP projects each 1024-dim marker state to a scalar logit. A softmax over the options belonging to that question yields the candidate probability distribution:<br>
+</p>
+
+<div>
+<pre><code>p = softmax(z / T)
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>where T is a temperature fitted per question type and option count.</p>
+
+<h3>
+  <a name="the-act-vs-escalate-head" href="#the-act-vs-escalate-head">
+  </a>
+  The Act vs Escalate Head
+</h3>
+
+<p>In real automated systems, you want to know when to trust the model and when to call a human. We added an Act/Escalate head that takes the pooled [CLS] token (1024 dim) concatenated with 4 distribution features:</p>
+
+<ul>
+<li>Top probability: max(p)</li>
+<li>Top-2 margin: p_top1 - p_top2</li>
+<li>Normalized entropy: H(p) / log(K)</li>
+<li>Option budget ratio: K / 255</li>
+</ul>
+
+<p>This 1028-dim vector passes through a 2-layer MLP to output [P(act), P(escalate)].</p>
+
+<h3>
+  <a name="single-forward-pass-for-multiple-questions" href="#single-forward-pass-for-multiple-questions">
+  </a>
+  Single Forward Pass for Multiple Questions
+</h3>
+
+<p>If you have an email and ask 5 questions about it, all 5 sequences are collated into one batch. ModernBERT processes them all in a single forward pass in about 35 milliseconds on a GPU.</p>
+
+
+<hr>
+
+<h2>
+  <a name="4-training-with-rlcd-the-mathematics-of-calibration" href="#4-training-with-rlcd-the-mathematics-of-calibration">
+  </a>
+  4. Training with RLCD: The Mathematics of Calibration
+</h2>
+
+<p>How do you train this with reinforcement learning so the probabilities are genuinely calibrated?</p>
+
+<h3>
+  <a name="the-trap-with-normal-classification-and-naive-rl" href="#the-trap-with-normal-classification-and-naive-rl">
+  </a>
+  The Trap with Normal Classification and Naive RL
+</h3>
+
+<p>If you train a classifier with cross entropy:<br>
+</p>
+
+<div>
+<pre><code>Loss_CE = -sum(y_k * log(p_k))
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>the loss can only be minimized when the winner logit approaches infinity. The model gets overconfident.</p>
+
+<p>And if you try standard reinforcement learning with a binary reward (+1 if correct, 0 if wrong), the expected reward is:<br>
+</p>
+
+<div>
+<pre><code>E[R] = sum(y_k * p_k)
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>The policy gradient forces the highest probability toward 1.0 and all others toward 0.0. In other words, naive RL maximizes accuracy by destroying calibration. It turns your model into a confidently wrong machine.</p>
+
+<h3>
+  <a name="strictly-proper-scoring-rules" href="#strictly-proper-scoring-rules">
+  </a>
+  Strictly Proper Scoring Rules
+</h3>
+
+<p>The foundation of RLCD (Reinforcement Learning for Calibrated Decisions) is using a strictly proper scoring rule as the reward.</p>
+
+<p>In decision theory, a scoring rule S(q, y) assigns a score when the model reports distribution q and the true outcome is y. It is strictly proper if and only if the expected score is uniquely maximized when q equals the true distribution p:<br>
+</p>
+
+<div>
+<pre><code>E_{y ~ p}[S(q, y)] &lt;= E_{y ~ p}[S(p, y)], with equality if and only if q = p
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>This guarantees that the model receives the highest possible reward only when it reports honest probabilities.</p>
+
+<p>Our composite reward combines three proper scores:<br>
+</p>
+
+<div>
+<pre><code>Reward(q, y) = S_log(q, y) + 0.5 * S_sph(q, y) - 1.0 * S_rps(q, y)
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<h4>
+  <a name="1-logarithmic-score-slog" href="#1-logarithmic-score-slog">
+  </a>
+  1. Logarithmic Score (S_log)
+</h4>
+
+
+
+<div>
+<pre><code>S_log(q, y) = sum(y_k * log(max(q_k, 1e-12)))
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>Penalizes the model heavily if it assigns low probability to the true outcome. We clamp the floor to -9.21 for numerical stability.</p>
+
+<h4>
+  <a name="2-spherical-score-ssph" href="#2-spherical-score-ssph">
+  </a>
+  2. Spherical Score (S_sph)
+</h4>
+
+
+
+<div>
+<pre><code>S_sph(q, y) = sum(y_k * q_k) / sqrt(sum(q_k^2))
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>A bounded score in [0, 1] that rewards placing probability mass on the correct class without the extreme gradient spikes of pure log-loss.</p>
+
+<h4>
+  <a name="3-ranked-probability-score-srps" href="#3-ranked-probability-score-srps">
+  </a>
+  3. Ranked Probability Score (S_rps)
+</h4>
+
+<p>Used for ordinal score questions (rubrics like 0, 1, 2, 3). If true urgency is level 3, guessing level 2 is much better than guessing level 0. RPS measures the squared distance between the cumulative distributions:<br>
+</p>
+
+<div>
+<pre><code>S_rps(q, y) = (1 / (K - 1)) * sum((CDF_q(i) - CDF_y(i))^2)
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>Subtracting RPS from the reward teaches the model distance along a rubric.</p>
+
+<h3>
+  <a name="the-policy-gradient-update-reinforce-with-group-baseline" href="#the-policy-gradient-update-reinforce-with-group-baseline">
+  </a>
+  The Policy Gradient Update (REINFORCE with Group Baseline)
+</h3>
+
+<p>We train with pure policy gradient (zero supervised cross-entropy loss):</p>
+
+<ol>
+<li>
+<strong>Gaussian Exploration</strong>: For each question, we sample G = 8 noisy candidate logits:
+</li>
+</ol>
+
+<div>
+<pre><code>   z_noisy = z + epsilon, where epsilon ~ Normal(0, sigma^2)
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>We project the noise vector so its sum across options is zero (epsilon - mean(epsilon)), since adding a constant to all logits cancels out in softmax. The exploration standard deviation sigma decays from 1.0 down to 0.3.</p>
+
+<ol>
+<li>
+<strong>Noisy Distribution</strong>:
+</li>
+</ol>
+
+<div>
+<pre><code>   q_noisy = softmax(z_noisy)
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<ol>
+<li>
+<strong>Reward Evaluation</strong>:
+</li>
+</ol>
+
+<div>
+<pre><code>   r_noisy = Reward(q_noisy, y)
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<ol>
+<li>
+<strong>Group Mean Advantage (GRPO style)</strong>: We compute advantages relative to the group mean across the 8 samples:
+</li>
+</ol>
+
+<div>
+<pre><code>   Advantage = (r_noisy - mean(r)) / (std(r) + 1e-6)
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<ol>
+<li>
+<strong>Policy Loss</strong>: Using the Gaussian log-probability:
+</li>
+</ol>
+
+<div>
+<pre><code>   Loss_policy = -mean(Advantage * log_prob(z_noisy | z))
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<ol>
+<li>
+<strong>Cost-Sensitive Act Head</strong>: The act head samples actions in {act, escalate} and receives rewards from a cost matrix:
+
+<ul>
+<li>Action correct: +1.0</li>
+<li>Action incorrect: -3.0</li>
+<li>Escalated: -0.5</li>
+</ul>
+</li>
+</ol>
+
+<p>Taking an automated action is profitable only when:<br>
+</p>
+
+<div>
+<pre><code>   P(correct) * (+1.0) + (1 - P(correct)) * (-3.0) &gt; -0.5 =&gt; P(correct) &gt; 2.5 / 4.0 = 0.625
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>The policy automatically learns to act only when confidence is above 62.5%.</p>
+
+
+<hr>
+
+<h2>
+  <a name="5-multiturn-trajectories-with-tdlambda" href="#5-multiturn-trajectories-with-tdlambda">
+  </a>
+  5. Multi-Turn Trajectories with TD(lambda)
+</h2>
+
+<p>In my March 2025 paper, we predicted sales conversion across turns using PPO. One big issue we uncovered back then was leakage: if you feed the whole conversation embedding at turn 1, the model sees future signals.</p>
+
+<p>In RL Agent, we solved this cleanly:</p>
+
+<ul>
+<li>Conversations are sliced turn-by-turn into prefixes (turn 1, turn 2, turn 3...). The model only receives context up to that turn.</li>
+<li>We apply Temporal Difference learning with Monte Carlo return targets (TD(lambda = 1.0)):
+</li>
+</ul>
+
+<div>
+<pre><code>G_T = y (terminal outcome)
+G_t = (1 - lambda) * V(s_{t+1}) + lambda * G_{t+1}
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>With lambda = 1.0, early turns are trained directly against the real terminal outcome of the conversation, learning what early dialogue patterns genuinely lead to conversion or churn without bootstrapping from the model's own guesses.</p>
+
+
+<hr>
+
+<h2>
+  <a name="6-confidence-via-normalized-entropy" href="#6-confidence-via-normalized-entropy">
+  </a>
+  6. Confidence via Normalized Entropy
+</h2>
+
+<p>For every question, the model returns a confidence score between 0.0 and 1.0. We calculate this using normalized Shannon entropy:<br>
+</p>
+
+<div>
+<pre><code>Confidence = 1 - (Entropy(p) / log(K))
+           = 1 + sum(p_k * log(max(p_k, 1e-12))) / log(K)
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<p>where K is the number of options:</p>
+
+<ul>
+<li>If the model is completely unsure, all options have probability 1/K. Entropy equals log(K), so confidence is exactly <strong>0.00</strong>.</li>
+<li>If the model is completely certain, one option has probability 1.0 and entropy is 0, so confidence is <strong>1.00</strong>.</li>
+</ul>
+
+
+<hr>
+
+<h2>
+  <a name="7-dataset-pipeline-zero-synthetic-shortcuts" href="#7-dataset-pipeline-zero-synthetic-shortcuts">
+  </a>
+  7. Dataset Pipeline: Zero Synthetic Shortcuts
+</h2>
+
+<p>Many teams try to build these models by asking an LLM to generate synthetic training questions and labels. That is a mistake. When you train a calibration model on synthetic labels, you simply calibrate your model to the LLM's own mistakes and hallucinations.</p>
+
+<p>We built our training pipeline using 100% human-labeled, real-world public datasets across:</p>
+
+<ul>
+<li>
+<strong>Support Triage &amp; Intents</strong>: Real customer service conversations, banking intents, and ticket routing queues.</li>
+<li>
+<strong>Inference &amp; Fact Checking</strong>: Premise-hypothesis pairs, fact verification, and contradiction checks.</li>
+<li>
+<strong>Content Safety</strong>: Human consensus labels for toxic remarks, harassment, and severe abuse.</li>
+<li>
+<strong>Security &amp; Guardrails</strong>: Real jailbreak prompts and prompt injection attacks.</li>
+<li>
+<strong>Rubrics &amp; Quality</strong>: Multi-axis human rubric ratings for helpfulness, complexity, and correctness.</li>
+<li>
+<strong>Multi-Turn Trajectories</strong>: SaaS sales and support interactions with verified final outcomes.</li>
+</ul>
+
+<p>To stop the model from taking shortcuts, our data pipeline dynamically shuffles option orders, paraphrases questions, alternates between raw text and nested JSON states, and injects random distractor questions.</p>
+
+
+<hr>
+
+<h2>
+  <a name="8-realworld-benchmarks-laya-vs-typesafe-jev" href="#8-realworld-benchmarks-laya-vs-typesafe-jev">
+  </a>
+  8. Real-World Benchmarks: Laya vs. TypeSafe Jev
+</h2>
+
+<p><a href="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Farticles%2Fz8lepygpvckfgnrtgp7r.png"><img src="https://media2.dev.to/dynamic/image/width=800%2Cheight=%2Cfit=scale-down%2Cgravity=auto%2Cformat=auto/https%3A%2F%2Fdev-to-uploads.s3.us-east-2.amazonaws.com%2Fuploads%2Farticles%2Fz8lepygpvckfgnrtgp7r.png" alt=" " loading="lazy" width="800" height="640"></a></p>
+
+<p>We ran extensive evaluations on our fine-tuned checkpoint across 25,424 total test questions (23,024 in-task questions and 2,400 zero-shot questions from task families never seen during training). </p>
+
+<p>Then we compared our numbers directly against TypeSafe Jev's public launch numbers.</p>
+
+<h3>
+  <a name="headtohead-comparison" href="#headtohead-comparison">
+  </a>
+  Head-to-Head Comparison
+</h3>
+
+<div><table>
+<thead>
+<tr>
+<th>Metric / Dimension</th>
+<th>TypeSafe Jev (Published)</th>
+<th>Laya (Fine-Tuned Checkpoint)</th>
+<th>Analysis / Advantage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P50 Latency (1 Question)</strong></td>
+<td>~400 ms avg (70 to 500 ms, 150 ms best)</td>
+<td>
+<strong>38.4 ms</strong> (p95: 42.1 ms)</td>
+<td><strong>Laya is ~10.4x faster on avg (4x faster than Jev best-case)</strong></td>
+</tr>
+<tr>
+<td><strong>Batched Latency (10 Questions)</strong></td>
+<td>~1,500 ms (serial) / ~400 ms</td>
+<td>
+<strong>156.0 ms</strong> (p95: 158.4 ms)</td>
+<td><strong>Laya evaluates 10 questions in the time Jev answers 1</strong></td>
+</tr>
+<tr>
+<td><strong>Batched Latency (50 Questions)</strong></td>
+<td>Multi-second / rate-limited</td>
+<td><strong>721.4 ms</strong></td>
+<td>High-throughput parallel mini-batching</td>
+</tr>
+<tr>
+<td><strong>Benchmark Accuracy</strong></td>
+<td>
+<strong>67.8%</strong> (across 4 production workflows)</td>
+<td>
+<strong>83.8%</strong> in-task macro accuracy</td>
+<td><strong>Laya achieves +16.0% higher overall accuracy</strong></td>
+</tr>
+<tr>
+<td><strong>Intent &amp; Customer Routing</strong></td>
+<td>~95 to 98% agreement</td>
+<td>
+<strong>99.1% accuracy</strong> (ECE: 0.009)</td>
+<td>Near-zero calibration error on routing</td>
+</tr>
+<tr>
+<td><strong>Moderation &amp; Content Safety</strong></td>
+<td>~92 to 95% agreement</td>
+<td>
+<strong>96.7% accuracy</strong> (ECE: 0.061)</td>
+<td>Clean safety boundary separation</td>
+</tr>
+<tr>
+<td><strong>Inference &amp; Fact Verification</strong></td>
+<td>Not separately reported</td>
+<td>
+<strong>88.3% accuracy</strong> (ECE: 0.054)</td>
+<td>Full bidirectional attention captures contradictions</td>
+</tr>
+<tr>
+<td><strong>Instruction-Following Tasks</strong></td>
+<td>Proprietary internal set</td>
+<td><strong>87.8% in-task / 86.3% zero-shot</strong></td>
+<td>Proven generalization across unseen tasks</td>
+</tr>
+<tr>
+<td><strong>Email Triage &amp; Phishing</strong></td>
+<td>Vendor custom workflow</td>
+<td>
+<strong>73.2% accuracy</strong> (ECE: 0.017)</td>
+<td>Tailored email cleaning and phishing filters</td>
+</tr>
+<tr>
+<td><strong>Selective Automation (@ 50% Cov)</strong></td>
+<td>Claims human escalation</td>
+<td>
+<strong>92.2% accuracy</strong> (ECE: 0.041)</td>
+<td>Safe automated gating (confidence &gt;= 0.85)</td>
+</tr>
+<tr>
+<td><strong>Model Weights &amp; Code</strong></td>
+<td>Closed-source / proprietary API</td>
+<td><strong>100% Open-source Apache 2.0</strong></td>
+<td>Full data sovereignty and transparency</td>
+</tr>
+<tr>
+<td><strong>Inference Cost</strong></td>
+<td>$0.042 / 1M input tokens recurring</td>
+<td><strong>$0.00 / self-hosted</strong></td>
+<td>Runs on commodity GPUs, Mac MPS, or CPU</td>
+</tr>
+<tr>
+<td><strong>Multi-Turn Trajectory Modeling</strong></td>
+<td>Static state snapshots</td>
+<td><strong>TD(lambda = 1.0) prefix modeling</strong></td>
+<td>Real temporal credit assignment</td>
+</tr>
+<tr>
+<td><strong>Deployment Mode</strong></td>
+<td>Cloud-only egress</td>
+<td><strong>Air-gapped / Local / On-Device</strong></td>
+<td>Zero data egress (HIPAA/GDPR compliant)</td>
+</tr>
+</tbody>
+</table></div>
+
+<h3>
+  <a name="detailed-intask-performance-23024-evaluated-questions" href="#detailed-intask-performance-23024-evaluated-questions">
+  </a>
+  Detailed In-Task Performance (23,024 Evaluated Questions)
+</h3>
+
+<div><table>
+<thead>
+<tr>
+<th>Task Family</th>
+<th>Questions (N)</th>
+<th>Accuracy</th>
+<th>ECE (Calibration)</th>
+<th>NLL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Intent and routing</strong></td>
+<td>1,475</td>
+<td><strong>99.1%</strong></td>
+<td>0.009</td>
+<td>0.181</td>
+</tr>
+<tr>
+<td><strong>Moderation and safety</strong></td>
+<td>2,708</td>
+<td><strong>96.7%</strong></td>
+<td>0.061</td>
+<td>0.153</td>
+</tr>
+<tr>
+<td><strong>Topic classification</strong></td>
+<td>749</td>
+<td><strong>93.9%</strong></td>
+<td>0.029</td>
+<td>0.196</td>
+</tr>
+<tr>
+<td><strong>Emotion and tone</strong></td>
+<td>1,825</td>
+<td><strong>90.6%</strong></td>
+<td>0.018</td>
+<td>0.238</td>
+</tr>
+<tr>
+<td><strong>Inference and fact checking</strong></td>
+<td>3,022</td>
+<td><strong>88.3%</strong></td>
+<td>0.054</td>
+<td>0.340</td>
+</tr>
+<tr>
+<td><strong>Instruction-following tasks</strong></td>
+<td>600</td>
+<td><strong>87.8%</strong></td>
+<td>0.046</td>
+<td>0.302</td>
+</tr>
+<tr>
+<td><strong>Robustness checks</strong></td>
+<td>744</td>
+<td><strong>85.1%</strong></td>
+<td>0.108</td>
+<td>1.058</td>
+</tr>
+<tr>
+<td><strong>Reading comprehension</strong></td>
+<td>770</td>
+<td><strong>84.7%</strong></td>
+<td>0.083</td>
+<td>0.409</td>
+</tr>
+<tr>
+<td><strong>Email triage &amp; phishing</strong></td>
+<td>2,691</td>
+<td><strong>73.2%</strong></td>
+<td>0.017</td>
+<td>0.595</td>
+</tr>
+<tr>
+<td><strong>Search relevance</strong></td>
+<td>733</td>
+<td><strong>62.8%</strong></td>
+<td>0.066</td>
+<td>0.728</td>
+</tr>
+<tr>
+<td><strong>Response quality scoring</strong></td>
+<td>3,146</td>
+<td><strong>58.1%</strong></td>
+<td>0.023</td>
+<td>1.009</td>
+</tr>
+<tr>
+<td><strong>Overall Macro In-Task</strong></td>
+<td><strong>23,024</strong></td>
+<td><strong>83.8%</strong></td>
+<td><strong>0.060</strong></td>
+<td><strong>0.468</strong></td>
+</tr>
+</tbody>
+</table></div>
+
+<h3>
+  <a name="zeroshot-generalization-2400-questions-never-trained-on" href="#zeroshot-generalization-2400-questions-never-trained-on">
+  </a>
+  Zero-Shot Generalization (2,400 Questions Never Trained On)
+</h3>
+
+<div><table>
+<thead>
+<tr>
+<th>Task Family (Zero-Shot)</th>
+<th>Questions (N)</th>
+<th>Accuracy</th>
+<th>ECE</th>
+<th>NLL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Instruction-following tasks</strong></td>
+<td>600</td>
+<td><strong>86.3%</strong></td>
+<td>0.045</td>
+<td>0.319</td>
+</tr>
+<tr>
+<td><strong>Moderation and safety</strong></td>
+<td>600</td>
+<td><strong>79.7%</strong></td>
+<td>0.171</td>
+<td>1.415</td>
+</tr>
+<tr>
+<td><strong>Emotion and tone</strong></td>
+<td>600</td>
+<td><strong>58.3%</strong></td>
+<td>0.318</td>
+<td>1.976</td>
+</tr>
+<tr>
+<td><strong>Sentiment and rating</strong></td>
+<td>600</td>
+<td><strong>36.2%</strong></td>
+<td>0.291</td>
+<td>1.798</td>
+</tr>
+<tr>
+<td><strong>Overall Macro Zero-Shot</strong></td>
+<td><strong>2,400</strong></td>
+<td><strong>65.1%</strong></td>
+<td><strong>0.207</strong></td>
+<td><strong>1.377</strong></td>
+</tr>
+</tbody>
+</table></div>
+
+<h3>
+  <a name="selective-automation-in-practice" href="#selective-automation-in-practice">
+  </a>
+  Selective Automation in Practice
+</h3>
+
+<p>Because the model's confidence scores are calibrated using normalized entropy, you can use them directly in code to gate actions:</p>
+
+<ul>
+<li>Taking all answers: <strong>83.8% accuracy</strong>.</li>
+<li>Answering only the top 80% most confident predictions: <strong>89.4% accuracy</strong>.</li>
+<li>Answering only the top 50% most confident predictions: <strong>92.2% accuracy</strong>.</li>
+</ul>
+
+<p>This means that if you set an automated routing threshold of confidence &gt;= 0.85, the model can automate roughly half of your incoming support tickets, security flags, or email triages with 92%+ precision, escalating the genuinely tricky cases to humans.</p>
+
+
+<hr>
+
+<h2>
+  <a name="9-how-to-run-it-in-python" href="#9-how-to-run-it-in-python">
+  </a>
+  9. How to Run It in Python
+</h2>
+
+<p>You can run Laya directly with our PyPI package in one line:<br>
+</p>
+
+<div>
+<pre><code>pip <span>install </span>laya
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<h3>
+  <a name="quickstart-code" href="#quickstart-code">
+  </a>
+  Quickstart Code
+</h3>
+
+
+
+<div>
+<pre><code><span>import</span> <span>laya</span>
+
+<span># Download and load the fine-tuned model from Hugging Face
+</span><span>agent</span> <span>=</span> <span>laya</span><span>.</span><span>load</span><span>(</span><span>"</span><span>convaiinnovations/laya</span><span>"</span><span>)</span>
+
+<span># Define your input state (raw text or JSON dict)
+</span><span>state</span> <span>=</span> <span>{</span>
+    <span>"</span><span>from</span><span>"</span><span>:</span> <span>"</span><span>user@company.com</span><span>"</span><span>,</span>
+    <span>"</span><span>subject</span><span>"</span><span>:</span> <span>"</span><span>Charged twice on March invoice</span><span>"</span><span>,</span>
+    <span>"</span><span>body</span><span>"</span><span>:</span> <span>"</span><span>Hi, we were billed twice for invoice 4411. Please refund the duplicate today or we will cancel our plan.</span><span>"</span>
+<span>}</span>
+
+<span># Define your typed questions
+</span><span>questions</span> <span>=</span> <span>{</span>
+    <span>"</span><span>department</span><span>"</span><span>:</span> <span>{</span>
+        <span>"</span><span>type</span><span>"</span><span>:</span> <span>"</span><span>choice</span><span>"</span><span>,</span>
+        <span>"</span><span>instructions</span><span>"</span><span>:</span> <span>"</span><span>Which department should handle this email?</span><span>"</span><span>,</span>
+        <span>"</span><span>criteria</span><span>"</span><span>:</span> <span>{</span>
+            <span>"</span><span>billing</span><span>"</span><span>:</span> <span>"</span><span>invoices, payments, refunds</span><span>"</span><span>,</span>
+            <span>"</span><span>technical</span><span>"</span><span>:</span> <span>"</span><span>bugs, outages, system errors</span><span>"</span><span>,</span>
+            <span>"</span><span>sales</span><span>"</span><span>:</span> <span>"</span><span>pricing, new contracts</span><span>"</span><span>,</span>
+            <span>"</span><span>other</span><span>"</span><span>:</span> <span>"</span><span>everything else</span><span>"</span>
+        <span>}</span>
+    <span>},</span>
+    <span>"</span><span>urgency</span><span>"</span><span>:</span> <span>{</span>
+        <span>"</span><span>type</span><span>"</span><span>:</span> <span>"</span><span>score</span><span>"</span><span>,</span>
+        <span>"</span><span>instructions</span><span>"</span><span>:</span> <span>"</span><span>How urgent is this request?</span><span>"</span><span>,</span>
+        <span>"</span><span>criteria</span><span>"</span><span>:</span> <span>[</span><span>"</span><span>not urgent</span><span>"</span><span>,</span> <span>"</span><span>soon</span><span>"</span><span>,</span> <span>"</span><span>critical deadline or blocking issue</span><span>"</span><span>]</span>
+    <span>},</span>
+    <span>"</span><span>churn_risk</span><span>"</span><span>:</span> <span>{</span>
+        <span>"</span><span>type</span><span>"</span><span>:</span> <span>"</span><span>noul</span><span>"</span><span>,</span>
+        <span>"</span><span>instructions</span><span>"</span><span>:</span> <span>"</span><span>Does the user threaten to cancel or leave?</span><span>"</span>
+    <span>},</span>
+    <span>"</span><span>is_phishing</span><span>"</span><span>:</span> <span>{</span>
+        <span>"</span><span>type</span><span>"</span><span>:</span> <span>"</span><span>noul</span><span>"</span><span>,</span>
+        <span>"</span><span>instructions</span><span>"</span><span>:</span> <span>"</span><span>Is this email a phishing or scam attempt?</span><span>"</span>
+    <span>}</span>
+<span>}</span>
+
+<span># Run all questions in one single forward pass (~35 ms on GPU)
+</span><span>result</span> <span>=</span> <span>agent</span><span>.</span><span>predict</span><span>(</span><span>state</span><span>,</span> <span>questions</span><span>)</span>
+<span>answers</span> <span>=</span> <span>result</span><span>[</span><span>"</span><span>answers</span><span>"</span><span>]</span>
+
+<span>print</span><span>(</span><span>"</span><span>Department :</span><span>"</span><span>,</span> <span>answers</span><span>[</span><span>"</span><span>department</span><span>"</span><span>][</span><span>"</span><span>choice</span><span>"</span><span>])</span>
+<span># -&gt; billing (confidence: 0.94)
+</span>
+<span>print</span><span>(</span><span>"</span><span>Urgency    :</span><span>"</span><span>,</span> <span>answers</span><span>[</span><span>"</span><span>urgency</span><span>"</span><span>][</span><span>"</span><span>score</span><span>"</span><span>])</span>
+<span># -&gt; 1.84 / 2.0
+</span>
+<span>print</span><span>(</span><span>"</span><span>Churn Risk :</span><span>"</span><span>,</span> <span>answers</span><span>[</span><span>"</span><span>churn_risk</span><span>"</span><span>][</span><span>"</span><span>noul</span><span>"</span><span>])</span>
+<span># -&gt; 0.892 (89.2% probability)
+</span>
+<span>print</span><span>(</span><span>"</span><span>Phishing   :</span><span>"</span><span>,</span> <span>answers</span><span>[</span><span>"</span><span>is_phishing</span><span>"</span><span>][</span><span>"</span><span>noul</span><span>"</span><span>])</span>
+<span># -&gt; 0.008 (0.8% probability)
+</span></code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+<h3>
+  <a name="automated-gating-logic" href="#automated-gating-logic">
+  </a>
+  Automated Gating Logic
+</h3>
+
+<p>Because probabilities are mathematically calibrated, routing logic is simple code:<br>
+</p>
+
+<div>
+<pre><code><span>dept</span> <span>=</span> <span>answers</span><span>[</span><span>"</span><span>department</span><span>"</span><span>][</span><span>"</span><span>choice</span><span>"</span><span>]</span>
+<span>conf</span> <span>=</span> <span>answers</span><span>[</span><span>"</span><span>department</span><span>"</span><span>][</span><span>"</span><span>confidence</span><span>"</span><span>]</span>
+
+<span>if</span> <span>conf</span> <span>&gt;=</span> <span>0.85</span><span>:</span>
+    <span>route_automatically</span><span>(</span><span>dept</span><span>)</span>
+<span>else</span><span>:</span>
+    <span>send_to_human_triage</span><span>(</span><span>dept</span><span>,</span> <span>reason</span><span>=</span><span>f</span><span>"</span><span>Low confidence (</span><span>{</span><span>conf</span><span>:</span><span>.</span><span>2</span><span>f</span><span>}</span><span>)</span><span>"</span><span>)</span>
+</code></pre>
+<div>
+<p>
+    
+
+    
+
+</p>
+</div>
+</div>
+
+
+
+
+<hr>
+
+<h2>
+  <a name="10-links-and-resources" href="#10-links-and-resources">
+  </a>
+  10. Links and Resources
+</h2>
+
+<ul>
+<li>
+<strong>Hugging Face Model:</strong> <a href="https://huggingface.co/convaiinnovations/laya" target="_blank" rel="noopener noreferrer">convaiinnovations/laya</a>
+</li>
+<li>
+<strong>PyPI Package:</strong> <a href="https://pypi.org/project/laya/" target="_blank" rel="noopener noreferrer">pypi.org/project/laya</a>
+</li>
+<li>
+<strong>GitHub Repository:</strong> <a href="https://github.com/NandhaKishorM/laya" target="_blank" rel="noopener noreferrer">github.com/NandhaKishorM/laya</a>
+</li>
+<li>
+<strong>Live Interactive Space:</strong> <a href="https://huggingface.co/spaces/convaiinnovations/laya-demo" target="_blank" rel="noopener noreferrer">convaiinnovations/laya-demo</a>
+</li>
+</ul>
+
+
+<hr>
+
+<h2>
+  <a name="conclusion" href="#conclusion">
+  </a>
+  Conclusion
+</h2>
+
+<p>It took a year of research, from our March 2025 arXiv paper to today, but the core realization remains: <strong>not every AI problem requires an autoregressive chatbot</strong>. For high-volume classification, guardrails, routing, and triage, a 421M bidirectional decision model trained with RLCD delivers sub-40ms execution, zero hallucinations, and honest confidence scores you can actually rely on in production.</p>
+
+<p>And this time, it is fully open-source.</p>
+
+<p><em>Built by Nandakishor M</em></p>
+
+
+            </div></div>

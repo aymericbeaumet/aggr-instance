@@ -1,0 +1,119 @@
+---
+title: 'Pruning LLMs Like a Physicist: Block Removal as an Ising Optimization Problem'
+link: https://huggingface.co/blog/MultiverseComputingCAI/pruning-llms-like-a-physicist-block-removal-as-an
+source: huggingface-co-blog
+published: 2026-09-21T13:44:34Z
+updated: 2026-09-21T13:44:34Z
+first_seen: 2026-09-21T17:01:01.954977951Z
+content: extracted
+html: 2026-09-21-pruning-llms-like-a-physicist-block-removal-as-an-ising.html
+preview:
+  file: 2026-09-21-pruning-llms-like-a-physicist-block-removal-as-an-ising.preview-0560b25517a8.webp
+  width: 256
+  height: 78
+  color: '#e8e7e2'
+images:
+- source: https://cdn-uploads.huggingface.co/production/uploads/693c2a4eb0871ba57155b4ed/q4gZV9ENtfFwge7H3Q7YJ.png
+  original:
+    file: 2026-09-21-pruning-llms-like-a-physicist-block-removal-as-an-ising.image-715b41bda5f5.png
+    width: 1964
+    height: 598
+  color: '#fbfbfb'
+- source: https://cdn-uploads.huggingface.co/production/uploads/668e37fd9c9aa124a3c867e8/zD5BW0R8lXV9fmVyap9Jb.png
+  original:
+    file: 2026-09-21-pruning-llms-like-a-physicist-block-removal-as-an-ising.image-4a106cd0b438.png
+    width: 1365
+    height: 350
+  variants:
+  - file: 2026-09-21-pruning-llms-like-a-physicist-block-removal-as-an-ising.image-c73cd41cda37.webp
+    width: 320
+    height: 82
+  - file: 2026-09-21-pruning-llms-like-a-physicist-block-removal-as-an-ising.image-1bed0d1ffb76.webp
+    width: 640
+    height: 164
+  - file: 2026-09-21-pruning-llms-like-a-physicist-block-removal-as-an-ising.image-e4356ecaa853.webp
+    width: 1365
+    height: 350
+  color: '#fbfbfb'
+- source: https://cdn-uploads.huggingface.co/production/uploads/668e37fd9c9aa124a3c867e8/n1GCTwe9Ulg53TAdgqjAf.png
+  original:
+    file: 2026-09-21-pruning-llms-like-a-physicist-block-removal-as-an-ising.image-cbe6273f7893.png
+    width: 1365
+    height: 430
+  variants:
+  - file: 2026-09-21-pruning-llms-like-a-physicist-block-removal-as-an-ising.image-98230725aae8.webp
+    width: 320
+    height: 101
+  - file: 2026-09-21-pruning-llms-like-a-physicist-block-removal-as-an-ising.image-332e693e4676.webp
+    width: 1365
+    height: 430
+  color: '#fdfdfd'
+---
+
+One of the cheapest ways to make a large language model faster is also one of the bluntest: delete whole transformer blocks. Because the model literally gets shorter, [block removal](https://huggingface.co/papers/2602.00161) (also called depth pruning) buys predictable inference speedups on top of the memory savings, and it stacks cleanly with quantization, low-rank compression, and other techniques. The hard part is deciding *which* blocks to cut. Remove the wrong ones and the model collapses; and the effect of removing any one block depends on which others you remove alongside it, so the choices interact. That makes it a combinatorial problem, not a ranking problem, and combinatorial problems with interacting binary variables are exactly what the physics of spin systems was built to describe.
+
+Our latest paper, *[LLM Compression by Block Removal with Constrained Binary Optimization](https://huggingface.co/papers/2602.00161)*, takes that correspondence literally. We reformulate block selection as a constrained binary optimization (CBO) problem that maps directly onto an **Ising glass**, a disordered spin system with all-to-all interactions and a fixed number of "up" spins. The energy of that spin system turns out to be a strong, cheap proxy for how well the pruned model will actually score on benchmarks, which means we can rank a huge number of candidate configurations without benchmarking any of them, and hand the hard instances to the same classical and quantum-inspired solvers we use elsewhere at Multiverse. The payoff in the deep-compression regime is large: at 50% compression of Llama-3.3-70B-Instruct, we gain almost **23 percentage points on MMLU** over the best competing block-removal method.
+
+## Why picking blocks is a many-body problem
+
+Most existing block-removal methods score each block on its own, then remove the ones that look least important, using magnitude, sensitivity, or "block influence" heuristics. In physics terms these are *mean-field* methods: they treat each block as if its contribution were independent of the others, the way mean-field theory replaces a spin's neighbors with a single averaged field. A related shortcut is to only ever remove a single consecutive run of blocks, which keeps the problem small but throws away most of the search space.
+
+The trouble is that blocks are not independent, any more than spins in a real magnet are. Whether removing block 20 hurts the model depends on whether you also removed block 19 or block 24, an interaction, or *coupling*, between the two decisions. As models get deeper and more heterogeneous, ignoring those couplings leaves quality on the table, especially when you want to remove a lot of blocks at once. What you really want is to search over *combinations* of blocks while accounting for how they interact, but the number of combinations grows exponentially, so brute force looks hopeless. This is precisely the regime, exponentially large configuration spaces with pairwise couplings, where the tools of statistical physics earn their keep.
+
+## The idea: turn block selection into an energy-minimization problem
+
+We attach a binary variable to each transformer block: 0 means keep it, 1 means remove it, just like a spin that can point down or up. Then we do a second-order Taylor expansion of the model's loss with respect to those variables, which produces an (approximate) Hessian matrix. The diagonal of that Hessian is how much each block matters on its own; the off-diagonal entries are exactly the pairwise *couplings* between blocks, the many-body physics that mean-field methods throw away.
+
+That reformulation turns "which blocks should I remove?" into a clean optimization: find the set of *M* blocks whose removal minimizes the energy `xᵀH⁰x`, subject to removing exactly *M* of the *N* blocks. Mathematically this is a constrained binary optimization problem; physically it is an Ising glass, an all-to-all coupled spin system with conserved magnetization (the fixed number of removed blocks plays the role of a fixed total spin). The key property we establish is that this energy is a strong proxy for downstream quality: **low-energy states of the spin system correspond to high-performing pruned models.** Minimizing energy and maximizing benchmark score become the same search.
+
+[![Sketch of the method: block removal is cast as a constrained binary optimization / Ising problem whose low-energy states correspond to high-performing pruned models.](https://cdn-uploads.huggingface.co/production/uploads/668e37fd9c9aa124a3c867e8/zD5BW0R8lXV9fmVyap9Jb.png)](https://cdn-uploads.huggingface.co/production/uploads/668e37fd9c9aa124a3c867e8/zD5BW0R8lXV9fmVyap9Jb.png)
+
+*Block selection becomes a constrained binary optimization problem, equivalent to finding low-energy states of an Ising glass; each solution says which M of N blocks to delete. Right: the coupling variable α we insert into each block's residual path to build the Hessian. Source: paper Figure 1.*
+
+The reason this is practical is cost. The Hessian, i.e. the full set of couplings, is computed just once, from forward and backward passes on a small calibration dataset. After that, evaluating any candidate configuration is a single cheap energy calculation, no need to run the actual model, let alone benchmark it. And because the couplings don't depend on the compression target, the same Hessian can be reused to solve for many different values of *M*.
+
+## Solving it: exact when you can, quantum or quantum-inspired when you can't
+
+For most models the configuration space is large but still checkable. Because computing one energy is so cheap, we brute-force it on a single GPU, checking up to tens of billions of spin configurations. A few million take seconds; the hardest tractable case here, removing 8 of Llama-3.3-70B's 80 blocks (about 29 billion configurations), took roughly two days.
+
+Beyond that the exact approach breaks down, and this is where casting the problem as an Ising glass pays off a second time. In its equivalent QUBO form (the constraint absorbed into a penalty term), the exact same task can be handed to the highly optimized classical, quantum, and quantum-inspired solvers built for this class of Hamiltonian, the machinery of quantum annealing, QAOA, tabu search, and specialized branch-and-bound. We find that an open-source tabu solver reliably reaches the lowest-energy states in *seconds*, even on the hardest cases we can verify against brute force. So the method scales to models where enumerating configurations is out of the question, using solvers that are squarely in Multiverse's domain.
+
+There's a subtle but important point here, and it runs against the usual grain of optimization. Normally a CBO or annealing solver is judged by whether it finds the true ground state. We don't actually need the ground state. What we need is a fast way to generate a handful of good low-energy states, and that is a far easier bar, which is why lightweight solvers work so well for us and why we can afford to run several of them.
+
+## Why the whole low-energy spectrum matters
+
+The energy is a strong proxy for quality, but not a perfect one, so the single lowest-energy state isn't always the best model. This turns out to be a feature, not a bug: once the Hamiltonian is set up, reading off the ground state *and* the low-lying excited states is essentially free, giving a spectrum of high-quality candidate prunings to try rather than one fragile answer. Exploring excited states, not just the ground state, is itself an area of active physics research, and it maps neatly onto what practitioners actually need here.
+
+A concrete example: for Llama-3.1-8B-Instruct at 16/32 blocks removed, most of the top states cut blocks toward the end of the model, as prior work would expect. But the 17th excited state is the first to propose removing a block near the *beginning* of the model, and after light retraining that configuration outperforms the ground state across several benchmarks. That directly disproves the common assumption that the best pruning is one consecutive chunk of middle-or-late blocks, and it shows why respecting the full many-body structure of the problem pays off.
+
+[![Block-removal map and benchmark scores for the ground state versus the 17th excited state of Llama-3.1-8B-Instruct at 16/32 blocks removed.](https://cdn-uploads.huggingface.co/production/uploads/668e37fd9c9aa124a3c867e8/n1GCTwe9Ulg53TAdgqjAf.png)](https://cdn-uploads.huggingface.co/production/uploads/668e37fd9c9aa124a3c867e8/n1GCTwe9Ulg53TAdgqjAf.png)
+
+*Left: which blocks each of the 20 lowest-energy states removes (red = removed). Right: the 17th excited state, which removes an early block, beats the ground state on several benchmarks after retraining. The best model is an excited state, not the ground state. Source: paper Figure 2.*
+
+## Results
+
+Across Llama-3.1-8B-Instruct, Qwen3-14B, and Llama-3.3-70B-Instruct, our method (CBO) is on par with or better than state-of-the-art block-removal baselines, and the gap widens as compression gets more aggressive.
+
+The clearest win is deep compression of Llama-3.3-70B-Instruct, evaluated without retraining. Up to 24 of 80 blocks removed, CBO is roughly on par with block influence. But at 32/80 and 40/80, it pulls decisively ahead, with an almost 23-point MMLU advantage at the deepest setting, where it beats the baseline on every benchmark we tested. For Qwen3-14B at 12/40 removed, CBO leads MMLU by about 10 points. At lighter compression the methods are comparable, which is expected: the couplings matter most when you're cutting deep.
+
+| Llama-3.3-70B-Instruct, no retraining | Blocks removed | MMLU     |
+| ------------------------------------- | -------------- | -------- |
+| Original                              | 0              | 82.2     |
+| CBO (ours)                            | 32 / 80        | **76.6** |
+| Block influence                       | 32 / 80        | 59.3     |
+| CBO (ours)                            | 40 / 80        | **76.9** |
+| Block influence                       | 40 / 80        | 54.0     |
+
+*At 40/80 (50% depth), CBO holds MMLU near 77 while the strongest baseline falls to the mid-50s. Source: paper Table 2.*
+
+## It generalizes beyond dense transformers
+
+Block removal gets much harder on modern heterogeneous architectures, where different block types are interleaved, and the Ising formulation doesn't care: a coupling is a coupling regardless of what kind of block sits at each site. To stress-test that, we applied the method to NVIDIA-Nemotron-3-Nano-30B-A3B-FP8, a hybrid model that interleaves Mamba2, attention, and mixture-of-experts (MoE) layers in a non-uniform pattern, without any retraining.
+
+Nothing about our formulation assumes a homogeneous stack, so it transfers directly. Removing 2–3 MoE layers or 2 attention layers, CBO finds configurations that beat block influence on AIME25 and GPQA. The results also confirm that redundancy in these hybrid models is real but unevenly distributed: some expert layers are far more disposable than others, and the method's ability to search the coupled configuration space is what locates the good cuts. Even here, the pattern from the dense models holds, the best configuration is often an excited state rather than the ground state.
+
+## Why this fits Multiverse Computing
+
+Reframing a messy machine-learning problem as an Ising Hamiltonian, then solving it with the classical and quantum-inspired optimization machinery built for physics, is squarely in Multiverse's wheelhouse, it's the same instinct that runs through our compression stack. And block removal composes with the rest of that stack, quantization, low-rank/SVD compression, width pruning, and knowledge-distillation-based healing, so it slots into a larger pipeline rather than competing with it.
+
+Want the full technical details, including the Taylor-expansion derivation, the QUBO mapping, the solver benchmarks, the calibration-dataset ablations, and the complete results tables? Read the full paper on [Hugging Face](https://huggingface.co/papers/2602.00161), or get in touch with our team to talk about applying this to your own models. The code is open-sourced at [github.com/CompactifAI/Block\_removal\_through\_constrained\_binary\_optimization](https://github.com/CompactifAI/Block_removal_through_constrained_binary_optimization).
