@@ -1,0 +1,162 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text">
+<p dir="auto">We know <a href="https://docs.typesafe.ai/api" rel="nofollow">Jev</a>.</p>
+<p dir="auto"><code>jevchat</code> turns that into a chat model. At every step it asks Jev one question:</p>
+<blockquote>
+<p dir="auto">Given the user's question and the reply written so far, which symbol comes next?</p>
+</blockquote>
+<p dir="auto">The options are an alphabet plus an option to stop emitting. Jev returns a probability for each
+one, and the sampler draws the next symbol from that normalised distribution.
+Append, repeat, and stop when STOP is drawn.</p>
+<p dir="auto">There are several alphabets (including truncated token lists) and sampling strategies available.</p>
+<p dir="auto">The idea is for fun, the cost is somewhat impractical, and the results are hilarious.</p>
+<a target="_blank" rel="noopener noreferrer" href="https://private-user-images.githubusercontent.com/10033523/655290748-8be3a47a-da3c-4df6-a617-d485c61a7db7.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3ODk5Njg2MjIsIm5iZiI6MTc4OTk2ODMyMiwicGF0aCI6Ii8xMDAzMzUyMy82NTUyOTA3NDgtOGJlM2E0N2EtZGEzYy00ZGY2LWE2MTctZDQ4NWM2MWE3ZGI3LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjA5MjElMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYwOTIxVDA1MjUyMlomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTk2NDVlOWRkYzRiZGYyNGUyY2NkNDM1M2EwNDk0MzFjODA2MDBmYTczYzRiYTdjYjA1NTNjMzJiNzc3ZjY5MjQmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JnJlc3BvbnNlLWNvbnRlbnQtdHlwZT1pbWFnZSUyRnBuZyJ9.mA-b2TKkgjRCsJdR_fGHzrEdR3QuHA2zFGU8J1MYhjE"><img width="450" height="403" alt="image" src="https://private-user-images.githubusercontent.com/10033523/655290748-8be3a47a-da3c-4df6-a617-d485c61a7db7.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3ODk5Njg2MjIsIm5iZiI6MTc4OTk2ODMyMiwicGF0aCI6Ii8xMDAzMzUyMy82NTUyOTA3NDgtOGJlM2E0N2EtZGEzYy00ZGY2LWE2MTctZDQ4NWM2MWE3ZGI3LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjA5MjElMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYwOTIxVDA1MjUyMlomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTk2NDVlOWRkYzRiZGYyNGUyY2NkNDM1M2EwNDk0MzFjODA2MDBmYTczYzRiYTdjYjA1NTNjMzJiNzc3ZjY5MjQmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JnJlc3BvbnNlLWNvbnRlbnQtdHlwZT1pbWFnZSUyRnBuZyJ9.mA-b2TKkgjRCsJdR_fGHzrEdR3QuHA2zFGU8J1MYhjE"></a>
+<p dir="auto">This was a Claude accelerated experiment.  I described the sampling algorithms, strategies, and so on, and it implemented them.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Setup</h2><a id="user-content-setup" aria-label="Permalink: Setup" href="#setup"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="poetry install"><pre>poetry install</pre></div>
+<p dir="auto">Put your Jev key in <code>.env</code> next to <code>pyproject.toml</code> (git-ignored):</p>
+<div data-snippet-clipboard-copy-content="api_key=&quot;...&quot;"><pre><code>api_key="..."
+</code></pre></div>
+<p dir="auto"><code>JEV_API_KEY</code> and <code>TYPESAFE_API_KEY</code> are also accepted. Values in <code>.env</code> win over
+exported ones, so editing the file is enough to switch keys.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Use</h2><a id="user-content-use" aria-label="Permalink: Use" href="#use"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="poetry run jevchat                          # interactive chat
+poetry run jevchat ask &quot;do people need water?&quot;
+poetry run jevchat alphabets                # what you can sample from
+poetry run jevchat bench                    # compare every mode (table below)"><pre>poetry run jevchat                          <span><span>#</span> interactive chat</span>
+poetry run jevchat ask <span><span>"</span>do people need water?<span>"</span></span>
+poetry run jevchat alphabets                <span><span>#</span> what you can sample from</span>
+poetry run jevchat bench                    <span><span>#</span> compare every mode (table below)</span></pre></div>
+<p dir="auto">The reply appears as it is sampled, in a panel with a live readout of the
+generation rate — symbols/s, characters/s, milliseconds per API call, elapsed
+time — and the top few symbols Jev scored at the last step, so you can watch the
+distribution the sampler is drawing from.</p>
+<p dir="auto"><strong>Ctrl-C cancels.</strong> The first press stops generation once the in-flight request
+returns and keeps the partial reply; a second press aborts immediately. In chat,
+the partial reply stays in the conversation history. <code>ask</code> exits 130 when cancelled.</p>
+<p dir="auto">Chat commands: <code>/help</code>, <code>/alphabet [name]</code>, <code>/temp &lt;v&gt;</code>, <code>/stop-bias &lt;v&gt;</code>,
+<code>/reset</code>, <code>/stats</code>, <code>/exit</code>.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Modes</h2><a id="user-content-modes" aria-label="Permalink: Modes" href="#modes"></a></p>
+<p dir="auto">Two things are swappable: <strong>how</strong> the distribution over the next symbol is
+obtained (<code>-s/--strategy</code>), and <strong>what</strong> it is over (<code>-a/--alphabet</code>). Every
+combination below is a runnable command.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Strategies</h3><a id="user-content-strategies" aria-label="Permalink: Strategies" href="#strategies"></a></p>
+<p dir="auto"><code>choice</code> asks one question over the whole alphabet. <code>bisect</code> sorts the alphabet
+and asks earlier/later yes-no questions until the group is small, then asks one
+choice question inside it.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="# choice — one question over the whole alphabet (the default)
+poetry run jevchat -s choice ask &quot;how many eyes do people have?&quot;
+
+# ...without the re-ordering that cancels Jev's position bias (worst mode)
+poetry run jevchat -s choice --no-shuffle-criteria ask &quot;how many eyes do people have?&quot;
+
+# ...averaging 4 re-orderings, sent as 4 parallel questions in one request
+poetry run jevchat -s choice --ensemble 4 ask &quot;how many eyes do people have?&quot;
+
+# bisect — earlier/later down to groups of 20, each split asked both ways
+poetry run jevchat -s bisect ask &quot;how many eyes do people have?&quot;
+
+# ...cheaper: bigger groups, each split asked once
+poetry run jevchat -s bisect --bisect-cutoff 32 --no-bisect-swap ask &quot;how many eyes do people have?&quot;
+
+# buckets — the alphabet split across many questions, each with an OTHER escape.
+# The only strategy that can hold more than 255 symbols.
+poetry run jevchat -a words1k -s buckets ask &quot;what colour is snow?&quot;
+poetry run jevchat -a bpe5k -s buckets --bucket-size 127 ask &quot;what is the capital of france?&quot;
+
+# refine — buckets, then a question over the winners, then a rescored nucleus.
+# Twice the probability on the right symbol and ~19x the vocabulary resolved.
+poetry run jevchat -a words1k -s refine ask &quot;where do fish live?&quot;
+poetry run jevchat -a words1k -s refine --refine-nucleus 6 --refine-rounds 2 ask &quot;…&quot;"><pre><span><span>#</span> choice — one question over the whole alphabet (the default)</span>
+poetry run jevchat -s choice ask <span><span>"</span>how many eyes do people have?<span>"</span></span>
+
+<span><span>#</span> ...without the re-ordering that cancels Jev's position bias (worst mode)</span>
+poetry run jevchat -s choice --no-shuffle-criteria ask <span><span>"</span>how many eyes do people have?<span>"</span></span>
+
+<span><span>#</span> ...averaging 4 re-orderings, sent as 4 parallel questions in one request</span>
+poetry run jevchat -s choice --ensemble 4 ask <span><span>"</span>how many eyes do people have?<span>"</span></span>
+
+<span><span>#</span> bisect — earlier/later down to groups of 20, each split asked both ways</span>
+poetry run jevchat -s bisect ask <span><span>"</span>how many eyes do people have?<span>"</span></span>
+
+<span><span>#</span> ...cheaper: bigger groups, each split asked once</span>
+poetry run jevchat -s bisect --bisect-cutoff 32 --no-bisect-swap ask <span><span>"</span>how many eyes do people have?<span>"</span></span>
+
+<span><span>#</span> buckets — the alphabet split across many questions, each with an OTHER escape.</span>
+<span><span>#</span> The only strategy that can hold more than 255 symbols.</span>
+poetry run jevchat -a words1k -s buckets ask <span><span>"</span>what colour is snow?<span>"</span></span>
+poetry run jevchat -a bpe5k -s buckets --bucket-size 127 ask <span><span>"</span>what is the capital of france?<span>"</span></span>
+
+<span><span>#</span> refine — buckets, then a question over the winners, then a rescored nucleus.</span>
+<span><span>#</span> Twice the probability on the right symbol and ~19x the vocabulary resolved.</span>
+poetry run jevchat -a words1k -s refine ask <span><span>"</span>where do fish live?<span>"</span></span>
+poetry run jevchat -a words1k -s refine --refine-nucleus 6 --refine-rounds 2 ask <span><span>"</span>…<span>"</span></span></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Presentations</h3><a id="user-content-presentations" aria-label="Permalink: Presentations" href="#presentations"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="# hypothesis — options are the resulting texts (the default)
+poetry run jevchat -p hypothesis --window 40 ask &quot;what colour is snow?&quot;
+
+# symbol — options are the bare symbols, as the first version of this did
+poetry run jevchat -p symbol ask &quot;what colour is snow?&quot;"><pre><span><span>#</span> hypothesis — options are the resulting texts (the default)</span>
+poetry run jevchat -p hypothesis --window 40 ask <span><span>"</span>what colour is snow?<span>"</span></span>
+
+<span><span>#</span> symbol — options are the bare symbols, as the first version of this did</span>
+poetry run jevchat -p symbol ask <span><span>"</span>what colour is snow?<span>"</span></span></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Beam search</h3><a id="user-content-beam-search" aria-label="Permalink: Beam search" href="#beam-search"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="# keep 3 candidate replies alive instead of committing symbol by symbol
+poetry run jevchat -b 3 ask &quot;what is the opposite of hot?&quot;"><pre><span><span>#</span> keep 3 candidate replies alive instead of committing symbol by symbol</span>
+poetry run jevchat -b 3 ask <span><span>"</span>what is the opposite of hot?<span>"</span></span></pre></div>
+<p dir="auto">Costs one score per live beam per step. Above width 1, <code>temperature</code>, <code>top_p</code> and
+<code>top_k</code> stop applying — beams are ranked by probability, not drawn from.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Alphabets</h3><a id="user-content-alphabets" aria-label="Permalink: Alphabets" href="#alphabets"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="poetry run jevchat -a lower26 -t 0 ask &quot;what is 2+2?&quot;   # a-z and space only
+poetry run jevchat -a ascii   -t 0 ask &quot;what is 2+2?&quot;   # spells anything
+poetry run jevchat -a tokens  -t 0 ask &quot;do people need water?&quot;   # whole words
+
+# these three exceed 255 options, so they need --strategy buckets
+poetry run jevchat -a words1k -s buckets -t 0 ask &quot;what colour is grass?&quot;
+poetry run jevchat -a bpe2k   -s buckets -t 0 ask &quot;where do fish live?&quot;
+poetry run jevchat -a bpe5k   -s buckets -t 0 ask &quot;what do bees make?&quot;"><pre>poetry run jevchat -a lower26 -t 0 ask <span><span>"</span>what is 2+2?<span>"</span></span>   <span><span>#</span> a-z and space only</span>
+poetry run jevchat -a ascii   -t 0 ask <span><span>"</span>what is 2+2?<span>"</span></span>   <span><span>#</span> spells anything</span>
+poetry run jevchat -a tokens  -t 0 ask <span><span>"</span>do people need water?<span>"</span></span>   <span><span>#</span> whole words</span>
+
+<span><span>#</span> these three exceed 255 options, so they need --strategy buckets</span>
+poetry run jevchat -a words1k -s buckets -t 0 ask <span><span>"</span>what colour is grass?<span>"</span></span>
+poetry run jevchat -a bpe2k   -s buckets -t 0 ask <span><span>"</span>where do fish live?<span>"</span></span>
+poetry run jevchat -a bpe5k   -s buckets -t 0 ask <span><span>"</span>what do bees make?<span>"</span></span></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Combining them</h3><a id="user-content-combining-them" aria-label="Permalink: Combining them" href="#combining-them"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="poetry run jevchat -a tokens -s bisect --bisect-cutoff 20 ask &quot;do people need water?&quot;
+poetry run jevchat -a ascii -s choice --ensemble 12 -t 0.2 --repetition-penalty 1.0 \
+    ask &quot;what colour is grass?&quot;"><pre>poetry run jevchat -a tokens -s bisect --bisect-cutoff 20 ask <span><span>"</span>do people need water?<span>"</span></span>
+poetry run jevchat -a ascii -s choice --ensemble 12 -t 0.2 --repetition-penalty 1.0 \
+    ask <span><span>"</span>what colour is grass?<span>"</span></span></pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Hypothesis options</h2><a id="user-content-hypothesis-options" aria-label="Permalink: Hypothesis options" href="#hypothesis-options"></a></p>
+<p dir="auto">There are two ways to ask Jev the same question. Under <code>--presentation symbol</code> the
+options are the symbols themselves — <code>'a'</code>, <code>'i'</code>, <code>' the'</code> — and Jev has to append
+the option to the reply in its head before judging it. The instructions used to say
+exactly that: <em>"judge grammar and spelling on the concatenation, not on the option
+on its own."</em></p>
+<p dir="auto">Under <code>--presentation hypothesis</code> the options are the <strong>resulting texts</strong>:</p>
+<div data-snippet-clipboard-copy-content="answer_so_far = &quot;The capital of France is Par&quot;
+
+symbol      options:  'a'  'i'  's'  …  STOP
+hypothesis  options:  '…he capital of France is Para'
+                      '…he capital of France is Pari'
+                      '…he capital of France is Pars'
+                      '…he capital of France is Par'     &lt;- unchanged: this is STOP"><pre><code>answer_so_far = "The capital of France is Par"
+
+symbol      options:  'a'  'i'  's'  …  STOP
+hypothesis  options:  '…he capital of France is Para'
+                      '…he capital of France is Pari'
+                      '…he capital of France is Pars'
+                      '…he capital of France is Par'     &lt;- unchanged: this is STOP
+</code></pre></div>
+<p dir="auto">The append is already done, so Jev only ranks finished strings — which is what a
+decision model is built for. It is the single largest improvement in the project:
+on character alphabets it roughly triples top-1 and doubles the probability mass
+landing on the right symbol, for fewer input tokens than symbol options with their
+per-option descriptions.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Tests</h2><a id="user-content-tests" aria-label="Permalink: Tests" href="#tests"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="poetry run pytest"><pre>poetry run pytest</pre></div>
+<p dir="auto">158 tests, all offline — a scripted fake client for the generation loop and an
+<code>httpx.MockTransport</code> for the HTTP layer. No API key and no network needed.
+<code>jevchat bench</code> is the part that does hit the API.</p>
+</article></div></div>
