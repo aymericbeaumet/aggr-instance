@@ -1,0 +1,63 @@
+---
+title: AI Has No Wisdom and Neither Will You
+link: https://alexn.org/blog/2026/09/22/ai-has-no-wisdom-and-neither-will-you/
+source: hnrss-org-frontpage
+published: 2026-09-22T12:11:09Z
+updated: 2026-09-22T12:11:09Z
+first_seen: 2026-09-22T14:43:38.387970171Z
+authors:
+- dimonomid
+summary: 'Article URL: https://alexn.org/blog/2026/09/22/ai-has-no-wisdom-and-neither-will-you/ Comments URL: https://news.ycombinator.com/item?id=49799965 Points: 253 # Comments: 340'
+content: extracted
+html: 2026-09-22-ai-has-no-wisdom-and-neither-will-you.html
+preview:
+  file: 2026-09-22-ai-has-no-wisdom-and-neither-will-you.preview-c9998d097da3.webp
+  width: 256
+  height: 256
+  color: '#8a8074'
+images:
+- source: https://alexn.org/assets/logo/800px-bordered.png
+  original:
+    file: 2026-09-22-ai-has-no-wisdom-and-neither-will-you.image-14b5584d6266.png
+    width: 800
+    height: 800
+  color: '#8e8784'
+---
+
+In the past month alone I’ve heard these phrases:
+
+- *I haven’t written code since 2025*;
+- *Code reviews are dead*;
+- *People no longer read code*.
+
+Certainly the industry is transforming, however, the people and organizations falling into the trap of no longer reading and writing code only do so at their peril.
+
+Fact is, vibe-coded projects devolve over time into an unmaintainable mess. The reason is simple, yet hard to fix: code maintainability and good architecture don’t have good measurements that we can apply, because it takes months, years even, to notice the effects of bad architecture or of unmaintainable code.
+
+We can certainly define bad code: code that’s hard to read, hard to understand, hard to evolve for whatever the future throws our way. The kind of code in which changing one thing breaks the program in very non-deterministic ways, or breaks the logic somewhere else, far removed from your change, resembling the “butterfly effect”. The kind of code where adding a feature means a serious undertaking due to changing code in multiple places and still forgetting to patch everything, thus getting inconsistencies. Code in which the invariants of the design aren’t clear, with its authors no longer being around to guard against violations and ensure some coherence. Code that is hard to test, requiring mocks and exposing implementation details, leading to fragile tests that end up preventing meaningful refactoring.
+
+And yet, we know it as a fact that noticing bad code takes time. Months, years. Of course, the experienced software engineers have a nose that can detect code smells and can take action long before the bad effects can be observed.
+
+The proficient developers, the experts, rely on their intuition built with sweat and tears, working long hours trying to debug and fix production issues, swearing to never again be so foolish as to repeat past mistakes. It’s the kind of intuition that can’t really be made into a list of rigid rules, because everything is context-dependent. Experts are incompatible with the same rules and recipes that make beginners more productive. *Experts don’t follow the rules, they make the rules.*
+
+And so we have a problem…
+
+For one, AI is not trained on what it means for code to be maintainable. For instance, any reinforcement learning done needs a reward signal that can be measured immediately, not in months or years. The AI learns rules from rulebooks meant for beginners. The AI notices patterns from code in the wild and let’s be honest, most code in the wild is pretty bad. There is no fitness function you can define for maintainable code, at least not one that we can discern, otherwise it would’ve been baked into our linters.
+
+Have you noticed how terrible is the AI at “simplifying” code? Yes, the SOTA models. It can’t even define functions properly, choosing to split functions into smaller functions that are not actually reusable. Extracting a smaller function from a bigger function is a very bad choice if, to understand the bigger function, you have to also read the implementation of the extracted smaller function. Defining reusable and clarifying functions is an art form, an art that takes mastery. Most developers, being still *“advanced beginners”* in the [Dreyfus model](https://en.wikipedia.org/wiki/Dreyfus_model_of_skill_acquisition), are not able to define good, clarifying, reusable functions and neither does the AI currently.
+
+This wouldn’t be so bad if people would still be in control and learn from those mistakes. But we are seeing a trend of people relying on AI to write, and even read code.
+
+Those people will never reach mastery, because they no longer make choices, they no longer take responsibility for mistakes in coding and no longer learn from those mistakes. It’s the AI that’s making mistakes now, the AI doesn’t learn from those mistakes, and neither are the people relying on AI for coding.
+
+Yikes!
+
+Don’t get me wrong, I think LLMs are a great tool. I’m no Luddite, I’ve integrated AI in my everyday work, while actually teaching my colleagues what I’ve learned. I gladly use LLMs to take care of all the boring, soul-sucking shit we have to deal with. I’m also enjoying the efficiency benefits that I’m seeing. But at the end of the day, it’s just a tool, and like all other revolutions, its light will also fade; IMO, it already is, as right now tech news is frankly quite boring.
+
+People are actually terrible at making predictions. I believe the future will surprise all of us. But, I’m going to make a prediction of my own…
+
+> In the future we will see more and more companies proudly boasting their “NO-AI” policy as a competitive advantage. And they will be right.
+
+*“But automated assembly lines are always more efficient”* people say, except that the software industry is special, because we’ve always done automation at scale, everything we do is automation, LLMs are not the only means for it, and depending on context, it may actually be a distraction. *“Coding isn’t solved”* in any meaningful sense. Sure, you can instruct the LLM to build you a C/C++ compiler, or you can just clone GCC or LLVM, and you’d get a better C/C++ compiler, for free, too. And maybe there are better ways to spend our time and resources than reinvent the same CRUD apps (human needs and desires are infinite, there’s no shortage of new goals to work on).
+
+If people and companies don’t start being responsible about its use, there will be consequences.

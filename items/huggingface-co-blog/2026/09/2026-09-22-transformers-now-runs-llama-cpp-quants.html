@@ -1,0 +1,316 @@
+<div id="readability-page-1" class="page"><div>
+<p><strong>We're adding support for running GGUF models efficiently in transformers</strong>, so you can use checkpoints sized for your laptop's memory through the familiar transformers APIs. Pick a GGUF from the Hub, load it with <code>from_pretrained</code>, and start generating on your own machine.</p>
+<video controls="" width="100%">
+  <source src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/transformers-llama-cpp-quants/transformers-gguf.mp4" type="video/mp4">
+</video>
+
+<p>Running AI models on your laptop has become much easier, and <a href="https://github.com/ggml-org/llama.cpp" rel="nofollow">llama.cpp</a> has been a big part of that. Its inference engine powers local AI tools such as Ollama, LM Studio, and Jan. Alongside projects like <a href="https://github.com/ml-explore/mlx" rel="nofollow">MLX</a>, it has helped make local inference a practical option for everyday use.</p>
+<p><em>A recent example of what local AI can feel like:</em></p>
+<blockquote data-conversation="none"><div lang="en" dir="ltr"><p>This is where we are right now. And i’m not gonna lie it feels pretty magical 🧙‍♀️</p><p>Qwen3.6 27B running inside of Pi coding agent via Llama.cpp on the MacBook Pro</p><p>For non-trivial tasks on the <a href="https://x.com/huggingface?ref_src=twsrc%5Etfw" rel="nofollow">@huggingface</a> codebases, this feels very, very close to hitting the latest Opus in Claude… <a href="https://t.co/lsIxLoUneU" rel="nofollow">pic.twitter.com/lsIxLoUneU</a></p></div>— Julien Chaumond (@julien_c) <a href="https://x.com/julien_c/status/2047647522173104145?ref_src=twsrc%5Etfw" rel="nofollow">April 24, 2026</a></blockquote>
+
+
+<p><strong>GGUF</strong>, developed by the llama.cpp team, is a widely used format for local inference. The team also shares quantized checkpoints under <a href="https://huggingface.co/ggml-org">ggml-org on the Hub</a>. Publishers such as <a href="https://huggingface.co/unsloth">Unsloth</a>, <a href="https://huggingface.co/lmstudio-community">LM Studio Community</a>, and <a href="https://huggingface.co/bartowski">bartowski</a> also provide ready-to-use GGUF checkpoints in a range of quantizations, so users can pick the version that fits their machine. GGUF models have been downloaded millions of times.</p>
+<p>We want to make it easier to run these models locally with transformers, too. Compatibility is only useful if the model is pleasant to run. To bring performance close to llama.cpp, we're reusing its underlying ggml kernels through the <a href="https://huggingface.co/docs/kernels/index"><code>kernels</code></a> library, and reducing overhead in <code>generate</code>. Our initial focus is local inference on Apple Silicon, starting with the Qwen3.5 architecture.</p>
+<h2>
+	<a id="what-is-the-gguf-file-format" href="#what-is-the-gguf-file-format" rel="nofollow">
+		
+	</a>
+	<span>
+		What is the GGUF file format?
+	</span>
+</h2>
+<p><a href="https://github.com/ggml-org/ggml/blob/master/docs/gguf.md" rel="nofollow">GGUF</a> packages model weights and metadata, including tokenizer information and an optional chat template, in one file. It supports different quantization levels, letting you trade some precision for a smaller memory footprint. Variants such as <code>Q4_K_M</code> mix tensor precisions, using mostly 4-bit weights while keeping sensitive tensors at higher precision.</p>
+<p>Here's how quantization changes the file size of <a href="https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/tree/main">Unsloth's Qwen3.5-4B</a>:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>GGUF variant</th>
+<th>File size</th>
+<th>Tradeoff</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>BF16</code></td>
+<td>8.42 GB</td>
+<td>Unquantized reference</td>
+</tr>
+<tr>
+<td><code>Q6_K</code></td>
+<td>3.53 GB</td>
+<td>More precision than the smaller variants</td>
+</tr>
+<tr>
+<td><code>Q5_K_M</code></td>
+<td>3.14 GB</td>
+<td>A middle ground between size and precision</td>
+</tr>
+<tr>
+<td><code>Q4_K_M</code></td>
+<td>2.74 GB</td>
+<td>A practical starting point for local inference</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>We suggest starting with <code>Q4_K_M</code>, then trying <code>Q5_K_M</code> or <code>Q6_K</code> if you have more memory available. More aggressive quantization can help larger models fit, but the quality tradeoff depends on the model and the task. Evaluate it on the work you actually want the model to do. The <a href="https://huggingface.co/docs/hub/gguf#quantization-types">Hub's GGUF documentation</a> describes the available quantization types.</p>
+<h2>
+	<a id="load-gguf-with-transformers" href="#load-gguf-with-transformers" rel="nofollow">
+		
+	</a>
+	<span>
+		Load GGUF with transformers
+	</span>
+</h2>
+<p>To get started, you need:</p>
+<ul>
+<li><strong>An Apple Silicon Mac</strong>.</li>
+<li><strong>A PyTorch version supported by the published <a href="https://huggingface.co/kernels/ggml-org/ggml-quantization">ggml-quantization kernel builds</a></strong>, usually the two latest PyTorch releases.</li>
+<li><strong>The latest version of transformers (main for now, until the next release) and a compatible version of <code>kernels</code></strong>.</li>
+</ul>
+<pre><code>pip install -U <span>"git+https://github.com/huggingface/transformers.git"</span> kernels
+</code></pre>
+<p>To load a GGUF model, pass its Hub <code>model_id</code> and filename as <code>gguf_file</code> to <code>from_pretrained</code>.</p>
+<p>No extra configuration is needed: when the weights stay packed on Metal, transformers automatically loads the compatible ggml/Metal layer kernels and uses <code>ggml-org/ggml-attn</code> as the attention implementation. If that kernel cannot be fetched, the model falls back to <code>"sdpa"</code> with a warning, and you can always force <code>"sdpa"</code> by passing <code>attn_implementation="sdpa"</code> explicitly. See the <a href="https://huggingface.co/docs/transformers/main/en/quantization/gguf">GGUF documentation</a> for more loading options.</p>
+<pre><code><span>import</span> torch
+<span>from</span> transformers <span>import</span> AutoModelForCausalLM, AutoTokenizer
+
+model_id = <span>"unsloth/Qwen3.5-4B-GGUF"</span>
+filename = <span>"Qwen3.5-4B-Q4_K_M.gguf"</span>
+
+tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=filename)
+model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    gguf_file=filename
+)
+</code></pre>
+<p>That is the only GGUF-specific step. Everything after it is the standard transformers API:</p>
+<pre><code>messages = [{<span>"role"</span>: <span>"user"</span>, <span>"content"</span>: <span>"Explain why the sky is blue in a few sentences."</span>}]
+inputs = tokenizer.apply_chat_template(
+    messages,
+    tokenize=<span>True</span>,
+    add_generation_prompt=<span>True</span>,
+    return_dict=<span>True</span>,
+    return_tensors=<span>"pt"</span>,
+).to(model.device)
+
+<span>with</span> torch.inference_mode():
+    outputs = model.generate(**inputs, max_new_tokens=<span>256</span>)
+
+<span>print</span>(tokenizer.decode(outputs[<span>0</span>], skip_special_tokens=<span>True</span>))
+</code></pre>
+<blockquote>
+<p>Without a compatible quantization kernel, the loader falls back to dequantizing the model and uses more memory.</p>
+</blockquote>
+<h2>
+	<a id="serve-gguf-with-your-preferred-interface" href="#serve-gguf-with-your-preferred-interface" rel="nofollow">
+		
+	</a>
+	<span>
+		Serve GGUF with your preferred interface
+	</span>
+</h2>
+<p>You can also use the same checkpoint with <a href="https://huggingface.co/docs/transformers/main/en/serve-cli/serving"><code>transformers serve</code></a>, which exposes an OpenAI-compatible API:</p>
+<pre><code>pip install -U <span>"transformers[serving] @ git+https://github.com/huggingface/transformers.git"</span> kernels
+
+transformers serve <span>"unsloth/Qwen3.5-4B-GGUF:Qwen3.5-4B-Q4_K_M.gguf"</span>
+</code></pre>
+<p>The model argument uses <code>&lt;model_id&gt;:&lt;filename&gt;.gguf</code>: before the colon is the Hub repository (<code>unsloth/Qwen3.5-4B-GGUF</code>), and after it is the file to load (<code>Qwen3.5-4B-Q4_K_M.gguf</code>). This selects a specific quantization from a repository that may contain several.</p>
+<p>For models whose chat template supports thinking, add <code>--reasoning off</code> to skip it or <code>--reasoning on</code> to enable it. The default, <code>--reasoning auto</code>, follows the chat template’s default. See the <a href="https://huggingface.co/docs/transformers/main/en/serve-cli/serving#enable-reasoning-on-the-server">reasoning options</a> for details.</p>
+<p>You can connect a client such as <a href="https://www.jan.ai/docs/desktop/remote-models/custom-endpoint" rel="nofollow">Jan</a> or <a href="https://pi.dev" rel="nofollow">Pi</a> by adding a custom OpenAI-compatible provider with these settings:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Setting</th>
+<th>Value</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Base URL</td>
+<td><code>http://localhost:8000/v1</code></td>
+</tr>
+<tr>
+<td>Model ID</td>
+<td><code>unsloth/Qwen3.5-4B-GGUF:Qwen3.5-4B-Q4_K_M.gguf</code></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>transformers runs the model on your Mac, while the client provides the conversation interface. The same endpoint can be used by other clients that support this API.</p>
+<h2>
+	<a id="benchmarking-against-llamacpp" href="#benchmarking-against-llamacpp" rel="nofollow">
+		
+	</a>
+	<span>
+		Benchmarking against llama.cpp
+	</span>
+</h2>
+<p>Our reference for local inference performance is llama.cpp. The comparison below focuses on three GGUF checkpoints: a small dense model, a larger dense model, and a mixture-of-experts model.</p>
+<p>The llama.cpp column comes from the <a href="https://github.com/ggml-org/llama.cpp/tree/master/tools/llama-bench" rel="nofollow"><code>llama-bench</code></a> tool (build <code>5f55650a7</code>, release b10200, Metal backend from ggml 0.18.0), run as <code>llama-bench -m &lt;file&gt; -p 0 -n 128 -r 3</code>, which reports <code>tg128</code>: the token-generation rate over 128 decoded tokens, averaged across three repetitions, with prompt processing excluded. The transformers column is <code>generate</code> producing the same 128 tokens from a 12-token prompt, best of three warmed runs, and it includes prefill.</p>
+<p>Measured on a MacBook Pro M2 Max, 32 GB unified memory, macOS 26.6, PyTorch 2.12.1, kernels 0.17.0,
+plugged in.</p>
+<details>
+  <summary>The benchmark script</summary>
+
+<pre><code><span>import</span> time
+<span>import</span> torch
+<span>from</span> transformers <span>import</span> AutoModelForCausalLM, AutoTokenizer
+
+model_id, filename = <span>"unsloth/Qwen3.5-4B-GGUF"</span>, <span>"Qwen3.5-4B-Q4_K_M.gguf"</span>
+
+model = AutoModelForCausalLM.from_pretrained(model_id, gguf_file=filename)
+tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=filename)
+inputs = tokenizer(<span>"The capital of France is Paris. The capital of Germany is"</span>, return_tensors=<span>"pt"</span>)
+inputs = inputs.to(model.device)
+
+
+<span>with</span> torch.inference_mode():
+    model.generate(**inputs, max_new_tokens=<span>8</span>, min_new_tokens=<span>8</span>, do_sample=<span>False</span>)  <span># warm up</span>
+    torch.mps.synchronize()
+    <span>for</span> _ <span>in</span> <span>range</span>(<span>3</span>):
+        time.sleep(<span>90</span>)  <span># let the machine cool: back-to-back runs decay by 10% or more</span>
+        start = time.perf_counter()
+        model.generate(**inputs, max_new_tokens=<span>128</span>, min_new_tokens=<span>128</span>, do_sample=<span>False</span>)
+        torch.mps.synchronize()
+        <span>print</span>(<span>f"<span>{<span>128</span> / (time.perf_counter() - start):<span>.1</span>f}</span> tok/s"</span>)
+</code></pre>
+<p>For the other column:</p>
+<pre><code>llama-bench -hf unsloth/Qwen3.5-4B-GGUF:Q4_K_M -p 0 -n 128 -r 3
+</code></pre>
+</details>
+
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/transformers-llama-cpp-quants/benchmark-comparison.svg" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/transformers-llama-cpp-quants/benchmark-comparison.svg" alt="GGUF generation throughput compared with llama.cpp"></a></p>
+<p>Transformers is close to llama.cpp across all three checkpoints. The chart uses the same measurements described above; it does not imply identical benchmark conditions, since the Transformers measurement includes prefill while <code>llama-bench</code> reports decode-only throughput.</p>
+<h2>
+	<a id="transformers-and-llamacpp" href="#transformers-and-llamacpp" rel="nofollow">
+		
+	</a>
+	<span>
+		transformers and llama.cpp
+	</span>
+</h2>
+<p>When <a href="https://huggingface.co/blog/ggml-joins-hf">GGML and llama.cpp joined Hugging Face</a>, we described their complementary roles: llama.cpp provides a foundation for local inference, while transformers provides a foundation for model definition. GGUF support brings those two closer together.</p>
+<p><strong>llama.cpp remains our recommended engine when your priority is efficient local inference.</strong> Its dedicated runtime, memory management, and broad hardware support are built around that goal. This integration gives developers a convenient way to work with the same GGUF checkpoints inside transformers:</p>
+<ul>
+<li><strong>Experiment with GGUF in Python and PyTorch.</strong> Inspect intermediate activations with hooks, modify a model's forward pass, or prototype custom layers using familiar PyTorch tools.</li>
+<li><strong>Evaluate GGUF models.</strong> Use your existing transformers evaluation workflows to measure the quality of quantized checkpoints.</li>
+<li><strong>Validate GGUF conversions.</strong> For us as developers, loading the original checkpoint and its GGUF conversion in transformers makes it easier to check that the weights were converted correctly, accounting for quantization error.</li>
+<li><strong>Try new decoding ideas.</strong> Use custom logits processors and stopping criteria with <code>generate</code>, or write your own generation loop in Python.</li>
+<li><strong>Fine-tune from a GGUF checkpoint.</strong> Dequantize the weights and continue with a standard transformers training workflow.</li>
+</ul>
+<p>For that last case, use <code>GgufConfig(dequantize=True)</code>:</p>
+<pre><code><span>import</span> torch
+<span>from</span> transformers <span>import</span> AutoModelForCausalLM, GgufConfig
+
+model = AutoModelForCausalLM.from_pretrained(
+    <span>"unsloth/Qwen3.5-4B-GGUF"</span>,
+    gguf_file=<span>"Qwen3.5-4B-Q4_K_M.gguf"</span>,
+    quantization_config=GgufConfig(dequantize=<span>True</span>),
+    dtype=torch.bfloat16,
+)
+</code></pre>
+<h2>
+	<a id="beyond-gguf-ggml-kernels-for-more-models" href="#beyond-gguf-ggml-kernels-for-more-models" rel="nofollow">
+		
+	</a>
+	<span>
+		Beyond GGUF: ggml kernels for more models
+	</span>
+</h2>
+<p><strong>The bigger opportunity is bringing ggml's performance to models that llama.cpp does not support.</strong></p>
+<p>transformers already provides the PyTorch implementations of these architectures. With ggml kernels and quantization schemes available in PyTorch, we can work toward accelerating their supported operations without first implementing the entire model in llama.cpp. This is especially useful for new architectures, research models, and custom variants that may never receive a dedicated llama.cpp implementation.</p>
+<p>That opportunity extends beyond the GGUF format itself. A kernel operates on tensors; it does not require the whole model to come from a GGUF file. The same building blocks can be integrated into other transformers models and loading workflows. This also opens a path to other modalities: computer vision models, audio models, and multimodal models could reuse compatible attention, normalization, and matrix multiplication kernels without first having a full implementation in llama.cpp. Each architecture still needs integration and validation; the initial GGUF examples here cover text generation.</p>
+<h2>
+	<a id="fast-local-inference-with-python-and-pytorch" href="#fast-local-inference-with-python-and-pytorch" rel="nofollow">
+		
+	</a>
+	<span>
+		Fast local inference with Python and PyTorch
+	</span>
+</h2>
+<p>We also wanted to show how far we can get while keeping the model and generation loop in Python. <strong>With the right kernels and an efficient generation loop, Python and PyTorch can deliver strong local inference performance.</strong> The kernels handle the heavy computation, while the generation loop keeps the GPU busy by avoiding unnecessary synchronization.</p>
+<p>Our focus was to make eager execution fast without requiring <code>torch.compile</code>. For interactive use, we wanted a quick start and a steady stream of tokens, without compilation pauses or recompilation when input shapes change. The two main pieces of that work are the kernels and <code>generate</code> itself.</p>
+<h3>
+	<a id="reusing-ggmls-metal-kernels" href="#reusing-ggmls-metal-kernels" rel="nofollow">
+		
+	</a>
+	<span>
+		Reusing ggml's Metal kernels
+	</span>
+</h3>
+<p>A kernel is a small program that performs an operation on the GPU. PyTorch supplies general-purpose implementations; a specialized kernel can do less work, combine several operations, or read quantized weights directly in their stored format.</p>
+<p>The <code>kernels</code> library lets us distribute compatible builds of ggml's Metal kernels on the Hub and call them from transformers. That brings ggml's work into the PyTorch model without replacing the model with a separate inference runtime.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Kernel</th>
+<th>What it does</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/kernels/ggml-org/ggml-quantization"><code>ggml-quantization</code></a></td>
+<td>Reads packed quantized weights for matrix operations, including the selected experts in an MoE model. It avoids expanding the whole weight matrix before each decode operation.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/kernels/ggml-org/ggml-norm"><code>ggml-norm</code></a></td>
+<td>Fuses normalization operations, including the zero-centered RMSNorm used by Qwen3.5 and Qwen3.8.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/kernels/ggml-org/ggml-attn"><code>ggml-attn</code></a></td>
+<td>Provides ggml's Metal flash attention for prompt processing and token decoding.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/kernels/ggml-org/ggml-gated-delta-net"><code>ggml-gated-delta-net</code></a></td>
+<td>Accelerates the gated delta network used in the linear-attention layers of the Qwen3.5 and Qwen3.8 hybrid architectures.</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/kernels/transformers-community/topk"><code>topk</code></a></td>
+<td>Selects the experts for each token in an MoE model, combining softmax and top-k routing. This is our own Metal implementation.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The first four packages build on ggml's kernels; the top-k kernel addresses a separate bottleneck in MoE routing. Together they reduce the GPU work needed for each generated token.</p>
+<p>To show the contribution of the layer kernels, we compare the same packed GGUF checkpoints with and without them. The quantization kernel stays enabled in both configurations: disabling it would also change how weights are represented and would measure a different tradeoff.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/transformers-llama-cpp-quants/layer-kernel-benchmark.svg" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/transformers-llama-cpp-quants/layer-kernel-benchmark.svg" alt="Throughput improvement from the layer kernels"></a></p>
+<h3>
+	<a id="keeping-the-cpu-and-gpu-working-together" href="#keeping-the-cpu-and-gpu-working-together" rel="nofollow">
+		
+	</a>
+	<span>
+		Keeping the CPU and GPU working together
+	</span>
+</h3>
+<p>Faster kernels only help if the GPU has work to do. During generation, the CPU schedules GPU operations and controls the loop that produces the next token. Reading a result back from the GPU can force the CPU to wait until queued operations finish. Repeating even a small wait for every token can noticeably reduce throughput.</p>
+<p>Two changes address this in <code>generate</code>, which results in improvements for all transformers models (not just when running GGUF files):</p>
+<ul>
+<li><strong><a href="https://github.com/huggingface/transformers/pull/48814" rel="nofollow">Drop an unnecessary attention mask early (#48814)</a>.</strong> When a supported decoder-only input has no padding, its all-ones padding mask can be removed at the start of generation. Downstream attention code no longer needs to inspect that mask repeatedly to determine whether it can be skipped. Causal attention is still preserved.</li>
+<li><strong><a href="https://github.com/huggingface/transformers/pull/47975" rel="nofollow">Defer the stopping check (#47975)</a>.</strong> On supported paths, <code>generate</code> copies the stopping decision asynchronously and consumes it on the following step. The CPU can keep scheduling work while the GPU runs. Streaming tokens use the same approach, and any extra step past the stopping condition is removed from the result.</li>
+</ul>
+<p>These changes improve the generation loop around the model, so their usefulness extends beyond GGUF. They complement the kernel work: kernels reduce the cost of an operation, while fewer synchronization points let CPU scheduling and GPU execution overlap.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/transformers-llama-cpp-quants/generation-loop-benchmark.svg" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/transformers-llama-cpp-quants/generation-loop-benchmark.svg" alt="Throughput improvement from the generation loop changes"></a></p>
+<p>These measurements keep all layer kernels enabled; the bars isolate the changes to the generation loop.</p>
+<h2>
+	<a id="current-limitations-and-next-steps" href="#current-limitations-and-next-steps" rel="nofollow">
+		
+	</a>
+	<span>
+		Current limitations and next steps
+	</span>
+</h2>
+<p>The initial target is a single interactive conversation on Apple Silicon. There are a few boundaries to keep in mind:</p>
+<ul>
+<li><strong>The packed inference path is MPS-only for now.</strong> GGUF import through dequantization remains a separate option; support for the file format does not imply that packed kernels are available on every device.</li>
+<li><strong>Padding and batching still need work.</strong> Unpadded inputs benefit from the mask optimization described above. Padded batches cannot take the same shortcut and can have lower performance. We want to extend the work to <code>generate_batch</code> on MPS.</li>
+<li><strong>Architecture coverage is limited.</strong> The packed loader currently covers the Qwen3.5 dense and MoE architectures, including compatible Qwen3.8 checkpoints. Adding support for other architectures is relatively straightforward, and we’ll expand coverage gradually.</li>
+</ul>
+<p>If you have a GGUF model you would like to use in transformers, <a href="https://github.com/huggingface/transformers/issues" rel="nofollow">open an issue</a> with the checkpoint and your use case. That will help us prioritize support for the models people are running locally.</p>
+<h2>
+	<a id="acknowledgments" href="#acknowledgments" rel="nofollow">
+		
+	</a>
+	<span>
+		Acknowledgments
+	</span>
+</h2>
+<p>We would like to thank <a href="https://huggingface.co/ArthurZ">Arthur Zucker</a> for initiating this work and reviewing all of my PRs, and <a href="https://huggingface.co/cyrilvallez">Cyril Vallez</a> for the <code>generate</code> PRs. We are grateful to <a href="https://huggingface.co/sayakpaul">Sayak Paul</a>, the <a href="https://github.com/ggml-org/llama.cpp" rel="nofollow">llama.cpp team</a>, and Bertrand Chevalier for their help integrating the kernels. We also thank <a href="https://huggingface.co/ariG23498">Aritra Roy Gosthipaty</a> and <a href="https://huggingface.co/pcuenq">Pedro Cuenca</a> for reviewing this blog post, and <a href="https://huggingface.co/lysandre">Lysandre Debut</a> for overseeing the project.</p>
+</div></div>

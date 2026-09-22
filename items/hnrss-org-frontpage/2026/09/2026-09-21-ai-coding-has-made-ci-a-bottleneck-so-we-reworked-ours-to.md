@@ -72,6 +72,106 @@ images:
     width: 2352
     height: 2376
   color: '#08090a'
+- source: https://webassets.linear.app/images/ornj730p/production/a64c14ac0bb92f61f832f7cb0962dd769cd1b39a-2352x1640.png?q=95&auto=format&dpr=2
+  original:
+    file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-79ae6ccb145b.png
+    width: 2352
+    height: 1640
+  variants:
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-e86ebae17903.webp
+    width: 320
+    height: 223
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-5f14b36ab800.webp
+    width: 640
+    height: 446
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-e37bb2cc1329.webp
+    width: 960
+    height: 669
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-4e1af613b22e.webp
+    width: 1280
+    height: 893
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-ff8eb817dde9.webp
+    width: 1600
+    height: 1116
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-b162d3192a00.webp
+    width: 2352
+    height: 1640
+  color: '#08090a'
+- source: https://webassets.linear.app/images/ornj730p/production/b41c17cca632f28720500237ddff79183c6e699c-2352x4512.png?q=95&auto=format&dpr=2
+  original:
+    file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-e306ded3221a.png
+    width: 2352
+    height: 4512
+  variants:
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-af5213d5bae9.webp
+    width: 320
+    height: 614
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-7fdd36a0f150.webp
+    width: 640
+    height: 1228
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-bb26347afc1f.webp
+    width: 960
+    height: 1842
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-b258c6d36925.webp
+    width: 1280
+    height: 2456
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-ed66e118a342.webp
+    width: 1600
+    height: 3069
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-3050724517f8.webp
+    width: 2352
+    height: 4512
+  color: '#08090a'
+- source: https://webassets.linear.app/images/ornj730p/production/713a72257d6e99f1d112e42fde8c3f61f9d63b7a-2352x3693.png?q=95&auto=format&dpr=2
+  original:
+    file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-64f889ac7b61.png
+    width: 2352
+    height: 3693
+  variants:
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-5c512fb4e988.webp
+    width: 320
+    height: 502
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-5008a608eab6.webp
+    width: 640
+    height: 1005
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-389b88b4a041.webp
+    width: 960
+    height: 1507
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-41fd8f8b2f3d.webp
+    width: 1280
+    height: 2010
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-69681551f063.webp
+    width: 1600
+    height: 2512
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-2feb13ec2528.webp
+    width: 2352
+    height: 3693
+  color: '#08090a'
+- source: https://webassets.linear.app/images/ornj730p/production/653fe666c8506212c6685a5a7be3ffffe502139e-2352x2392.png?q=95&auto=format&dpr=2
+  original:
+    file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-7455d84358be.png
+    width: 2352
+    height: 2392
+  variants:
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-f180b152380b.webp
+    width: 320
+    height: 325
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-a6e5a8765cc2.webp
+    width: 640
+    height: 651
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-33bb51aa440d.webp
+    width: 960
+    height: 976
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-e1f94176bc6c.webp
+    width: 1280
+    height: 1302
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-1676a7f7b208.webp
+    width: 1600
+    height: 1627
+  - file: 2026-09-21-ai-coding-has-made-ci-a-bottleneck-so-we-reworked-ours-to.image-15801de2a38c.webp
+    width: 2352
+    height: 2392
+  color: '#08090a'
 ---
 
 Earlier this year, I opened Linear to find that Tuomas, our CTO, had assigned an issue to me, titled “CI costs are high.” While I was at it, he also wanted me to make CI faster.
