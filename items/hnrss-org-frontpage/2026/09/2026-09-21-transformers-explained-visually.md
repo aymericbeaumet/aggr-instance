@@ -85,6 +85,12 @@ images:
     width: 1275
     height: 880
   color: '#fbfbfc'
+- source: https://i.ytimg.com/vi/ECR4oAwocjs/hqdefault.jpg
+  original:
+    file: 2026-09-21-transformers-explained-visually.image-f099d4e03e38.jpg
+    width: 480
+    height: 360
+  color: '#000000'
 ---
 
 ## What is a Transformer?
