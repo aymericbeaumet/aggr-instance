@@ -1,0 +1,90 @@
+<div id="readability-page-1" class="page"><div>
+    <article>
+        <div>
+            
+            <p><img src="https://www.nobodywho.ai/assets/images/blog/2026/jev-in-25-lines/jev.png" alt="My name is Jev" data-src="/assets/images/blog/2026/jev-in-25-lines/jev.png" width="500" height="500"></p>
+<p>Everyone and their mom is talking about <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">Jev</a>. Jev this, Jev that. Everyone on Twitter is all over Jev, how it's the next frontier of large language models and the AI paradigm. We don’t really think so. So here's Jev in 25 lines of Python.</p>
+<p>Load the model.</p>
+<pre><code><span># /// script</span>
+<span># requires-python = "&gt;=3.12"</span>
+<span># dependencies = ["huggingface-hub", "llama-cpp-python", "numpy"]</span>
+<span># ///</span>
+
+<span>import</span> numpy
+<span>from</span> llama_cpp <span>import</span> Llama
+
+<span># Really, you can use any GGUF model from https://huggingface.co/models?library=gguf</span>
+
+model <span>=</span> Llama<span>.</span>from_pretrained<span>(</span>
+    repo_id<span>=</span><span>"Qwen/Qwen3-0.6B-GGUF"</span><span>,</span>
+    filename<span>=</span><span>"Qwen3-0.6B-Q8_0.gguf"</span><span>,</span>
+    n_ctx<span>=</span><span>512</span><span>,</span>
+    logits_all<span>=</span><span>True</span><span>,</span>
+    verbose<span>=</span><span>False</span><span>,</span>
+<span>)</span></code></pre>
+<p>Load the prompt and define your choices.</p>
+<pre><code>labels <span>=</span> <span>[</span><span>"A"</span><span>,</span> <span>"B"</span><span>,</span> <span>"C"</span><span>]</span>
+choices <span>=</span> <span>[</span><span>"Legitimate"</span><span>,</span> <span>"Spam"</span><span>,</span> <span>"Phishing"</span><span>]</span>
+email <span>=</span> <span>"Payroll asks for your password on a non-company sign-in page."</span>
+options <span>=</span> <span>"\n"</span><span>.</span>join<span>(</span>
+    <span><span>f"</span><span><span>{</span>label<span>}</span></span><span>. </span><span><span>{</span>choice<span>}</span></span><span>"</span></span> <span>for</span> label<span>,</span> choice <span>in</span> <span>zip</span><span>(</span>labels<span>,</span> choices<span>,</span> strict<span>=</span><span>True</span><span>)</span>
+<span>)</span>
+prompt <span>=</span> <span><span>f"""&lt;|im_start|&gt;system
+Choose one option.&lt;|im_end|&gt;
+&lt;|im_start|&gt;user
+Email: </span><span><span>{</span>email<span>}</span></span><span>\n\n</span><span><span>{</span>options<span>}</span></span><span>&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+&lt;think&gt;\n\n&lt;/think&gt;\n\n"""</span></span>
+model<span>.</span><span>eval</span><span>(</span>tokens<span>=</span>model<span>.</span>tokenize<span>(</span>text<span>=</span>prompt<span>.</span>encode<span>(</span><span>)</span><span>,</span> add_bos<span>=</span><span>False</span><span>,</span> special<span>=</span><span>True</span><span>)</span><span>)</span></code></pre>
+<p>Massage the logits into probabilities.</p>
+<pre><code>logits <span>=</span> model<span>.</span>scores<span>[</span>model<span>.</span>n_tokens <span>-</span> <span>1</span><span>]</span>
+token_ids <span>=</span> <span>[</span>model<span>.</span>tokenize<span>(</span>text<span>=</span>label<span>.</span>encode<span>(</span><span>)</span><span>,</span> add_bos<span>=</span><span>False</span><span>)</span><span>[</span><span>0</span><span>]</span> <span>for</span> label <span>in</span> labels<span>]</span>
+choice_logits <span>=</span> numpy<span>.</span>asarray<span>(</span><span>[</span>logits<span>[</span>token_id<span>]</span> <span>for</span> token_id <span>in</span> token_ids<span>]</span><span>)</span>
+logprobs <span>=</span> choice_logits <span>-</span> numpy<span>.</span>logaddexp<span>.</span><span>reduce</span><span>(</span>choice_logits<span>)</span>
+probabilities <span>=</span> numpy<span>.</span>exp<span>(</span>logprobs<span>)</span>
+
+<span>for</span> name<span>,</span> scores <span>in</span> <span>(</span>
+    <span>(</span><span>"Logits"</span><span>,</span> choice_logits<span>)</span><span>,</span>
+    <span>(</span><span>"Log probabilities"</span><span>,</span> logprobs<span>)</span><span>,</span>
+    <span>(</span><span>"Probabilities"</span><span>,</span> probabilities<span>)</span><span>,</span>
+<span>)</span><span>:</span>
+    values <span>=</span> numpy<span>.</span><span>round</span><span>(</span>scores<span>.</span>astype<span>(</span><span>float</span><span>)</span><span>,</span> <span>3</span><span>)</span><span>.</span>tolist<span>(</span><span>)</span>
+    <span>print</span><span>(</span><span><span>f"</span><span><span>{</span>name<span>}</span></span><span>:"</span></span><span>,</span> <span>dict</span><span>(</span><span>zip</span><span>(</span>choices<span>,</span> values<span>,</span> strict<span>=</span><span>True</span><span>)</span><span>)</span><span>)</span>
+
+<span># Logits: {'Legitimate': 26.254, 'Spam': 27.262, 'Phishing': 29.614}</span>
+<span># Log probabilities: {'Legitimate': -3.482, 'Spam': -2.474, 'Phishing': -0.122}</span>
+<span># Probabilities: {'Legitimate': 0.031, 'Spam': 0.084, 'Phishing': 0.885}</span></code></pre>
+<p>There. That’s Jev.</p>
+<h2>But no, you don’t understand Jev!</h2>
+<p>Yeah, we know.</p>
+<ul>
+<li>We don't call it a <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">System One decision model</a>.</li>
+<li>We didn’t call an API.</li>
+<li>We didn't create a bunch of synthetic data.</li>
+<li>We didn't train a model with <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">Reinforcement Learning for Calibrated Decisions (RLCD)</a> to calibrate the decisions and probabilities (even though they are <a href="https://arcturus-labs.com/blog/2026/09/16/typesafes-jev-trades-text-generation-for-instant-calibrated-decisions/">not always correct</a>).</li>
+</ul>
+<h2>But yes. This is Jev.</h2>
+<ul>
+<li>It classifies: it gets a prompt with choices and outputs probabilities.</li>
+<li>It's fast.</li>
+<li>It's local.</li>
+<li>You don't send your data anywhere else.</li>
+</ul>
+<p>And we like not sending your data anywhere else. Check out <a href="https://github.com/nobodywho-ooo/nobodywho">NobodyWho</a>.</p>
+<p><em>(note: this is a parody blog post, see these links for better/more complete open implementations of Jev: <a href="https://openjev.com/">OpenJev</a>, <a href="https://github.com/ekzhang/openjev-sglang">openjev-sglang</a>, and <a href="https://github.com/razorback16/openjev">OpenJev on DiffusionGemma</a>.)</em></p>
+
+            <div>
+                <hr>
+                    <p>
+                        Everything NobodyWho do is open-source, please leave a
+                        <a href="https://github.com/nobodywho-ooo/nobodywho" target="_blank" rel="noopener noreferrer">star on Github</a>
+                        to support us ❤️
+                    </p>
+                    <p>Published Sep 22, 2026 by Duarte O.Carmo</p>
+                    <p><span>
+                                Technical
+                            </span></p>
+                </div>
+            </div>
+        </article>
+    </div></div>
