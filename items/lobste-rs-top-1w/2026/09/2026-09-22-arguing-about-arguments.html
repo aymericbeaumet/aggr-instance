@@ -1,0 +1,375 @@
+<div id="readability-page-1" class="page"><article data-pagefind-body="" data-pagefind-meta="date:Sep 21, 2026">  <time datetime="2026-09-21T00:00:00.000Z" data-pagefind-ignore=""> Sep 21, 2026 </time>   <p>Here’s some Rust code:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>// define a function</span></span>
+<span><span>fn</span><span> foo</span><span>(x</span><span>:</span><span> i32</span><span>, y</span><span>:</span><span> i32</span><span>) </span><span>-&gt;</span><span> i32</span><span> {</span></span>
+<span><span>    // body elided</span></span>
+<span><span>}</span></span>
+<span></span>
+<span><span>// call it</span></span>
+<span><span>let</span><span> z </span><span>=</span><span> foo</span><span>(</span><span>5</span><span>, </span><span>6</span><span>);</span></span></code></pre>
+<p>In programming language jargon, we call <code>x</code> and <code>y</code> <em>parameters</em> and <code>5</code> and <code>6</code>
+<em>arguments</em>.</p>
+<p>Rust does not have many fancy features related to parameters and arguments. But
+other languages do. For example, <a href="https://api.rubyonrails.org/classes/ActionController/Redirecting.html#method-i-redirect_to">here’s a function in Ruby</a>,
+another language I’ve written a ton of:</p>
+<pre tabindex="0" data-language="ruby"><code><span><span># its definition in Rails</span></span>
+<span><span>def</span><span> redirect_to</span><span>(options </span><span>=</span><span> {}, response_options </span><span>=</span><span> {})</span></span>
+<span><span>  # body elided</span></span>
+<span><span>end</span></span>
+<span></span>
+<span><span># you can call it in all of these ways:</span></span>
+<span></span>
+<span><span># pass a string with a URL</span></span>
+<span><span>redirect_to </span><span>"http://www.rubyonrails.org"</span></span>
+<span></span>
+<span><span># pass an instance of a model to go to it, if post.id = 5 then this might go to</span></span>
+<span><span># "/posts/5"</span></span>
+<span><span>redirect_to @post</span></span>
+<span></span>
+<span><span># invoke an action directly, might be equivalent to the above in a Posts controller</span></span>
+<span><span>redirect_to </span><span>action:</span><span> "show"</span><span>, </span><span>id:</span><span> 5</span></span>
+<span></span>
+<span><span># redirect to a model's URL, passing a flash message</span></span>
+<span><span>redirect_to </span><span>post_url</span><span>(@post), </span><span>alert:</span><span> "Watch it, mister!"</span></span>
+<span></span>
+<span><span># do the same but also set a specific HTTP code</span></span>
+<span><span>redirect_to </span><span>post_url</span><span>(@post), </span><span>status:</span><span> :found</span></span>
+<span></span>
+<span><span># do both</span></span>
+<span><span>redirect_to </span><span>post_url</span><span>(@post), </span><span>status:</span><span> 301</span><span>, </span><span>flash:</span><span> { </span><span>updated_post_id:</span><span> @post.</span><span>id</span><span> }</span></span></code></pre>
+<p>I used to love Ruby, and now I love Rust. And to be honest, <code>redirect_to</code> and
+friends are a huge reason why I am so against Rust gaining these sorts of fancy
+features: they can be really concise, and beautiful to a certain kind of eye,
+but it also makes it really, really hard to know what all you can do with a
+function. You pretty much have to hope that someone has written good documentation,
+and while Rails’s documentation is pretty good, not every library is going to have
+it.</p>
+<p>To be clear about it, there are several things bundled together here: flexible
+argument types, options hashes, defaults, and keyword-looking syntax. It’s that
+whole style of API that shaped my skepticism, not argument labels by themselves.</p>
+<p>So, what exactly are all of these features?</p>
+<h2 id="named-parameters">Named parameters</h2>
+<p>The simplest one is <em>named parameters</em>. As you might guess, this means that we can
+explicitly use parameter names at the call site:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>// without named parameters</span></span>
+<span><span>let</span><span> z </span><span>=</span><span> foo</span><span>(</span><span>5</span><span>, </span><span>6</span><span>);</span></span>
+<span></span>
+<span><span>// if Rust had them</span></span>
+<span><span>let</span><span> z </span><span>=</span><span> foo</span><span>(x</span><span>:</span><span> 5</span><span>, y</span><span>:</span><span> 6</span><span>);</span></span></code></pre>
+<p>Named parameters are nice because they can give you more information at the call
+site, but also they can be more flexible. Some languages also let you supply
+named arguments in a different order:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>// since we have names, we can write this:</span></span>
+<span><span>let</span><span> z </span><span>=</span><span> foo</span><span>(x</span><span>:</span><span> 5</span><span>, y</span><span>:</span><span> 6</span><span>);</span></span>
+<span></span>
+<span><span>// but we can also write this:</span></span>
+<span><span>let</span><span> z </span><span>=</span><span> foo</span><span>(y</span><span>:</span><span> 6</span><span>, x</span><span>:</span><span> 5</span><span>);</span></span></code></pre>
+<p>The downside of named parameters is that they can get quite verbose:</p>
+<pre tabindex="0" data-language="python"><code><span><span># FastAPI in Python, UserOut class not shown</span></span>
+<span><span>@app.get</span><span>(</span></span>
+<span><span>    "/me"</span><span>, </span></span>
+<span><span>    response_model</span><span>=</span><span>UserOut, </span></span>
+<span><span>    status_code</span><span>=</span><span>200</span><span>, </span></span>
+<span><span>    tags</span><span>=</span><span>[</span><span>"Users"</span><span>],</span></span>
+<span><span>    summary</span><span>=</span><span>"Get current user profile"</span></span>
+<span><span>)</span></span>
+<span><span>def</span><span> get_current_user</span><span>():</span></span></code></pre>
+<p>I tried to not strawman this by showing an extreme example, but <code>get</code> can take
+23 different keyword arguments, and so this could get quite, quite long.</p>
+<p>Named arguments can be good when passing expressions, so we can understand
+something more at the call site. In the above, <code>status_code=200</code> is much nicer
+than a bare <code>200</code>, if you know HTTP well it’s kind of obvious what it is, but
+the additional clarity is nice. But it can be common to break truly complex
+examples down into variables that we end up forwarding to the function, and then
+it becomes verbose <em>and</em> redundant. As an example from inside FastAPI where
+<code>get</code> is invoked directly with all of those options:</p>
+<pre tabindex="0" data-language="python"><code><span><span>self</span><span>.router.get(</span></span>
+<span><span>    path,</span></span>
+<span><span>    response_model</span><span>=</span><span>response_model,</span></span>
+<span><span>    status_code</span><span>=</span><span>status_code,</span></span>
+<span><span>    tags</span><span>=</span><span>tags,</span></span>
+<span><span>    dependencies</span><span>=</span><span>dependencies,</span></span>
+<span><span>    summary</span><span>=</span><span>summary,</span></span>
+<span><span>    description</span><span>=</span><span>description,</span></span>
+<span><span>    response_description</span><span>=</span><span>response_description,</span></span>
+<span><span>    responses</span><span>=</span><span>responses,</span></span>
+<span><span>    deprecated</span><span>=</span><span>deprecated,</span></span>
+<span><span>    operation_id</span><span>=</span><span>operation_id,</span></span>
+<span><span>    response_model_include</span><span>=</span><span>response_model_include,</span></span>
+<span><span>    response_model_exclude</span><span>=</span><span>response_model_exclude,</span></span>
+<span><span>    response_model_by_alias</span><span>=</span><span>response_model_by_alias,</span></span>
+<span><span>    response_model_exclude_unset</span><span>=</span><span>response_model_exclude_unset,</span></span>
+<span><span>    response_model_exclude_defaults</span><span>=</span><span>response_model_exclude_defaults,</span></span>
+<span><span>    response_model_exclude_none</span><span>=</span><span>response_model_exclude_none,</span></span>
+<span><span>    include_in_schema</span><span>=</span><span>include_in_schema,</span></span>
+<span><span>    response_class</span><span>=</span><span>response_class,</span></span>
+<span><span>    name</span><span>=</span><span>name,</span></span>
+<span><span>    callbacks</span><span>=</span><span>callbacks,</span></span>
+<span><span>    openapi_extra</span><span>=</span><span>openapi_extra,</span></span>
+<span><span>    generate_unique_id_function</span><span>=</span><span>generate_unique_id_function,</span></span>
+<span><span>)</span></span></code></pre>
+<p>We actually snuck in another two features into this example: how did we only
+pass five arguments into a function that has 23 parameters?</p>
+<h2 id="optional-andor-default-arguments">Optional and/or Default arguments</h2>
+<p>As the name implies, optional arguments is a feature where you can choose to not pass in an argument,
+and default arguments lets you set a default when an argument is not passed.</p>
+<p>To go back to that example:</p>
+<pre tabindex="0" data-language="python"><code><span><span>@app.get</span><span>(</span></span>
+<span><span>    "/me"</span><span>, </span></span>
+<span><span>    response_model</span><span>=</span><span>UserOut, </span></span>
+<span><span>    status_code</span><span>=</span><span>200</span><span>, </span></span>
+<span><span>    tags</span><span>=</span><span>[</span><span>"Users"</span><span>],</span></span>
+<span><span>    summary</span><span>=</span><span>"Get current user profile"</span></span>
+<span><span>)</span></span>
+<span><span>def</span><span> get_current_user</span><span>():</span></span></code></pre>
+<p>We only passed in five of the 22 possible arguments. If we had to pass all 22 every time, that would
+be extremely verbose. So by declaring defaults for some parameters, we can leave them off of the call
+site, and not pass arguments for them, and get the defaults instead. We saw this in the Ruby:</p>
+<pre tabindex="0" data-language="ruby"><code><span><span># its definition in Rails</span></span>
+<span><span>def</span><span> redirect_to</span><span>(options </span><span>=</span><span> {}, response_options </span><span>=</span><span> {})</span></span></code></pre>
+<p>The <code>= {}</code> are defaults for <code>options</code> and <code>response_options</code>: they’re an empty hash map.</p>
+<p>You’ll often find optional and default arguments come together: after all, if you don’t pass
+an argument in, what should the value of that parameter be? If your language has some sort of
+null value, that can be one solution, and it can feel like optional arguments without default
+arguments.</p>
+<p>But you can truly get one without the other with our next feature, function overloading:</p>
+<h2 id="function-overloading">Function Overloading</h2>
+<p>Languages that support function overloading allow you to define multiple
+functions with the same name, but different signatures. Which function gets
+invoked depends on which arguments you pass. This lets us truly have optional
+arguments without default arguments. In Java:</p>
+<pre tabindex="0" data-language="java"><code><span><span>// Version 1: Requires both arguments</span></span>
+<span><span>void</span><span> connect</span><span>(String url, </span><span>int</span><span> timeout) { ... }</span></span>
+<span></span>
+<span><span>// Version 2: Timeout is optional to the caller, and handled internally</span></span>
+<span><span>void</span><span> connect</span><span>(String url) {  ... }</span></span></code></pre>
+<p>Here, if you pass in a timeout, you get the first function, and if you don’t,
+you get the second. Instead of null, the parameter just doesn’t exist at all.</p>
+<p>This is a specific form of something called “function dispatch,” which basically
+means “hey when a function is invoked, what <em>exactly</em> gets called?” There are a
+<em>lot</em> of different ways to do this, and I don’t want this post to get into all
+of that right now, but there is a multitude of possibilities here: static vs
+dynamic, single vs multiple, predicate dispatch, pattern matching dispatch,
+prototype based dispatch… maybe I’ll write a post about that someday too.</p>
+<p>So, what are the pros and cons here?</p>
+<h2 id="these-features-make-me-uneasy">These features make me uneasy</h2>
+<p>As I said above, Rust doesn’t support any of these three features right now. And
+they have been a persistent request from the community for years. <a href="https://github.com/rust-lang/rfcs/issues/323">Here</a> is
+a 12 year old GitHub issue about this support, and it even includes something we
+didn’t talk about, “variable arity argument lists.”</p>
+<p>That gets me to the first thing that I don’t like about these features: there
+are a <em>lot</em> of them. And they are all intertwined. As we mentioned before, if
+you have optional arguments, you probably want default arguments. If you have
+named parameters, do you want to support <em>only</em> named parameters, or do you want
+to support both? It’s so tempting to just support all of them, and then you’ve
+added a huge mountain of complexity.</p>
+<p>In Rust right now, you have to write multiple functions with slightly different
+names:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>// a new empty vector</span></span>
+<span><span>let</span><span> v </span><span>=</span><span> Vec</span><span>::</span><span>new</span><span>();</span></span>
+<span></span>
+<span><span>// one with a set capacity</span></span>
+<span><span>let</span><span> v </span><span>=</span><span> Vec</span><span>::</span><span>with_capacity</span><span>(</span><span>5</span><span>);</span></span></code></pre>
+<p>For the simple cost of “write two different names for your functions,” you get
+to keep the rules very simple: there is one function definition, and you invoke
+it by name. Done. Would it be nice to be able to say all of these:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>let</span><span> v </span><span>=</span><span> Vec</span><span>::</span><span>new</span><span>();</span></span>
+<span><span>let</span><span> v </span><span>=</span><span> Vec</span><span>::</span><span>new</span><span>(</span><span>5</span><span>);</span></span>
+<span><span>let</span><span> v </span><span>=</span><span> Vec</span><span>::</span><span>new</span><span>(capacity</span><span>:</span><span> 5</span><span>);</span></span></code></pre>
+<p>Sure, maybe. But the cost feels very, very high to me. If you’re used to these
+features, maybe it doesn’t seem that high, but I have a Ruby tattoo on my body.
+I’ve seen some shit. And so I’ve grown to enjoy Rust’s simplicity in this area.
+Yes, if you have a function with tons of parameters, you may need to write a
+builder instead, and that comes with its own form of verbosity:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>// if Vec had a builder</span></span>
+<span><span>let</span><span> v </span><span>=</span><span> Vec</span><span>::</span><span>new</span><span>()</span></span>
+<span><span>    .</span><span>with_capacity</span><span>(</span><span>5</span><span>)</span></span>
+<span><span>    .</span><span>build</span><span>();</span></span>
+<span></span>
+<span><span>// all of the code you have to write to make the builder elided</span></span></code></pre>
+<p>But the language itself stays simple, and the rules are easy. For a language
+that’s already perceived as complex, this has always felt right to me. And that’s
+why I’ve pushed back against the various proposals to extend Rust in this way all
+of these years.</p>
+<p>But recently, I changed my opinion on one of these features, and one alone, and
+I would consider it okay if Rust gained them. Maybe. Also, it’s important to note
+that I haven’t worked on Rust in years, and so my opinions are kind of irrelevant,
+but whatever: it’s my blog, this is what opinions are for.</p>
+<h2 id="im-okay-with-named-parameters-now">I’m okay with named parameters now</h2>
+<p>I think Rust could be okay with named parameters, but <em>not</em> optional or default
+ones. And what changed my opinion is coding agents, actually. I’m sorry, maybe
+you’re sick of me talking about AI, but hear me out.</p>
+<p>One of my beefs with named parameters, as mentioned above, is verbosity. But
+what you gain for that verbosity is clarity. I don’t think that verbosity and
+clarity are always the same thing; I like <code>{}</code> rather than <code>do</code>/<code>end</code>, and find
+it more readable, personally. But let’s take this function from the <code>image</code> crate:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>// definition</span></span>
+<span><span>pub</span><span> fn</span><span> crop_imm</span><span>&lt;</span><span>I</span><span>:</span><span> GenericImageView</span><span>&gt;(</span></span>
+<span><span>    image</span><span>:</span><span> &amp;</span><span>I</span><span>,</span></span>
+<span><span>    x</span><span>:</span><span> u32</span><span>,</span></span>
+<span><span>    y</span><span>:</span><span> u32</span><span>,</span></span>
+<span><span>    width</span><span>:</span><span> u32</span><span>,</span></span>
+<span><span>    height</span><span>:</span><span> u32</span><span>,</span></span>
+<span><span>) </span><span>-&gt;</span><span> SubImage</span><span>&lt;</span><span>&amp;</span><span>I</span><span>&gt; { </span><span>...</span><span> }</span></span>
+<span></span>
+<span><span>// calling it</span></span>
+<span><span>let</span><span> cropped </span><span>=</span><span> image</span><span>::</span><span>imageops</span><span>::</span><span>crop_imm</span><span>(</span><span>&amp;</span><span>img, </span><span>10</span><span>, </span><span>20</span><span>, </span><span>200</span><span>, </span><span>100</span><span>);</span></span>
+<span></span>
+<span><span>// if we had named arguments</span></span>
+<span><span>let</span><span> cropped </span><span>=</span><span> image</span><span>::</span><span>imageops</span><span>::</span><span>crop_imm</span><span>(</span></span>
+<span><span>    image</span><span>:</span><span> &amp;</span><span>img,</span></span>
+<span><span>    x</span><span>:</span><span> 10</span><span>,</span></span>
+<span><span>    y</span><span>:</span><span> 20</span><span>,</span></span>
+<span><span>    width</span><span>:</span><span> 200</span><span>,</span></span>
+<span><span>    height</span><span>:</span><span> 100</span><span>,</span></span>
+<span><span>);</span></span></code></pre>
+<p>This does really increase readability, no question about it. But for me, typing
+all of that out just isn’t really super worth the squeeze. But when Claude is
+gonna write it? I care a lot less. And the readability advantage for humans is
+even stronger for agents: the extra clarity of the text inline seems to (I
+haven’t run real evals on this yet…) be more helpful and use less tokens and
+calls when looking at the actual call site. If an agent were reading that named
+example above, it could tell that <code>10</code> is the <code>x</code> value without having to go
+look up the function signature itself. “What’s good for humans is true for
+agents” strikes again.</p>
+<p>This is also why I’m still against optional arguments: they deliberately
+<em>hide</em> what is being passed in to the function, and obscure clarity at the call
+site. What’s nice about them is that you have to type less. But I’m not typing
+myself anymore. So the benefit just isn’t there, but the drawbacks are. This
+also doesn’t solve the verbosity side of passing <code>foo=foo</code> in our FastAPI
+example, it is still redundant. But one part of the downsides have been
+ameliorated.</p>
+<p>Notably, all of this reasoning also applies to the builder pattern, and it’s why
+I try to use builders sparingly in Rust. It can emulate named arguments, which
+is good, but it can also emulate optional/default/variable arguments, which is
+bad.  The juice is worth the squeeze sometimes, but not all the time, and
+probably not even the majority of the time.</p>
+<p>So we’ve ameliorated the largest downside, but get to keep the largest upside.
+That seems good. But even if we like the feature, there are still lots of
+practical concerns with Rust specifically that make it not a slam-dunk to add
+them to the language.</p>
+<h2 id="theres-tons-of-practical-issues-though">There’s tons of practical issues though</h2>
+<p>Now, “is this feature good in the abstract” is very different from “should this
+feature” be implemented? There are a <em>lot</em> of open questions and drawbacks to
+implementing named parameters. A simple one is that you don’t get rid of all of
+those previous functions, <code>with_capacity</code> will exist forever. That’s a
+relatively minor downside to some of the harder problems.</p>
+<p>First, strictly speaking Rust parameters aren’t names, they’re patterns. A
+name is a simple pattern, but you can get more complex:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>fn</span><span> foo</span><span>((x, y)</span><span>:</span><span> (</span><span>i32</span><span>, </span><span>i32</span><span>)) {</span></span></code></pre>
+<p>This parameter doesn’t have a name, it’s a pattern that introduces two bindings.
+You could come up with some syntax that gives things external names vs internal
+names, but there’s that complexity revealing its head again.</p>
+<p>What happens when functions become values? I can write this today:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>fn</span><span> resize</span><span>(width</span><span>:</span><span> u32</span><span>, height</span><span>:</span><span> u32</span><span>) {</span></span>
+<span><span>    // body elided</span></span>
+<span><span>}</span></span>
+<span></span>
+<span><span>fn</span><span> offset</span><span>(dx</span><span>:</span><span> u32</span><span>, dy</span><span>:</span><span> u32</span><span>) {</span></span>
+<span><span>    // body elided</span></span>
+<span><span>}</span></span>
+<span></span>
+<span><span>let</span><span> f</span><span>:</span><span> fn</span><span>(</span><span>u32</span><span>, </span><span>u32</span><span>) </span><span>=</span><span> if</span><span> resizing { resize } </span><span>else</span><span> { offset };</span></span></code></pre>
+<p>What name do we use for <code>f</code>’s parameters? They can be named different things.
+Does this become an error? What names can you use when invoking <code>f</code>? Making this
+more complicated, Rust actually will accept this code right now:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>type</span><span> Callback</span><span> =</span><span> fn</span><span>(width</span><span>:</span><span> u32</span><span>, height</span><span>:</span><span> u32</span><span>);</span></span>
+<span></span>
+<span><span>fn</span><span> f</span><span>(g</span><span>:</span><span> Callback</span><span>) {}</span></span>
+<span></span>
+<span><span>fn</span><span> bar</span><span>(x</span><span>:</span><span> u32</span><span>, y</span><span>:</span><span> u32</span><span>) {}</span></span>
+<span></span>
+<span><span>fn</span><span> main</span><span>() {</span></span>
+<span><span>    f</span><span>(bar) ;</span></span>
+<span><span>}</span></span></code></pre>
+<p>The names in <code>Callback</code> are just documentation, as you can see they’re not
+required.  Does this become an error? Do we require <code>bar</code> to change its names?
+The same goes for trait definitions, actually:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>trait</span><span> Writer</span><span> {</span></span>
+<span><span>    fn</span><span> write</span><span>(</span><span>&amp;mut</span><span> self</span><span>, data</span><span>:</span><span> &amp;</span><span>[</span><span>u8</span><span>]);</span></span>
+<span><span>}</span></span>
+<span></span>
+<span><span>struct</span><span> Sink</span><span>;</span></span>
+<span></span>
+<span><span>impl</span><span> Writer</span><span> for</span><span> Sink</span><span> {</span></span>
+<span><span>    fn</span><span> write</span><span>(</span><span>&amp;mut</span><span> self</span><span>, bytes</span><span>:</span><span> &amp;</span><span>[</span><span>u8</span><span>]) {</span></span>
+<span><span>        // body elided</span></span>
+<span><span>    }</span></span>
+<span><span>}</span></span></code></pre>
+<p>Is this an error? Is it okay?</p>
+<p>Here’s another problem: evaluation order.</p>
+<pre tabindex="0" data-language="rust"><code><span><span>fn</span><span> consume</span><span>(data</span><span>:</span><span> Vec</span><span>&lt;</span><span>u8</span><span>&gt;, length</span><span>:</span><span> usize</span><span>) {</span></span>
+<span><span>    // body elided</span></span>
+<span><span>}</span></span></code></pre>
+<p>Right now, Rust always evaluates parameters from left to right at the call site.
+So if we use the named version:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>fn</span><span> consume</span><span>(data</span><span>:</span><span> Vec</span><span>&lt;</span><span>u8</span><span>&gt;, length</span><span>:</span><span> usize</span><span>) {</span></span>
+<span><span>    // body elided</span></span>
+<span><span>}</span></span>
+<span></span>
+<span><span>fn</span><span> consume2</span><span>(length</span><span>:</span><span> usize</span><span>, data</span><span>:</span><span> Vec</span><span>&lt;</span><span>u8</span><span>&gt;) {</span></span>
+<span><span>    // body elided</span></span>
+<span><span>}</span></span>
+<span></span>
+<span><span>fn</span><span> main</span><span>() {</span></span>
+<span><span>    let</span><span> data </span><span>=</span><span> vec!</span><span>[</span><span>1</span><span>, </span><span>2</span><span>, </span><span>3</span><span>];</span></span>
+<span></span>
+<span><span>    // this is an error, borrow after move</span></span>
+<span><span>    consume</span><span>(data, data</span><span>.</span><span>len</span><span>());</span></span>
+<span><span>    // this is okay</span></span>
+<span><span>    consume2</span><span>(data</span><span>.</span><span>len</span><span>(), data);</span></span>
+<span></span>
+<span><span>    // does this compile or not?</span></span>
+<span><span>    consume</span><span>(length</span><span>:</span><span> data</span><span>.</span><span>len</span><span>(), data</span><span>:</span><span> data);</span></span>
+<span><span>}</span></span></code></pre>
+<p>If we keep left to right evaluation order according to the definition, but let
+you use named values in any order, suddenly some orders at the call site compile
+and some orders do not.  Do we change evaluation order to do whatever compiles?
+That feels very dangerous and confusing.</p>
+<p>Rust does let you do this with struct fields:</p>
+<pre tabindex="0" data-language="rust"><code><span><span>struct</span><span> Args</span><span> {</span></span>
+<span><span>    data</span><span>:</span><span> Vec</span><span>&lt;</span><span>u8</span><span>&gt;,</span></span>
+<span><span>    length</span><span>:</span><span> usize</span><span>,</span></span>
+<span><span>}</span></span>
+<span></span>
+<span><span>fn</span><span> main</span><span>() {</span></span>
+<span><span>    let</span><span> data </span><span>=</span><span> vec!</span><span>[</span><span>1</span><span>, </span><span>2</span><span>, </span><span>3</span><span>];</span></span>
+<span><span>    </span></span>
+<span><span>    // works</span></span>
+<span><span>    let</span><span> args </span><span>=</span><span> Args</span><span> {</span></span>
+<span><span>        length</span><span>:</span><span> data</span><span>.</span><span>len</span><span>(),</span></span>
+<span><span>        data,</span></span>
+<span><span>    };</span></span>
+<span></span>
+<span><span>    // doesn't</span></span>
+<span><span>    let</span><span> args </span><span>=</span><span> Args</span><span> {</span></span>
+<span><span>        data,</span></span>
+<span><span>        length</span><span>:</span><span> data</span><span>.</span><span>len</span><span>(),</span></span>
+<span><span>    };</span></span>
+<span><span>}</span></span></code></pre>
+<p>This is one reason why a lot of proposals for named arguments try to unify them
+with structs. As I said before, not insurmountable, just things that need to be
+sorted.</p>
+<p>Another small thing is a compatibility hazard: if we start naming parameters,
+renaming them breaks callers. Is that okay? Could you introduce aliases to help
+with this? That’s more complexity…</p>
+<p>These are just some of the problems that come up in the design space, and this
+post is getting long, so I’ll leave it at this for now. But proposals for doing
+this have to engage with all of this and more, which is why language design is
+difficult.</p>
+<h2 id="in-conclusion">In conclusion</h2>
+<p>I like to think that I change my opinions over time as the world or my
+understanding of it changes. So I thought it might be interesting to share a way
+in which an opinion that I’ve held for over a decade has changed a bit lately.
+I’m still not sure if named parameters are right for Rust, but I’m at least
+somewhat open to the idea these days. We’ll see what the language team decides
+if anyone does decide to keep trying to push this forward. And people do, for
+example, I am writing this in part because I saw <a href="https://botahamec.dev/named-optional-args">this post</a> go by today.
+This post isn’t intended to be support or a rebuttal of it, I actually didn’t
+even read it yet, it’s just that I’ve been thinking about this a lot lately
+(while working on <a href="https://rue-lang.dev/">Rue</a>) and seeing that go by pushed me to write some of
+the thoughts down. You should probably go check it out, as it’s an actual
+proposal in this space and this post is more of an exploration of the general
+idea and my own thoughts on it.</p>
+<hr>
+<p>Here’s my post about this post on BlueSky:</p>
+<bluesky-post src="at://did:plc:3danwc67lo7obz2fmdg6jxcr/app.bsky.feed.post/3mw2ahu3pv22q" data-pagefind-ignore="true">  </bluesky-post>  </article></div>
