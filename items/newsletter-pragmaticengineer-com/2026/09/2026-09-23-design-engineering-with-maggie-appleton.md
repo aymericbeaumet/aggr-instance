@@ -46,6 +46,18 @@ images:
     width: 1456
     height: 915
   color: '#018767'
+- source: https://i.ytimg.com/vi/KZSzF0KEFRg/hqdefault.jpg
+  original:
+    file: 2026-09-23-design-engineering-with-maggie-appleton.image-c3c175cef1f8.jpg
+    width: 480
+    height: 360
+  color: '#f1f1f1'
+- source: https://i.ytimg.com/vi/ZfytHvgHybA/hqdefault.jpg
+  original:
+    file: 2026-09-23-design-engineering-with-maggie-appleton.image-ce9b438ad0bc.jpg
+    width: 480
+    height: 360
+  color: '#020202'
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/216793339/2ddc56307e039d75d6fd4be71ae0240c.mp3
