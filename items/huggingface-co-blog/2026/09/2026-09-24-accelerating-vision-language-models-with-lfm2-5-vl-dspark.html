@@ -1,0 +1,144 @@
+<div id="readability-page-1" class="page"><div>
+<p>Today, we release an experimental <a href="https://huggingface.co/papers/2607.05147"><strong>DSpark</strong></a> <strong>draft model for our vision-language model</strong> (VLM) <a href="https://huggingface.co/LiquidAI/LFM2.5-VL-3B">LFM2.5-VL-3B</a>. As with our <a href="https://huggingface.co/blog/LiquidAI/lfm25-dspark">recently released LFM2.5-DSpark drafter models</a>, it adds a speculative decoding path that trades a minimal increase in memory footprint for a larger speedup without changing output quality. </p>
+<ul>
+<li><strong>Faster inference:</strong> decode speedups up to 3.13x on device and 2.66x on an H100, with end-to-end gains up to 2.62x and 2.27x.</li>
+<li><strong>Small memory cost:</strong> the drafter adds 280M parameters, 8.9% on top of the 3B target  </li>
+<li><strong>Day-one support:</strong> LFM-compatible DSpark integrations for llama.cpp, MLX-VLM, and SGLang</li>
+</ul>
+<h2>
+	<a id="how-does-speculative-decoding-work-for-vlms" href="#how-does-speculative-decoding-work-for-vlms" rel="nofollow">
+		
+	</a>
+	<span>
+		How does speculative decoding work for VLMs
+	</span>
+</h2>
+<p>The vision drafter uses the same architecture as our text LFM2.5-DSpark drafters: it captures the target model's hidden states at a fixed set of tapped layers and conditions on them to draft a block of k candidate tokens. Image patches and text tokens are projected into a shared representation before those layers, so the drafter operates on hidden-state vectors of identical dimensionality regardless of input modality. The inference algorithm is therefore unchanged from the text models.
+<a href="https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/P7UX63U74cbjMWDapPjFm.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/P7UX63U74cbjMWDapPjFm.png" alt="DSpark-Vision"></a></p>
+<h2>
+	<a id="training-and-architecture" href="#training-and-architecture" rel="nofollow">
+		
+	</a>
+	<span>
+		Training and Architecture
+	</span>
+</h2>
+<p>We follow the DSpark recipe with a mixture of vision-language SFT data, weighted toward the workloads we expect the model to serve. Based on ablations across 3, 4, and 5 layers, the draft model is a simplified attention-only drafter with 4 layers and a block size of 9. We ran 10 epochs on the final mixture and measured acceptance after each, which improved with additional training tokens before reaching diminishing returns. At inference time, we recommend a block size of 8 or 9 depending on the hardware.</p>
+<p>The resulting drafter has approximately 280M parameters and increases the deployed model’s parameter count by just 8.9%.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Component</th>
+<th>LFM2.5-VL-3B</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Decoder stack (4 layers)</td>
+<td>193.0M</td>
+</tr>
+<tr>
+<td>Hidden-state projection</td>
+<td>21.0M</td>
+</tr>
+<tr>
+<td>Markov head</td>
+<td>65.5M</td>
+</tr>
+<tr>
+<td>Norms + confidence head</td>
+<td>6.4k</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>279.5M</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="inference-speedup-on-cpu-and-gpu" href="#inference-speedup-on-cpu-and-gpu" rel="nofollow">
+		
+	</a>
+	<span>
+		Inference Speedup on CPU and GPU
+	</span>
+</h2>
+<p>The DSpark draft model for LFM2.5-VL-3B ships with day-one support for <a href="https://github.com/ggml-org/llama.cpp" rel="nofollow">llama.cpp</a>, <a href="https://github.com/Blaizzy/mlx-vlm" rel="nofollow">MLX-VLM</a>, and <a href="https://github.com/sgl-project/sglang" rel="nofollow">SGLang</a>.</p>
+<p>We measure both on-device inference and GPU inference. Both configurations use a DSpark block size of 8 and are evaluated on six diverse vision-based tasks, including general VQA, text VQA, image captioning, chart VQA, complex reasoning, and multi-turn conversation, following the <a href="https://huggingface.co/papers/2603.14989">MMSpec benchmark</a>.</p>
+<p><strong>On-device inference.</strong> With MLX on an M5 Max, decoding runs 2.30x to 3.13x faster by task. End-to-end latency improves by 1.56x to 2.62x. With llama.cpp on an M3 Ultra, decoding improves by 1.57x to 2.14x and end-to-end by 1.30x to 1.77x.  </p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/n638hOT2C6Yoflniz2ffs.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/n638hOT2C6Yoflniz2ffs.png" alt="Screenshot 2026-09-24 at 15.49.03"></a></p>
+<p><strong>GPU inference.</strong> On H100, the same drafter delivers 20.4x to 2.66x faster decoding, with end-to-end improvements of 1.64x to 2.27x.   </p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/QUPP6CX21dma5OiIYcEIL.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/QUPP6CX21dma5OiIYcEIL.png" alt="Screenshot 2026-09-24 at 15.49.27"></a></p>
+<h2>
+	<a id="limitations-of-speculation-for-vision-workloads" href="#limitations-of-speculation-for-vision-workloads" rel="nofollow">
+		
+	</a>
+	<span>
+		Limitations of speculation for vision workloads
+	</span>
+</h2>
+<p>In LLMs, prefill is mostly compute-bound, and its cost grows (sub)quadratically with prompt length. VLMs add to this because the image first passes through a vision encoder, then the language backbone processes hundreds of visual tokens along with the text prompt. Edge devices have far less compute than datacenter GPUs, so prefill takes up more of the end-to-end latency, as time-to-first-token and decode measurements on Apple silicon and H100 show. (The M5's per-core GPU neural accelerators narrow this gap).</p>
+<p>Speculative decoding speeds up only decode, not vision encoding or prefill. When those stages already take up much of the wall time, even a large decode speedup gives only a modest end-to-end gain. This is Amdahl's law, where the overall speedup is capped by the part of the workload that isn't accelerated.</p>
+<h2>
+	<a id="how-to-use-lfm25-vl-dspark" href="#how-to-use-lfm25-vl-dspark" rel="nofollow">
+		
+	</a>
+	<span>
+		How to use LFM2.5-VL-DSpark
+	</span>
+</h2>
+<p>Running the DSpark draft models with <strong>SGLang</strong> requires an SGLang build with DSpark support for LFM2 targets (<a href="https://github.com/sgl-project/sglang/pull/40651" rel="nofollow">PR #40651</a>). Launch the target with the draft attached:</p>
+<pre><code>python -m sglang.launch_server \
+  --model-path LiquidAI/LFM2.5-VL-3B \
+  --speculative-algorithm DSPARK \
+  --speculative-draft-model-path LiquidAI/LFM2.5-VL-3B-DSpark \
+  --speculative-draft-attention-backend flashinfer \
+  --speculative-dspark-block-size 9 \
+  --disable-radix-cache
+</code></pre>
+<p>Then query the OpenAI-compatible endpoint at <code>http://localhost:30000/v1</code>. The block size is read from the draft's <code>config.json</code>; the baseline is the same command without the three <code>--speculative-*</code> flags.</p>
+<p>Running them with <strong>llama.cpp</strong> requires the respective llama.cpp build (<a href="https://github.com/ggml-org/llama.cpp/pull/29339" rel="nofollow">PR#29339</a>).</p>
+<pre><code>llama-server -m models/LFM2.5-VL-3B-F16.gguf \
+  --mmproj models/mmproj-LFM2.5-VL-3B-F16.gguf \
+  -md LFM2.5-2.6B-DSpark-F16.gguf \
+  --spec-type draft-dspark --spec-draft-n-max 8 --spec-draft-n-min 0 \
+  -fa on -ngl 99 -c 8192
+</code></pre>
+<p>Running them with MLX-VLM requires the respective build (<a href="https://github.com/Blaizzy/mlx-vlm/pull/2280" rel="nofollow">PR#2280</a>).</p>
+<pre><code>mlx_vlm.server --model LiquidAI/LFM2.5-VL-3B --draft-model LiquidAI/LFM2.5-VL-3B-DSpark
+</code></pre>
+<p>The block size is read from the sidecar metadata (n-max is clamped to it). Speculative decoding is <strong>exact</strong>: the target verifies every proposed token, so greedy output equals the target alone; per-response <code>timings</code> report <code>draft_n</code> / <code>draft_n_accepted</code>.</p>
+<h2>
+	<a id="get-started" href="#get-started" rel="nofollow">
+		
+	</a>
+	<span>
+		Get Started
+	</span>
+</h2>
+<p>Our vision DSpark draft model is available on Hugging Face in <a href="https://huggingface.co/LiquidAI/LFM2.5-VL-3B-DSpark">Safetensors</a> and <a href="https://huggingface.co/LiquidAI/LFM2.5-VL-3B-DSpark-GGUF">GGUF formats</a>. </p>
+<p>With LFM2.5, we're delivering on our vision of AI that runs anywhere. These models are:</p>
+<ul>
+<li><strong>Open-weight</strong> — Download, fine-tune, and deploy without restrictions.  </li>
+<li><strong>Fast from day one</strong> — Day-one support for llama.cpp, MLX, and SGLang.  </li>
+<li><strong>A complete family</strong> — From base models for customization to specialized audio and vision variants, one architecture covers diverse use cases</li>
+</ul>
+<p>We can’t wait to see what you build.</p>
+<h2>
+	<a id="citation" href="#citation" rel="nofollow">
+		
+	</a>
+	<span>
+		Citation
+	</span>
+</h2>
+<p>For citations, please use the following reference or BibTeX:<br><em>Liquid AI, "LFM2.5-VL-DSpark: Accelerating vision-language models on edge and beyond", Liquid AI Blog, Sep 2026.</em></p>
+<pre><code>@article{liquidAI2026vldspark,
+  author = {Liquid AI},
+  title = {LFM2.5-VL-DSpark: Accelerating vision-language models on edge and beyond},
+  journal = {Liquid AI Blog},
+  year = {2026},
+  note = {www.liquid.ai/blog/lfm2-5-vl-dspark},
+}
+</code></pre>
+</div></div>
