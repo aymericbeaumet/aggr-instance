@@ -1,0 +1,75 @@
+---
+title: How We Trapped Light and Built the Internet
+link: https://www.youtube.com/watch?v=NiCgcUTL9_Q
+source: youtube-com-veritasium
+published: 2026-10-12T17:11:45Z
+updated: 2026-10-12T22:25:45Z
+first_seen: 2026-10-12T22:35:36.108955126Z
+authors:
+- Veritasium
+summary: "Why making glass fibers to send signals was almost impossible. Sponsored by Saily - 🌎 Get an exclusive 15% discount on Saily data plans!  Download Saily app go to https://saily.com/veritasium Use code veritasium at checkout ⛵\n\nIf you’re looking for a molecular modelling kit, try Snatoms, a kit I invented where the atoms snap together magnetically - https://ve42.co/SnatomsV \n\nFor the latest science news, and for an exclusive bonus Q&A with Sulli, the director of this video, sign up to the Veritasium newsletter - https://ve42.co/VeMail_FO\n\nFor early access to work in progress videos join our patreon https://ve42.co/VePatreon \n\n▀▀▀\n0:00 What are fiber optics?\n2:02 Why Copper Phone Lines Had Limited Capacity\n5:13 Trying To Go From Copper Communication To Glass\n8:15 Why is glass so ‘lossy’?\n11:29 Scattering and Absorption\n16:00 How can you remove impurities in glass?\n19:00 How They Make Fiber Optic Glass\n26:47 The Technology that Made the Internet Possible \n\n▀▀▀\nSpecial thanks to the experts and collaborators who made this video possible:\nDr. Donald Keck\nProf. Vincent Chan\nSir David Payne\nDr. Nikola Alic\nJim Hayes\nJeff Hecht, whose book City of Light: The Story of Fiber Optics was an invaluable resource for this video (explore his work at https://www.jeffhecht.com).\nManuel (https://www.youtube.com/@DiffractionLimited)\nTrulala CANDY Chef (https://www.youtube.com/@TrulalaCANDYChef)\nAdditional thanks to:\nROSENDAHL NEXTROM for providing animations and fiber manufacturing 3D assets.\nBay Area Glass Institute for hosting our team.\nPrysmian for giving us a guided tour of their fiber manufacturing plant, and our two on screen experts:\nSujeet Rao, Operational Excellence Fiber Director and Jon Fitz, Technical Sales Support Sr. Manager.\n\n▀▀▀\nReferences: https://ve42.co/FiberRefs\n\nNote: The skin effect explanation is simplified. The full analysis involves the eddy currents' own magnetic fields, which induce further currents, and so on. Here’s an article on the same: https://ve42.co/SkinEffectDerivation\n\n▀▀▀\nSpecial thanks to our Patreon supporters:\nAdam Foreman, Albert Wenger, Alex Porter, Alexander Tamas, André Powell, Anton Ragin, Balkrishna Heroor, Bertrand Serlet, Blake Byers, Bruce, Bryan Ackermann, Chris Brewer, Data Don, Dave Kircher, David Johnston, David Tseng, EJ Alexandra, Evgeny Skvortsov, Garrett Mueller, Gnare, gpoly, Hayden Christensen, Hong Thai Le, Ibby Hadeed, Jeromy Johnson, Juan Benet, Kelcey Steele, Kyi, Lee Redden, Marinus Kuivenhoven, Mark Heising, Meekay, meg noah, Michael Krugman, Orlando Bassotto, Parsee Health, Patreon mp22, Paul Peijzel, Robson, Sam Lutfi, Shalva Bukia, Sinan Taifour, Steven, Sweet_Nemo, Tair Aurmont, Tj Steyn, Ubiquity Ventures, Vahe Andonians, wolfee\n\n▀▀▀\nCredits\nWriters: Sulli Yost, Henry van Dyck\nProducer and Director: Sulli Yost\nPresenter: Henry van Dyck\nEditors: George Reynolds, Trenton Oliver and Axel Oliver\nAssistant Editor: James Stuart\nIllustrators: Jakub Misiek, Raphael Aubry, Thomas Brizard and Emma Wright\nAnimators: Aleksandrs Loginovs, Alex Drakoulis, Andrew Neet, Andrew Wernette, Domonkos Józsa, Emma Wright, Fabio Albertelli, Rokas Viksraitis and Sulli Yost\nResearchers: Aakash Singh Bagga, Sophia Rose, Callum Cuttle and Gabe Strong\nCamera Operators: Sulli Yost, Aaron Zhizhin, Emilia Gyles and Jesse Chandler\nThumbnail Designers: Abdallah Rabah, Daniel Ellacott\nProduction Team: Anna Milkovic, Glen Griffiths, Jess Bishop-Laggett, Matthew Cavanagh\nExecutive Producers: Derek Muller, Emilia Gyles and Henry van Dyck"
+content: feed
+html: 2026-10-12-how-we-trapped-light-and-built-the-internet.html
+remote_preview:
+  url: https://i3.ytimg.com/vi/NiCgcUTL9_Q/hqdefault.jpg
+extra:
+  thumbnail: https://i3.ytimg.com/vi/NiCgcUTL9_Q/hqdefault.jpg
+---
+
+Why making glass fibers to send signals was almost impossible. Sponsored by Saily - 🌎 Get an exclusive 15% discount on Saily data plans! Download Saily app go to https://saily.com/veritasium Use code veritasium at checkout ⛵
+
+If you’re looking for a molecular modelling kit, try Snatoms, a kit I invented where the atoms snap together magnetically - https://ve42.co/SnatomsV
+
+For the latest science news, and for an exclusive bonus Q&A with Sulli, the director of this video, sign up to the Veritasium newsletter - https://ve42.co/VeMail_FO
+
+For early access to work in progress videos join our patreon https://ve42.co/VePatreon
+
+▀▀▀\
+0:00 What are fiber optics?\
+2:02 Why Copper Phone Lines Had Limited Capacity\
+5:13 Trying To Go From Copper Communication To Glass\
+8:15 Why is glass so ‘lossy’?\
+11:29 Scattering and Absorption\
+16:00 How can you remove impurities in glass?\
+19:00 How They Make Fiber Optic Glass\
+26:47 The Technology that Made the Internet Possible
+
+▀▀▀\
+Special thanks to the experts and collaborators who made this video possible:\
+Dr. Donald Keck\
+Prof. Vincent Chan\
+Sir David Payne\
+Dr. Nikola Alic\
+Jim Hayes\
+Jeff Hecht, whose book City of Light: The Story of Fiber Optics was an invaluable resource for this video (explore his work at https://www.jeffhecht.com).\
+Manuel (https://www.youtube.com/@DiffractionLimited)\
+Trulala CANDY Chef (https://www.youtube.com/@TrulalaCANDYChef)\
+Additional thanks to:\
+ROSENDAHL NEXTROM for providing animations and fiber manufacturing 3D assets.\
+Bay Area Glass Institute for hosting our team.\
+Prysmian for giving us a guided tour of their fiber manufacturing plant, and our two on screen experts:\
+Sujeet Rao, Operational Excellence Fiber Director and Jon Fitz, Technical Sales Support Sr. Manager.
+
+▀▀▀\
+References: https://ve42.co/FiberRefs
+
+Note: The skin effect explanation is simplified. The full analysis involves the eddy currents' own magnetic fields, which induce further currents, and so on. Here’s an article on the same: https://ve42.co/SkinEffectDerivation
+
+▀▀▀\
+Special thanks to our Patreon supporters:\
+Adam Foreman, Albert Wenger, Alex Porter, Alexander Tamas, André Powell, Anton Ragin, Balkrishna Heroor, Bertrand Serlet, Blake Byers, Bruce, Bryan Ackermann, Chris Brewer, Data Don, Dave Kircher, David Johnston, David Tseng, EJ Alexandra, Evgeny Skvortsov, Garrett Mueller, Gnare, gpoly, Hayden Christensen, Hong Thai Le, Ibby Hadeed, Jeromy Johnson, Juan Benet, Kelcey Steele, Kyi, Lee Redden, Marinus Kuivenhoven, Mark Heising, Meekay, meg noah, Michael Krugman, Orlando Bassotto, Parsee Health, Patreon mp22, Paul Peijzel, Robson, Sam Lutfi, Shalva Bukia, Sinan Taifour, Steven, Sweet\_Nemo, Tair Aurmont, Tj Steyn, Ubiquity Ventures, Vahe Andonians, wolfee
+
+▀▀▀\
+Credits\
+Writers: Sulli Yost, Henry van Dyck\
+Producer and Director: Sulli Yost\
+Presenter: Henry van Dyck\
+Editors: George Reynolds, Trenton Oliver and Axel Oliver\
+Assistant Editor: James Stuart\
+Illustrators: Jakub Misiek, Raphael Aubry, Thomas Brizard and Emma Wright\
+Animators: Aleksandrs Loginovs, Alex Drakoulis, Andrew Neet, Andrew Wernette, Domonkos Józsa, Emma Wright, Fabio Albertelli, Rokas Viksraitis and Sulli Yost\
+Researchers: Aakash Singh Bagga, Sophia Rose, Callum Cuttle and Gabe Strong\
+Camera Operators: Sulli Yost, Aaron Zhizhin, Emilia Gyles and Jesse Chandler\
+Thumbnail Designers: Abdallah Rabah, Daniel Ellacott\
+Production Team: Anna Milkovic, Glen Griffiths, Jess Bishop-Laggett, Matthew Cavanagh\
+Executive Producers: Derek Muller, Emilia Gyles and Henry van Dyck
