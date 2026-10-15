@@ -1,0 +1,110 @@
+<p><img src="/img/tunnel_vision.png" alt="August Mosca's lithograph Subway Tunnel, showing train tracks receding into a long arched tunnel" /></p>
+
+<h3 id="is-long-horizon-reasoning-compatible-with-persistence">Is Long-Horizon Reasoning Compatible with Persistence?</h3>
+
+<p>It’s been a bit since we’ve added a new <a href="https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html">context failure mode</a>, but the increasing <em>persistence</em> of frontier models has brought this fail to the fore. This one I call <strong>Context Inertia</strong>:</p>
+
+<blockquote>
+  <p><strong>Context Inertia</strong> is when the model commits to a hypothesis, subtask, or goal in its context and keeps pursuing it after the evidence says to stop or change course.</p>
+</blockquote>
+
+<p>This failure mode is part <a href="https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html#context-poisoning">context poisoning</a> (when an error makes it into the context and is repeatedly referenced) and part <a href="https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html#context-distraction">context distraction</a> (when a context grows so long the model over-focuses on it), amplified by frontier models <a href="https://www.dbreunig.com/2026/08/30/who-taught-the-models-to-do-that.html">the labs have trained to be relentless instruction followers</a>.</p>
+
+<p>A couple days ago, buried in <a href="https://www.anthropic.com/research/self-replicating-ai">a piece about AI self-replication capabilities</a>, Anthropic shared a perfect <strong>Context Inertia</strong> case study when describing a custom harness:</p>
+
+<blockquote>
+  <p>Memento is designed to mitigate a common failure mode we observe in long-horizon runs: an agent can become fixated on an incorrect idea (for, say, why a bug is occurring) and continue pursuing it instead of backtracking. One example of such a failure is a Qwen agent debugging package versioning for hours when the real bug came from implementing an endpoint incompatible with the grader API.</p>
+</blockquote>
+
+<p>Each Memento agent works until a fixed timeout (1.5 hours, in one experiment), then writes a short note detailing its work. A fresh agent inherits the codebase, the environment, the note, and nothing else.</p>
+
+<p><img src="/img/memento.png" alt="Guy Pearce in Christopher Nolan's *Memento*" /></p>
+
+<p class="image-caption">Guy Pearce as Qwen, trying to remember how to install llama.cpp.</p>
+
+<p>Anthropic isn’t the only one facing this problem, or applying the forgetting fix. In just a week, we had two papers hitting exactly the same note. <a href="http://jackcai.me">Jack Ziyang Cai</a> and <a href="https://chziakas.github.io">Christos Ziakas</a> submitted a paper on October 5th called “<a href="https://arxiv.org/html/2610.07447v1">Fork-and-Flush</a>”, writing (<em>emphasis mine</em>):</p>
+
+<blockquote>
+  <p>We first examine how solution quality evolves over long autoresearch runs. The score of the best solution found so far tends to plateau within a run. More revealingly, <strong>independent runs of the same agent on the same task plateau at substantially different levels, with gaps that persist even after considerable additional compute</strong>.</p>
+</blockquote>
+
+<p>When agents found good solutions, they tended to fixate on them. Better solutions existed, but the path to them was never explored. Cai and Ziakas’ baseline runs delivered a <em>wide</em> range of results, between 68.3 and 100.0 on one task, despite plateauing with plenty of compute budget left.</p>
+
+<p><a href="https://alex-q-z.github.io">Qizheng Zhang</a> and coauthors published a paper, “<a href="https://arxiv.org/html/2610.07625v1">Stateless Language Agents</a>” (SLAs), detailing how long-running auto-research loops settle into busy work once a sufficient solution is found. A model using the <a href="https://github.com/Human-Agent-Society/CORAL">CORAL</a> harness found its last improvement in 231 million tokens, and then just kinda…dawdled. Of the final 1,500 turns, 98% made <em>no tool calls</em>. The model just chewed on its existing context.</p>
+
+<p>Both Fork-and-Flush and SLA arrived at a similar conclusion to Anthropic: reset the chat history, while keeping the harness’s state<sup id="fnref:harness"><a href="#fn:harness" class="footnote" rel="footnote" role="doc-noteref">1</a></sup>.</p>
+
+<hr />
+
+<h3 id="models-fixate-as-contexts-grow">Models Fixate as Contexts Grow</h3>
+
+<p>Since writing about <a href="https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html#context-distraction">Context Distraction</a> way back in June of 2025, there’s been some great research illustrating the issue. Carolina Camassa and Derek Shiller’s paper “<a href="https://arxiv.org/html/2605.20382v3">Do as I say, Not as I Do</a>” illustrates the problem rather well.</p>
+
+<p>Camassa and Shiller present a model with initial instructions, like, “I want you to translate every question into Russian as your answer to each of my questions.” They then append turns to the chat history that <em>don’t follow</em> this command, before prompting the model with a question.</p>
+
+<p><img src="/img/do_as_i_say.png" alt="Diagram of the Do as I say, Not as I Do setup: an instruction, followed by N chat turns that ignore it, then a final question" /></p>
+
+<p class="image-caption">From Camassa and Shiller’s “<a href="https://arxiv.org/html/2605.20382v3">Do as I say, Not as I Do</a>”</p>
+
+<p>If the model replies according to the original instructions, it’s successful. If it gets distracted by all the bad examples, it fails. Camassa and Shiller steadily increased the number of bad examples, noting each model’s success rate. Here’s how well they did on the “Task-based” category, from the above diagram:</p>
+
+<p><img src="/img/task_based_distraction.png" alt="Heatmap of instruction-following rates for 13 models as contradicting chat turns increase from 1 to 50" /></p>
+
+<p>Even the largest models stumbled, losing sight of their task as the distractions grew.</p>
+
+<p>While we’re not likely to design systems with such egregious examples, as our agentic work runs longer and longer, <a href="https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html#context-poisoning">Context Poisoning</a> and <a href="https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html#context-distraction">Distraction</a> become inevitable. Every tool call or reasoning turn an agent spends on a suboptimal hypothesis is one more example written into the context.</p>
+
+<p>Would compaction fix this? <a href="https://www.dbreunig.com/2025/06/26/how-to-fix-your-context.html#context-summarization">Context Summarization</a> is a default tool in most of our systems these days. But it doesn’t work. Fork-and-Flush found Context Inertia “persists despite periodic compaction of conversation history.”</p>
+
+<p>There are many compaction methods, but almost all of them seek to extend the available context while preserving the stated tasks and <em>the current, in-progress work</em>. This potentially distills what’s driving the model’s hyper-focus.</p>
+
+<p>Fork-and-Flush, SLA, and Memento suggest that our harnesses have another job: preventing Context Inertia.</p>
+
+<hr />
+
+<h3 id="is-context-inertia-a-limit-of-reasoning-models">Is Context Inertia a Limit of Reasoning Models?</h3>
+
+<p>We’ve been wrestling with Context Inertia in DSPy optimizers for a bit now<sup id="fnref:dspy"><a href="#fn:dspy" class="footnote" rel="footnote" role="doc-noteref">2</a></sup> and I’m aware of others designing around it, in addition to Fork-and-Flush, SLA, and Memento. So why is everyone noticing the same problem at once?</p>
+
+<p>For one, the models are similarly persistent, or “<a href="https://simonwillison.net/2026/jun/11/fable-is-relentlessly-proactive/">relentlessly proactive</a>” as <a href="https://simonwillison.net">Simon</a> says. This isn’t a one-model issue: Fork-and-Flush ran GPT-5.5 and 5.6, SLA ran Codex and Claude Code, and Memento was driven by Qwen and GLM. <a href="https://www.dbreunig.com/2026/08/30/who-taught-the-models-to-do-that.html">Persistence is a quality labs are targeting</a>, and it’s a double-edged sword.</p>
+
+<p>But I think the bigger reason we’re all hitting this now is because only recently have agents been able to run for <em>so long</em>. When I wrote “How Long Contexts Fail” in June of 2025, you’d be lucky to string together a couple hundred thousand tokens in a single go. Today? Agents are running for <em>days</em>, over billions of tokens. Long enough for inertia to become a threat.</p>
+
+<p>Will Context Inertia limit <a href="https://www.dbreunig.com/2025/04/11/what-we-mean-when-we-say-think.html">reasoning models</a>? Is task persistence compatible with agents that run for days? Or is this a job we have to leave to code, the harness, to keep Context Inertia at bay?</p>
+
+<p>Personally, I wouldn’t bet on Context Inertia being an insurmountable limit. Researchers and labs have trained the models to search during reasoning; now they need to balance this with the ability to recognize and respond to inertia. It’s a new optimization target.</p>
+
+<hr />
+
+<h3 id="what-can-we-do-about-context-inertia-now">What Can We Do About Context Inertia Now?</h3>
+
+<p>What do we do in the meantime?</p>
+
+<p>For agentic programmers, there’s an easy solution: reset your context. Already, in the group chats I’m in, this is a frequent refrain. “The model is doing something weird? How full is your context?” More often than not, this works!</p>
+
+<p><img src="/img/resetting_your_context.png" alt="“Have you tried resetting your context?”" /></p>
+
+<p>This is a habit we can learn (I sure have), typing <code class="language-plaintext highlighter-rouge">/context</code> before I hit send on any long-running jobs or if I notice the model flailing (weird writing is a frequent <em>smell</em> that triggers a reset). But there’s nothing preventing you from building your own Memento. You can keep it simple (grab <a href="https://www.amazon.com/Kitchen-Timer-Digital-Countdown-Stopwatch/dp/B07D3BFY6R">this kitchen timer</a>) or vibe up something fun (here’s <a href="https://github.com/dbreunig/pi-mast-steer">a Pi plugin I made last week that uses a Jev to watch for bad behavior</a>).</p>
+
+<p>For harnesses and workflow builders, this is a new job to be done. Don’t count on <a href="https://www.dbreunig.com/2025/06/26/how-to-fix-your-context.html#context-summarization">compaction</a> alone; explore Context <a href="https://www.dbreunig.com/2025/06/26/how-to-fix-your-context.html#context-quarantine">Quarantine</a> and <a href="https://www.dbreunig.com/2025/06/26/how-to-fix-your-context.html#context-offloading">Offloading</a> to prevent Inertia. For long-running tasks, stash your state in the harness and don’t be afraid of a reset.</p>
+
+<hr />
+
+<form action="https://buttondown.com/api/emails/embed-subscribe/dbreunig" method="post" target="popupwindow" class="embeddable-buttondown-form">
+  <label for="bd-email">Enter your email to receive the occasional update.</label>
+  <div class="form-input">
+    <input type="email" name="email" id="bd-email" placeholder="your@email.com" />
+    <input type="submit" value="Subscribe" />
+  </div>
+</form>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:harness">
+      <p>Here’s a quick overview of <a href="https://www.dbreunig.com/2026/08/14/harnesses-are-situated-agents.html">the state managed by harnesses</a>. <a href="#fnref:harness" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+    <li id="fn:dspy">
+      <p><a href="https://github.com/stanfordnlp/dspy/releases/tag/3.4.1">This week’s release</a> lays the foundation for some ways to avoid Context Inertia in GEPA and other optimization techniques, which we’ve been experimenting with in <a href="https://github.com/cmpnd-ai/skilled-proposer">Skilled Proposer</a>. <a href="#fnref:dspy" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
