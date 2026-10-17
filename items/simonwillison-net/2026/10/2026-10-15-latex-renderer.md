@@ -1,0 +1,50 @@
+---
+title: LaTeX renderer
+link: https://simonwillison.net/2026/Oct/15/latex/
+source: simonwillison-net
+published: 2026-10-15T02:07:28Z
+updated: 2026-10-15T02:07:28Z
+first_seen: 2026-10-17T00:21:44.539394313Z
+labels:
+- ai
+- generative-ai
+- latex
+- llms
+- paul-ford
+- tools
+- urls
+summary: 'Tool: LaTeX renderer Inspired by Paul Ford and Aboard Foundary''s new web app Tiny Little Office, which provides a suite of web app content editors (a Word Processor, Outliner, Presentation Builder, Spreadsheet, Calculator, Drawing Tool, Diagram Maker, Animator, Calendar, and Trip Planner). Tiny Little Office''s signature trick is to store all of the document data in the #fragment section of the URL, so every document created using it becomes a bookmarkable and shareable link. It also has an llms.txt file telling agents how to construct URLs that will render as documents. Claude used that file to generate this link to a deck that explains how the URL format works: Tiny Little Office inspired me to have Claude Code (Opus 5.5 Extra) build a similar tool that works with LaTeX. Here''s the sequence of prompts I used: I want a tool where you can link to it with a fragment hash #code-here and it treats that code as LaTeX and renders it really effectively. It should also support a prefix which means the latex is compressed with a custom compression dictionary optimized for latex. Use the best available latex render library from a CDN (consider WebAssembly too). If loaded without a fragment hash show an editor you can paste latex into and then toggle to a "rendered" view. That rendered view should be bookmarkable. The #fragment view should let you switch to edit source too. Since it was working in my tools repo I told it to take inspiration from the <iframe sandbox="..."> mechanism used by my existing SVG in Markdown tool as protection against XSS risks: Safe from XSS? We could run in an iframe sandbox like we do on the SVG markdown render project I had it copy the Gist/URL loading feature from that tool as well: We should have an option to load latex from a URL (or gist) similar to the markdown SVG tool Here''s an example link. The tool uses Pako 2.1.0, MathJax 4.1.3, faster-latex 0.3.1, and DOMPurify 3.4.16. Tags: latex, paul-ford, tools, urls, ai, generative-ai, llms'
+content: feed
+html: 2026-10-15-latex-renderer.html
+remote_preview:
+  url: https://static.simonwillison.net/static/2026/tiny-little-office.webp
+  alt: Screenshot of a slide deck editor in a web app with a dark-themed presentation open. The document title field reads "How a Tiny Little Office link works", with a progress ring, share icon and menu icon at top right. Below is a formatting toolbar with an "Insert" dropdown followed by icon buttons for
+---
+
+**Tool:** [LaTeX renderer](https://tools.simonwillison.net/latex)
+
+Inspired by Paul Ford and Aboard Foundary's new web app [Tiny Little Office](https://tinylittleoffice.com/), which provides a suite of web app content editors (a Word Processor, Outliner, Presentation Builder, Spreadsheet, Calculator, Drawing Tool, Diagram Maker, Animator, Calendar, and Trip Planner).
+
+Tiny Little Office's signature trick is to store all of the document data in the `#fragment` section of the URL, so every document created using it becomes a bookmarkable and shareable link.
+
+It also has [an llms.txt file](https://tinylittleoffice.com/llms.txt) telling agents how to construct URLs that will render as documents. Claude [used that file](https://claude.ai/share/239301ff-edde-420e-b433-b9c16fe40a6c) to generate [this link to a deck](https://tinylittleoffice.com/#/v1/deck/zXVVdb9tGEHznr1hED2kBSbZcO4UFtIHTuCgQtylstwH6Uq7Io3gRdcfeHS1T_fjtnV1Ssp038r52d2Z2djabZcmmxizpJ78jpnvrerqxCUv0sapsYaixbkM7HzYxS7XZ4ujWls6u65SlwC7aZL1bUmxsabIZHpxMaCmXlnRfG9rVHm~Vvui2xiWykfDK8Ojfc439b5bN6BdP0YQHE6bkPJWceMXR6A8Xhe9cwqFr7Peptm5NXCUT9Kl8klNM3EeyjnrfBVoFv8Nj2TGbaDgU9ZKuHCe_7clXKFVSkMh5Qs2Nluy14nnhtyeTk4fFSWmKzUn_7e~f5_N5LkcfFvlSg1Y~bDkR8omoXrbkLDZ3tS1q4rYl3xqHnCTvvB~vbX2J2k1C7rI8vjzsHSCaEuK3wcRoSmJXknEFrpVZ9r0CWgVeK5QDBBOB1BlkAgCxmry~dgAz~hePj0i1wT5wMnIY_Ohl0FQ~cTN_Aq~yIo~7ZFpaoL5gcc8iOg6bx5QdaHlB8f3Nxykg_pnDpvQ7Rw8cLCuFdyKTSLEF4uQd5QiTS0gTsftDzSHFKZWBd2A5av3sLLAGzPgNqB94AJlV44uN3LmvEVDQl8C88l2iBX14JyS3DUMTY5pjOS0XG14fKjqDcP_qjNlLTVLLLe_o_fWPN1f319MBSN4a4mbtUXi9lbL3ttW81vgQFvcgcIg0XjwwPv7SDjeBhnBqEpW2kGI49HIu4Bw0fqAcGwRdcdMc6O6fXdAKAcBurA9dWSrYR_AjddGIuH1ayqNbvHft1o2N9RTqc5IIUi~5J4fCAHVEXC5jbZBa1TkNheUjdbF3iR_ndGtaw3i_9RYcr1jwdtAPaLQuJrwhGa2MNGdsTdOAI3DxTEii4hH2b2AivFEd_XZ7M4tcGQH_XZ~gjZVB4oak_9~cd6FZ0htaWQkNmRZQCBdj_1zN_iCe7el0dpkLWZDTf7kWmP~p_Yq_YMBNYQZpd7HjBprLp8OpmViHbRpSDKiCDNWLBo9xxpQatQCyM21DLD8rSNQ6uBwKtgU71eGUVj1Fu0dJeZ4rsnplPL7ioL93CTKkf4aiMyFRhIqFi_PLs~y9qRp0aDmIp8fy4vzsIrsR32y5bzzwxtrl6UKCiFgu5hejLNSKozTg2EdjGz11EioV2kYXpM6VgPZsenp6~gSwaKP2IcF_fLeuxfKgoJjkRBKHi8~43Zh~SZ_qXgyYAMTrpJAKwQDD9ErvJ5Qi7amGdBT1lGpuKl1cKf~DwhDDDTxoj3N6HeFVvfSR9pp1ChBVbJs4oPSqtLA3uAN8zWMjqExfaZshma~~zqVmbWqYGN7j1s4_q3l4MSXG7BunwnFwpCQ~tKTrRwy7KI4l940rdXS8BUK7fLR6HlxI29ylIfH8bZkfJ4HYrSRyGBfztk2PJzIBSFpNOI2jtaLLYbs4~KsWK~MGpgAz10G8pHyYTRP0_Xc5EOm~0CmE89L2ihrnoVUxkfRi8sJzHYTonVE_Ua0cR3Shm1H9CXPLNP2XjovGNI3M0_1smG4C4P8) that explains how the URL format works:
+
+![Screenshot of a slide deck editor in a web app with a dark-themed presentation open. The document title field reads \"How a Tiny Little Office link works\", with a progress ring, share icon and menu icon at top right. Below is a formatting toolbar with an \"Insert\" dropdown followed by icon buttons for play, bold, italic, underline, strikethrough, highlight, code, link, superscript, emoji, outdent, indent, layout and color palette. The main canvas shows slide 1 with a blue chain-link icon and the text: \"The whole document is the link\" \"No server, no database, no account\" \"Everything after the # stays in your browser\" and a slide counter \"1 / 9\". Below the canvas is a \"SPEAKER NOTES\" heading. A sidebar on the right shows slide thumbnails. Slide 1 (selected): \"The whole document is the link\" \"No server, no database, no account\" \"Everything after the # stays in your browser\". Slide 2: \"Anatomy of a link\" with bullets \"tinylittleoffice.com/#/v1/deck/y7Vj...\" \"v1: the format version\" \"deck: which app opens it\" \"y: the mode letter\" \"7Vj...: the document, compressed and encoded\". Slide 3: \"Step 1: write it as text\" with bullets \"Every document is TLO, a Markdown variant\" \"Slides split on --- lines\" \"Charts, drawings and animations are fenced blocks\" \"This deck is about 1 KB of plain text\". Slide 4: \"Step 2: squeeze it\" with bullets \"Raw DEFLATE, the same algorithm as zip and gzip\" \"z: plain DEFLATE\" \"y: DEFLATE with a preset dictionary\" \"r: no compression at all\".](https://static.simonwillison.net/static/2026/tiny-little-office.webp)
+
+Tiny Little Office inspired me [to have Claude Code](https://claude.ai/code/session_017KJrPqqWVHLqr4E7TLPnpt) (Opus 5.5 Extra) build a similar tool that works with LaTeX. Here's the sequence of prompts I used:
+
+> `I want a tool where you can link to it with a fragment hash #code-here and it treats that code as LaTeX and renders it really effectively. It should also support a prefix which means the latex is compressed with a custom compression dictionary optimized for latex. Use the best available latex render library from a CDN (consider WebAssembly too). If loaded without a fragment hash show an editor you can paste latex into and then toggle to a "rendered" view. That rendered view should be bookmarkable. The #fragment view should let you switch to edit source too.`
+
+Since it was working in [my tools repo](https://github.com/simonw/tools) I told it to take inspiration from the `<iframe sandbox="...">` mechanism used by my existing [SVG in Markdown tool](https://tools.simonwillison.net/markdown-svg-renderer) as protection against XSS risks:
+
+> `Safe from XSS? We could run in an iframe sandbox like we do on the SVG markdown render project`
+
+I had it copy the Gist/URL loading feature from that tool as well:
+
+> `We should have an option to load latex from a URL (or gist) similar to the markdown SVG tool`
+
+Here's [an example link](https://tools.simonwillison.net/latex#~1jZq9DoIwEIB3nuKGbigJJS5svoAOMJuQ4EBEJWJjGHh3765A_8DIQtJfIMdR-n0uCV9l4DOs_p8ua3ZZKK2anOsaTqya9AZnHhMo3qqewKWPMh2SOQOFkhSJtmruY1QungBJFk-cQLsspAF8qgFPWKQ6FmdYdCB7oseX5HVNfgE-HGmM2OPATDfAlCssyLcLGI4BONwZ7E8pby5KWoilFBK0n5T4lMeHgQaMMsYjS6hrG61G4Micmcj2EN48tyVgHpzNKMBEHuxEbV0dZhsJwZB7_Lux0mR4YDc9HTd1bnGaki0V1nr6kGHSI8NAwCWaVjeAPyYUNAYxUZt8k2aKlODPRQq7JIYMS-VKaQwHrMmoxqWeLlT6Ag). The tool uses [Pako 2.1.0](https://github.com/nodeca/pako), [MathJax 4.1.3](https://github.com/mathjax/MathJax), [faster-latex 0.3.1](https://github.com/arena-ai/faster-latex), and [DOMPurify 3.4.16](https://github.com/cure53/DOMPurify).
+
+![Screenshot of a web app titled \"LaTeX renderer\" with a split-pane layout. The top bar has an Edit/Rendered toggle, a blue Copy link button, and a Share button. The left pane, labeled LaTeX source with a \"Document · faster-latex (WASM)\" badge, has a URL/GitHub Gist input with a Load button, a code editor containing a LaTeX document, and rows of example buttons (Quadratic formula, Gaussian integral, Maxwell, Attention, Matrix, Chemistry, Prose, TikZ, Document). The right pane shows the typeset output: a paper titled \"Sums of Odd Numbers\" by A. Student, with a section stating a theorem that the first n odd numbers sum to n squared, a Proof section with numbered equations, and a bulleted list of small cases.](https://static.simonwillison.net/static/2026/latex-tool.webp)
+
+Tags: [latex](https://simonwillison.net/tags/latex), [paul-ford](https://simonwillison.net/tags/paul-ford), [tools](https://simonwillison.net/tags/tools), [urls](https://simonwillison.net/tags/urls), [ai](https://simonwillison.net/tags/ai), [generative-ai](https://simonwillison.net/tags/generative-ai), [llms](https://simonwillison.net/tags/llms)
