@@ -8,17 +8,13 @@ first_seen: 2026-10-13T18:08:43.541012300Z
 authors:
 - Gergely Orosz
 summary: How to handle uncertainty with AI vendors and disaster recovery (DR) approaches to consider. An excerpt from the book Building Resilient Distributed Systems by Sam Newman
-content: feed
+content: extracted
 html: 2026-10-13-building-resilient-ai-powered-software-and-planning-for.html
 remote_preview:
   url: https://substackcdn.com/image/fetch/$s_!P4Ph!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fad7aee47-aa20-4fc7-8e43-ae2bf2360782_1320x716.png
 ---
 
 Last week’s guest on the podcast [was Sam Newman](https://newsletter.pragmaticengineer.com/p/building-resilient-systems-with-sam), who had released a book I’ve personally long awaited titled **[Building Resilient Distributed Systems](https://www.oreilly.com/library/view/building-resilient-distributed/9781098163532/)**. It’s an especially timely book for many of us software engineers, as we’re seeing more outages with nearly all services and systems – much of it caused by more code deploys thanks to AI agents writing more code; and more bugs causing more incidents in production.
-
-[![](https://substackcdn.com/image/fetch/$s_!a_hF!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc9e26f65-4b0a-4f2c-86a1-2d0f00b67a60_1456x1762.png)](https://substackcdn.com/image/fetch/$s_!a_hF!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc9e26f65-4b0a-4f2c-86a1-2d0f00b67a60_1456x1762.png)
-
-*Sam’s new book,[Building Resilient Distributed Systems](https://www.oreilly.com/library/view/building-resilient-distributed/9781098163532/), in print form*
 
 Sam’s book being “fresh out of the oven,” it naturally also touches on what AI changes as we design resilient systems. In fact, Sam told me that he took a total of three years to finishe the book – instead of the two he originally planned – because he went back and reworked all parts of the book, updating parts where AI is relevant to talk about.
 
@@ -38,11 +34,7 @@ I asked Sam if he would consider sharing an excerpt from the book, with sections
 
 *My usual disclaimer: as with all my recommendations, I was not paid to recommend this book, and none of the links are affiliate ones. See [my ethics statement](https://blog.pragmaticengineer.com/ethics-statement/) for more details.*
 
-* * *
-
 *The excerpts below are from [Building Resilient Distributed Systems](https://www.oreilly.com/library/view/building-resilient-distributed/9781098163532/), by Sam Newman. Copyright © 2026 Sam Newman. Published by O’Reilly Media, Inc. Used with permission.*
-
-## 1\. Disaster Recovery
 
 *Excerpt from Chapter 10: Disaster Recovery.*
 
@@ -50,15 +42,11 @@ We’ve already discussed how to handle a variety of failures that impact indivi
 
 Handling these situations falls under the auspices of disaster recovery (DR), a set of procedures that should kick in when something really bad happens. As with much of what we’ve looked at in this book, trade-offs abound. As you reduce your period of acceptable downtime or data loss, cost and complexity increase, so picking the right approach for your system can be a delicate balancing act. In this chapter, I’ll give you some concrete targets to work with to help drive your own DR approach.
 
-### Cloud Region, Data Center, or Site?
-
 The exact terminology you use to discuss your infrastructure will likely vary based on implementation details, and this in turn can make discussions around generally applicable patterns more difficult. When running on the public cloud, for example, you’ll probably be familiar with the concept of a cloud region, which is where your cloud resources live. When running on a private cloud or in a more traditional on-premises setup, you’ll instead think in terms of data centers.
 
 As we discuss the various options around handling DR, the patterns that we’ll see later in this chapter can be used for either public or private cloud scenarios. Therefore, to keep things simple, I’ll use the term site as a general descriptor of where your computing infrastructure lives.
 
 There are some specific issues to consider around mixing cloud vendors as part of a DR strategy, and we’ll look more at those in Chapter 11.
-
-### How Good Does Your DR Need to Be?
 
 A spectrum of DR options are available to you, and they can range greatly in terms of cost, complexity, and recovery. To help you decide which DR approach is most appropriate, we should first try to understand how to determine the appropriate requirements for your context.
 
@@ -68,23 +56,15 @@ A simple way to define technical requirements around DR is to make use of two co
 
 *Figure 10-1. The key objectives to define as part of selecting an appropriate DR strategy*
 
-### Recovery Point Objective
-
 The recovery point objective (RPO) defines the maximum amount of time that can have passed since the data was last backed up or synchronized. Put another way, RPO defines the upper duration of potential data loss. If the data for your system backs up once an hour, then it’s possible to lose up to an hour of data if your system has an incident. Therefore, your RPO would be an hour.
 
-### Recovery Time Objective
-
 The recovery time objective (RTO) defines how long it’s acceptable for your system to be unavailable in the wake of an incident. If all your computers became unavailable, perhaps because of a data center–wide outage, how long would it take you to have your services running in an alternative data center? Your RTO includes all the time needed to recover data from the last recovery point, make computing resources available for your workloads, and redirect traffic to your new site—so there are more variables to consider in terms of bringing your system back online than just time.
-
-### You Can’t Have Everything
 
 If asked what RPO and RTO you’d want in a vacuum, you’d probably give a very simple answer: you’d want an RPO of zero (i.e., a guarantee of no data loss), and an RTO of zero too. This is an understandable wish, but as you reduce your RPO and RTO, cost and complexity increase dramatically—and in technical terms, it’s not possible to guarantee a zero RPO or RTO in any case.
 
 An additional complication is that different types of workloads might require different RPOs and RTOs. Consider a bank, for example. Having a low RPO to ensure that payment information isn’t lost would be key, and having a low RTO to ensure that people can still take money out of their account is vital. On the other hand, the part of the system that enables new customers to sign up for an account could have a higher RTO and RPO, as the impact to the business is less severe.
 
 So when deciding on the appropriate RPO and RTO, there needs to be a discussion with stakeholders regarding end-user needs and regulatory and legislative requirements, which are balanced against the cost and complexity of implementing the required solution. For example, your product owner might initially say they need an RPO of 10 minutes, but if you could tell them it would take months of work to implement (during which other work has to be deprioritized), they might reduce their target, perhaps accepting an RPO that is easier for you to deliver. Your target RPO and RTO should also exceed anything specified in any service level agreements you have.
-
-### DR Objectives and SLOs
 
 At first glance, RPO and RTO would appear to make for good service level objectives (SLOs). After all, they are both important measures that directly impact user experience. However, there are some challenges around managing RPO and RTO as SLOs.
 
@@ -93,8 +73,6 @@ When determining if we are meeting an SLO, we need to collect lots of service le
 The reality is that we don’t experience disasters regularly enough to gather useful SLIs. We can of course define related SLOs around things related to our DR approach. For example, it would be possible to define an SLO around the speed of data replication, as this is something we are doing in production and can programmatically measure. But at best SLOs are only tangentially measuring RPO and RTO.
 
 So RPOs and RTOs don’t really fit neatly into the SLO concept. Of course, that doesn’t mean that you can’t still test your system to make sure it is delivering on your DR objectives—something we’ll discuss more later in the chapter.
-
-## 4\. Disaster Recovery Patterns
 
 *Another excerpt from Chapter 10: Disaster Recovery.*
 
@@ -108,8 +86,6 @@ If starting from scratch, many of these patterns can build on one another, allow
 
 If you have different RPO and RTOs for different parts of your system, you may also end up using a mix of these patterns. Note that they all require some form of rerouting of traffic, and most require some form of cross-site data replication. Those options are discussed later in this chapter.
 
-### Pattern: Backup and Restore
-
 *Recovery by restoring data from a backup and loading it into a replacement system.*
 
 As outlined in Figure 10-3, with this pattern, data is periodically backed up to a separate site. In the event that the primary site fails, infrastructure needs to be provided at a new site, and the backed-up data restored.
@@ -117,8 +93,6 @@ As outlined in Figure 10-3, with this pattern, data is periodically backed up to
 [![](https://substackcdn.com/image/fetch/$s_!sl8H!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F4c818d67-38f2-4d49-a15a-b45a8896d032_1316x346.png)](https://substackcdn.com/image/fetch/$s_!sl8H!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F4c818d67-38f2-4d49-a15a-b45a8896d032_1316x346.png)
 
 *Figure 10-3. The backup and restore DR pattern*
-
-#### How it works
 
 This pattern is very straightforward to implement, consisting of a few steps:
 
@@ -140,13 +114,9 @@ Once infrastructure is available and the data is restored, traffic can be switch
 
 Ideally, your failover site runs the same core technology stack as the primary site, meaning that any investment in infrastructure automation on your primary can also be used on the failover (for example, being able to reuse Terraform scripts). Keeping the code to automate setup of the primary and the failover the same is very useful, as it means that you’ll have a higher degree of confidence that spinning up the infrastructure on the failover site will work. If your failover site uses a different technology stack—meaning it’s not possible to share automated infrastructure provisioning code between the primary and secondary sites—then it becomes even more vital that your DR failover process is regularly tested. A caveat to spinning up infrastructure on demand here comes in terms of guaranteeing that infrastructure is actually available when you need it, something we’ll explore later in this chapter.
 
-#### When to use it
-
 This pattern is generally applicable in situations where your primary site is unavailable and you can tolerate a long RTO, and especially in those situations where you want to keep costs low. It’s important to note that regular tests of a backup and restore process are necessary to ensure that it actually works. One approach I’ve found useful is to perform a backup and restore to a secondary site as part of other regular activity (for example, a regular load test exercise).
 
 The RPO of this pattern will depend on the frequency of backup. The RTO will be the longest of the patterns we’ll look at, and its time will depend primarily on how long it takes to restore data from the backup and provision replacement resources. With a fully automated process and smaller data volumes, this could be in the minutes to hours range. Manual recovery processes will likely extend these timelines greatly, as will the size of backups involved—terabytes of data take longer to send than gigabytes! Another major factor will be availability of the required computing resources. If you end up having to purchase replacement equipment, this pattern could easily result in a timeline of weeks or longer.
-
-### Pattern: Pilot Light Failover
 
 *Data is constantly synced to a failover site, with infrastructure provisioned after failover.*
 
@@ -155,8 +125,6 @@ With a pilot light setup, data is continually replicated from the primary to the
 [![](https://substackcdn.com/image/fetch/$s_!2Jjt!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F11f6ee69-6374-40a9-b2f5-cebc53dd19eb_1914x610.png)](https://substackcdn.com/image/fetch/$s_!2Jjt!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F11f6ee69-6374-40a9-b2f5-cebc53dd19eb_1914x610.png)
 
 *Figure 10-4. The pilot light failover DR pattern*
-
-#### How it works
 
 This pattern builds on a lot of the work done with a backup and restore, the main change being that the data is continually synchronized to the failover site. As such, the steps involved look fairly similar to the backup and restore pattern:
 
@@ -174,13 +142,9 @@ Once infrastructure is available and the data is restored, traffic can be switch
 
 From an implementation point of view, the new source of complexity comes from the replication of data from the primary to the failover. For systems designed with this process in mind, it might be somewhat trivial to implement. However, things become more complex when adapting existing systems if you’re making use of a data product that doesn’t support this replication strategy natively. This is worthy of a more in-depth discussion later in this chapter, especially as the next two patterns also rely on this capability.
 
-#### When to use it
-
 When compared to a backup and restore, the pilot light failover allows for a much shorter RPO because of more frequent data replication, while also reducing RTO by eliminating the time taken for data restoration.
 
 The cost-saving of a pilot light failover really makes sense only in the context of the public cloud. Costs are reduced primarily in terms of not paying for infrastructure unless it’s used. But if your failover site is your own private infrastructure that you have to pay for regardless of whether it is used, then some form of a warm failover makes a lot more sense. At that point you’re already paying for the hardware, so you might as well use it.
-
-### Pattern: Warm Failover
 
 *Data is synced to a failover site, with at least some infrastructure already provisioned to handle traffic.*
 
@@ -200,8 +164,6 @@ Naming things is hard.
 
 *The “How it works” and “When to use it sections” are cut off from this excerpt, but are present inside the book.*
 
-### Pattern: Multisite Active-Active
-
 *The system is distributed across two or more sites, with writes being able to be sent to any site.*
 
 With a multisite active-active setup, data is replicated constantly between two or more sites, as you can see in Figure 10-6. Traffic for any customer can be served from any site at any time.
@@ -213,8 +175,6 @@ With a multisite active-active setup, data is replicated constantly between two 
 This pattern sidesteps the need for a failover, as it is assumed that traffic for any user can switch between sites at any time. As such, it delivers the lowest RTO and RPO of any pattern we’ve looked at so far, though at much higher cost and complexity.
 
 *The “How it works” and “When to use it sections” are cut off from this excerpt, but are present inside the book.*
-
-## 3\. Infrastructure availability when planning for DR
 
 *Yet another excerpt from Chapter 10: Disaster Recovery.*
 
@@ -238,21 +198,15 @@ We were able to make use of these DR workstations to grow our pool of available 
 
 So if you are thinking about securing ring-fenced infrastructure as part of a DR approach, see if you can think of useful ways to put it to good use when it’s not needed for production workloads. You could use the spare infrastructure for a load test environment, for example; the load test could easily be aborted when DR is needed.
 
-## 4\. Resiliency of AI-powered software
-
 *Excerpt from Chapter 7: Resiliency and AI*
 
 We’ve looked at how AI is changing how we build and operate our software. But we are also integrating AI into the products we build, using it to hopefully improve our software for our users. What new challenges does this create for ensuring our systems are resilient?
-
-### Model Provider Resiliency
 
 Foundation model providers OpenAI and Anthropic don’t have a great track record in terms of providing high levels of availability for their services, at least when compared to other managed service providers, like public cloud vendors. While I’m sure this will improve over time, having a potentially flaky third party in the mix of your critical functionality can be an issue.
 
 A solution here is to consider ensuring that your software can still operate even if the model is unavailable. This could be achieved by limiting functionality in the case of the model being unavailable (or you getting rate limited or running out of tokens!)—this is an example of the graceful degradation pattern, which we’ll look at more in Chapter 11.
 
 Another option is to have backup vendors for a given model to hedge against your normal model provider having availability issues. For example, you can use OpenAI models on Azure, a handy alternative if accessing the models via OpenAI’s own services proves to be too unstable, and in a similar way Anthropic’s models can also be accessed via Google’s Gemini Enterprise Agent Platform. When using backup vendors like this, there may be a lag in terms of how quickly the latest models may be available, but given that you may not always want to be on the bleeding edge of the models you use to embed in your software (something we’ll discuss in just a moment), this is probably fine.
-
-### Model Changes
 
 Consistency of behavior plays a big role in helping us ensure that our system is behaving appropriately. While dealing with the unexpected is a key concept in resiliency (or “graceful extensibility,” as David Woods put it), that doesn’t mean we want to build software where surprise is constant. Quite aside from the fact that LLMs are nondeterministic, small changes in models can also lead to quite different behavior.
 
@@ -262,8 +216,6 @@ It is therefore vital to have a good set of tests to validate that the AI portio
 
 I can recommend the second edition of Gayathri Mohan’s Full Stack Testing,3 for those of you wanting to explore testing in general, including verification of AI-based systems. For a deeper dive specifically into evals, I’d suggest Evals for AI Engineers by Shreya Shankar and Hamel Husain.
 
-### Observability
-
 The telemetry we receive from our own software and from third-party services alike is key to making sure our applications are working the way that we expect. As we discussed back in Chapter 3, we prefer a small variation of latency rather than a broad variation of latency. If the time it takes to successfully complete an operation varies wildly, it can be difficult to know where we should start triggering timeouts, for example. It also becomes more difficult to define latency-related SLOs.
 
 Once you send a prompt to an AI model or instruct an agent to do something for you, the latency for the operation can vary greatly, and in ways that can be difficult to predict from the outset. Some of this can be put down to variability in the performance of the provider at a given point in time, but it can also be the result of rate limiting by the provider, or your prompt could just be taking longer to process.
@@ -272,13 +224,9 @@ In situations where the prompts sent to models come directly from your users, th
 
 Some techniques to solve this can include dynamically setting timeouts based on the number of tokens being generated, or monitoring the streaming output from a model so you can track when the response starts coming back rather than waiting for the full response.
 
-## 5\. How to handle uncertainty
-
 *Excerpt from Chapter 7: Resiliency and AI*
 
 In the previous sections, I’ve outlined why the world of AI is so uncertain right now. However, I want this book to focus on practical, actionable advice. With that in mind, I want to outline some key steps you can take to make sure that you’re prepared for the uncertainty ahead.
-
-### Multimodel, Multivendor
 
 With model behavior, speed, and quality changing from version to version, it’s vital that you build your software to support changing models. Not only do you want the ability to change models to make use of the latest and greatest, but if costs start to increase from one vendor, you want to make sure the barrier to finding another vendor isn’t too great.
 
@@ -287,8 +235,6 @@ It is worth highlighting that mixing models from different vendors in a single f
 Taking a multimodel approach extends to your vendors too. If a vendor you are dependent on is in turn dependent on a single vendor’s model or API, you and your vendor become vulnerable to volatility in that model or to being impacted by a sudden price increase. Cursor was forced to pass on a significant cost increase to its customers in 2025, as it relied on the use of Anthropic’s services, and Anthropic changed its pricing structure, which led to Cursor having to pay much more. Coincidentally, Anthropic’s Claude Code is a direct competitor of Cursor. If Cursor had been able to use AI models from another firm, it might have been less vulnerable to this issue.
 
 **Keep Your Options Open**: Make sure you aren’t wholly dependent on a single model or AI platform. If model quality degrades, or prices from OpenAI or Anthropic go up, you want to make sure that you have the flexibility to go elsewhere.
-
-### Cost Transparency
 
 Given concerns about rising costs from vendors, and given that pay-as-you-go pricing models can lead to surprising and unsustainable bills, having the ability to see on a regular basis how much money you are spending, and where, can be really important. This doesn’t need to be about limiting spend necessarily; it can be about understanding how you spend money and understanding what value that brings.
 
@@ -300,8 +246,6 @@ It can also help you spot egregious overspend. Uber recently revealed that it ha
 
 **Tip**: Make your AI spend visible! It can help you understand how people are using it and also help you spot when the bills start climbing precipitously.
 
-### More Frequent Vendor Analysis
-
 Vendor management is a common activity that many firms carry out. It typically consists of a regular review of the main vendors that the organization makes use of to help it make better decisions in the future. For example, seeing that a large amount of money is being spent with a particular vendor despite the quality of service from said vendor degrading might cause an escalation to either get the price reduced or get the quality of service improved—or it might kick off a process to find a replacement.
 
 In my last role at Thoughtworks, I helped lead our internal technology operations. Although my main job was to help provide support to internal delivery teams, I was also involved from time to time with our own vendor management activities. As part of these activities, we would regularly assess the general health of the vendors themselves. During the last review I was involved with, we were actively concerned about the health of one of our main technology suppliers; the supplier was in a very competitive market, and its market share was dropping. Although we were happy with the quality of service it provided (and with the cost), our fear was that wider market forces would drive it out of business. As a result, we decided to get to know the vendor much better but to also prepare a list of alternative solutions that we could select if the vendor in question didn’t survive.
@@ -312,8 +256,6 @@ With the concerns around the potential security vulnerabilities that come from t
 
 **Review Your AI Vendors Regularly**! Given the volatility in the space, make sure you review your AI vendors much more frequently than normal vendors.
 
-### Summary
-
 I realize that this chapter may have ended on somewhat of a negative note. But I wanted to be clear that we have real, practical use cases for AI in helping us build more resilient distributed systems. Most of the use cases I outlined in this chapter are being used daily by people all over the world. The key thing is that the solutions I have shared here still put humans at the heart of decision making. It’s clear that, due to the challenges I have covered here as well, we are a long way from a truly autonomous AI SRE.
 
 Despite the obvious benefits of using AI, we do need to be fully aware of the downsides at both the micro and macro level. At the micro level, LLM-powered AI requires us to be OK with nondeterminism, whereas there are many activities we perform in the context of building resilient systems that need to be fully repeatable and deterministic. At the macro level, concerns about the AI sector as a whole mean we are dealing with an ever-changing (and hopefully) improving set of products built on very shaky financial foundations. It doesn’t matter how good the tooling is if it’s too expensive to use (or the company making it goes bust).
@@ -321,8 +263,6 @@ Despite the obvious benefits of using AI, we do need to be fully aware of the do
 As is the nature of things, this uncertainty around AI’s role in our industry and society as a whole will fade as we learn more and as the market settles down. But be warned: I think we are still very much in the middle of the storm, and the calm waters may be several years away yet.
 
 A lot of this chapter was about uncertainty, and one thing that can make the resiliency of a system quite uncertain is what happens when machines fail. So in Chapter 8, I’ll explore how to make sure our systems still work even when machines let us down.
-
-## Takeaways
 
 *Gergely, again.*
 
@@ -343,3 +283,5 @@ A good example is how Coinbase’s global trading service [went offline](https:/
 It’s smart to learn from the mistakes of others, when we can: and the Coinbase incident felt like one of these.
 
 I hope you found these topics relevant, and thanks again to Sam for writing the book, and sharing relevant parts with us.
+
+No posts

@@ -1,0 +1,144 @@
+<div id="readability-page-1" class="page"><div>
+<h2>
+	<a id="tldr" href="#tldr" rel="nofollow">
+		
+	</a>
+	<span>
+		TL;DR
+	</span>
+</h2>
+<p><em>TimeScope</em> is an open-source benchmark designed to measure how well vision-language models understand long videos. By adding short “needle” clips into videos ranging from 1 minute to 8 hours, it evaluates three skills:</p>
+<ul>
+<li>localized retrieval, </li>
+<li>information synthesis, </li>
+<li>fine-grained temporal perception. Timescope reveals that many state-of-the-art models still struggle with true temporal comprehension.</li>
+</ul>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#why-timescope-motivating-a-better-benchmark-for-video" rel="nofollow">Why TimeScope?</a></li>
+<li><a href="#benchmark-design" rel="nofollow">Benchmark Design</a></li>
+<li><a href="#baseline-evaluation-results" rel="nofollow">Baseline Evaluation Results</a></li>
+<li><a href="#open-sourcing" rel="nofollow">Open-Sourcing</a></li>
+</ul>
+<p>Recent advances in multimodal AI have produced models claiming to understand hour-long videos. This trend mirrors progress in long-context language models, which excel at reasoning over lengthy text. Following this, vision-language systems now advertise context windows that can handle thousands of frames. But these claims require a closer look: do these models truly demonstrate understanding of the sequence of events? Are they limited to surface-level retrieval \ recognition? It's crucial to ask if their capabilities are being overstated.</p>
+<p>Text benchmarks such as <strong>HELM</strong> and <strong>RULER</strong> have exposed the fragility of long-context claims, showing that models often struggle when tasks demand more than simple retrieval, like reasoning or aggregation at long context lengths. In the video domain, however, we're still playing catch-up. The most common test, <strong>Video Needle in a Haystack (VideoNIAH)</strong>, injects static <em>images</em> as "needles" into videos, effectively measuring visual search rather than true temporal dynamics. As a result, even top-tier models advertising massive frame capacities are rarely trained beyond ~256 frames and see sharp drops on benchmarks like <strong>Video-MME</strong> when pushed further.</p>
+<p>This measurement gap leaves us wondering: What does it really mean for a model to "understand" long videos? To address this, we're excited to introduce <strong>TimeScope</strong>, a new open-source benchmark hosted on Hugging Face. TimeScope probes the limits of long-video capabilities by inserting several short (~5-10 second) <em>video clips</em>—our "needles"—into base videos ranging from 1 minute to 8 hours. With three distinct task types, it evaluates not just retrieval but synthesis, localization, and fine-grained motion analysis, providing a more holistic view of temporal comprehension.</p>
+
+
+<h2>
+	<a id="why-timescope-motivating-a-better-benchmark-for-video" href="#why-timescope-motivating-a-better-benchmark-for-video" rel="nofollow">
+		
+	</a>
+	<span>
+		Why TimeScope? Motivating a Better Benchmark for Video
+	</span>
+</h2>
+<p>The promise of long-video AI is transformative — enabling agents to summarize hours of footage, detect subtle anomalies, and answer complex questions about extended narratives. Integrated into robotics, these models could analyze prolonged operations, adapt in real time, and push autonomous decision-making. Just as powerful is the vision of a personal assistant that understands daily life and offers continuous, actionable feedback.</p>
+<p>In practice, this leads to overstated capabilities. Models might claim to process 10,000+ frames, but training data often caps at 256 frames per clip, leading to degraded performance on longer inputs. We've seen this in evaluations where increasing frame sampling rates tanks accuracy on tasks requiring temporal insight.</p>
+<p>TimeScope flips the script by emphasizing three pillars of long-video understanding:</p>
+<ol>
+<li><strong>Localized Retrieval</strong>: Can the model spot and answer questions about a specific short segment within a vast video?</li>
+<li><strong>Information Synthesis</strong>: Can it gather and order details from multiple points across the timeline?</li>
+<li><strong>Fine-Grained Temporal Perception</strong>: Can it analyze motion and events in needles that demand dense, multi-frame sampling?</li>
+</ol>
+<h2>
+	<a id="benchmark-design" href="#benchmark-design" rel="nofollow">
+		
+	</a>
+	<span>
+		Benchmark Design
+	</span>
+</h2>
+<p>TimeScope’s key idea is using short video clips as “needles,” and instead of just spotting the needle, it pushes models to deeply understand the whole video. We start with a long base video (e.g., a documentary, lecture, or ambient footage) and insert one or more hand-curated short video needles (5-10 seconds each) at random positions. These needles contain the key information needed to solve the task, forcing models to process the entire input without shortcuts like sparse sampling.</p>
+  <p><img src="https://huggingface.co/spaces/Apollo-LMMs/TimeScope/resolve/main/overview.png" alt="Benchmark Design Diagram"></p><p><em>Figure 1: Overview of TimeScope's needle insertion process. A long base video (1 min to 8 hours) serves as the haystack, into which we splice short video needles (~5-10 seconds). Tasks require detecting, synthesizing, or analyzing content from these needles, embedded at varying depths.</em></p>
+<p>We evaluate across three needle types, each targeting a different aspect of long-video comprehension:</p>
+<h3>
+	<a id="1-localized-retrieval" href="#1-localized-retrieval" rel="nofollow">
+		
+	</a>
+	<span>
+		1. Localized Retrieval
+	</span>
+</h3>
+<p>This tests basic retrieval and understanding of a localized event. Questions are put so that sampling a relevant frame from the needle should suffice—like asking about a shorter part in a longer video.</p>
+<p>Example:<br>What mode of transportation is shown in the video?  </p>
+<video controls="">
+  <source src="https://huggingface.co/spaces/Apollo-LMMs/TimeScope/resolve/main/train.mp4" type="video/mp4">
+</video>
+
+<h3>
+	<a id="2-information-synthesis" href="#2-information-synthesis" rel="nofollow">
+		
+	</a>
+	<span>
+		2. Information Synthesis
+	</span>
+</h3>
+<p>Here, we embed multiple text-based needles (e.g., 2-4 short clips displaying "secret words" via on-screen text) at different points in the video. The model must identify all words and report them in chronological order, simulating tasks like extracting timestamps or key facts from dispersed scenes. This requires scanning the full timeline and understanding relative positioning.</p>
+<h3>
+	<a id="3-fine-grained-temporal-perception" href="#3-fine-grained-temporal-perception" rel="nofollow">
+		
+	</a>
+	<span>
+		3. Fine-Grained Temporal Perception
+	</span>
+</h3>
+<p>For questions focusing on motion or sequences within a short clip, single-frame sampling won't cut it—the model needs to perceive dynamics across frames. This probes whether long-context handling preserves temporal fidelity.</p>
+<p>Example:<br>How many times did the man swing his axe? (a) one (b) two (c) three (d) four (e) five (f) six  </p>
+<video controls="">
+  <source src="https://huggingface.co/spaces/Apollo-LMMs/TimeScope/resolve/main/temporal_wood_cutting.mp4" type="video/mp4">
+</video>
+
+<p>With different video lengths and varying needle placements, TimeScope measures how much video a model can really handle—and shows that performance drops as the video gets longer.</p>
+<h2>
+	<a id="evaluations--leaderboard" href="#evaluations--leaderboard" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluations &amp; Leaderboard
+	</span>
+</h2>
+<p>To kick things off, we ran TimeScope on a suite of leading vision-language models, from open-source favorites to the juggernauts like Gemini 2.5-Pro. The results underscore the benchmark’s value: even models that claim to handle long videos well still struggle with real long-video tasks. These findings reveal clear patterns—performance cliffs around certain durations, strengths in static retrieval versus weaknesses in motion analysis—and pave the way for targeted improvements in model training. For detailed results and visualizations, check out our Hugging Face Space embedded above.</p>
+<h3>
+	<a id="what-did-we-learn" href="#what-did-we-learn" rel="nofollow">
+		
+	</a>
+	<span>
+		What did we learn?
+	</span>
+</h3>
+<p><strong>Model size isn’t everything.</strong> Qwen 2.5-VL 3B and 7B, as well as InternVL 2.5 models at 2B, 4B, and 8B parameters, exhibit nearly indistinguishable long-video curves to their smaller counterparts. All of them plateau at roughly the same context length, showing that simply scaling parameters does not automatically grant a longer temporal horizon.</p>
+<p><strong>Gemini 2.5-Pro is in a league of its own.</strong> It is the only model that maintains strong accuracy on videos longer than one hour.</p>
+<p><strong>Trade-offs across tasks matter.</strong> Qwen 2.5-VL shines in the Information-Synthesis (OCR) task—identifying and ordering dispersed text snippets—yet it falls behind on Fine-Grained Temporal Perception, where precise motion counting is required. </p>
+<h2>
+	<a id="conclusion--lets-raise-the-bar-for-long-video-ai" href="#conclusion--lets-raise-the-bar-for-long-video-ai" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion – Let’s Raise the Bar for Long-Video AI
+	</span>
+</h2>
+<p>TimeScope demonstrates that “hour-long video understanding” is still more slogan than reality. By revealing where even state-of-the-art models stumble on temporal reasoning, information synthesis, and motion perception, the benchmark invites us to rethink how we train and evaluate multimodal systems.</p>
+<ol>
+<li><strong>Run the Demo</strong> – Explore the public Space: <a href="https://huggingface.co/spaces/Apollo-LMMs/TimeScope">https://huggingface.co/spaces/Apollo-LMMs/TimeScope</a></li>
+<li><strong>Benchmark Locally</strong> – Evaluate any model with two quick commands:<pre><code data-language="bash">pip install git+https://github.com/EvolvingLMMs-Lab/lmms-eval.git
+python -m lmms_eval --model-path &lt;your-model&gt; --benchmark timescope
+</code></pre>
+</li>
+<li><strong>Join the Leaderboard</strong> – Submit your scores and see how your model compares.</li>
+</ol>
+<p>We hope this benchmark helps the community make steady, measurable progress toward models that better understand video over time.</p>
+<p>We are open-sourcing all components of TimeScope:</p>
+<ul>
+<li><strong>Dataset</strong>: <a href="https://huggingface.co/datasets/Apollo-LMMs/TimeScope">Apollo-LMMs/TimeScope</a></li>
+<li><strong>Leaderboard</strong>: <a href="https://huggingface.co/spaces/Apollo-LMMs/TimeScope">Apollo-LMMs/TimeScope</a></li>
+<li><strong>Evaluation Framework</strong>: <a href="https://github.com/EvolvingLMMs-Lab/lmms-eval" rel="nofollow">lmms-eval</a></li>
+</ul>
+</div></div>

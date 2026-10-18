@@ -8,20 +8,17 @@ first_seen: 2026-10-14T17:58:19.452435153Z
 authors:
 - Gergely Orosz
 summary: Uber Distinguished Engineer Uday Kiran Medisetty shares how Uber builds internal developer tools, integrates AI agents into engineering workflows, and measures their impact on productivity.
-content: feed
+content: extracted
 html: 2026-10-14-uber-s-ai-infra-from-the-inside.html
 remote_preview:
   url: https://substackcdn.com/image/fetch/$s_!Qhi0!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F1228ff6a-514b-4643-9360-02cda14dc5ac_800x70.png
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/220071064/bd8e63e86d1fcf09a618b7402be21faa.mp3
+  duration_seconds: 5598
 ---
 
-### Stream the latest episode
-
 **Listen and watch now on [YouTube](https://youtu.be/MDUYSMJmi8A), [Apple](https://podcasts.apple.com/us/podcast/the-pragmatic-engineer/id1769051199), and [Spotify](https://open.spotify.com/show/2Bho9xCbOQMWMJ7UKmqCzD).** See the episode transcript at the top of this page, and timestamps for the episode at the bottom.
-
-### **Brought to You by**
 
 ![](https://substackcdn.com/image/fetch/$s_!Qhi0!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F1228ff6a-514b-4643-9360-02cda14dc5ac_800x70.png)
 
@@ -30,8 +27,6 @@ extra:
 • **[Linear](https://linear.app/pragmatic)** – one of the big challenges for us devs is the sheer amount of code to review. [Linear Diffs](https://linear.app/build#diffs) is a new feature to review PRs inside of Linear, with all the context in one place. It even supports stacked PRs. [Check it out](https://linear.app/pragmatic)
 
 **• [WorkOS](https://workos.com/)** – how do you deal with agents and permissions? WorkOS built [Airlock](http://workos.com/airlock), the authorization layer for AI agents. It evaluates every request against the agent’s intent and your rules and either allows it, denies it, or routes it to a human for approval. Works with Claude Code, Codex and MCP gateways. [Give it a spin](http://workos.com/airlock)
-
-### **In this episode**
 
 What do developer tools look like inside Uber, today? They are *very* different from what you would see at most places. For example, can you guess what service a system called DevPods, Code Inbox, Slate or Wisdom would be providing to engineers?
 
@@ -42,8 +37,6 @@ What do developer tools look like inside Uber, today? They are *very* different 
 Today’s episode is a deepdive into the day-to-day tools of devs at Uber, our tour guide being on of Uber’s longest-tenured engineers: [Uday Kiran Medisetty](https://x.com/udaykiran?lang=en). Uday is one of the few Distinguished Engineers at the company, and leads much of the work on agentic AI, today.
 
 With Uday, we talk through how Uber’s developer infrastructure prepared it for AI agents. We look at the systems Uber built before generative AI and the new tools that connect agents to its code, internal services, and engineering knowledge. Uday explains how engineers use background agents, why tools like Slate make development (and bugfixing!) more efficient, and how code review is changing. We also cover Uber’s approach to token costs and how it measures productivity as the engineer’s role changes.
-
-### **Takeaways from the conversation with Uday**
 
 [www.youtube.com](https://www.youtube.com/watch?v=MDUYSMJmi8A)
 
@@ -85,9 +78,9 @@ By the time a dev reviews a change, AI code review has run, screenshots and vide
 
 **9\. Uber tags PRs by the type of work each of those PRs do**. In the past, Uber measured “PR velocity:” how long it took for a PR (or, as Uber calls it: a “diff”) to get to production. With agents, doing so makes less sense, because it’s easy to create dozens or even hundreds of PRs, and many of those PRs might have no business impact on the product.
 
-​So Uber now tags all PRs by type: feature, bugfix, maintenance, testing, or docs.
+So Uber now tags all PRs by type: feature, bugfix, maintenance, testing, or docs.
 
-​They are seeing the percentage of “feature PRs” going up, and the percentage of “maintenance PRs” going down.​
+They are seeing the percentage of “feature PRs” going up, and the percentage of “maintenance PRs” going down.
 
 I find this categorization to be a clever approach!
 
@@ -107,8 +100,6 @@ In Uday’s words:
 
 > “All the things that we built to make life easier for engineers: it makes it easier for our agents as well!”
 
-### **The Pragmatic Engineer deepdives relevant for this episode**
-
 • [How Uber uses AI for development: inside look](https://newsletter.pragmaticengineer.com/p/how-uber-uses-ai-for-development)
 
 • [Scaling Uber with Thuan Pham (Uber’s first CTO)](https://newsletter.pragmaticengineer.com/p/scaling-uber-with-thuan-pham-ubers)
@@ -124,8 +115,6 @@ In Uday’s words:
 • [How Uber is Measuring Engineering Productivity](https://newsletter.pragmaticengineer.com/p/uber-eng-productivity)
 
 • [Developer Experience at Uber with Gautam Korlam](https://newsletter.pragmaticengineer.com/p/developer-experience-at-uber)
-
-### **Timestamps**
 
 [00:00](https://www.youtube.com/watch?v=MDUYSMJmi8A) Intro
 
@@ -158,8 +147,6 @@ In Uday’s words:
 [1:21:33](https://www.youtube.com/watch?v=MDUYSMJmi8A&t=4893s) The changing role of engineer and measuring productivity
 
 [1:30:40](https://www.youtube.com/watch?v=MDUYSMJmi8A&t=5440s) Uday’s favorite new products
-
-### **References**
 
 **Where to find Uday Kiran Medisetty:**
 

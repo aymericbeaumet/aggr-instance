@@ -5,11 +5,20 @@ source: xkcd-com
 published: 2026-10-12T00:00:00Z
 updated: 2026-10-12T00:00:00Z
 first_seen: 2026-10-12T22:35:36.108955126Z
-content: feed
+content: extracted
 html: 2026-10-12-rejected-space-mission-profiles.html
 remote_preview:
   url: https://imgs.xkcd.com/comics/rejected_space_mission_profiles.png
   alt: Although NASA agreed that Voyager 2 'seemed lonely' they decided against launching a companion orbiter mission after further measurements indicated that the spacecraft actually preferred the peace and quiet.
 ---
 
-![Although NASA agreed that Voyager 2 'seemed lonely' they decided against launching a companion orbiter mission after further measurements indicated that the spacecraft actually preferred the peace and quiet.](https://imgs.xkcd.com/comics/rejected_space_mission_profiles.png "Although NASA agreed that Voyager 2 'seemed lonely' they decided against launching a companion orbiter mission after further measurements indicated that the spacecraft actually preferred the peace and quiet.")
+![Selected Comics](https://imgs.xkcd.com/s/a899e84.jpg)
+
+[![Earth temperature timeline](https://imgs.xkcd.com/s/temperature.png)](https://xkcd.com/1732/)
+
+Comics I enjoy:\
+ [Three Word Phrase](http://threewordphrase.com/), [SMBC](https://www.smbc-comics.com/), [Dinosaur Comics](https://www.qwantz.com), [Oglaf](https://oglaf.com/) (nsfw), [A Softer World](https://www.asofterworld.com), [Buttersafe](https://buttersafe.com/), [Perry Bible Fellowship](https://pbfcomics.com/), [Questionable Content](https://questionablecontent.net/), [Buttercup Festival](http://www.buttercupfestival.com/), [Homestuck](https://www.homestuck.com/), [Junior Scientist Power Hour](https://www.jspowerhour.com/)
+
+xkcd.com is best viewed with Netscape Navigator 4.0 or below on a Pentium 3±1 emulated in Javascript on an Apple IIGS\
+at a screen resolution of 1024x1. Please enable your ad blockers, disable high-heat drying, and remove your device\
+from Airplane Mode and set it to Boat Mode. For security reasons, please leave caps lock on while browsing.

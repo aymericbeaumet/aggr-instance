@@ -65,6 +65,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/218243619/4623bf38297ddb16dba4460b8b439140.mp3
+  duration_seconds: 2353
 ---
 
 Three months ago Dwarkesh, who has been posting [incredible blogs and episodes](https://x.com/search?q=from%3Adwarkesh_sp%20RL&src=typed_query) about RL, [posted](https://x.com/dwarkesh_sp/status/2070672008946589922) a framing question for his video essay on RLVR which upset a lot of Computer Use folks:

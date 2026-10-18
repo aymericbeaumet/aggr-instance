@@ -1,34 +1,20 @@
+<div id="readability-page-1" class="page"><div>
+
 <p>Today we are releasing <a href="https://github.com/basecamp/hotcell">Hot Cell</a> v1.0, a suite of gems that moves Active Storage’s attachment processing out of your Rails application and into an unprivileged sidecar container with no network, no credentials, and nothing on its filesystem worth stealing. Adopting it is a configuration change, not a code change. It is already running in production at 37signals, in Basecamp, HEY, and Fizzy.</p>
 
 <p>I introduced Hot Cell at Rails World 2026 in a talk titled “Hot Cell: Securing Active Storage in the age of AI.” What follows is basically that talk, written down, plus a couple of things that have changed since then. (If you’d rather <a href="https://www.youtube.com/watch?v=swXl8M84YmM&amp;list=PLdMRFKO1zSBE&amp;index=28">watch the video</a> or <a href="https://mike.daless.io/prez/2026-09-23_rails-world-hotcell/slides.html">flip through the slides</a>, go for it.)</p>
 
+<hr>
+
 <h2 id="where-we-are">Where we are</h2>
 
-<div class="media media--image">
 
-  
-
-  <div class="media__element">
-
-  
-
-    <picture>
-      <img src="/assets/images/hot-cell-1-0/timeline.png" alt="a timeline: a volcano, a dinosaur, a tape drive, a TRS-80, then a band labeled CHAOS marked &quot;you are here,&quot; then a question mark" />
-    </picture>
-
-  
-
-  </div>
-
-  
-
-  
-
-</div>
 
 <p>In the beginning, the earth cooled. Dinosaurs roamed the earth. Then humans started writing software, and a lot of that software was very trusting in nature: corner cases weren’t explored, and the design assumed users were friendly and input could be trusted.</p>
 
 <p>Now we find ourselves in a very chaotic moment where AI is very good at finding these bugs and security problems. I don’t know what’s coming, but at this moment I’m very worried, and I think you should be too. So first I’m going to scare you, and then I’m going to give you the tools to do something about it.</p>
+
+<hr>
 
 <h2 id="part-1-you-are-not-worried-enough-probably">Part 1: You are not worried enough (probably)</h2>
 
@@ -42,27 +28,7 @@
 
 <p>You can watch the talk for a more in-depth explanation, but the root of the problem is that the image processing libraries are running in a container with access to your secrets and to your network.</p>
 
-<div class="media media--image">
 
-  
-
-  <div class="media__element">
-
-  
-
-    <picture>
-      <img src="/assets/images/hot-cell-1-0/architecture-today.png" alt="the default architecture: an image upload enters the Rails process, Active Storage's VipsTransformer hands it through image_processing and ruby-vips to libvips, which routes it to libpng, libjpeg, libmagick, or libmatio. The same app container holds config/master.key, credentials.yml.enc, and /proc/self/environ with SECRET_KEY_BASE, DATABASE_URL, and AWS_ACCESS_KEY_ID" />
-    </picture>
-
-  
-
-  </div>
-
-  
-
-  
-
-</div>
 
 <p>And there was no single big vulnerability here that AI agents could find. The attack requires chaining together several low-severity vulnerabilities along with some Rails design decisions that helped enable the attack.</p>
 
@@ -70,59 +36,19 @@
   <li><strong>Active Storage direct uploads were enabled by default</strong>, so the route was open even in apps that didn’t use them. Niklas Häusele fixed that in <a href="https://github.com/rails/rails/pull/58369">rails/rails#58369</a>.</li>
   <li><strong>Direct uploads never examine the bytes.</strong> The file goes from the browser to the blob store without passing through Rails, so Rails trusts the reported content type. Lying about the content type is the way in. Fixing this would cost performance.</li>
   <li><strong>Signed variation keys do not include the blob ID</strong>, which makes the attack easier to pull off. It’s not a security problem on its own, and changing it would be a breaking change.</li>
-  <li><strong>Rails didn’t call <code class="language-plaintext highlighter-rouge">Vips.block_untrusted</code>.</strong> libvips added it in 8.13 as an opt-in, buried in a changelog. Calling it is the fix for this CVE.</li>
+  <li><strong>Rails didn’t call <code>Vips.block_untrusted</code>.</strong> libvips added it in 8.13 as an opt-in, buried in a changelog. Calling it is the fix for this CVE.</li>
   <li><strong>libvips was fooled by a spoofed MATLAB header.</strong> This is the actual flaw. It’s fixed in libvips 8.18.5, and no CVE was published.</li>
   <li><strong>libmatio trusts every file it is handed</strong>, as designed. The maintainers pointed back at libvips: you shouldn’t be handing untrusted files to libmatio. Won’t fix.</li>
-  <li><strong>Known gadgets turn <code class="language-plaintext highlighter-rouge">secret_key_base</code> into RCE.</strong> The Rails security team knows about these, but closing them is a breaking change.</li>
+  <li><strong>Known gadgets turn <code>secret_key_base</code> into RCE.</strong> The Rails security team knows about these, but closing them is a breaking change.</li>
 </ol>
 
 <p>Agents are able to chain all seven together from very little information. They are getting very good at this! In the talk I showed a recording of the exploit script pulling every secret out of a development app in real time. Once you know how to execute the attack, it happens very fast.</p>
 
-<div class="media media--image">
 
-  
-
-  <div class="media__element">
-
-  
-
-    <picture>
-      <img src="/assets/images/hot-cell-1-0/378-vulnerabilities.jpg" alt="378 vulnerabilities found so far in 2026, over the list of packages apt installs with libvips" />
-    </picture>
-
-  
-
-  </div>
-
-  
-
-  
-
-</div>
 
 <p>It should also scare you that 378 vulnerabilities were published in libvips and its dependencies in the first nine months of 2026, and more are reported every day.</p>
 
-<div class="media media--image">
 
-  
-
-  <div class="media__element">
-
-  
-
-    <picture>
-      <img src="/assets/images/hot-cell-1-0/hackerone-reports.png" alt="valid HackerOne reports received each month by 37signals, flat for two years and then spiking to 64 in the last month" />
-    </picture>
-
-  
-
-  </div>
-
-  
-
-  
-
-</div>
 
 <p>This chart is 37signals’ HackerOne data: valid reports received each month. There has been a steady increase since models turned the corner back in November 2025.</p>
 
@@ -130,29 +56,11 @@
 
 <p>When I think about addressing the bigger issues here, I think about risk:</p>
 
-<div class="media media--image">
 
-  
-
-  <div class="media__element">
-
-  
-
-    <picture>
-      <img src="/assets/images/hot-cell-1-0/risk.png" alt="risk = probability × impact, annotated: a falling chart pointing at risk, a rising chart pointing at probability, and a thinking face with a question mark pointing at impact" />
-    </picture>
-
-  
-
-  </div>
-
-  
-
-  
-
-</div>
 
 <p>The probability of another vulnerability in these libraries is very high, and it’s not going down any time soon. That leaves impact. How do we shrink the blast radius, so that the next vulnerability does as little damage as possible?</p>
+
+<hr>
 
 <h2 id="part-2-reducing-the-blast-radius">Part 2: Reducing the blast radius</h2>
 
@@ -166,9 +74,9 @@
 
 <ul>
   <li><strong>Implement existing Rails behavior.</strong> A drop-in replacement for Active Storage’s analyzers, transformers, and previewers. A configuration change, not a code change.</li>
-  <li><strong>Least privilege.</strong> No capabilities, no privilege escalation, no <code class="language-plaintext highlighter-rouge">setuid</code>, an unprivileged user.</li>
+  <li><strong>Least privilege.</strong> No capabilities, no privilege escalation, no <code>setuid</code>, an unprivileged user.</li>
   <li><strong>Hard limits.</strong> Wall-clock deadline, memory, file size, open files, and process count.</li>
-  <li><strong>No access to the app filesystem.</strong> No app code, no credentials. The filesystem is read-only and <code class="language-plaintext highlighter-rouge">noexec</code>.</li>
+  <li><strong>No access to the app filesystem.</strong> No app code, no credentials. The filesystem is read-only and <code>noexec</code>.</li>
   <li><strong>No access to the app environment.</strong> No secrets to exfiltrate.</li>
   <li><strong>No network interface.</strong> No calling home, and no lateral movement.</li>
   <li><strong>Disposable.</strong> A process per request, killed and reaped when it’s done, so remote code execution has a short lifetime.</li>
@@ -178,27 +86,7 @@
 
 <h3 id="step-2-an-obscure-too-clever-name-">Step 2: An obscure, too-clever name 🤣</h3>
 
-<div class="media media--image">
 
-  
-
-  <div class="media__element">
-
-  
-
-    <picture>
-      <img src="/assets/images/hot-cell-1-0/hot-cell-photo.jpg" alt="a technician at Oak Ridge National Laboratory using manipulator arms to work inside a shielded hot cell" />
-    </picture>
-
-  
-
-  </div>
-
-  
-
-  
-
-</div>
 
 <p><em>Image: a frame from an <a href="https://www.youtube.com/watch?v=FC4k4bB_KGQ">Oak Ridge National Laboratory video</a>.</em></p>
 
@@ -206,73 +94,33 @@
 
 <p>That’s exactly what I want for Active Storage.</p>
 
-<div class="media media--image">
 
-  
-
-  <div class="media__element">
-
-  
-
-    <picture>
-      <img src="/assets/images/hot-cell-1-0/hotcell-logo.png" alt="the Hot Cell logo: two manipulator arms inside a shielded window, over the tagline &quot;It can't hurt you in there.&quot;" />
-    </picture>
-
-  
-
-  </div>
-
-  
-
-  
-
-</div>
 
 <h3 id="step-3-jam-it-into-rails">Step 3: Jam it into Rails</h3>
 
 <p>Thankfully, Rails already has configuration for this. Analyzers extract metadata, like the number of pages in a PDF. The variant processor does transformations: rotating, cropping, resizing. Previewers generate thumbnails for files that aren’t images, like PDFs and videos. Here are the defaults, trimmed to the ones we care about:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># config/application.rb</span>
-<span class="n">config</span><span class="p">.</span><span class="nf">active_storage</span><span class="p">.</span><span class="nf">variant_processor</span> <span class="o">=</span> <span class="ss">:vips</span>
-<span class="n">config</span><span class="p">.</span><span class="nf">active_storage</span><span class="p">.</span><span class="nf">analyzers</span> <span class="o">=</span> <span class="p">[</span> <span class="no">ActiveStorage</span><span class="o">::</span><span class="no">Analyzer</span><span class="o">::</span><span class="no">ImageAnalyzer</span><span class="o">::</span><span class="no">Vips</span><span class="p">,</span>
-                                    <span class="no">ActiveStorage</span><span class="o">::</span><span class="no">Analyzer</span><span class="o">::</span><span class="no">VideoAnalyzer</span> <span class="p">]</span>
-<span class="n">config</span><span class="p">.</span><span class="nf">active_storage</span><span class="p">.</span><span class="nf">previewers</span> <span class="o">=</span> <span class="p">[</span> <span class="no">ActiveStorage</span><span class="o">::</span><span class="no">Previewer</span><span class="o">::</span><span class="no">MuPDFPreviewer</span> <span class="p">]</span>
-</code></pre></div></div>
+<div><pre><code data-language="ruby"># config/application.rb
+config.active_storage.variant_processor = :vips
+config.active_storage.analyzers = [ ActiveStorage::Analyzer::ImageAnalyzer::Vips,
+                                    ActiveStorage::Analyzer::VideoAnalyzer ]
+config.active_storage.previewers = [ ActiveStorage::Previewer::MuPDFPreviewer ]
+</code></pre></div>
 
 <p>And here’s the target API, with no application code changes:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># config/application.rb</span>
-<span class="n">config</span><span class="p">.</span><span class="nf">active_storage</span><span class="p">.</span><span class="nf">variant_processor</span> <span class="o">=</span> <span class="no">ActiveStorage</span><span class="o">::</span><span class="no">HotCell</span><span class="o">::</span><span class="no">Client</span><span class="o">::</span><span class="no">Transformers</span><span class="o">::</span><span class="no">Image</span><span class="o">::</span><span class="no">Vips</span>
-<span class="n">config</span><span class="p">.</span><span class="nf">active_storage</span><span class="p">.</span><span class="nf">analyzers</span> <span class="o">=</span> <span class="p">[</span> <span class="no">ActiveStorage</span><span class="o">::</span><span class="no">HotCell</span><span class="o">::</span><span class="no">Client</span><span class="o">::</span><span class="no">Analyzers</span><span class="o">::</span><span class="no">Image</span><span class="o">::</span><span class="no">Vips</span><span class="p">,</span>
-                                    <span class="no">ActiveStorage</span><span class="o">::</span><span class="no">HotCell</span><span class="o">::</span><span class="no">Client</span><span class="o">::</span><span class="no">Analyzers</span><span class="o">::</span><span class="no">Video</span><span class="o">::</span><span class="no">FFprobe</span> <span class="p">]</span>
-<span class="n">config</span><span class="p">.</span><span class="nf">active_storage</span><span class="p">.</span><span class="nf">previewers</span> <span class="o">=</span> <span class="p">[</span> <span class="no">ActiveStorage</span><span class="o">::</span><span class="no">HotCell</span><span class="o">::</span><span class="no">Client</span><span class="o">::</span><span class="no">Previewers</span><span class="o">::</span><span class="no">Pdf</span><span class="o">::</span><span class="no">Mutool</span> <span class="p">]</span>
-</code></pre></div></div>
+<div><pre><code data-language="ruby"># config/application.rb
+config.active_storage.variant_processor = ActiveStorage::HotCell::Client::Transformers::Image::Vips
+config.active_storage.analyzers = [ ActiveStorage::HotCell::Client::Analyzers::Image::Vips,
+                                    ActiveStorage::HotCell::Client::Analyzers::Video::FFprobe ]
+config.active_storage.previewers = [ ActiveStorage::HotCell::Client::Previewers::Pdf::Mutool ]
+</code></pre></div>
 
-<p>One caveat: passing a class as the <code class="language-plaintext highlighter-rouge">variant_processor</code> became possible with <a href="https://github.com/rails/rails/pull/58384">rails/rails#58384</a>, so the Active Storage gems need Rails 8.2.</p>
+<p>One caveat: passing a class as the <code>variant_processor</code> became possible with <a href="https://github.com/rails/rails/pull/58384">rails/rails#58384</a>, so the Active Storage gems need Rails 8.2.</p>
 
-<div class="media media--image">
 
-  
 
-  <div class="media__element">
-
-  
-
-    <picture>
-      <img src="/assets/images/hot-cell-1-0/gem-tree.png" alt="the gem dependency tree: activestorage-hotcell-client depends on hotcell-client, activestorage-hotcell-server depends on hotcell-server, and both depend on hotcell-core" />
-    </picture>
-
-  
-
-  </div>
-
-  
-
-  
-
-</div>
-
-<p>Hot Cell is a family of gems. <code class="language-plaintext highlighter-rouge">hotcell-core</code> holds the common bits: the wire protocol, descriptor passing, and the error codes. <code class="language-plaintext highlighter-rouge">hotcell-client</code> runs in your app and <code class="language-plaintext highlighter-rouge">hotcell-server</code> runs in the cell. The <code class="language-plaintext highlighter-rouge">activestorage-hotcell-client</code> and <code class="language-plaintext highlighter-rouge">activestorage-hotcell-server</code> gems subclass those to provide the drop-in replacements for Rails. Since the talk, a sixth gem has joined them: <code class="language-plaintext highlighter-rouge">yabeda-hotcell</code>, which I’ll get to below.</p>
+<p>Hot Cell is a family of gems. <code>hotcell-core</code> holds the common bits: the wire protocol, descriptor passing, and the error codes. <code>hotcell-client</code> runs in your app and <code>hotcell-server</code> runs in the cell. The <code>activestorage-hotcell-client</code> and <code>activestorage-hotcell-server</code> gems subclass those to provide the drop-in replacements for Rails. Since the talk, a sixth gem has joined them: <code>yabeda-hotcell</code>, which I’ll get to below.</p>
 
 <h3 id="step-4-inputs-and-outputs">Step 4: Inputs and outputs</h3>
 
@@ -280,7 +128,7 @@
 
 <p>The answer is UNIX sockets. A UNIX socket is a file on disk that two processes on the same host can talk over, and nothing about it is routable on a network. A cell exposes two of them in a shared directory: one for work, and one for metadata and control.</p>
 
-<p>And the magic bit is that <code class="language-plaintext highlighter-rouge">sendmsg()</code> can pass open file descriptors over a UNIX socket. The Hot Cell client in your app opens the upload and the output file, and hands those descriptors to the cell. The cell reads and writes through them but never sees a path, and has no access to the rest of your filesystem. Inputs are read-only and outputs are write-only, and the kernel enforces it. Passing descriptors also <a href="https://basecamp.github.io/hotcell/docs/design/descriptors/">closes off the class of attacks</a> that use symbolic links to traverse paths.</p>
+<p>And the magic bit is that <code>sendmsg()</code> can pass open file descriptors over a UNIX socket. The Hot Cell client in your app opens the upload and the output file, and hands those descriptors to the cell. The cell reads and writes through them but never sees a path, and has no access to the rest of your filesystem. Inputs are read-only and outputs are write-only, and the kernel enforces it. Passing descriptors also <a href="https://basecamp.github.io/hotcell/docs/design/descriptors/">closes off the class of attacks</a> that use symbolic links to traverse paths.</p>
 
 <h3 id="step-5-doing-the-work">Step 5: Doing the work</h3>
 
@@ -290,182 +138,164 @@
 
 <p>Each request is handled by a forked worker. A successful attack only compromises that worker, which gets reaped.</p>
 
-<div class="media media--image">
 
-  
-
-  <div class="media__element">
-
-  
-
-    <picture>
-      <img src="/assets/images/hot-cell-1-0/architecture-hotcell.png" alt="the finished system: the app container holds the Rails process, with the HotCell client and the secrets; the hot cell container holds a supervisor and workers running libvips; the two share only /run/hotcell, which holds work.sock and control.sock" />
-    </picture>
-
-  
-
-  </div>
-
-  
-
-  
-
-</div>
 
 <p>That’s the finished system, and it’s what is running in production at 37signals today. Now that I’ve scared you, I’m telling you that you should be running Hot Cell in your apps, and here’s how.</p>
 
+<hr>
+
 <h2 id="part-3-rolling-it-out">Part 3: Rolling it out</h2>
 
-<p>Add <code class="language-plaintext highlighter-rouge">activestorage-hotcell-client</code> to your app’s <code class="language-plaintext highlighter-rouge">Gemfile</code>, and <a href="https://basecamp.github.io/hotcell/#1-install">run the installer</a>:</p>
+<p>Add <code>activestorage-hotcell-client</code> to your app’s <code>Gemfile</code>, and <a href="https://basecamp.github.io/hotcell/#1-install">run the installer</a>:</p>
 
-<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>bin/rails hotcell:install
-<span class="gp">$</span><span class="w"> </span>find hotcell
-<span class="go">hotcell/Dockerfile
+<div><pre><code data-language="console">$ bin/rails hotcell:install
+$ find hotcell
+hotcell/Dockerfile
 hotcell/Gemfile
 hotcell/config.rb
 hotcell/operations/
 hotcell/operations/.keep
-</span></code></pre></div></div>
+</code></pre></div>
 
-<p>Everything about the cell lives in that <code class="language-plaintext highlighter-rouge">hotcell/</code> directory. The cell has its own <code class="language-plaintext highlighter-rouge">Gemfile</code>, which you should keep short, because every gem in it is inside the blast radius. <code class="language-plaintext highlighter-rouge">config.rb</code> is plain Ruby, not Rails, and sets the <a href="https://basecamp.github.io/hotcell/docs/cell-settings/#request-limits">cell’s limits</a>. Each operation’s own limits are clamped to these:</p>
+<p>Everything about the cell lives in that <code>hotcell/</code> directory. The cell has its own <code>Gemfile</code>, which you should keep short, because every gem in it is inside the blast radius. <code>config.rb</code> is plain Ruby, not Rails, and sets the <a href="https://basecamp.github.io/hotcell/docs/cell-settings/#request-limits">cell’s limits</a>. Each operation’s own limits are clamped to these:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># hotcell/Gemfile</span>
-<span class="n">source</span> <span class="s2">"https://rubygems.org"</span>
+<div><pre><code data-language="ruby"># hotcell/Gemfile
+source "https://rubygems.org"
 
-<span class="n">gem</span> <span class="s2">"hotcell-server"</span><span class="p">,</span> <span class="s2">"~&gt; 1.0"</span>
-<span class="n">gem</span> <span class="s2">"activestorage-hotcell-server"</span><span class="p">,</span> <span class="s2">"~&gt; 1.0"</span>
-</code></pre></div></div>
+gem "hotcell-server", "~&gt; 1.0"
+gem "activestorage-hotcell-server", "~&gt; 1.0"
+</code></pre></div>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># hotcell/config.rb</span>
-<span class="no">HotCell</span><span class="p">.</span><span class="nf">limits</span> <span class="ss">concurrency: </span><span class="mi">4</span><span class="p">,</span>
-               <span class="ss">queue_size: </span><span class="mi">8</span><span class="p">,</span>
-               <span class="ss">queue_wait: </span><span class="mi">10</span><span class="p">,</span>
-               <span class="ss">deadline: </span><span class="mi">120</span><span class="p">,</span>
-               <span class="ss">memory: </span><span class="mi">1536</span> <span class="o">*</span> <span class="mi">1024</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
-               <span class="ss">file_size: </span><span class="mi">256</span> <span class="o">*</span> <span class="mi">1024</span><span class="o">**</span><span class="mi">2</span>
-</code></pre></div></div>
+<div><pre><code data-language="ruby"># hotcell/config.rb
+HotCell.limits concurrency: 4,
+               queue_size: 8,
+               queue_wait: 10,
+               deadline: 120,
+               memory: 1536 * 1024**2,
+               file_size: 256 * 1024**2
+</code></pre></div>
 
 <p>The only thing the app and the cell share is a volume holding the two sockets. In the app’s Kamal config, you join the cell’s group and mount the volume:</p>
 
-<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># config/deploy.yml -- the app</span>
-<span class="na">servers</span><span class="pi">:</span>
-  <span class="na">web</span><span class="pi">:</span>
-    <span class="na">options</span><span class="pi">:</span>
-      <span class="na">group-add</span><span class="pi">:</span> <span class="m">10001</span>
+<div><pre><code data-language="yaml"># config/deploy.yml -- the app
+servers:
+  web:
+    options:
+      group-add: 10001
 
-<span class="na">volumes</span><span class="pi">:</span>
-  <span class="pi">-</span> <span class="s">hotcell-sockets:/run/hotcell/active_storage</span>
+volumes:
+  - hotcell-sockets:/run/hotcell/active_storage
 
-<span class="na">env</span><span class="pi">:</span>
-  <span class="na">clear</span><span class="pi">:</span>
-    <span class="na">HOTCELL_ROOT</span><span class="pi">:</span> <span class="s">/run/hotcell</span>
-    <span class="na">HOTCELL_GROUP</span><span class="pi">:</span> <span class="m">10001</span>
-</code></pre></div></div>
+env:
+  clear:
+    HOTCELL_ROOT: /run/hotcell
+    HOTCELL_GROUP: 10001
+</code></pre></div>
 
-<p>The cell is a Kamal accessory, because Kamal hard-codes the network for roles and <code class="language-plaintext highlighter-rouge">network: none</code> is the point:</p>
+<p>The cell is a Kamal accessory, because Kamal hard-codes the network for roles and <code>network: none</code> is the point:</p>
 
-<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># config/deploy.yml -- the cell</span>
-<span class="na">accessories</span><span class="pi">:</span>
-  <span class="na">active_storage</span><span class="pi">:</span>
-    <span class="na">image</span><span class="pi">:</span> <span class="s">your.registry.com/your-image:latest</span>
-    <span class="na">roles</span><span class="pi">:</span> <span class="pi">[</span> <span class="nv">web</span><span class="pi">,</span> <span class="nv">jobs</span> <span class="pi">]</span>
-    <span class="na">network</span><span class="pi">:</span> <span class="s">none</span>
-    <span class="na">volumes</span><span class="pi">:</span>
-      <span class="pi">-</span> <span class="s">hotcell-sockets:/run/hotcell/cell</span>
-    <span class="na">options</span><span class="pi">:</span>
-      <span class="na">cpus</span><span class="pi">:</span> <span class="m">2</span>
-      <span class="na">memory</span><span class="pi">:</span> <span class="s">2g</span>
-      <span class="na">memory-swap</span><span class="pi">:</span> <span class="s">2g</span>
-      <span class="na">pids-limit</span><span class="pi">:</span> <span class="m">512</span>
-      <span class="na">read-only</span><span class="pi">:</span> <span class="kc">true</span>
-      <span class="na">cap-drop</span><span class="pi">:</span> <span class="s">ALL</span>
-      <span class="na">security-opt</span><span class="pi">:</span> <span class="s">no-new-privileges:true</span>
-      <span class="na">user</span><span class="pi">:</span> <span class="s">10001:10001</span>
-      <span class="na">tmpfs</span><span class="pi">:</span> <span class="s">/tmp:rw,nosuid,nodev,noexec,size=512m</span>
-    <span class="na">env</span><span class="pi">:</span>
-      <span class="na">clear</span><span class="pi">:</span>
-        <span class="na">HOTCELL_DIR</span><span class="pi">:</span> <span class="s">/run/hotcell/cell</span>
-</code></pre></div></div>
+<div><pre><code data-language="yaml"># config/deploy.yml -- the cell
+accessories:
+  active_storage:
+    image: your.registry.com/your-image:latest
+    roles: [ web, jobs ]
+    network: none
+    volumes:
+      - hotcell-sockets:/run/hotcell/cell
+    options:
+      cpus: 2
+      memory: 2g
+      memory-swap: 2g
+      pids-limit: 512
+      read-only: true
+      cap-drop: ALL
+      security-opt: no-new-privileges:true
+      user: 10001:10001
+      tmpfs: /tmp:rw,nosuid,nodev,noexec,size=512m
+    env:
+      clear:
+        HOTCELL_DIR: /run/hotcell/cell
+</code></pre></div>
 
-<p>The volume matches the app’s. The resource limits cap CPU, memory (with swap pinned equal so the limit holds), and processes, so a fork bomb dies in the cell. And every one of <code class="language-plaintext highlighter-rouge">network: none</code>, <code class="language-plaintext highlighter-rouge">read-only</code>, <code class="language-plaintext highlighter-rouge">cap-drop</code>, and <code class="language-plaintext highlighter-rouge">no-new-privileges</code> is a <a href="https://basecamp.github.io/hotcell/docs/container/#security-flags">security property</a>. If you omit one, the protection is gone and the cell keeps serving requests exactly as before.</p>
+<p>The volume matches the app’s. The resource limits cap CPU, memory (with swap pinned equal so the limit holds), and processes, so a fork bomb dies in the cell. And every one of <code>network: none</code>, <code>read-only</code>, <code>cap-drop</code>, and <code>no-new-privileges</code> is a <a href="https://basecamp.github.io/hotcell/docs/container/#security-flags">security property</a>. If you omit one, the protection is gone and the cell keeps serving requests exactly as before.</p>
 
 <p>Then pick the <a href="https://basecamp.github.io/hotcell/docs/active-storage/#classes">Hot Cell twin</a> of each Active Storage class you use:</p>
 
 <table>
   <thead>
     <tr>
-      <th><code class="language-plaintext highlighter-rouge">ActiveStorage</code></th>
-      <th><code class="language-plaintext highlighter-rouge">ActiveStorage::HotCell::Client</code></th>
+      <th><code>ActiveStorage</code></th>
+      <th><code>ActiveStorage::HotCell::Client</code></th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">Transformers::Vips</code></td>
-      <td><code class="language-plaintext highlighter-rouge">Transformers::Image::Vips</code></td>
+      <td><code>Transformers::Vips</code></td>
+      <td><code>Transformers::Image::Vips</code></td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">Transformers::ImageMagick</code></td>
-      <td><code class="language-plaintext highlighter-rouge">Transformers::Image::Magick</code></td>
+      <td><code>Transformers::ImageMagick</code></td>
+      <td><code>Transformers::Image::Magick</code></td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">Analyzer::ImageAnalyzer::Vips</code></td>
-      <td><code class="language-plaintext highlighter-rouge">Analyzers::Image::Vips</code></td>
+      <td><code>Analyzer::ImageAnalyzer::Vips</code></td>
+      <td><code>Analyzers::Image::Vips</code></td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">Analyzer::ImageAnalyzer::ImageMagick</code></td>
-      <td><code class="language-plaintext highlighter-rouge">Analyzers::Image::Magick</code></td>
+      <td><code>Analyzer::ImageAnalyzer::ImageMagick</code></td>
+      <td><code>Analyzers::Image::Magick</code></td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">Analyzer::VideoAnalyzer</code></td>
-      <td><code class="language-plaintext highlighter-rouge">Analyzers::Video::FFprobe</code></td>
+      <td><code>Analyzer::VideoAnalyzer</code></td>
+      <td><code>Analyzers::Video::FFprobe</code></td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">Analyzer::AudioAnalyzer</code></td>
-      <td><code class="language-plaintext highlighter-rouge">Analyzers::Audio::FFprobe</code></td>
+      <td><code>Analyzer::AudioAnalyzer</code></td>
+      <td><code>Analyzers::Audio::FFprobe</code></td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">Previewer::MuPDFPreviewer</code></td>
-      <td><code class="language-plaintext highlighter-rouge">Previewers::Pdf::Mutool</code></td>
+      <td><code>Previewer::MuPDFPreviewer</code></td>
+      <td><code>Previewers::Pdf::Mutool</code></td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">Previewer::PopplerPDFPreviewer</code></td>
-      <td><code class="language-plaintext highlighter-rouge">Previewers::Pdf::Poppler</code></td>
+      <td><code>Previewer::PopplerPDFPreviewer</code></td>
+      <td><code>Previewers::Pdf::Poppler</code></td>
     </tr>
     <tr>
-      <td><code class="language-plaintext highlighter-rouge">Previewer::VideoPreviewer</code></td>
-      <td><code class="language-plaintext highlighter-rouge">Previewers::Video::FFmpeg</code></td>
+      <td><code>Previewer::VideoPreviewer</code></td>
+      <td><code>Previewers::Video::FFmpeg</code></td>
     </tr>
   </tbody>
 </table>
 
 <p>Set the three Active Storage configs as above, and point Hot Cell at the sockets:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># config/initializers/hotcell.rb</span>
-<span class="no">HotCell</span><span class="p">.</span><span class="nf">root</span>  <span class="o">=</span> <span class="no">ENV</span><span class="p">[</span><span class="s2">"HOTCELL_ROOT"</span><span class="p">]</span>
-<span class="no">HotCell</span><span class="p">.</span><span class="nf">group</span> <span class="o">=</span> <span class="no">ENV</span><span class="p">[</span><span class="s2">"HOTCELL_GROUP"</span><span class="p">]</span>
-</code></pre></div></div>
+<div><pre><code data-language="ruby"># config/initializers/hotcell.rb
+HotCell.root  = ENV["HOTCELL_ROOT"]
+HotCell.group = ENV["HOTCELL_GROUP"]
+</code></pre></div>
 
 <p>On the cell side, require the operations that match. The cell isn’t a Rails app, so there’s no Zeitwerk; requiring a file is what serves its operation. This is also where you <a href="https://basecamp.github.io/hotcell/docs/operation-api/#change-a-shipped-operations-limits">set per-operation limits</a>:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># hotcell/operations/active_storage.rb</span>
-<span class="nb">require</span> <span class="s2">"active_storage/hot_cell/server/transformers/image/vips"</span>
-<span class="nb">require</span> <span class="s2">"active_storage/hot_cell/server/analyzers/image/vips"</span>
-<span class="nb">require</span> <span class="s2">"active_storage/hot_cell/server/analyzers/media/ffprobe"</span>
-<span class="nb">require</span> <span class="s2">"active_storage/hot_cell/server/previewers/pdf/mutool"</span>
-<span class="nb">require</span> <span class="s2">"active_storage/hot_cell/server/previewers/video/ffmpeg"</span>
+<div><pre><code data-language="ruby"># hotcell/operations/active_storage.rb
+require "active_storage/hot_cell/server/transformers/image/vips"
+require "active_storage/hot_cell/server/analyzers/image/vips"
+require "active_storage/hot_cell/server/analyzers/media/ffprobe"
+require "active_storage/hot_cell/server/previewers/pdf/mutool"
+require "active_storage/hot_cell/server/previewers/video/ffmpeg"
 
-<span class="no">ActiveStorage</span><span class="o">::</span><span class="no">HotCell</span><span class="o">::</span><span class="no">Server</span><span class="o">::</span><span class="no">Transformers</span><span class="o">::</span><span class="no">Image</span><span class="o">::</span><span class="no">Vips</span>
-  <span class="p">.</span><span class="nf">limits</span> <span class="ss">file_size: </span><span class="mi">256</span> <span class="o">*</span> <span class="mi">1024</span><span class="o">**</span><span class="mi">2</span>
+ActiveStorage::HotCell::Server::Transformers::Image::Vips
+  .limits file_size: 256 * 1024**2
 
-<span class="no">ActiveStorage</span><span class="o">::</span><span class="no">HotCell</span><span class="o">::</span><span class="no">Server</span><span class="o">::</span><span class="no">Previewers</span><span class="o">::</span><span class="no">Pdf</span><span class="o">::</span><span class="no">Mutool</span>
-  <span class="p">.</span><span class="nf">limits</span> <span class="ss">deadline: </span><span class="mi">30</span>
-</code></pre></div></div>
+ActiveStorage::HotCell::Server::Previewers::Pdf::Mutool
+  .limits deadline: 30
+</code></pre></div>
 
 <p>That’s all it takes to port a Rails app that’s using vanilla Active Storage!</p>
 
 <ol>
   <li>Configure Active Storage.</li>
-  <li>Configure the cell’s <code class="language-plaintext highlighter-rouge">Gemfile</code> and <code class="language-plaintext highlighter-rouge">config.rb</code>.</li>
+  <li>Configure the cell’s <code>Gemfile</code> and <code>config.rb</code>.</li>
   <li>Extend the Kamal (or Kubernetes) config.</li>
 </ol>
 
@@ -478,7 +308,7 @@ hotcell/operations/.keep
 <p>We can’t trust the workers, since any one of them may have been compromised. But we can trust the supervisor, and we can trust your Rails app, and between them they can give us fantastic visibility into image processing:</p>
 
 <ol>
-  <li><strong><a href="https://basecamp.github.io/hotcell/docs/observability/#per-call-notification">Events in the app</a>.</strong> Every call publishes a <code class="language-plaintext highlighter-rouge">perform.hot_cell</code> Active Support notification with the operation, outcome, cause, bytes in and out, and timing. A dead cell shows up here too, as <code class="language-plaintext highlighter-rouge">unavailable</code>.</li>
+  <li><strong><a href="https://basecamp.github.io/hotcell/docs/observability/#per-call-notification">Events in the app</a>.</strong> Every call publishes a <code>perform.hot_cell</code> Active Support notification with the operation, outcome, cause, bytes in and out, and timing. A dead cell shows up here too, as <code>unavailable</code>.</li>
   <li><strong><a href="https://basecamp.github.io/hotcell/docs/observability/#cell-metrics">Metrics from the supervisor</a>.</strong> The app asks the cell’s control socket for metrics like queue depth, running workers, and kills by cause.</li>
   <li><strong><a href="https://basecamp.github.io/hotcell/docs/observability/#cell-log">Logs from the supervisor</a>.</strong> One JSON object per event on stdout, so you can see when a worker was killed and why.</li>
 </ol>
@@ -486,34 +316,14 @@ hotcell/operations/.keep
 <p>In the talk, wiring those into your app was left as an exercise using our examples. In v1.0 they ship in the gems:</p>
 
 <ul>
-  <li><code class="language-plaintext highlighter-rouge">HotCell::LogSubscriber</code>, in <code class="language-plaintext highlighter-rouge">hotcell-client</code>, writes one line to the Rails log for every call.</li>
-  <li>The <code class="language-plaintext highlighter-rouge">yabeda-hotcell</code> gem records <a href="https://github.com/yabeda-rb/yabeda">Yabeda</a> metrics for every call, plus gauges scraped from each cell’s control socket. Add the gem and call <code class="language-plaintext highlighter-rouge">Yabeda::HotCell.install!</code>.</li>
-  <li><code class="language-plaintext highlighter-rouge">HotCell::HealthController</code> and <code class="language-plaintext highlighter-rouge">HotCell::DiagnosticsController</code>, in <code class="language-plaintext highlighter-rouge">hotcell-client</code>, give you a public health check and an authenticated diagnostic endpoint that does a real round trip through the work socket.</li>
+  <li><code>HotCell::LogSubscriber</code>, in <code>hotcell-client</code>, writes one line to the Rails log for every call.</li>
+  <li>The <code>yabeda-hotcell</code> gem records <a href="https://github.com/yabeda-rb/yabeda">Yabeda</a> metrics for every call, plus gauges scraped from each cell’s control socket. Add the gem and call <code>Yabeda::HotCell.install!</code>.</li>
+  <li><code>HotCell::HealthController</code> and <code>HotCell::DiagnosticsController</code>, in <code>hotcell-client</code>, give you a public health check and an authenticated diagnostic endpoint that does a real round trip through the work socket.</li>
 </ul>
 
 <p>The Hot Cell docs list the <a href="https://basecamp.github.io/hotcell/docs/observability/#recommended-alerts">alerts we recommend</a>.</p>
 
-<div class="media media--image">
 
-  
-
-  <div class="media__element">
-
-  
-
-    <picture>
-      <img src="/assets/images/hot-cell-1-0/dashboard.jpg" alt="the Hot Cell Grafana dashboard for Basecamp production: requests per host and per operation, throughput and failures by outcome, killed requests, queue wait, queue depth, perform time, and scratch disk usage" />
-    </picture>
-
-  
-
-  </div>
-
-  
-
-  
-
-</div>
 
 <p>This is the dashboard we use for Basecamp.</p>
 
@@ -534,35 +344,35 @@ hotcell/operations/.keep
   <li>Every operation’s limits are configurable.</li>
 </ul>
 
-<p>A <a href="https://basecamp.github.io/hotcell/docs/operation-api/">custom operation</a> is shaped like an Active Job. It lives in <code class="language-plaintext highlighter-rouge">hotcell/operations/</code>, has a routing name and its own default limits, and does its work in <code class="language-plaintext highlighter-rouge">perform</code>:</p>
+<p>A <a href="https://basecamp.github.io/hotcell/docs/operation-api/">custom operation</a> is shaped like an Active Job. It lives in <code>hotcell/operations/</code>, has a routing name and its own default limits, and does its work in <code>perform</code>:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># hotcell/operations/extract_text.rb</span>
-<span class="k">class</span> <span class="nc">ExtractTextOperation</span> <span class="o">&lt;</span> <span class="no">HotCell</span><span class="o">::</span><span class="no">Operation</span>
-  <span class="n">operation</span> <span class="s2">"extract_text"</span>
-  <span class="n">limits</span> <span class="ss">deadline: </span><span class="mi">30</span><span class="p">.</span><span class="nf">seconds</span><span class="p">,</span> <span class="ss">memory: </span><span class="mi">1280</span><span class="p">.</span><span class="nf">megabytes</span>
+<div><pre><code data-language="ruby"># hotcell/operations/extract_text.rb
+class ExtractTextOperation &lt; HotCell::Operation
+  operation "extract_text"
+  limits deadline: 30.seconds, memory: 1280.megabytes
 
-  <span class="k">def</span> <span class="nf">perform</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="nb">format</span><span class="p">:,</span> <span class="ss">pages: </span><span class="p">[])</span>
-    <span class="n">source</span><span class="p">,</span> <span class="o">=</span> <span class="n">inputs</span>
-    <span class="n">destination</span><span class="p">,</span> <span class="o">=</span> <span class="n">outputs</span>
+  def perform(inputs, outputs, format:, pages: [])
+    source, = inputs
+    destination, = outputs
 
-    <span class="n">complicated_image_manipulation</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">destination</span><span class="p">,</span> <span class="nb">format</span><span class="p">:,</span> <span class="n">pages</span><span class="p">:)</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+    complicated_image_manipulation(source, destination, format:, pages:)
+  end
+end
+</code></pre></div>
 
-<p>In the app, a <a href="https://basecamp.github.io/hotcell/docs/client-api/#write-a-client">thin client class</a> names the cell and the operation. Where a job has <code class="language-plaintext highlighter-rouge">perform_later</code>, a client has <code class="language-plaintext highlighter-rouge">perform_in_hotcell</code>, a blocking call that serializes the arguments, passes the descriptors, and returns the operation’s result:</p>
+<p>In the app, a <a href="https://basecamp.github.io/hotcell/docs/client-api/#write-a-client">thin client class</a> names the cell and the operation. Where a job has <code>perform_later</code>, a client has <code>perform_in_hotcell</code>, a blocking call that serializes the arguments, passes the descriptors, and returns the operation’s result:</p>
 
-<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ExtractText</span> <span class="o">&lt;</span> <span class="no">HotCell</span><span class="o">::</span><span class="no">Client</span>
-  <span class="n">hotcell</span> <span class="s2">"documents"</span>
-  <span class="n">operation</span> <span class="s2">"extract_text"</span>
-<span class="k">end</span>
+<div><pre><code data-language="ruby">class ExtractText &lt; HotCell::Client
+  hotcell "documents"
+  operation "extract_text"
+end
 
-<span class="no">File</span><span class="p">.</span><span class="nf">open</span><span class="p">(</span><span class="n">pdf_path</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">source</span><span class="o">|</span>
-  <span class="no">File</span><span class="p">.</span><span class="nf">open</span><span class="p">(</span><span class="n">text_path</span><span class="p">,</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">do</span> <span class="o">|</span><span class="n">destination</span><span class="o">|</span>
-    <span class="vi">@result</span> <span class="o">=</span> <span class="no">ExtractText</span><span class="p">.</span><span class="nf">perform_in_hotcell</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">destination</span><span class="p">,</span> <span class="ss">format: </span><span class="s2">"txt"</span><span class="p">,</span> <span class="ss">pages: </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
-  <span class="k">end</span>
-<span class="k">end</span>
-</code></pre></div></div>
+File.open(pdf_path, "rb") do |source|
+  File.open(text_path, "wb") do |destination|
+    @result = ExtractText.perform_in_hotcell(source, destination, format: "txt", pages: [1, 2])
+  end
+end
+</code></pre></div>
 
 <p>Opening the files yourself is the only hoop to jump through, and usually the class you write hides it.</p>
 
@@ -575,11 +385,11 @@ hotcell/operations/.keep
 <p>We had outages along the way, and I rolled the lessons back into the library:</p>
 
 <ul>
-  <li><strong>The OpenMP thread pool.</strong> ImageMagick, and the libraries libvips delegates to, size their OpenMP thread pools from the host’s core count, not the container’s <code class="language-plaintext highlighter-rouge">cpus</code> quota. On a 98-core production host that’s 98 threads at 8MB of stack each, which blew through the worker’s memory limit, and 285 workers died. The fix is to <a href="https://basecamp.github.io/hotcell/docs/container/#bound-the-openmp-thread-pools">set <code class="language-plaintext highlighter-rouge">OMP_NUM_THREADS</code> and <code class="language-plaintext highlighter-rouge">OMP_THREAD_LIMIT</code></a> in the image, forwarded to every tool the cell runs.</li>
-  <li><strong>The scratch disk filled.</strong> ImageMagick wrote its pixel cache to <code class="language-plaintext highlighter-rouge">/tmp</code>, outside the per-request directory, and cleans it up only on a clean exit. Every killed worker left its cache behind, until the 4GB scratch filled on six hosts. While it was full, 3,393 files were marked permanently unreadable. The fixes were to point <code class="language-plaintext highlighter-rouge">TMPDIR</code> and <code class="language-plaintext highlighter-rouge">MAGICK_TMPDIR</code> at the request’s directory (<a href="https://github.com/basecamp/hotcell/pull/51">hotcell#51</a>), empty the scratch at boot (<a href="https://github.com/basecamp/hotcell/pull/52">hotcell#52</a>), and <a href="https://basecamp.github.io/hotcell/docs/imagemagick/#set-the-limits">size ImageMagick’s limits</a> to a worker’s share of the scratch.</li>
+  <li><strong>The OpenMP thread pool.</strong> ImageMagick, and the libraries libvips delegates to, size their OpenMP thread pools from the host’s core count, not the container’s <code>cpus</code> quota. On a 98-core production host that’s 98 threads at 8MB of stack each, which blew through the worker’s memory limit, and 285 workers died. The fix is to <a href="https://basecamp.github.io/hotcell/docs/container/#bound-the-openmp-thread-pools">set <code>OMP_NUM_THREADS</code> and <code>OMP_THREAD_LIMIT</code></a> in the image, forwarded to every tool the cell runs.</li>
+  <li><strong>The scratch disk filled.</strong> ImageMagick wrote its pixel cache to <code>/tmp</code>, outside the per-request directory, and cleans it up only on a clean exit. Every killed worker left its cache behind, until the 4GB scratch filled on six hosts. While it was full, 3,393 files were marked permanently unreadable. The fixes were to point <code>TMPDIR</code> and <code>MAGICK_TMPDIR</code> at the request’s directory (<a href="https://github.com/basecamp/hotcell/pull/51">hotcell#51</a>), empty the scratch at boot (<a href="https://github.com/basecamp/hotcell/pull/52">hotcell#52</a>), and <a href="https://basecamp.github.io/hotcell/docs/imagemagick/#set-the-limits">size ImageMagick’s limits</a> to a worker’s share of the scratch.</li>
 </ul>
 
-<p>Allocate some time for tuning. Size <code class="language-plaintext highlighter-rouge">file_size</code> and the deadlines from what your real uploads take, then watch <code class="language-plaintext highlighter-rouge">killed</code> by cause. The <a href="https://basecamp.github.io/hotcell/docs/tuning/">tuning guide</a> covers how.</p>
+<p>Allocate some time for tuning. Size <code>file_size</code> and the deadlines from what your real uploads take, then watch <code>killed</code> by cause. The <a href="https://basecamp.github.io/hotcell/docs/tuning/">tuning guide</a> covers how.</p>
 
 <h3 id="whats-next">What’s next</h3>
 
@@ -587,29 +397,11 @@ hotcell/operations/.keep
 
 <p>I’m still interested in <a href="https://github.com/basecamp/hotcell/issues/13">Linux Landlock</a>. Landlock lets a process ratchet down its own permissions so that it can never regain them, even if an attacker takes it over. That’s a nice belt-and-suspenders addition, and if you know Landlock, I’d love to talk.</p>
 
+<hr>
+
 <h2 id="part-4-the-moment-we-are-in">Part 4: The moment we are in</h2>
 
-<div class="media media--image">
 
-  
-
-  <div class="media__element">
-
-  
-
-    <picture>
-      <img src="/assets/images/hot-cell-1-0/timeline-future.png" alt="the same timeline, with the Starship Enterprise in place of the question mark" />
-    </picture>
-
-  
-
-  </div>
-
-  
-
-  
-
-</div>
 
 <p>Is this AI’s fault? Well, it’s easy to assign blame, and you’d be forgiven for doing so. AI chained several low-severity flaws into a critical-severity attack, and it made an effective embargo impossible.</p>
 
@@ -630,3 +422,8 @@ hotcell/operations/.keep
 <p>Don’t be too scared. Be proactive and constructive, and the future will be Star Trek, not Terminator.</p>
 
 <p>Live long and prosper, and go try <a href="https://github.com/basecamp/hotcell">Hot Cell</a>.</p>
+
+
+
+
+            </div></div>

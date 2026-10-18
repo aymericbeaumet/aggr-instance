@@ -8,12 +8,10 @@ first_seen: 2026-10-07T23:45:59.494481067Z
 authors:
 - Theo - t3․gg
 summary: Sup nerds we got things to discuss.
-content: feed
+content: extracted
 html: 2026-10-07-i-finally-did-it.html
 remote_preview:
   url: https://i4.ytimg.com/vi/o4-29oLHU8E/hqdefault.jpg
 extra:
   thumbnail: https://i4.ytimg.com/vi/o4-29oLHU8E/hqdefault.jpg
 ---
-
-Sup nerds we got things to discuss.

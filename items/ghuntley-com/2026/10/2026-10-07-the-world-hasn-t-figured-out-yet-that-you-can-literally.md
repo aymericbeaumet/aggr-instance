@@ -11,14 +11,12 @@ labels:
 - ai
 - nix
 summary: There are many things that are uncertain in our industry right now, but one thing I am certain about, and have been for almost 13 years, is that Nix is a terrible programming language. I remember when I first learned it, it felt like pushing shit uphill. The learning cliff
-content: feed
+content: extracted
 html: 2026-10-07-the-world-hasn-t-figured-out-yet-that-you-can-literally.html
 remote_preview:
   url: https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-viewed-from-a-high--elevated-angle--portraying-a-bustling-city-transformed-by-a-Nix-overlay.-Gleaming-buildings--technological-textures--surreal-contrasts--and-limitless-possibility-evoke-hidden-power.-.jpg
   alt: the world hasn’t figured out yet that you can literally just fix everything with a Nix overlay
 ---
-
-![the world hasn’t figured out yet that you can literally just fix everything with a Nix overlay](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-viewed-from-a-high--elevated-angle--portraying-a-bustling-city-transformed-by-a-Nix-overlay.-Gleaming-buildings--technological-textures--surreal-contrasts--and-limitless-possibility-evoke-hidden-power.-.jpg)
 
 There are many things that are uncertain in our industry right now, but one thing I am certain about, and have been for almost 13 years, is that Nix is a *terrible* programming language.
 
@@ -33,6 +31,10 @@ The term Nix is overloaded. It means many different things; when someone says th
 [Stop calling everything “Nix”](https://haskellforall.com/2022/08/stop-calling-everything-nix?ref=ghuntley.com)
 
 Explanation of the Nix ecosystem’s abstraction layers
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/favicon-c80ee1f0-c390-4553-9ccd-192f04c56d2c.ico)
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/opengraph-image-d6ac19c5-3b97-4628-a6a7-e24d7801d58e.png)
 
 an explanation of the Nix ecosystem abstraction layers.
 
@@ -82,6 +84,10 @@ nix is super composable. That same expression that defines your human developer 
 
 [Optimising Docker Layers for Better Caching with Nix - Graham Christensen](https://grahamc.com/blog/nix-and-layered-docker-images/?ref=ghuntley.com)
 
+![](https://static.ghost.org/v5.0.0/images/link-icon.svg)Graham Christensen
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/docker-3fc6bfc5-cb0c-4de5-9989-773af79b9319.png)
+
 ```nix
 pkgs.dockerTools.buildLayeredImage {
   name = "git";
@@ -124,6 +130,10 @@ NixOS has a testing framework (`runNixOSTest`), built in, and for anything you c
 [nixpkgs/nixos/doc/manual/development/writing-nixos-tests.section.md at master · NixOS/nixpkgs](https://github.com/NixOS/nixpkgs/blob/master/nixos/doc/manual/development/writing-nixos-tests.section.md?ref=ghuntley.com)
 
 Nix Packages collection & NixOS. Contribute to NixOS/nixpkgs development by creating an account on GitHub.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/favicon-5cab0a30-53cd-48f3-b86b-c81a1ba35d28.png)GitHub NixOS
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/db161f80-7b49-11e9-9814-cf4d7cae408c-4c6ec481-4adc-4e11-a4d5-efe341ea2f33.png)
 
 Here's an example of what this looks like when you've defined an operating system in NixOS and want to assert the network is configured correctly with your firewall zones, and that network activity works for your application before you deploy it.
 
@@ -359,13 +369,17 @@ nixpkgs.overlays = [
 
 An overlay is the key primitive which makes Nix absolutely amazing. I want you to think about how you use open source software. What happens when you find a bug? Do you go to GitHub and ask someone to take your pull request? Or maybe you fork it. But when you fork it, you have to figure out how you'll build it and where you'll host the resulting artifact (ugh, Artifactory) so it can be consumed.
 
-![the world hasn’t figured out yet that you can literally just fix everything with a Nix overlay](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Screenshot-2026-10-07-at-6.04.08---AM.png)
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Screenshot-2026-10-07-at-6.04.08---AM.png)
 
 I'll show you a concrete example. It's here on GitHub. It shows a pattern I've used for years: in my agent sandbox environments, I customize the Git binary and remove the agent's ability to force-push by removing that functionality from Git itself. It also includes all the patterns shared in this blog post, from building a Docker image to building a NixOS virtual machine and testing that git `push --force` has been removed.
 
 [GitHub - ghuntley/nix-demo: Patch git once with a Nix overlay; use it in devenv, a NixOS VM test and a Docker image](https://github.com/ghuntley/nix-demo?ref=ghuntley.com)
 
 Patch git once with a Nix overlay; use it in devenv, a NixOS VM test and a Docker image - ghuntley/nix-demo
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/favicon-7f331572-d019-42e0-8c95-94039e0c2728.png)GitHub
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/nix-demo-7f204244-b7b5-40f9-b393-47a762e6f15b.png)
 
 What happens if what you need to customize isn't just a standard command-line tool? What happens if it's a low-level thing, like OpenSSL, that many things depend on, and you need to rebuild the world? Think about that graph. Think about the pain.
 
@@ -379,10 +393,8 @@ You might be wondering about Bazel and Buck2. I also use these alongside Nix, bu
 
 If you are building security-critical systems, burn tokens to find every security vulnerability in third-party dependencies your software stack relies on using a cyber model, and fix them with overlays. 🧠🧠🧠
 
-## pps. socials
-
-> 🗞️ the world hasn’t figured out yet that you can literally just fix everything with a Nix overlay\
-> \
+> 🗞️ the world hasn’t figured out yet that you can literally just fix everything with a Nix overlay
+>
 > In this blog post, I go into how I use Nix, why you should use it, and in the tweet below is a runnable demo showing all of the concepts in this post [https://t.co/rZ3sqCb5gt](https://t.co/rZ3sqCb5gt?ref=ghuntley.com) [pic.twitter.com/QeyAHWTxnR](https://t.co/QeyAHWTxnR?ref=ghuntley.com)
 >
 > — geoff (@GeoffreyHuntley) [October 7, 2026](https://x.com/GeoffreyHuntley/status/2107775282690330982?ref_src=twsrc%5Etfw&ref=ghuntley.com)

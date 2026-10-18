@@ -10,18 +10,16 @@ authors:
 labels:
 - ai
 summary: I don't know if you've noticed yet, but JetBrains reported a net loss for the first time in its recorded history. https://www.helgilibrary.com/companies/jetbrains Before we go into this, let's rewind time to January 2025, nearly a year and a half
-content: feed
+content: extracted
 html: 2026-10-07-to-kodak-yourself-out-of-business.html
 remote_preview:
   url: https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-illustrating-Kodak-yourself-out-of-business--with-vibrant-reds--oranges--and-yellows--complex-retro-ornamentation--bright-lens-flare--warm-dreamy-haze--soft-illumination--glowing-light-streaks--detailed-2.jpg
   alt: to Kodak yourself out of business
 ---
 
-![to Kodak yourself out of business](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-illustrating-Kodak-yourself-out-of-business--with-vibrant-reds--oranges--and-yellows--complex-retro-ornamentation--bright-lens-flare--warm-dreamy-haze--soft-illumination--glowing-light-streaks--detailed-2.jpg)
-
 I don't know if you've noticed yet, but JetBrains [reported a net loss](https://www.helgilibrary.com/companies/jetbrains?ref=ghuntley.com) for the first time in its recorded history.
 
-![to Kodak yourself out of business](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Screenshot-2026-10-07-at-3.35.01---PM.png)\
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Screenshot-2026-10-07-at-3.35.01---PM.png)\
 [https://www.helgilibrary.com/companies/jetbrains](https://www.helgilibrary.com/companies/jetbrains?ref=ghuntley.com)
 
 Before we go into this, let's rewind time to January 2025, nearly a year and a half ago, when I penned these words.
@@ -35,6 +33,10 @@ I'm not salty about it; it's just a fact. You get used to these things when you'
 [Multi Boxing LLMs](https://ghuntley.com/multi-boxing/)
 
 Been doing heaps of thinking about how software is made after https://ghuntley.com/oh-fuck and the current design/UX approach by vendors of software assistants. IDEs, since 1983, have been designed around an experience of a single plane of glass. Restricted by what an engineer can see on
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/A-black-and-white--low-angle-digital-illustration-in-a-symbolic-traditional-tattoo-art-style.--A-bald--light-skinned-man-with-a-bushy-beard--prominent-eyebrows--and-a-friendly-expression-wears-denim-overalls--2--e59bd958-567e-406a-be98-9cb6571e4768.jpg)Geoffrey Huntley Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/CleanShot-2025-01-28-at-12.41.09@2x-5e7f9669-ac43-40f7-8cce-3ba59927e353.png)
 
 When I wrote the above, I was in the background enumerating JetBrains at all levels through our customer channels about what their roadmap would be, how they would counter this risk in business, and it's ultimately really sad to see that nothing was done other than jack the price of their subscriptions whilst simultaneously delivering a low-quality product (ala "private equity/broadcom subscription revenue extraction phase")
 
@@ -50,8 +52,8 @@ My strongest advice to all business leaders right now is to look at your own dog
 
 ps. socials
 
-> 🗞️ [https://t.co/dgoRPZykGC](https://t.co/dgoRPZykGC?ref=ghuntley.com)\
-> \
+> 🗞️ [https://t.co/dgoRPZykGC](https://t.co/dgoRPZykGC?ref=ghuntley.com)
+>
 > \> I remember writing these words when I was a tech lead at Canva, and coworkers were calling me mad, going, "Geoff, what do you mean?" I love JetBrains. I love my IDE. There's no way in heck this is changing; JetBrains will figure it out." [pic.twitter.com/ZeU2m17hhq](https://t.co/ZeU2m17hhq?ref=ghuntley.com)
 >
 > — geoff (@GeoffreyHuntley) [October 7, 2026](https://x.com/GeoffreyHuntley/status/2107922889685004318?ref_src=twsrc%5Etfw&ref=ghuntley.com)

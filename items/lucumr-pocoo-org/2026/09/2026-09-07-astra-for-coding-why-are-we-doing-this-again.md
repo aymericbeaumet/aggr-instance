@@ -7,7 +7,10 @@ updated: 2026-09-07T00:00:00Z
 first_seen: 2026-10-04T12:50:30.804479567Z
 authors:
 - Armin Ronacher
-content: feed
+labels:
+- ai
+- thoughts
+content: extracted
 html: 2026-09-07-astra-for-coding-why-are-we-doing-this-again.html
 ---
 
@@ -438,5 +441,9 @@ And potentially as a byproduct of enabling all of this, you can now slop your wa
 I’m sure I will get used to this, but man this stuff is weird.
 
 **Postscriptum:** speaking of weird: how is it that these models, in a sandbox, with supposedly no way to communicate with other agents, manage to find the [same public wikis](https://collusion.wiki/) as a scratch pad for agent communication? Did they collude during training runs to remember resources on the internet which might come in handy in the future?
+
+This entry was tagged [ai](https://lucumr.pocoo.org/tags/ai/) and [thoughts](https://lucumr.pocoo.org/tags/thoughts/)
+
+[copy as](https://lucumr.pocoo.org/2026/9/7/astra-why.md) / [view](https://lucumr.pocoo.org/2026/9/7/astra-why.md) markdown
 
 [^1]: I should clarify that I have done experiments like this before. Typically they do not run this long and the agent leaves behind a maybe imperfect but still digestible piece of software.

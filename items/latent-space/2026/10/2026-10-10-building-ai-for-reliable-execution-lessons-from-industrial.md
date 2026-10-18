@@ -8,7 +8,7 @@ first_seen: 2026-10-10T15:51:15.675508634Z
 authors:
 - Richard MacManus
 summary: Inside Standard Bots’ AI stack, pretrained models learn factory tasks from demonstrations and improve through corrections from real deployments.
-content: feed
+content: extracted
 html: 2026-10-10-building-ai-for-reliable-execution-lessons-from-industrial.html
 remote_preview:
   url: https://substackcdn.com/image/fetch/$s_!yzyh!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fe58f7268-94a0-42f5-b0fc-9ecf300bb03d_2560x1440.png
@@ -26,8 +26,6 @@ To set the scene, Standard Bots’ industrial robot arms are designed for tasks 
 
 [www.youtube.com](https://www.youtube.com/watch?v=tQa6yvAwLUI)
 
-## Pretrained models and task-specific adaptation
-
 According to Beard, Standard Bots has a **shared base model** that customers adapt through demonstrations and fine-tuning. Jentoft added that Standard Bots runs **a range of models**, including a zero-shot perception system for machine tending.
 
 Beard says its largest model is in the **low billions of parameters** — so it’s not that large by frontier lab standards.
@@ -44,8 +42,6 @@ Beard notes that Standard Bots **focuses on short-horizon tasks** to meet produc
 
 Model training happens in the cloud but **inference runs locally**, said Beard.
 
-## What does the model do exactly?
-
 I asked Jentoft what the learned model does in a typical robot routine, and which parts of the workflow use conventional programming?
 
 As an example, he brought up its machine-tending solution for high-mix manufacturing.
@@ -58,8 +54,6 @@ Here’s a demonstration of the machine-tending:
 
 “Our backbone for this task is **trained on over a billion images**, which is what lets the robot distinguish between lighting conditions, material types, and an object versus its background,” Jentoft said.
 
-## The Full AI Stack
-
 Back in April, we had [Applied Intuition on the podcast](https://www.latent.space/p/appliedintuition) to talk about **“Physical AI”** and how it differs from on-screen AI. One of the learnings was that the Physical AI isn’t just constrained by model intelligence: **the hard part is deploying models onto real hardware**, under safety, latency, power, cost, and reliability constraints.
 
 But for Standard Bots, that can also be a strength, since it controls the “full stack” from software to hardware. Jentoft points out that it controls the robotic arm, end effector, control system, and AI.
@@ -68,9 +62,7 @@ But for Standard Bots, that can also be a strength, since it controls the “ful
 
 [![](https://substackcdn.com/image/fetch/$s_!Z9hh!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F66302fb5-239d-453b-af14-483b003b5b8a_1584x1068.png)](https://substackcdn.com/image/fetch/$s_!Z9hh!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F66302fb5-239d-453b-af14-483b003b5b8a_1584x1068.png)
 
-**Skild**, a company aiming to build &#**8220;general purpose robotic intelligence,”** might quibble with the hardware-agnostic claim — its goal is to achieve [cross-hardware generalization](https://www.skild.ai/blogs/building-the-general-purpose-robotic-brain).
-
-## On-prem inference: sensors, edge GPUs, and ‘action chunks’
+**Skild**, a company aiming to build “**general purpose robotic intelligence,”** might quibble with the hardware-agnostic claim — its goal is to achieve [cross-hardware generalization](https://www.skild.ai/blogs/building-the-general-purpose-robotic-brain).
 
 Beard had mentioned that inference is done locally, which is especially important for its core customers: factories.
 
@@ -88,8 +80,6 @@ He reiterated that inference is run on-premises deliberately.
 
 “Cloud compute for robotics is operationally extremely hard — **most factories and warehouses don’t have reliable internet**, and that’s even more true for mobile robots. Uptime is crucial to customer acceptance, so we keep the loop local.”
 
-## Production failures and fleet learning
-
 Standard Bots uses simulation where it can, but Beard says some production tasks — including those involving liquids, suction, or cutting flexible material — are **difficult to reproduce in current simulators.**
 
 Real-world demonstrations are another part of the learning process. Here’s a demo of teaching a robot using a handheld touch device:
@@ -102,8 +92,6 @@ So how does it deal with failure in a robot task, and do those kinds of learning
 
 He noted that many of its defense customers “deploy in air-gapped environments, where nothing comes back.” But for customers that aren’t air-gapped, “fleet learning delivers enough benefit to their own applications that we typically don’t see pushback on contributing data in exchange for that performance.”
 
-## StandardOS: an AI robotics dev platform
-
 Standard Bots has already expanded its platform so that external developers can use it. With [StandardOS](https://standardbots.com/developers), it offers **a set of APIs and SDKs.**
 
 According to Beard, developers can use Standard Bots’ APIs to build robotics applications with whichever parts of its stack they need, including bringing their own models. He cited [NVIDIA Cosmos](https://www.nvidia.com/en-eu/ai/cosmos/), an open family of omnimodal world models for physical AI, as an example ([version 3 was released late-May](https://www.latent.space/p/ainews-nvidia-cosmos-3-nemotron-3)).
@@ -113,8 +101,6 @@ Today, this requires developers to write their own integration code. But Standar
 [![](https://substackcdn.com/image/fetch/$s_!iute!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fff90bb80-df6a-481a-b149-782ecefa9f6d_2048x1216.png)](https://substackcdn.com/image/fetch/$s_!iute!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fff90bb80-df6a-481a-b149-782ecefa9f6d_2048x1216.png)
 
 *AI robot learning workflow with NVIDIA software; via Standard Bots.*
-
-## Focus on targeted data
 
 Standard Bots isn’t the sexiest robotics company out there, but it is already being deployed for industrial automation at NASA, Amazon, Lockheed Martin, and others.
 

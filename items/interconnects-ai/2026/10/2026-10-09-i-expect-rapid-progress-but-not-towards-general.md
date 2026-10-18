@@ -8,7 +8,7 @@ first_seen: 2026-10-09T23:10:41.116203336Z
 authors:
 - Nathan Lambert
 summary: I’ve often been surprised when I hear from top researchers in industry that they think AI will be better than them at their job in a few years, and I didn’t really know why I doubted it.
-content: feed
+content: extracted
 html: 2026-10-09-i-expect-rapid-progress-but-not-towards-general.html
 remote_preview:
   url: https://substack-post-media.s3.amazonaws.com/public/images/fe890df0-8dfe-4dfb-9fb9-659d721e2d76_3182x1790.png
@@ -18,8 +18,6 @@ I’ve often been surprised when I hear from top researchers in industry that th
 
 In some ways, Ilya was early in his declaration of AI being in the [era of research](https://www.youtube.com/watch?v=aR20FWCCjAs). Research is much easier today now that we have coding agents. This ease is through a different form of work that is flexible and engaging, which signals the start of an era where good ideas can be much more valuable than good execution in software.
 
-[Subscribe now](https://www.interconnects.ai/subscribe?)
-
 We’re very early on this path. It’s also not the first transition the field has seen across the balance in if AI is more “research” or “engineering.” Before deep learning took off, AI was also far more of a research endeavor. Today, the best researchers are well-known to be judged by their ability to implement and scale their ideas in complex infrastructure. We’re about to go through a massive acceleration over a few years where the bottleneck is less and less engineering again. Some call this RSI, but a more grounded form is simply “parallelized, AI-assisted language modeling.” You don’t need to buy into takeoff scenarios to see just how much infrastructure improvements are coming, and how this’ll change the nature of working in AI.
 
 The goal of this piece is to give an overview on why this engineering acceleration will happen, and touch on what it won’t quite fix. This’ll be a massive boon for diffusion of the technology into the economy, even if we don’t get *economically valuable* superhuman traits outside of math and coding. A lot of this near-term progress comes from scaling the inference-time compute we have with current tools, rather than dramatic step-changes in how good the models are at research.
@@ -28,14 +26,12 @@ The goal of this piece is to give an overview on why this engineering accelerati
 
 Many pieces of the AI training and inference stack are very verifiable. Training metrics like tokens per second per GPU, which is just training speed. Inference metrics look like tokens per prompt, FLOPs per token, or really just cost per answer. Both of these are very optimizable, especially as there are established sub-problems and architecture trade-offs which can improve them. I expect AI agents to help optimize this process end-to-end in a few years, where our inference capabilities get very close to the underlying maximum compute possible on our accelerators like GPUs. Over the previous few years, the gains companies can make on inference efficiency were already giant, e.g. saving like 10-30% on cost to serve a model after announcing it at a certain price point. This entire stack will compound, and I expect the effective cost of model intelligence to decline near-exponentially over the coming years (potentially faster than recent trends).
 
-This low-hanging fruit of efficiency should take only a few years to capture. The longer term will be co-design of accelerators and models on longer timelines, which give extra orders of magnitude in efficiency on top of the flexible GPU platform. During this time of rapid efficiency gains, the flexibility of the GPU should be kind, as exploration space in architecture feels important and like a major lever of automated research. A prediction of pretraining research, at least in architecture and data selection to serve our current class of models, being automated in 2-3 years feels reasonable to me.
+This low-hanging fruit of efficiency should take only a few years to capture. The longer term will be co-design of accelerators and models on longer timelines, which give extra orders of magnitude in efficiency on top of the flexible GPU platform. During this time of rapid efficiency gains, the flexibility of the GPU should be king, as the exploration space in architecture feels important and like a major lever of automated research. A prediction of pretraining research, at least in architecture and data selection to serve our current class of models, being automated in 2-3 years feels reasonable to me.
 
 All of this will be a massive trigger of Jevons paradox for agentic models. I expect demand to only increase, as the industry is largely bottlenecked on figuring out better ways to orient and deliver the agents. Meta’s Muse agent is an early indicator of this and we should expect more Muse-like experiences for different audiences and target use-cases. It’s value created by understanding how agents work, rather than pushing the frontier of performance.
 
 The equivalent phase in the broader scientific literature like biology and chemistry will be an era defined by models finding numerous cross-sub-field findings. The AI models are superhuman at crawling literature and making connections across sparse networks which are currently stewarded by small communities of scientists who rarely interacted. There will be a fine line between this heralding a new era of scientific discovery, e.g. with cures of most cancers, or an acceleration of the arc science was already on.
 
-Another industrial-scale piece of low-hanging fruit is improving the general quality of RL environments. You don’t have to look far to see another new RL data company that’s crossed $100M or $1B in revenue. There are way more than I expected. The average outputs from this sector is remarkably low-quality. Countless researchers agree that lots of what they buy is frankly crap. At the same time, the leading labs see clear return on investment from buying the data.
+Another industrial-scale piece of low-hanging fruit is improving the general quality of RL environments. You don’t have to look far to see another new RL data company that’s crossed $100M or $1B in revenue. There are way more than I expected. The average outputs from this sector are remarkably low-quality. Countless researchers agree that lots of what they buy is frankly crap. At the same time, the leading labs see clear return on investment from buying the data.
 
 The way that many RL environments are cruddy is clearly fixable.
-
-[Read more](https://www.interconnects.ai/p/i-expect-rapid-progress-but-not-towards)

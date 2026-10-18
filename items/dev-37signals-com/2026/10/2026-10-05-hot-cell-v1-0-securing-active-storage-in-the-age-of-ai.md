@@ -8,7 +8,7 @@ first_seen: 2026-10-06T00:45:55.302474734Z
 authors:
 - Mike Dalessio
 summary: Hot Cell v1.0 moves Active Storage’s image, video, and PDF processing out of your Rails app and into a locked-down sidecar container.
-content: feed
+content: extracted
 html: 2026-10-05-hot-cell-v1-0-securing-active-storage-in-the-age-of-ai.html
 remote_preview:
   url: https://dev.37signals.com/assets/images/opengraph/hot-cell-1-0.png
@@ -20,13 +20,15 @@ Today we are releasing [Hot Cell](https://github.com/basecamp/hotcell) v1.0, a s
 
 I introduced Hot Cell at Rails World 2026 in a talk titled “Hot Cell: Securing Active Storage in the age of AI.” What follows is basically that talk, written down, plus a couple of things that have changed since then. (If you’d rather [watch the video](https://www.youtube.com/watch?v=swXl8M84YmM&list=PLdMRFKO1zSBE&index=28) or [flip through the slides](https://mike.daless.io/prez/2026-09-23_rails-world-hotcell/slides.html), go for it.)
 
-## Where we are
+* * *
 
-![a timeline: a volcano, a dinosaur, a tape drive, a TRS-80, then a band labeled CHAOS marked \"you are here,\" then a question mark](https://dev.37signals.com/assets/images/hot-cell-1-0/timeline.png)
+## Where we are
 
 In the beginning, the earth cooled. Dinosaurs roamed the earth. Then humans started writing software, and a lot of that software was very trusting in nature: corner cases weren’t explored, and the design assumed users were friendly and input could be trusted.
 
 Now we find ourselves in a very chaotic moment where AI is very good at finding these bugs and security problems. I don’t know what’s coming, but at this moment I’m very worried, and I think you should be too. So first I’m going to scare you, and then I’m going to give you the tools to do something about it.
+
+* * *
 
 ## Part 1: You are not worried enough (probably)
 
@@ -37,8 +39,6 @@ My summer started with [CVE-2026-66066](https://discuss.rubyonrails.org/t/cve-20
 I wrote this CVE description to be intentionally opaque. We didn’t disclose any details about the attack, because we didn’t want attackers to start exploiting live apps before anyone had a chance to upgrade. We were trying to buy you some time. Unfortunately, AI has gotten so good that multiple researchers were still able to derive this attack within hours of the announcement, quickly making the embargo meaningless.
 
 You can watch the talk for a more in-depth explanation, but the root of the problem is that the image processing libraries are running in a container with access to your secrets and to your network.
-
-![the default architecture: an image upload enters the Rails process, Active Storage's VipsTransformer hands it through image_processing and ruby-vips to libvips, which routes it to libpng, libjpeg, libmagick, or libmatio. The same app container holds config/master.key, credentials.yml.enc, and /proc/self/environ with SECRET_KEY_BASE, DATABASE_URL, and AWS_ACCESS_KEY_ID](https://dev.37signals.com/assets/images/hot-cell-1-0/architecture-today.png)
 
 And there was no single big vulnerability here that AI agents could find. The attack requires chaining together several low-severity vulnerabilities along with some Rails design decisions that helped enable the attack.
 
@@ -52,11 +52,7 @@ And there was no single big vulnerability here that AI agents could find. The at
 
 Agents are able to chain all seven together from very little information. They are getting very good at this! In the talk I showed a recording of the exploit script pulling every secret out of a development app in real time. Once you know how to execute the attack, it happens very fast.
 
-![378 vulnerabilities found so far in 2026, over the list of packages apt installs with libvips](https://dev.37signals.com/assets/images/hot-cell-1-0/378-vulnerabilities.jpg)
-
 It should also scare you that 378 vulnerabilities were published in libvips and its dependencies in the first nine months of 2026, and more are reported every day.
-
-![valid HackerOne reports received each month by 37signals, flat for two years and then spiking to 64 in the last month](https://dev.37signals.com/assets/images/hot-cell-1-0/hackerone-reports.png)
 
 This chart is 37signals’ HackerOne data: valid reports received each month. There has been a steady increase since models turned the corner back in November 2025.
 
@@ -64,9 +60,9 @@ So there’s a whole category of problems here. I can fix this one CVE, but we�
 
 When I think about addressing the bigger issues here, I think about risk:
 
-![risk = probability × impact, annotated: a falling chart pointing at risk, a rising chart pointing at probability, and a thinking face with a question mark pointing at impact](https://dev.37signals.com/assets/images/hot-cell-1-0/risk.png)
-
 The probability of another vulnerability in these libraries is very high, and it’s not going down any time soon. That leaves impact. How do we shrink the blast radius, so that the next vulnerability does as little damage as possible?
+
+* * *
 
 ## Part 2: Reducing the blast radius
 
@@ -90,15 +86,11 @@ This list became the prompt I gave my agent as we built the system together:
 
 ### Step 2: An obscure, too-clever name 🤣
 
-![a technician at Oak Ridge National Laboratory using manipulator arms to work inside a shielded hot cell](https://dev.37signals.com/assets/images/hot-cell-1-0/hot-cell-photo.jpg)
-
 *Image: a frame from an [Oak Ridge National Laboratory video](https://www.youtube.com/watch?v=FC4k4bB_KGQ).*
 
 This is a hot cell at Oak Ridge National Laboratory. It’s a shielded chamber for handling radioactive material: a big lead box with a window that radiation can’t pass through. The operator stays outside and does everything with manipulator arms, and nothing enters or leaves except by controlled transfer.
 
 That’s exactly what I want for Active Storage.
-
-![the Hot Cell logo: two manipulator arms inside a shielded window, over the tagline \"It can't hurt you in there.\"](https://dev.37signals.com/assets/images/hot-cell-1-0/hotcell-logo.png)
 
 ### Step 3: Jam it into Rails
 
@@ -124,8 +116,6 @@ config.active_storage.previewers = [ ActiveStorage::HotCell::Client::Previewers:
 
 One caveat: passing a class as the `variant_processor` became possible with [rails/rails#58384](https://github.com/rails/rails/pull/58384), so the Active Storage gems need Rails 8.2.
 
-![the gem dependency tree: activestorage-hotcell-client depends on hotcell-client, activestorage-hotcell-server depends on hotcell-server, and both depend on hotcell-core](https://dev.37signals.com/assets/images/hot-cell-1-0/gem-tree.png)
-
 Hot Cell is a family of gems. `hotcell-core` holds the common bits: the wire protocol, descriptor passing, and the error codes. `hotcell-client` runs in your app and `hotcell-server` runs in the cell. The `activestorage-hotcell-client` and `activestorage-hotcell-server` gems subclass those to provide the drop-in replacements for Rails. Since the talk, a sixth gem has joined them: `yabeda-hotcell`, which I’ll get to below.
 
 ### Step 4: Inputs and outputs
@@ -144,9 +134,9 @@ The supervisor is pid 1 in the cell. It accepts connections, queues them, hands 
 
 Each request is handled by a forked worker. A successful attack only compromises that worker, which gets reaped.
 
-![the finished system: the app container holds the Rails process, with the HotCell client and the secrets; the hot cell container holds a supervisor and workers running libvips; the two share only /run/hotcell, which holds work.sock and control.sock](https://dev.37signals.com/assets/images/hot-cell-1-0/architecture-hotcell.png)
-
 That’s the finished system, and it’s what is running in production at 37signals today. Now that I’ve scared you, I’m telling you that you should be running Hot Cell in your apps, and here’s how.
+
+* * *
 
 ## Part 3: Rolling it out
 
@@ -293,8 +283,6 @@ In the talk, wiring those into your app was left as an exercise using our exampl
 
 The Hot Cell docs list the [alerts we recommend](https://basecamp.github.io/hotcell/docs/observability/#recommended-alerts).
 
-![the Hot Cell Grafana dashboard for Basecamp production: requests per host and per operation, throughput and failures by outcome, killed requests, queue wait, queue depth, perform time, and scratch disk usage](https://dev.37signals.com/assets/images/hot-cell-1-0/dashboard.jpg)
-
 This is the dashboard we use for Basecamp.
 
 ### The cost
@@ -365,9 +353,9 @@ At Rails World I said Hot Cell wasn’t 1.0 yet because we were waiting for Rail
 
 I’m still interested in [Linux Landlock](https://github.com/basecamp/hotcell/issues/13). Landlock lets a process ratchet down its own permissions so that it can never regain them, even if an attacker takes it over. That’s a nice belt-and-suspenders addition, and if you know Landlock, I’d love to talk.
 
-## Part 4: The moment we are in
+* * *
 
-![the same timeline, with the Starship Enterprise in place of the question mark](https://dev.37signals.com/assets/images/hot-cell-1-0/timeline-future.png)
+## Part 4: The moment we are in
 
 Is this AI’s fault? Well, it’s easy to assign blame, and you’d be forgiven for doing so. AI chained several low-severity flaws into a critical-severity attack, and it made an effective embargo impossible.
 

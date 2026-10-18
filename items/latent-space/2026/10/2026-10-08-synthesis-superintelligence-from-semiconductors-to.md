@@ -6,28 +6,51 @@ published: 2026-10-08T16:27:54Z
 updated: 2026-10-08T16:27:54Z
 first_seen: 2026-10-08T19:25:56.508743454Z
 summary: A special Science pod and Engineering pod crossover.. with Forward Deployed Engineering kicker!
-content: feed
+content: extracted
 html: 2026-10-08-synthesis-superintelligence-from-semiconductors-to.html
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/219146438/4de3baad7036438bcc048cc532556c6a.mp3
+  duration_seconds: 5040
 ---
 
 It’s hard to believe that **[Periodic](https://periodic.com/)** was only launched [last September](https://x.com/periodiclabs/status/1973056525204595129):
 
+> Periodic Labs @periodiclabs
+>
+> We are proud to announce @periodiclabs. Our mission is to accelerate science. Our founding team co-created ChatGPT, DeepMind’s GNoME, OpenAI’s Operator (now Agent), the neural attention mechanism, MatterGen; have scaled autonomous physics labs; and have contributed to important…
+>
+> > Liam Fedus @LiamFedus
+> >
+> > Today, @ekindogus and I are excited to introduce @periodiclabs. Our goal is to create an AI scientist. Science works by conjecturing how the world might be, running experiments, and learning from the results. Intelligence is necessary, but not sufficient. New knowledge is
+>
+> [@periodiclabs on X](https://x.com/periodiclabs/status/1973056525204595129)
+
 One year later, it is considered one of the pre-eminent AI scientist labs, with dizzying [talent density](https://x.com/chrisbarber/status/2106059993976119707) and [astonishing progress](https://x.com/LiamFedus/status/2048424362093797399) in the autonomous lab buildout:
 
+> Liam Fedus @LiamFedus
+>
+> Industrial-scale science. Coming to a lab near you this summer.
+>
+> [@LiamFedus on X](https://x.com/LiamFedus/status/2048424362093797399)
+
 Most people are familiar with the [standard credentials of Liam and Dogus](https://x.com/periodiclabs/status/2105147336020378063?s=20), but we found an incredible “talent slope” while learning more about Periodic, where each successive employee seems more impressive than the last:
+
+> Rohan Pandey @khoomeik
+>
+> yeah this checks out my first few months at periodic, the weekly midtraining meeting was: 1. guy who trained the first trillion param LLM 2. guy who invented the attention mechanism 3. me you learn very quickly surrounded by this density of talent. we're hiring btw.
+>
+> > Chris Barber @chrisbarber
+> >
+> > I asked people which neolabs under $10B have the highest talent density: 32 votes: Core Automation (@MillionInt, @\_arohan\_) 26 votes: Periodic Labs (@LiamFedus, @ekindogus) 20 votes: Flapping Airplanes (@spectorb, @amspector100, @aidanmantine) 18 votes: Standard Intelligence
+>
+> [@khoomeik on X](https://x.com/khoomeik/status/2106107936309481605)
 
 From building AI systems that reason over noisy physical experiments to creating laboratories where every instrument can become intelligent, **Periodic Labs is betting that the next frontier of AI won’t come from simply training on more internet data**, it will come from letting models experiment with the real world. In this episode, Periodic Labs’ **Liam Fedus** and **Ekin Dogus Cubuk** join **swyx** and **Brandon** to explain why scientific discovery is fundamentally different from math and coding, and what it takes to build AI scientists that can actually discover new materials.
 
 [www.youtube.com](https://www.youtube.com/watch?v=YHiqVRxGViM)
 
 We go deep on Periodic’s vision for **“synthesis superintelligence”**: reinforcement learning grounded in physical experiments, AI-powered materials characterization, simulations and density functional theory, high-throughput labs, and systems that learn from the entire process of doing science rather than only its published results. **Liam and Dogus also explain why frontier models will still need experiments**, why failed experiments may be some of the most valuable training data, what it means to give every piece of lab equipment “140 IQ,” and how autonomous experimentation could compress decades of scientific trial-and-error into months.
-
-* * *
-
-## We discuss:
 
 - Why **intelligence alone isn’t enough** for scientific discovery
 
@@ -61,23 +84,13 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 - How automated experimentation could massively increase the **“surface area for luck”** in discovering new materials
 
-* * *
-
-## Liam Fedus
-
 - **LinkedIn:** [https://www.linkedin.com/in/liam-fedus-26547811/](https://www.linkedin.com/in/liam-fedus-26547811/)
 
 - **X:** [https://x.com/LiamFedus](https://x.com/LiamFedus)
 
-## Ekin Dogus Cubuk
-
 - **LinkedIn:** [https://www.linkedin.com/in/ekin-dogus-cubuk-9148b8114/](https://www.linkedin.com/in/ekin-dogus-cubuk-9148b8114/)
 
 - **X:** [https://x.com/ekindogus](https://x.com/ekindogus)
-
-* * *
-
-## Timestamps
 
 **00:00:00** Introduction
 
@@ -111,12 +124,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **01:20:57** Automating the Search for Superconductors
 
-* * *
-
-# Transcript
-
-## Introduction: Intelligence Must Meet Reality
-
 **Swyx \[00:00:00\]:** Okay. We’re here at Periodic. We’re here today with Liam and Doğuş from Periodic. Welcome, and thanks for having us at yours.
 
 **Liam Fedus \[00:00:11\]:** Yeah, great to be here, and yeah, thanks for coming in.
@@ -127,11 +134,7 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Swyx \[00:01:21\]:** I think it’s also notable, like with OpenAI and Google, you don’t have those resources in those big labs. You had to come out and do your own thing, because you’re kind of inventing your own playbook as you go along.
 
-## Building an Interdisciplinary Lab for AI Science
-
 **Ekin Doğuş Çubuk \[00:01:34\]:** Yeah, and a team like this has never existed, I think. We try to bring together solid-state chemists, solid-state physicists, experimentalists, theorists, hardware engineers, LLM experts, computer scientists, and some of these technologies are very recent. The high-throughput experimentation, the robotic arms have only been tried in the last three years or so. The force field expertise, some of these force fields are also very recent. But yeah, we felt like having a lab is very important. Having this focus and bringing all these people together to work together is very important. And I guess the closest examples from history are places like Bell Labs, where incredible theorists and experimentalists and chemists worked together and achieved incredible things. So we are trying to do the same here, yeah.
-
-## Physical-World Reinforcement Learning and Uncertainty
 
 **Brandon \[00:02:17\]:** I want to talk about force fields in a bit, but
 
@@ -140,8 +143,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 **Brandon \[00:02:19\]:** Before we get to that. Yeah what are they? But before we get to that, For context, some of our audience are AI engineers, and some are scientists. For the engineers: what’s the difference between working at a big lab like OpenAI and what you’re doing here? I think you’ve already hinted at this but maybe explicitly, how do you have to reframe your thought process?
 
 **Liam Fedus \[00:02:49\]:** Well, I think one interesting thing is now our reinforcement learning environments literally derive from the environment, from our physical labs. Our data comes from our physical labs, and this is sort of our ultimate truth. It’s not enough just to do optimization against, some answers that were known in some papers or textbooks because we’re going beyond that, and I think that’s one of the biggest differences. But along with that, there’s issues of say, decision-making under uncertainty. So when you’re doing optimization against math, there’s a high precision to it. You’re not really dealing with kind of like variance or uncertainties or aberrant measurements, whereas that’s very key to our process. For example, when we are doing a materials discovery loop, things don’t come out of the furnace labeled, right? Even the labeling process can be stochastic and noisy. And sometimes you’ll have aberrations between different machines. Maybe we’ll have insufficient telemetry. So we thought we ran it at this temperature, but really the temperature was, some delta away. And an intelligence that can take in this noisy data and make intelligent decisions like a scientist would, is a sort of a different set of reasoning strategies. So I think there’s a huge amount of commonalities, so the standard mid-training, reinforcement learning, the construction of tool-using agents, variance reduction, making sure infra doesn’t have mismatches between training and inference. But we have to go beyond that and really think about how do you do accurate, work when there’s a high amount of uncertainty? How do you make really incredibly efficient use of a limited set of data? So we’re scaling things up significantly, but still, it’s very different than a digital environment where you can arbitrarily add more environments or more rollouts. We don’t have that same capacity. So sample efficiency is another key thing.
-
-## Why Experiments Are Noisy and Incomplete
 
 **Brandon \[00:04:48\]:** This seems a little bit abstract to me, and it is a theme which has been on the science pods for a bit, but I think it might be helpful when you talk about experimental uncertainty, to explain what would a specific process that you were doing experimentally look like, and how would a human approach this problem, before we get into the AI side? Do you have a specific example of a type of material you make and what sort of uncertainty in the measurements you would experience in the process?
 
@@ -167,8 +168,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Ekin Doğuş Çubuk \[00:09:04\]:** Yeah.
 
-## The Materials Discovery Loop: Synthesis and Characterization
-
 **Brandon \[00:09:05\]:** How do you define an RL reward function when your output is a noisy crystal structure or some number of I don’t know collective variables or something? Like.
 
 **Liam Fedus \[00:09:17\]:** Maybe, I’ll give, one part of the loop, and I’ll just kind of dig into that. So, as part of the materials discovery loop, we have to first figure out, what to make. So that’s the stability of the atoms together, as well as do we expect it to have the properties we want. So we don’t just want, a novel configuration of the atoms. We want them, when put together, to have the property of interest. Next is how do you synthesize it? How do you actually make the thing? That’s also non-trivial. So even if you know something will hold together, the process of actually, what are the processing conditions to actually bring that forth is highly non-trivial. But again the thing. Once you’ve done those two steps and you’ve made something, it doesn’t come off labeled, so you actually have to characterize it and figure out what you made. So in that case rather than thinking about the RL environment of we’re just going to kick off an experiment, wait a couple days, and try to do a update on did you find a room-temperature superconductor or not, that’s completely infeasible.
@@ -181,8 +180,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Liam Fedus \[00:10:20\]:** Because you don’t have enough agents to reduce the variance sufficiently. The rollout time is going between the different instruments. You’re waiting. There’s just some physics limits of the experiments, for the actual synthesis or furnace time. So it’s just too slow, too noisy. So the way we think about the AI program is basically constructing agents around this set of data that we’ve produced. And so in the case of characterization, you’re looking for RL environments that are rewarding the identification of the phases actually present. Are you able to given the raw experimental data, fit that effectively? So the way we do this is we’ll shoot X-rays, at the material. X-rays have a frequency or a wavelength roughly measurable or commensurate to the spacing between atoms, so you get nice diffraction patterns that kind of give a fingerprint of the crystal structure. And doing this, identification of what actually is present is highly non-trivial. And so some of our early AI work has been on basically producing systems to do this. And this allows us to move much more quickly too, because if you’re running so many experiments, you really quickly become bottlenecked on your ability to understand what was produced. But again, now the reinforcement learning environment is fairly straightforward, which is you’re going to reward the identification of the phases present. You’re going to penalize spurious phases or things that don’t have any real chemical plausibility. So that’s like a little succinct thing where you can kind of do this for the different pieces. And when you stitch this together, that’s the end-to-end discovery loop.
 
-## Training on Novel Experimental Data, Not Memorized Answers
-
 **Brandon \[00:12:02\]:** Okay. You
 
 **Liam Fedus \[00:12:02\]:** Maybe another
@@ -190,8 +187,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 **Brandon \[00:12:03\]:** Yeah. Oh, sorry
 
 **Liam Fedus \[00:12:03\]:** Another piece would be as we build up, a large basket of experimental data, you can think of another thing of basically timestamping the state of the world. So you could say, “At this date, this was our experimental evidence up until that point.” And you can construct reinforcement learning environments where you say, “Okay, given that body of experimental evidence and given, the choices, what was the next choice that the scientist made, or what was an outcome of that experiment?” And. This is really interesting too, because this allows us to do types of programs that would be harder externally. Because if the pre-trained model has already memorized some of this data and then you try to do reinforcement learning on that, if it already knows the answer and you construct reinforcement learning tasks that depend on that answer, it can fake work. So, and then, because it’s like, oh, well, it already knows the answer, so it doesn’t actually have to do the hard physics reasoning. It doesn’t have to actually do the calculation simulations. And it gets to the right answer, and then you reinforce that policy and you up-weight those reasoning strategies. Those reasoning strategies will not generalize to novel systems, so it’s not useful to us. But as we build up baskets of experimental data and stitching things together, having the lineage through the whole process, that gives us the ability to construct new types of environments that are just not plausible elsewhere.
-
-## Why Known Physics Does Not Mean Perfect Simulation
 
 **Swyx \[00:13:27\]:** I want to ask my question
 
@@ -249,8 +244,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Brandon \[00:17:25\]:** Yeah.
 
-## Synthesis Prediction and the Matter Compiler
-
 **Swyx \[00:17:26\]:** And then my other follow-up question was also just on the process of let’s call it the yeah, process and the end result. Let’s call it like, you want to have these properties that you’re targeting for materials, and then you have to figure out the process to get there. Is it worth separating these things so that you can have. You just train a model that perfectly reverse engineers any process whatsoever given, whatever theoretical end state you want? Is that, meaningful?
 
 **Ekin Doğuş Çubuk \[00:17:54\]:** Maybe going back to the conversation we had about how since there are more than Avogadro’s number of atoms, we’ll never know the exact context of what happened. I think that might be a reason why we’ll never be able to reverse engineer everything perfectly. But we’re just trying to reverse engineer sufficiently to be able to improve the performance of the materials, basically.
@@ -293,8 +286,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Liam Fedus \[00:19:37\]:** Yeah. We kind of talk about one of our missions as synthesis superintelligence, so I think it’s in line with this.
 
-## Phase Transitions, X-ray Diffraction, and RL Rewards
-
 **Swyx \[00:19:44\]:** Yeah.
 
 **Brandon \[00:19:44\]:** I want to double-click on something that you said a little while back, which was you talked about phases. And I think this is, going to Doğuş’s comment about, what is emergence. The concept of a phase transition I think might be foreign to a lot of the audience. So can you explain what is a phase transition, and then why is this a helpful signal for something like an RL environment?
@@ -323,8 +314,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Liam Fedus \[00:23:42\]:** And so I think that’s why it’s really important for the system to use some chemical intuition to say “Okay, well, this would be highly unlikely given the synthesis conditions, given this, the prior knowledge.” and so that can be used to help disambiguate.
 
-## Chemical Priors, Multimodal Measurement, and Ambiguity
-
 **Swyx \[00:23:58\]:** So you’re, so you’re somewhat injecting priors there, based on what you expect.
 
 **Ekin Doğuş Çubuk \[00:24:03\]:** Yeah. I think thermodynamics is the biggest prior, right?
@@ -338,8 +327,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 **Swyx \[00:25:08\]:** Yeah
 
 **Liam Fedus \[00:25:08\]:** Rather than just over-indexing on one measurement from one instrument.
-
-## Information Limits, Telemetry, and Maxwell’s Demon
 
 **Swyx \[00:25:12\]:** And let me just, like. So you know, you started, I think a while ago also saying that there’s just more data than you can fit in any reasonable computer or process or anything. So at some point, you have to throw out data even though you have all these replicates, even though you have presumably ten different ways to measure the same thing. It’s. ‘Cause what if one of your temperature things is wrong? So when do you throw that out? How do you decide what to do? As a data-hungry ML guy, I just want everything, right? And then I just, you know
 
@@ -415,15 +402,11 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Liam Fedus \[00:29:42\]:** Right. Yeah, I think it’s necessary to have this sort of network of labs. And like, yeah, I think as Doğuş was just kind of pointing out there’s an optimal place for each of these based on expertise or materials constraint. There’s many different constraints, permitting.
 
-## Connecting Simulations With Physical Experiments
-
 **Brandon \[00:29:56\]:** Okay, so one of them is. So one thing I-I’ve been curious about is how do you deal with computational tools? Or how do you integrate computational tools into a decision-making workflow, especially when, let’s say, computation and experiment don’t necessarily, meet? It’s also theory in terms of high-level understanding. And yeah, how does that sort of work together?
 
 **Ekin Doğuş Çubuk \[00:30:22\]:** Yeah. So, one thing that’s really helpful here is there are certain things that are easier to do in simulation and more accurate in simulation. There are certain things that are easier to do in experiment and more accurate in experiment. In general, of course, experiments are more accurate, but certain measurements are very hard to make with experiment. So you make a bad version of it, so you get inaccurate data. Let me just give you some examples. So one of them is, we use density functional theory to estimate formation enthalpy of materials and
 
 **Brandon \[00:30:51\]:** Sorry, quick pause. Can you explain densital density functional theory and formation entropy?
-
-## Density Functional Theory and Formation Enthalpy
 
 **Ekin Doğuş Çubuk \[00:30:55\]:** Yeah, of course.
 
@@ -465,8 +448,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Ekin Doğuş Çubuk \[00:35:10\]:** I personally don’t know of a better method to predict the stability of a new material. It’s definitely not perfect, but it’s definitely better than other methods I can think of. And yeah, so going back to your question, the reason we use them is for certain things it’s easier to simulate than experiment, and they kind of complement each other well. And then we can do this in a loop. We feel like simulations will never be enough by themselves, but in the loop of simulations, AI, and experiments, I think we can make progress much faster than before.
 
-## When Simulations Fail: Microstructure and Calibration
-
 **Brandon \[00:35:41\]:** One thing that simulations let you do is scale up much more quickly. Because now compute is, much easier to bring online
 
 **Ekin Doğuş Çubuk \[00:35:48\]:** Yeah
@@ -496,8 +477,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 **Swyx \[00:37:17\]:** Yeah.
 
 **Ekin Doğuş Çubuk \[00:37:18\]:** For example, for a long time, Materials Project, which was the best open source DFT database, Use experimental calibration for DFT. So they would actually use experimental data to calibrate DFT. We also do this internally here. Whenever there’s a certain chemical system we’re interested in you get experiments, you get simulations, and you can calibrate them.
-
-## Why Inorganic Materials Differ From Biology
 
 **Brandon \[00:37:37\]:** This is another thing. I’ve talked to a lot of biologist friends, and they are always very confused when you say materials, you can’t just do an XRD structure and actually know what the structure is. Because if you’re in the biology world, you can look at a crystal structure of a protein and typically more or less with sub A well order angstrom accuracy reconstructed. What is the difference between the materials XRD, X-ray disfor — X-ray diffu- no
 
@@ -557,8 +536,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Liam Fedus \[00:42:20\]:** Yeah, I still — you still get different complexity at the different, length scales for materials as well. So yeah, microstructure and beyond.
 
-## Dream Materials: Superconductors, Magnets, and Batteries
-
 **Brandon \[00:42:26\]:** Yeah.
 
 **Swyx \[00:42:27\]:** Yeah. Just sort of a brief sort of palate cleanser. In terms of science fiction, let’s say you can invent whatever materials that you want. What is more valuable? You know, I have, I have a list here. There’s obviously room temperature super- superconductors. But also, you mentioned batteries. I’ve always thought batteries. Just do better than lithium-ion, you’re good. That’s stood around for a hundred years. And then the last one is carbon nanotubes, mostly for the space elevators. I don’t know if, like. Those are, those are the three that come to mind. Are there any that people talk about in your world that are the dream?
@@ -572,8 +549,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 **Brandon \[00:43:06\]:** Right.
 
 **Ekin Doğuş Çubuk \[00:43:06\]:** Especially if we can lower the dependence on rare earth or transition metals that are hard to source, like cobalt, reducing cobalt in batteries. One of the things I think is very fundamentally important is, if we can get close to Landauer limit for compute energy efficiency.
-
-## The Landauer Limit, Reversible Computing, and Energy
 
 **Brandon \[00:43:24\]:** Can you, explain Landauer limit?
 
@@ -625,8 +600,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Ekin Doğuş Çubuk \[00:45:22\]:** I agree with that. Like for them, people talk about how if you had a quantum computer today, you could simulate things so much better. And I asked them, “Okay, let’s accept that. What would you simulate?” Like, you’re still simulating perfect crystal. You still have the issues that DFT has if DFT was perfect in its prediction ability. So yeah, I do think people are kind of glossing over some things because quantum computing is so exciting. If we can compute in a quantum logic space instead of classical logic, it’s just so exciting that people are glossing over what it would actually do when it’s made. Maybe that’s fine because maybe once it’s made, it will do amazing things we can’t even imagine.
 
-## Putting Intelligence Into Every Laboratory Instrument
-
 **Swyx \[00:45:57\]:** Good. Okay. I was going to move to the automating the lab side, where you’ve closed the loop on your experimentation. You can talk about robotic arms, talk about. But it’s basically just everything you’ve done here. My favorite quote from you was that every piece of equipment in your lab is going to have a hundred and forty IQ. Okay, what does that mean?
 
 **Liam Fedus \[00:46:17\]:** In the early days, as we were scaling things up, we realized that we had huge bottlenecks imposed just by operating machinery. So, for one set of machinery, we would have technicians and scientists looking for particular morpho- morphology and trying to see, okay, what actually were we making, see if this is consistent with our intentions. And we really quickly, as we scaled up the lab, came into these bottlenecks where it just wasn’t keeping up. So we started doing some programmatic approaches to capturing the data on SEM. And the data that was being surfaced from this very simple program where it sort of takes a field of view, captures, zooms in captures, was just not all that useful. It was a little too dumb for what we really wanted to get. And so at that point, it was then, really pertinent to build AI systems directly onto the machines to start controlling these things. And now they have the full context as to what we were trying to achieve. So what was the intent of the experiment? What were we trying to synthesize? What were some other experimental evidence? And it’s actually looking, in the machine and capturing that data. And this is really valuable now because we’ve been talking about these hidden variables not being able to capture everything, but if you can do more intelligent data capture at the time of that experiment, your data for future AI systems and future computational predictions is that much better. You’ll have just a richer set of data. And so that’s sort of what we mean by just, everyth- everything on the lab has to be incredibly intelligent to just make the data as useful as possible. So that was, that was sort of the motivation and inspiration behind that.
@@ -677,8 +650,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Liam Fedus \[00:49:59\]:** It’s really process dependent.
 
-## Pragmatic Robotics, Automation, and Lab Reliability
-
 **Brandon \[00:50:01\]:** Okay. Yeah.
 
 **Liam Fedus \[00:50:01\]:** Yeah.
@@ -707,8 +678,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Ekin Doğuş Çubuk \[00:52:51\]:** Yeah, the reducing the noise floor of experimental data I think is very important. Most experimental data in the literature have such a high noise floor that it’s actually usually worse than DFT accuracy. Because, when different people do experiments, different labs, different parts of the world, different times, it really introduces so much fluctuation to the result. So we are hoping that by standardizing these workflows, one of the biggest benefits will be that the noise floor will be lowered.
 
-## Open Models, Proprietary Data, and Compute Efficiency
-
 **Swyx \[00:53:16\]:** You’ve been pretty public about how you use open source models and fine-tune them for stuff like this. Is it better. Is it basically. I can imagine a situation where, you have maybe the dumber models do one task, and then you optimize for that task, and then sort of like a generalist frontier model that supervises everything. Is that a good mental model to have? Are there more stages to this that I can think about?
 
 **Liam Fedus \[00:53:37\]:** We basically use a mix of open source models and closed source models. You know, we’re huge beneficiaries of this from our simulation side, building up the ML stack, the simulation stack. We don’t need to push on that axis. But there’s a lot of areas where, the latency is too high, the cost is too high. But in some cases we can actually. You know, by having access to this data, we can actually push beyond the frontier of what these systems can do under even some the highest reasoning efforts. And so it’s not necessarily just about cost or Pareto efficiency, but in some cases you can push beyond it when you have access to data that no one else has. One, way to characterize this is in terms of compute efficiencies. So by having access to this data, you can be that much more compute efficient compared to some of the frontier models. And that’s been able. Been a really instrumental thing in our program.
@@ -722,8 +691,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 **Liam Fedus \[00:55:06\]:** That’s right.
 
 **Swyx \[00:55:06\]:** Yeah.
-
-## Negative Results and Learning From Failed Experiments
 
 **Brandon \[00:55:07\]:** Yeah, you’ve Yeah, you’ve talked about null results in several other venues. What does a null result look like for materials, and how do you use that effectively? Especially when I think your overall signal is probably quite sparse usually in terms of success.
 
@@ -795,8 +762,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Ekin Doğuş Çubuk \[00:57:59\]:** But if we were doing per campaign and assuming campaigns end when we succeed, then it could be a bit more balanced.
 
-## Training on the Process of Science, Not Just Its Results
-
 **Brandon \[00:58:08\]:** I see. So your reasoning traces could almost be over entire campaigns
 
 **Liam Fedus \[00:58:12\]:** Absolutely.
@@ -867,8 +832,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Brandon \[01:01:28\]:** Yeah.
 
-## Levels of Scientific Abstraction and the Human Role
-
 **Ekin Doğuş Çubuk \[01:01:29\]:** Oh, yeah.
 
 **Swyx \[01:01:29\]:** Can I get a sort of mental model of the layers, levels of extraction that you can go? So for example, in terms of automation, and I’m just on this theme again where we talked about the campaign, talked about individual essays and running tests and how they’re. Humans are bad at it, so we should stop humans from doing it. Are there others? So for example, one level higher than campaign could be, a physics theory that you’re testing? Or one level lower than campaign is what? And like, I just. I like to think about it from that point of view and Think about it from like, okay, well, this is an API call now. You never have to touch this again. And this one is. Yeah, no, this is still ninety percent human. And maybe we can sort of draw the map of the territory that way. Is there — are there other levels?
@@ -905,8 +868,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Liam Fedus \[01:04:24\]:** So, I think even just using the guidance of campaigns, in the early days, that was fully human-driven. Now, increasingly, it’s a mix of AI-driven and human-driven. And then Doğuş was saying early on we identified that characterization was a big bottleneck. In the early days, it was human-driven, and the scientists were very much overwhelmed, and the balance has shifted significantly towards AI-driven. And this has allowed the scientists who were previously spending all of their time doing these refinements to now elevate their work to something else. But I think we’re. It’s really sort of a function of time. There’it’s always changing at each of these levels.
 
-## Search, Optimization, and Design of Experiments
-
 **Swyx \[01:05:04\]:** Yeah. In terms of just general search, are there things that perform well in let’s say, the physical world that don’t perform well in the other worlds or vice versa? Like so evolutionary search is pretty popular in LLMs. I don’t imagine it works well here.
 
 **Ekin Doğuş Çubuk \[01:05:21\]:** So especially in simulations, people have been using evolutionary search, for a long time. It’s pretty good at structure prediction, for example, finding low energy structures.
@@ -923,8 +884,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Ekin Doğuş Çubuk \[01:05:50\]:** And all zeroth order optimization behaves the same anyway, right? So.
 
-## Scaling Labs and Reusing Data for Reinforcement Learning
-
 **Brandon \[01:05:54\]:** Yeah. Okay, I want to go back to the question I had earlier, which was one of scaling. And so I-I’m curious, what is your vision for scaling the lab? So there’s different ways. Coming from the biology world there’s a lot of cool tricks you can do in biology. You can tag things, you can use DNA sequencing for all sorts of interesting readouts. And if you can map your complicated assay onto sequencing, you can now scale to millions or hundreds of millions or something. Can you do tricks like this? Ultimately, every assay has its own runtime. I’ll, I’I have a favorite blog post I would want to. I’ll quote in the show notes. But what does the runtimes look like for these labs? Is it. Is your scaling just for mater-materials just fundamentally linear in terms of you do you just need more resources to do more things, or can you paralyze things in clever ways and combine things, and are there tricks there?
 
 **Liam Fedus \[01:06:52\]:** Well, I think one way to think about it is, the RL environment is not quite trivially run the experiment, wait for that agent to fully roll out, doing the calculations, going through all the instruments to the final outcome. We basically start producing data across all the different instruments and all these different campaigns. And one way you can begin to expand that for machine learning is now reinforcement learning environments can be constructed based on again dates for the experimental campaigns or computational campaigns at that point. Or you can also, start taking, subsets of instruments, and you’re like, “Okay, we’re going to create reinforcement learning environments on the basis of this instrument alone.” Or maybe it’s, across these different instruments to kind of get to some reward state. So that’s a way where. This finite basket of data, when viewed in different ways, can then be expanded, for training purposes. So it doesn’t get at the actual experiment run, but from an ML perspective.
@@ -934,8 +893,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 **Liam Fedus \[01:08:23\]:** Oh, yeah, that makes sense.
 
 **Ekin Doğuş Çubuk \[01:08:24\]:** And as far as I know, this hasn’t worked very well so far because it turns out there is diffusivity, so things move around. Another one that we thought about, but we haven’t done yet, but a lot of people talk about this is superconductivity measurements are a bottleneck because unlike XRD, there’s no high-throughput superconductivity measurement, and it can take one hour per measurement. So people have thought about taking the different candidates, mixing them all into one sample, and putting it in. And if, it has superconductivity, you know that one of the sources that. And then you can do a bit like how people are doing COVID testing to. So there are ideas like this exist. Some of them work well, some of them don’t. Yeah.
-
-## Custom Hardware, New Labs, and Scaling Ambition
 
 **Brandon \[01:09:00\]:** So you, I think, are about to announce a big fundraise. How are you thinking about, scaling?
 
@@ -948,8 +905,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 **Brandon \[01:10:08\]:** You make your own.
 
 **Liam Fedus \[01:10:09\]:** We have to make our own. So we realize, okay, for this instrument, it’s pretty fast. These components are actually pretty quick, but this weighing machine actually becomes the bottleneck. Or there can be things pertinent to data quality where, well, the resting position of this robotic arm actually is above the plate of previously mixed things, so there’s a contamination risk. So in our hardware design, we’re going to redesign it so that the resting position lies away from the-those things. These are the kind of subtle details that allow us to kind of push the noise floor down for our experimental campaign. So, basically take these learnings and scale it up.
-
-## Assembling the Team Behind Synthesis Superintelligence
 
 **Brandon \[01:10:45\]:** You ship your org chart. You have many teams. I think the. We were surprised when we looked at your jobs page, and we were like, “Okay, we don’t think we fully map what Periodic does.”
 
@@ -983,8 +938,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Liam Fedus \[01:14:12\]:** He was very deep. He actually has solid-state synthesis books at his lab in Montreal. Ray Nakano, so he used to tech lead some of the operator work at OpenAI. He’s in the lab. So when we were doing some lab tours, we were initially, we’re like, “Oh, this new, scientist, this new technician really looks like Ray.” And no, it was literally this was Ray actually in the lab, with the scientists automating the machines. And it’s like this is sort of the DNA and the type of people we need to kind of pull this off.
 
-## Forward-Deployed Engineering for Semiconductor Partners
-
 **Swyx \[01:14:43\]:** So, we also saw that you have forward-deployed engineering, roles. We happen to be spinning up a forward-deployed engineering podcast because there’s so many engineers that would do that role. They may not necessarily know that there even is a role for them at Periodic. What is it, and how do they work with customers?
 
 **Liam Fedus \[01:15:01\]:** So we’ve been building our own products, our own tools, our own AI and computational
@@ -996,8 +949,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 **Swyx \[01:16:53\]:** Part of it is willingness to spend extended periods on site in Taiwan. It’s like, okay, well, I know that kind of customer.
 
 **Swyx \[01:17:01\]:** It’s interesting that you’re monetizing. That is the primary way that you’re monetizing now, but it might change in the future. But like, that’s like a model that I think people don’t really get about APL Research Lab. It’s. And when you compare yourself to Bell Labs, that’s what people are thinking, right? Which is.
-
-## Commercializing Scientific Discovery
 
 **Liam Fedus \[01:17:19\]:** I think a really great analog would be software engineering.
 
@@ -1017,8 +968,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Liam Fedus \[01:19:33\]:** Exactly. So technology, it’s incredibly coupled to the capital and those resources, and we want to achieve the same thing in the physical world.
 
-## Open-Source Contributions and Academic Research
-
 **Swyx \[01:19:41\]:** Yeah.
 
 **Brandon \[01:19:42\]:** So one thing I’ve been seeing is there’s this move from science being funded from government grants and so on to VCs and private funding. Do you all plan on making anything you’re doing, open source, like either releasing data sets or actual models? Is this something in the future even. You know, there are many models which may be not well, your state of the art, but which could still be you know, useful releases.
@@ -1033,8 +982,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 
 **Ekin Doğuş Çubuk \[01:20:36\]:** And we also have an academic grant program where we give academic gift grants to academic groups in universities that we feel like are really advancing this direction towards synthesis superintelligence. So that’s also been great to see. I think the first paper from this funding is about to come out, so it’ll be exciting to just get more papers come out like this. Yeah.
 
-## The Path to Better Superconductors
-
 **Brandon \[01:20:57\]:** Okay. Let’s steelman this, say that you’ve achieved 100% lab automation, which does everything, characterizes everything correctly. You have all of the fun agents which can do everything. I still am somewhat unclear about how you actually get to superconductivity. There’s a lot of hard problems to solve. What is the path there when there is no sort of theory for model for most of the strongly correlated systems or high-temperature systems?
 
 **Ekin Doğuş Çubuk \[01:21:23\]:** Yeah. So, our view is that it’s not hard to think of chemical spaces that would host superconductivity. What’s really hard is to synthesize them. That’s why we’re really emphasizing synthesis superintelligence. So maybe one example to give historically is Alex Müller, when he thought that transition metal oxides might be a good path to superconductivity, he was actually trying nickelates, the nickel, oxygen, and some, cations, and that didn’t work. And then he tried cuprates, which is copper, oxygen, and some cations, and that worked, and then he got a Nobel Prize. But then we know that later on turns out nickelates was a good idea. Nickel and copper are next to each other on the periodic table.
@@ -1046,8 +993,6 @@ We go deep on Periodic’s vision for **“synthesis superintelligence”**: rei
 **Brandon \[01:22:03\]:** Yeah.
 
 **Ekin Doğuş Çubuk \[01:22:03\]:** And then, Harold Hwang, one of our, Stanford professors here who’s incredible, he realized he can make nickelates in thin film form and show the superconductivity. So, if we have a really good synthesis superintelligence in the lab and we can really scale up these things, I think we won’t run out of ideas, or the LLM won’t run out of ideas about what directions to try, like 3D transition metals, oxygen. There are very related ideas here. Many people have been trying cobaltates, which is like instead of copper or nickel, you try cobalt. So I think that’s super exciting. Maybe one historical example to also study is the Japanese group that discovered magnesium diboride. As you know, that’s the highest temperature, ambient pressure, conventional superconductor, and they discovered it by just trying a bunch of materials. I think they tried 30,000 different things. Thirty of them seemed to host interesting superconductivity, and MgB₂ was one of them. But magnesium diboride sat on people’s shelves as a precursor for decades before then, and BCS theory had been invented back in 1957. So the way people found these materials wasn’t projected from theory. It wasn’t because they couldn’t synthesize until then. It was just like they tried a bunch of things. So now imagine if we had this perfect automation that you’re describing, which sounds like a dream, and we tried the 30,000 the Taketo group tried in over his career in a month. We just really increased the surface area for luck.
-
-## Closing: Increasing the Surface Area for Discovery
 
 **Swyx \[01:23:30\]:** No, but yeah, it’s very inspiring what you’ve done. Congrats on all your success. I feel, I feel like you’re creating, yeah, the modern playground. I imagine recruiting must be super easy for you, so I’m just a little bit jealous, but you’ve worked hard for it to get here, so yeah.
 

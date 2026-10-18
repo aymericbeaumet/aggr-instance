@@ -61,6 +61,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/217289983/80ecbf8ba268d83a6cde12d5f719e123.mp3
+  duration_seconds: 5781
 ---
 
 Earlier this month, **world model** company Runway [introduced GWM Worlds 2](https://runway.com/research/introducing-gwm-worlds-2), a research preview that “turns high-fidelity video and audio generation into **real-time interactive simulation**.” Runway calls this an “autoregressive diffusion” model; with autoregressive describing how it generates over time.

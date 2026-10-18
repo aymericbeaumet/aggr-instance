@@ -49,6 +49,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/216723291/8511fc2825689ad610a1ca70864be49f.mp3
+  duration_seconds: 5519
 ---
 
 The OpenAI → Hugging Face attack has people asking “what else do we need to worry about?” and Anthropic’s filters flag two things: cyber-security and biology. The natural question is: what about bio-security, then?

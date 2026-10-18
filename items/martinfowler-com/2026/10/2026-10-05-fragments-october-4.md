@@ -7,7 +7,7 @@ updated: 2026-10-05T04:28:00Z
 first_seen: 2026-10-05T09:35:15.036553018Z
 authors:
 - Martin Fowler
-content: feed
+content: extracted
 html: 2026-10-05-fragments-october-4.html
 ---
 

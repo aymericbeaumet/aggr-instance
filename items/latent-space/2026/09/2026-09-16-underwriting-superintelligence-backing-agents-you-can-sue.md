@@ -35,6 +35,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/215893904/498e50787a4f6e12e12b40465b0792de.mp3
+  duration_seconds: 5175
 ---
 
 AIUC first got our attention with the NFDG backing, and have just announced a [$40M series A](https://aiuc.com/updates/series-a-announcement) today, with the most impressive industry advisor list we may have ever seen for an early startup behind [AIUC-1](https://www.aiuc-1.com/consortium), their agent standard backed by real insurance:

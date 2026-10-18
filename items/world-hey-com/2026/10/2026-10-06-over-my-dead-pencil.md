@@ -7,7 +7,7 @@ updated: 2026-10-06T07:28:30Z
 first_seen: 2026-10-06T07:29:29.789711479Z
 authors:
 - David Heinemeier Hansson
-content: feed
+content: extracted
 html: 2026-10-06-over-my-dead-pencil.html
 ---
 

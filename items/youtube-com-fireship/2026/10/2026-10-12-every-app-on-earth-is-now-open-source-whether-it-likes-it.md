@@ -16,19 +16,10 @@ summary: |-
 
   🗞️ Newsletter: https://bytes.dev
   🧠 Courses: https://fireship.dev
-content: feed
+content: extracted
 html: 2026-10-12-every-app-on-earth-is-now-open-source-whether-it-likes-it.html
 remote_preview:
   url: https://i4.ytimg.com/vi/wajoP_5Cpw8/hqdefault.jpg
 extra:
   thumbnail: https://i4.ytimg.com/vi/wajoP_5Cpw8/hqdefault.jpg
 ---
-
-Every agent needs proper tools. Apify MCP gives yours thousands of them, ready to run. Use code FIRESHIP25 for $25 in free credits: https://apify.it/4ygURHS
-
-A developer just rewrote seven Adobe apps in Rust and open-sourced them for free. Let's test them out.
-
-Want more Fireship?
-
-🗞️ Newsletter: https://bytes.dev\
-🧠 Courses: https://fireship.dev

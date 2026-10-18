@@ -8,20 +8,17 @@ first_seen: 2026-10-07T19:30:21.779631669Z
 authors:
 - Gergely Orosz
 summary: Sam Newman joins me to discuss when to use microservices, how to build resilient distributed systems, and how AI is changing software development.
-content: feed
+content: extracted
 html: 2026-10-07-building-resilient-systems-with-sam-newman.html
 remote_preview:
   url: https://substackcdn.com/image/fetch/$s_!AlJu!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8e3d3c6f-6a37-411e-aa1a-dfcefc979af3_1600x140.png
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/218980052/4ba6e182abf3183ae7500e722b77f40d.mp3
+  duration_seconds: 7103
 ---
 
-### Stream the latest episode
-
 **Listen and watch now on [YouTube](https://youtu.be/a0sZV0qIbI0), [Apple](https://podcasts.apple.com/us/podcast/the-pragmatic-engineer/id1769051199), and [Spotify](https://open.spotify.com/show/2Bho9xCbOQMWMJ7UKmqCzD).** See the episode transcript at the top of this page, and timestamps for the episode at the bottom.
-
-### **Brought to You by**
 
 ![](https://substackcdn.com/image/fetch/$s_!AlJu!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8e3d3c6f-6a37-411e-aa1a-dfcefc979af3_1600x140.png)
 
@@ -31,21 +28,13 @@ extra:
 
 • **[Entire](https://entire.io/pragmatic)** – Git hosting, rebuilt for the agentic era. Entire hosts your code in-region, and is up to 89x faster than any other competitor. Mirror from GitHub [with a single click](https://entire.io/pragmatic) – I’ve already done so.
 
-### **In this episode**
-
 Sam Newman wrote one of the most-read books about microservices (“[Building Microservices](https://samnewman.io/books/building_microservices/)”), but he calls them an architecture of “last resort.”
 
 In this episode of the Pragmatic Engineer podcast, Sam explains his thinking on this, and he’s certainly well placed to do so; he was in the room when the term “microservices” was coined. We discuss what teams get wrong when adopting microservices, why independent deployment matters, and how microservices can help teams work more autonomously.
 
 We also peek into his new book, ‘**[Building Resilient Distributed Systems](https://www.oreilly.com/library/view/building-resilient-distributed/9781098163532/)**’, and Sam explains his three rules for distributed systems, why observability is essential, and also why it’s vital to take business context into account when deciding whether to fail open or fail closed on errors.
 
-[![](https://substackcdn.com/image/fetch/$s_!O0F3!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F678d1cb6-210d-4622-8ac7-d1a162a46f59_1692x2048.jpeg)](https://substackcdn.com/image/fetch/$s_!O0F3!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F678d1cb6-210d-4622-8ac7-d1a162a46f59_1692x2048.jpeg)
-
-*Sam’s new book, [Building Resilient Distributed Systems](https://www.oreilly.com/library/view/building-resilient-distributed/9781098163532/) is out in print from October 7*
-
 We also explore how AI is changing software development, from specs versus code as a source of truth to cognitive debt and cognitive surrender. Sam shares how modular architecture can help teams experiment with AI while maintaining understanding of the systems being built.
-
-### **Takeaways from the conversation with Sam**
 
 [www.youtube.com](https://www.youtube.com/watch?v=a0sZV0qIbI0)
 
@@ -55,7 +44,7 @@ We also explore how AI is changing software development, from specs versus code 
 
 **3\. Sam spent 10+ years at a large company, three years at startups, and has been independent for more than a decade.** After 13 years at Thoughtworks, he quit to avoid becoming “institutionalized.” He recalls thinking he could hang around at Thoughtworks and grow bitter. “So I’ll just go now.” He then worked at three different startups before going independent, which he’s now done for 15 years. The biggest challenge of being your own boss? He says: “The problem of working for yourself is that the boss is frequently an a\*\*\*\*\*e. So, current Sam frequently is cursing past Sam for the commitments he made!”
 
-**4\. So, what’s a “microservice?”**; Sam gives two definitions: a clear one, and a softer one:
+**4\. So, what’s a “microservice**?” Sam gives two definitions: a clear one, and a softer one:
 
 1. **Independently deployable service**. The “clear” definition: as long as, upon a change to a system, it can be independently deployed – without any other services needing to be deployed –, you can call it a microservice.
 
@@ -131,8 +120,6 @@ Opus 5.5 decided it would be a good idea to format the C: drive. Sam warned abou
 
 - [An architecturally-evident coding style: making your design visible](https://dl.acm.org/doi/10.1145/1869542.1869627): a paper by George Fairbanks, published in 2010. It’s an approach that allows the code to hint at the system’s architecture
 
-### **The Pragmatic Engineer deepdives relevant for this episode**
-
 • [Scaling Uber with Thuan Pham (Uber’s first CTO)](https://newsletter.pragmaticengineer.com/p/scaling-uber-with-thuan-pham-ubers)
 
 • [What is good software architecture at Netflix?](https://newsletter.pragmaticengineer.com/p/what-is-good-software-architecture)
@@ -146,8 +133,6 @@ Opus 5.5 decided it would be a good idea to format the C: drive. Sam warned abou
 • [Designing Data-intensive Applications with Martin Kleppmann](https://newsletter.pragmaticengineer.com/p/designing-data-intensive-applications)
 
 • [Building Bluesky: a Distributed Social Network](https://newsletter.pragmaticengineer.com/p/bluesky)
-
-### **Timestamps**
 
 [00:00](https://www.youtube.com/watch?v=a0sZV0qIbI0) Intro
 
@@ -187,8 +172,6 @@ Opus 5.5 decided it would be a good idea to format the C: drive. Sam warned abou
 
 [1:55:30](https://www.youtube.com/watch?v=a0sZV0qIbI0&t=6930s) Where to find Sam
 
-### **References**
-
 **Where to find Sam Newman:**
 
 • X: [https://x.com/samnewman](https://x.com/samnewman)
@@ -198,6 +181,10 @@ Opus 5.5 decided it would be a good idea to format the C: drive. Sam warned abou
 • Website: [https://samnewman.io](https://samnewman.io)
 
 **Mentions during the episode:**
+
+[Uptime Labs](https://www.uptimelabs.io/): incident response training, backed by science. In the episode, Sam said this about them:
+
+> “I’d like to give a shout out to Uptime Labs who are based here partly here in London. They do excellent instant training that you can do online in a web browser. It’s fantastic. They are really great.”
 
 • Acorn Electron: [https://en.wikipedia.org/wiki/Acorn_Electron](https://en.wikipedia.org/wiki/Acorn_Electron)
 

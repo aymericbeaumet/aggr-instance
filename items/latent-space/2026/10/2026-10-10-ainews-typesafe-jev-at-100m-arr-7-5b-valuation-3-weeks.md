@@ -6,7 +6,7 @@ published: 2026-10-10T06:45:57Z
 updated: 2026-10-10T06:45:57Z
 first_seen: 2026-10-10T09:43:54.203598127Z
 summary: Wow.
-content: feed
+content: extracted
 html: 2026-10-10-ainews-typesafe-jev-at-100m-arr-7-5b-valuation-3-weeks.html
 remote_preview:
   url: https://substackcdn.com/image/fetch/$s_!JxMf!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F__ss-rehost__tw-video-preview-13_2108594586310631424.jpg
@@ -14,15 +14,17 @@ remote_preview:
 
 As you can see in the AINews X recap section below, everyone on earth has cloned the Jev API, but only one company can ever create the category. TypeSafe announced their “[Series AI](https://typesafe.ai/blog/series-ai)” and Sequoia “[leaked](https://doomers.ai/work/typesafe-ai-case-study)” that they crossed 100M ARR in their first week.
 
+> Diogo Almeida @CompleteSkeptic
+>
+> launched a model accidentally served trillions of tokens a day 29.4% of the fortune 500 showed up raised a really big series A from @a16z it's been 3 weeks we would like to sleep now
+>
+> [@CompleteSkeptic on X](https://x.com/CompleteSkeptic/status/2108594987177021737)
+
 Although there are [cynics and accusations of astroturfing](https://news.ycombinator.com/item?id=50023450), we hope it is evident that [our Jev pod](https://www.youtube.com/watch?v=cFx9Z3ZXca0&t=6155s) was 100% authentic.
 
 [www.youtube.com](https://www.youtube.com/watch?v=cFx9Z3ZXca0)
 
 > AI News for 10/8/2026-10/9/2026. We checked 12 subreddits, [544 Twitters](https://twitter.com/i/lists/1585430245762441216) and no further Discords. [AINews’ website](https://news.smol.ai/) lets you search all past issues. As a reminder, [AINews is now a section of Latent Space](https://www.latent.space/p/2026). You can [opt in/out](https://support.substack.com/hc/en-us/articles/8914938285204-How-do-I-subscribe-to-or-unsubscribe-from-a-section-on-Substack) of email frequencies!
-
-* * *
-
-# **AI Twitter Recap**
 
 **Decision Models Become a Product Category**
 
@@ -130,5 +132,3 @@ Although there are [cynics and accusations of astroturfing](https://news.ycombin
   - **MIMESIS**: A 9B user simulator that beats Opus 5 on behavioral fidelity by 13.4 points ([@dair\_ai](https://x.com/dair_ai/status/2108588052914598084)).
 
   - **Base-model selection (NVIDIA)**: Ranks checkpoints by whether the base model can reproduce the “decisive edit,” a signal that tracks post-trained SWE-bench Verified scores ([@dair\_ai](https://x.com/dair_ai/status/2108584781877522655)).
-
-[Read more](https://www.latent.space/p/ainews-typesafejev-at-100m-arr-75b)

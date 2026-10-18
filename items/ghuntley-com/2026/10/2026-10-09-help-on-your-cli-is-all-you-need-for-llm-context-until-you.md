@@ -10,14 +10,12 @@ authors:
 labels:
 - ai
 summary: Here's something I've been meaning to write up for a while. It's kind of late, but I'm going to lean into the whole MCP vs. CLI argument because I have a perspective others might find interesting. What's the actual difference
-content: feed
+content: extracted
 html: 2026-10-09-help-on-your-cli-is-all-you-need-for-llm-context-until-you.html
 remote_preview:
   url: https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-depicting-contrasting-S-tier-and-F-tier-developer-tools-as-elegant-ornamental-emblems--polished-interfaces-and-refined-craftsmanship--vibrant-retro-colors--intricate-decorative-linework--adorable-yet-gr.jpg
   alt: --help on your CLI is all you need for LLM context until you don't.
 ---
-
-![--help on your CLI is all you need for LLM context until you don't.](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-depicting-contrasting-S-tier-and-F-tier-developer-tools-as-elegant-ornamental-emblems--polished-interfaces-and-refined-craftsmanship--vibrant-retro-colors--intricate-decorative-linework--adorable-yet-gr.jpg)
 
 Here's something I've been meaning to write up for a while. It's kind of late, but I'm going to lean into the whole MCP vs. CLI argument because I have a perspective others might find interesting.
 
@@ -28,7 +26,7 @@ Developer tooling companies can be sorted into two tiers: S-tier (winning) and F
 
 An S-tier company is in the training weights. Let's take GitHub, for example. Now, we can yak about problems with GitHub till the cow comes home, but one thing is true: these models know how to interface with GitHub because that behavior is in the model weights themselves. They don't need any skills or an MCP to get outcomes. You can just use the CLI.
 
-You are S-tier once you can do a prompt like this.
+You are S-tier once you can do a prompt like this without any skills or MCP:
 
 > prompt: Use the GH cli to create a repository, commit the changes, push to origin, set the reposistory to public and update the repository description.
 
@@ -42,12 +40,8 @@ Once you have this bare-bones foundation, the next step is to publish documentat
 
 To take this to the next level, you should enter into a business contract with the labs. Perhaps you've already got a contract with the labs for inferencing. You want to lean on them to include your CLI documentation in their next training run.
 
-If you nail these things, then you're well on the path to becoming an S-tier developer tooling company. The best part is that it doesn't require users to download or install a skill pack or configure an MCP server or any of that junk.
+If you nail these things, then you're well on the path to becoming an S-tier developer tooling company. The best part is that it doesn't require users to download or install a skill pack, configure an MCP, or deal with any of that junk.
 
 ps. socials
 
-> 🗞️ --help on your CLI is all you need for LLM context until you don't.[https://t.co/ZeM2mYOQN4](https://t.co/ZeM2mYOQN4?ref=ghuntley.com)\
-> \
-> In this post, I share guidance for developer tooling companies and concrete advice on how to graduate from F-tier to S-tier. [pic.twitter.com/u7IXsJcgRe](https://t.co/u7IXsJcgRe?ref=ghuntley.com)
->
 > — geoff (@GeoffreyHuntley) [October 9, 2026](https://x.com/GeoffreyHuntley/status/2108454712035209559?ref_src=twsrc%5Etfw&ref=ghuntley.com)

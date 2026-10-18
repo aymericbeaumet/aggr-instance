@@ -1,0 +1,169 @@
+<div id="readability-page-1" class="page"><div>
+<p>Picture this: four AI experts sitting around a poker table, debating your toughest decisions in real-time. That's exactly what Consilium, the multi-LLM platform I built during the <a href="https://huggingface.co/spaces/Agents-MCP-Hackathon/consilium_mcp">Gradio Agents &amp; MCP Hackathon</a>, does. It lets AI models discuss complex questions and reach consensus through structured debate.</p>
+<p>The platform works both as a visual Gradio interface and as an MCP (Model Context Protocol) server that integrates directly with applications like Cline (Claude Desktop had issues as the timeout could not be adjusted). The core idea was always about LLMs reaching consensus through discussion; that's where the name Consilium came from. Later, other decision modes like majority voting and ranked choice were added to make the collaboration more sophisticated.</p>
+<h2>
+	<a id="from-concept-to-architecture" href="#from-concept-to-architecture" rel="nofollow">
+		
+	</a>
+	<span>
+		From Concept to Architecture
+	</span>
+</h2>
+<p>This wasn't my original hackathon idea. I initially wanted to build a simple MCP server to talk to my projects in RevenueCat. But I reconsidered when I realized a multi-LLM platform where these models discuss questions and return well-reasoned answers would be far more compelling.</p>
+<p>The timing turned out to be perfect. Shortly after the hackathon, Microsoft published their <a href="https://microsoft.ai/new/the-path-to-medical-superintelligence/" rel="nofollow">AI Diagnostic Orchestrator (MAI-DxO)</a>, which is essentially an AI doctor panel with different roles like "Dr. Challenger Agent" that iteratively diagnose patients. In their setup with OpenAI o3, they correctly solved 85.5% of medical diagnosis benchmark cases, while practicing physicians achieved only 20% accuracy. This validates exactly what Consilium demonstrates: multiple AI perspectives collaborating can dramatically outperform individual analysis.</p>
+<p>After settling on the concept, I needed something that worked as both an MCP server and an engaging Hugging Face space demo. Initially I considered using the standard Gradio Chat component, but I wanted my submission to stand out. The idea was to seat LLMs around a table in a boardroom with speech bubbles, which should capture the collaborative discussion while also making it visually engaging. As I did not manage to style a standard table nicely so it was actually recognized as a table, I went for a poker-style roundtable. This approach also let me submit to two hackathon tracks by building a custom Gradio component and MCP server.</p>
+<h2>
+	<a id="building-the-visual-foundation" href="#building-the-visual-foundation" rel="nofollow">
+		
+	</a>
+	<span>
+		Building the Visual Foundation
+	</span>
+</h2>
+<p>The custom Gradio component became the heart of the submission; the poker-style roundtable where participants sit and display speech bubbles showing their responses, thinking status, and research activities immediately caught the eye of anyone visiting the space. The component development was remarkably smooth thanks to Gradio's excellent developer experience, though I did encounter one documentation gap around PyPI publishing that led to my first contribution to the Gradio project.</p>
+<pre><code data-language="python"># The visual component integration
+roundtable = consilium_roundtable(
+&nbsp; &nbsp; label="AI Expert Roundtable",
+    label_icon="https://huggingface.co/front/assets/huggingface_logo-noborder.svg",
+&nbsp; &nbsp; value=json.dumps({
+&nbsp; &nbsp; &nbsp; &nbsp; "participants": [],
+&nbsp; &nbsp; &nbsp; &nbsp; "messages": [],
+&nbsp; &nbsp; &nbsp; &nbsp; "currentSpeaker": None,
+&nbsp; &nbsp; &nbsp; &nbsp; "thinking": [],
+&nbsp; &nbsp; &nbsp; &nbsp; "showBubbles": [],
+&nbsp; &nbsp; &nbsp; &nbsp; "avatarImages": avatar_images
+&nbsp; &nbsp; })
+)
+</code></pre>
+<p>The visual design proved robust throughout the hackathon; after the initial implementation, only features like user-defined avatars and center table text were added, while the core interaction model remained unchanged.</p>
+<p>If you are interested in creating your own custom Gradio component you should take a look at <a href="https://www.gradio.app/guides/custom-components-in-five-minutes" rel="nofollow">Custom Components in 5 minutes</a> and yes the title does not lie; it literally only takes 5 minutes for the basic setup.</p>
+<h2>
+	<a id="session-state-management" href="#session-state-management" rel="nofollow">
+		
+	</a>
+	<span>
+		Session State Management
+	</span>
+</h2>
+<p>The visual roundtable maintains state through a session-based dictionary system where each user gets isolated state storage via <code>user_sessions[session_id]</code>. The core state object tracks <code>participants</code>, <code>messages</code>, <code>currentSpeaker</code>, <code>thinking</code>, and <code>showBubbles</code> arrays that are updated through <code>update_visual_state()</code> callbacks. When models are thinking, speaking, or research is being executed, the engine pushes incremental state updates to the frontend by appending to the messages array and toggling speaker/thinking states, creating the real-time visual flow without complex state machines - just direct JSON state mutations synchronized between backend processing and frontend rendering.</p>
+<h2>
+	<a id="making-llms-actually-discuss" href="#making-llms-actually-discuss" rel="nofollow">
+		
+	</a>
+	<span>
+		Making LLMs Actually Discuss
+	</span>
+</h2>
+<p>While implementing, I realized there was no real discussion happening between the LLMs because they lacked clear roles. They received the full context of ongoing discussions but didn't know how to engage meaningfully. I introduced distinct roles to create productive debate dynamics, which, after a few tweaks, ended up being like this:</p>
+<pre><code data-language="python">self.roles = {
+    'standard': "Provide expert analysis with clear reasoning and evidence.",
+    'expert_advocate': "You are a PASSIONATE EXPERT advocating for your specialized position. Present compelling evidence with conviction.",
+    'critical_analyst': "You are a RIGOROUS CRITIC. Identify flaws, risks, and weaknesses in arguments with analytical precision.",
+    'strategic_advisor': "You are a STRATEGIC ADVISOR. Focus on practical implementation, real-world constraints, and actionable insights.",
+    'research_specialist': "You are a RESEARCH EXPERT with deep domain knowledge. Provide authoritative analysis and evidence-based insights.",
+    'innovation_catalyst': "You are an INNOVATION EXPERT. Challenge conventional thinking and propose breakthrough approaches."
+}
+</code></pre>
+<p>This solved the discussion problem but raised a new question: how to determine consensus or identify the strongest argument? I implemented a lead analyst system where users select one LLM to synthesize the final result and evaluate whether consensus was reached.</p>
+<p>I also wanted users to control communication structure. Beyond the default full-context sharing, I added two alternative modes:</p>
+<ul>
+<li><strong>Ring</strong>: Each LLM only receives the previous participant's response &nbsp;</li>
+<li><strong>Star</strong>: All messages flow through the lead analyst as a central coordinator</li>
+</ul>
+<p>Finally, discussions need endpoints. I implemented configurable rounds (1-5), with testing showing that more rounds increase the likelihood of reaching consensus (though at higher computational cost).</p>
+<h2>
+	<a id="llm-selection-and-research-integration" href="#llm-selection-and-research-integration" rel="nofollow">
+		
+	</a>
+	<span>
+		LLM Selection and Research Integration
+	</span>
+</h2>
+<p>The current model selection includes Mistral Large, DeepSeek-R1, Meta-Llama-3.3-70B, and QwQ-32B. While notable models like Claude Sonnet and OpenAI's o3 are absent, this reflected hackathon credit availability and sponsor award considerations rather than technical limitations.</p>
+<pre><code data-language="python">self.models = {
+&nbsp; &nbsp; 'mistral': {
+&nbsp; &nbsp; &nbsp; &nbsp; 'name': 'Mistral Large',
+&nbsp; &nbsp; &nbsp; &nbsp; 'api_key': mistral_key,
+&nbsp; &nbsp; &nbsp; &nbsp; 'available': bool(mistral_key)
+&nbsp; &nbsp; },
+&nbsp; &nbsp; 'sambanova_deepseek': {
+&nbsp; &nbsp; &nbsp; &nbsp; 'name': 'DeepSeek-R1',
+&nbsp; &nbsp; &nbsp; &nbsp; 'api_key': sambanova_key,
+&nbsp; &nbsp; &nbsp; &nbsp; 'available': bool(sambanova_key)
+&nbsp; &nbsp; }
+    ...
+}
+</code></pre>
+<p>For models supporting function calling, I integrated a dedicated research agent that appears as another roundtable participant. Rather than giving models direct web access, this agent approach provides visual clarity about external resource availability and ensures consistent access across all function-calling models.</p>
+<pre><code data-language="python">def handle_function_calls(self, completion, original_prompt: str, calling_model: str) -&gt; str:
+&nbsp; &nbsp; """UNIFIED function call handler with enhanced research capabilities"""
+&nbsp; &nbsp; 
+&nbsp; &nbsp; message = completion.choices[0].message
+&nbsp; &nbsp; 
+&nbsp; &nbsp; # If no function calls, return regular response
+&nbsp; &nbsp; if not hasattr(message, 'tool_calls') or not message.tool_calls:
+&nbsp; &nbsp; &nbsp; &nbsp; return message.content
+&nbsp; &nbsp; 
+&nbsp; &nbsp; # Process each function call
+&nbsp; &nbsp; for tool_call in message.tool_calls:
+&nbsp; &nbsp; &nbsp; &nbsp; function_name = tool_call.function.name
+&nbsp; &nbsp; &nbsp; &nbsp; arguments = json.loads(tool_call.function.arguments)
+&nbsp; &nbsp; &nbsp; &nbsp; 
+&nbsp; &nbsp; &nbsp; &nbsp; # Execute research and show progress
+&nbsp; &nbsp; &nbsp; &nbsp; result = self._execute_research_function(function_name, arguments, calling_model_name)
+</code></pre>
+<p>The research agent accesses five sources: Web Search, Wikipedia, arXiv, GitHub, and SEC EDGAR. I built these tools on an extensible base class architecture for future expansion while focusing on freely embeddable resources.</p>
+<pre><code data-language="python">class BaseTool(ABC):
+&nbsp; &nbsp; """Base class for all research tools"""
+&nbsp; &nbsp; 
+&nbsp; &nbsp; def __init__(self, name: str, description: str):
+&nbsp; &nbsp; &nbsp; &nbsp; self.name = name
+&nbsp; &nbsp; &nbsp; &nbsp; self.description = description
+        self.last_request_time = 0
+&nbsp; &nbsp; &nbsp; &nbsp; self.rate_limit_delay = 1.0
+&nbsp; &nbsp; 
+&nbsp; &nbsp; @abstractmethod
+&nbsp; &nbsp; def search(self, query: str, **kwargs) -&gt; str:
+&nbsp; &nbsp; &nbsp; &nbsp; """Main search method - implemented by subclasses"""
+&nbsp; &nbsp; &nbsp; &nbsp; pass
+&nbsp; &nbsp; 
+&nbsp; &nbsp; def score_research_quality(self, research_result: str, source: str = "web") -&gt; Dict[str, float]:
+&nbsp; &nbsp; &nbsp; &nbsp; """Score research based on recency, authority, specificity, relevance"""
+&nbsp; &nbsp; &nbsp; &nbsp; quality_score = {
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "recency": self._check_recency(research_result),
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "authority": self._check_authority(research_result, source),
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "specificity": self._check_specificity(research_result),
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "relevance": self._check_relevance(research_result)
+&nbsp; &nbsp; &nbsp; &nbsp; }
+&nbsp; &nbsp; &nbsp; &nbsp; return quality_score
+</code></pre>
+<p>Since research operations can be time-intensive, the speech bubbles display progress indicators and time estimates to maintain user engagement during longer research tasks.</p>
+<h2>
+	<a id="discovering-the-open-floor-protocol" href="#discovering-the-open-floor-protocol" rel="nofollow">
+		
+	</a>
+	<span>
+		Discovering the Open Floor Protocol
+	</span>
+</h2>
+<p>After the hackathon, Deborah Dahl introduced me to the <a href="https://github.com/open-voice-interoperability/openfloor-docs" rel="nofollow">Open Floor Protocol</a>, which aligns perfectly with the roundtable approach. This protocol provides standardized JSON message formatting for cross-platform agent communication. Its key differentiator from other agent-to-agent protocols is that all agents maintain constant conversation awareness exactly like sitting at the same table. Another feature I have not seen with other protocols is that the floor manager can dynamically invite and remove agents from the floor and agents.</p>
+<p>The protocol's interaction patterns map directly to Consilium's architecture:</p>
+<ul>
+<li><strong>Delegation</strong>: Transferring control between agents &nbsp;</li>
+<li><strong>Channeling</strong>: Passing messages without modification &nbsp;</li>
+<li><strong>Mediation</strong>: Coordinating behind the scenes &nbsp;</li>
+<li><strong>Orchestration</strong>: Multiple agents collaborating</li>
+</ul>
+<p>I'm currently integrating Open Floor Protocol support to allow users to add any OFP-compliant agents to their roundtable discussions. You can follow this development at: <a href="https://huggingface.co/spaces/azettl/consilium_ofp">https://huggingface.co/spaces/azettl/consilium_ofp</a></p>
+<h2>
+	<a id="lessons-learned-and-future-implications" href="#lessons-learned-and-future-implications" rel="nofollow">
+		
+	</a>
+	<span>
+		Lessons Learned and Future Implications
+	</span>
+</h2>
+<p>The hackathon introduced me to multi-agent debate research I hadn't previously encountered, including foundational studies like <a href="https://arxiv.org/abs/2305.19118" rel="nofollow">Encouraging Divergent Thinking in Large Language Models through Multi-Agent Debate</a>. The community experience was remarkable; all participants actively supported each other through Discord feedback and collaboration. Seeing my roundtable component integrated into <a href="https://huggingface.co/spaces/Agents-MCP-Hackathon/multi-agent-chat">another hackathon project</a> was one of my highlights working on Consilium.</p>
+<p>I will continue to work on Consilium and with expanded model selection, Open Floor Protocol integration, and configurable agent roles, the platform could support virtually any multi-agent debate scenario imaginable.</p>
+<p>Building Consilium reinforced my conviction that AI's future lies not just in more powerful individual models but in systems enabling effective AI collaboration. As specialized smaller language models become more efficient and resource-friendly, I believe roundtables of task-specific SLMs with dedicated research agents may provide compelling alternatives to general-purpose large language models for many use cases.</p>
+</div></div>

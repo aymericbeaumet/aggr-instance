@@ -6,7 +6,7 @@ published: 2026-10-07T04:55:44Z
 updated: 2026-10-07T04:55:44Z
 first_seen: 2026-10-07T05:44:45.801061649Z
 summary: Our head hurts.
-content: feed
+content: extracted
 html: 2026-10-07-ainews-quasi-riemann-hypothesis-openai-publishes-722-math.html
 remote_preview:
   url: https://substackcdn.com/image/fetch/$s_!3_fH!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fcf69e441-6f07-47c9-ba4d-3cd64a85fb49_1224x1255.png
@@ -16,11 +16,15 @@ remote_preview:
 
 *see past AINews issues for subscriber discounts.*
 
-* * *
-
 Pour one out for Mistral, who shipped a decent [Large 4 “Le Chonk” model](https://news.ycombinator.com/item?id=49977979) on [the new 3800 GB300 cluster](https://x.com/cheatyyyy/status/2107542219121213653) funded by [their recent Series D](https://www.latent.space/p/anj?utm_source=publication-search).
 
-But they were overshadowed by more mathematics results from OpenAI’s internal Navier-Stokes math model - published as a [blogpost](https://openai.com/index/sharing-ai-progress-in-mathematics/), [repo](https://github.com/openai/math), and [tweet](https://x.com/OpenAI/status/2107596713791767021). The best compliment comes from [their Navier-Stokes competitor](https://x.com/__alpoge__/status/2107616859595981117) from Anthropic, who despite his personal issues with Anthropic, does not mince words: **“It’s obviously the most significant moment in mathematical history.”**
+But they were overshadowed by more mathematics results from OpenAI’s internal Navier-Stokes math model - published as a [blogpost](https://openai.com/index/sharing-ai-progress-in-mathematics/), [repo](https://github.com/openai/math), and [tweet](https://x.com/OpenAI/status/2107596713791767021). The best compliment comes from [their Navier-Stokes competitor](https://x.com/__alpoge__/status/2107616859595981117) from Anthropic, who despite his personal issues with OpenAI, does not mince words: **“It’s obviously the most significant moment in mathematical history.”**
+
+> levent @\_\_alpoge\_\_
+>
+> Big, big, big, big props for quasiriemann and no Siegel zeroes (with many other beauties in there), I’m kicking myself for talking all over about it being within reach but not actually having pushed. There are some sad stories related to their users getting scooped / conflicts…
+>
+> [@__alpoge__ on X](https://x.com/__alpoge__/status/2107616859595981117)
 
 This bears [some qualification](https://x.com/__alpoge__/status/2107638396671951107), but most experts seem to agree that it solves [many of the top 500 open problems in math](https://news.ycombinator.com/item?id=49985540).
 
@@ -33,10 +37,6 @@ The most astonishing is [the how](https://ai.engineer/nyc) - while [Navier-Stoke
 [![](https://substackcdn.com/image/fetch/$s_!9r3X!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fe8d7a04a-9e56-4674-9cf7-a26a9742203a_920x280.png)](https://substackcdn.com/image/fetch/$s_!9r3X!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fe8d7a04a-9e56-4674-9cf7-a26a9742203a_920x280.png)
 
 > AI News for 10/5/2026-10/6/2026. We checked 12 subreddits, [544 Twitters](https://twitter.com/i/lists/1585430245762441216) and no further Discords. [AINews’ website](https://news.smol.ai/) lets you search all past issues. As a reminder, [AINews is now a section of Latent Space](https://www.latent.space/p/2026). You can [opt in/out](https://support.substack.com/hc/en-us/articles/8914938285204-How-do-I-subscribe-to-or-unsubscribe-from-a-section-on-Substack) of email frequencies!
-
-* * *
-
-# **AI Twitter Recap**
 
 **OpenAI Releases 722 Math Manuscripts From an Unreleased Internal Model**
 
@@ -212,16 +212,6 @@ The most astonishing is [the how](https://ai.engineer/nyc) - while [Navier-Stoke
 
 - [OpenAI Decisions API public beta](https://x.com/OpenAIDevs/status/2107573382229188645) (2.8K)
 
-* * *
-
-# **AI Reddit Recap**
-
-## **/r/LocalLlama + /r/localLLM Recap**
-
-### **1\. Local AI Tooling Releases**
-
 - **[google/embeddinggemma-2 · Hugging Face](https://www.reddit.com/r/LocalLLaMA/comments/1wz5va3/googleembeddinggemma2_hugging_face/)** (Activity: 543): **Google DeepMind released** `google/embeddinggemma-2`**, a** `740M`**-parameter open multimodal embedding model mapping text/code, images, video, audio, and mixed inputs into a shared** `768d` **space for on-device retrieval/RAG/classification/clustering. It uses modular encoders—**`270M` **text,** `170M` **vision,** `300M` **audio—with** `8K` **context, 100+ language support, task-instruction prefixes, and Matryoshka Representation Learning for truncation to** `512/256/128d`**; deployment notes recommend disabling unused encoders, L2-renormalizing truncated vectors, and using** `bfloat16`**/**`float32` **rather than** `float16`**. Community links include** `llama.cpp`**[support PR #30054](https://github.com/ggml-org/llama.cpp/pull/30054),** `ggml-org`**[GGUF weights](https://huggingface.co/ggml-org/embeddinggemma-2-GGUF), and** `Unsloth`**[GGUF weights](https://huggingface.co/unsloth/embeddinggemma-2-GGUF).** Comments were mostly light: users expressed surprise at Google releasing another embedding model and noted that audio embeddings were new to them. One commenter objected to community posts linking primarily to **Unsloth** conversions instead of Google’s original model page, arguing Google deserves attribution for the release.
 
   - `llama.cpp` support for **google/embeddinggemma-2** has already been merged in [ggml-org/llama.cpp#30054](https://github.com/ggml-org/llama.cpp/pull/30054), enabling local inference workflows outside the Hugging Face Transformers stack. A corresponding **GGUF** conversion is available at [ggml-org/embeddinggemma-2-GGUF](https://huggingface.co/ggml-org/embeddinggemma-2-GGUF), which is relevant for users planning to use the model for local dataset indexing or retrieval pipelines.
-
-[Read more](https://www.latent.space/p/ainews-quasi-riemann-hypothesis-openai)

@@ -47,6 +47,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/215289811/2fb38b11f6378b842e98c121de6c47e9.mp3
+  duration_seconds: 5530
 ---
 
 *At 1:09:00 we talk about the rise of AI x Finance, and [AIE NYC](https://ai.engineer/nyc/2026) is one month away - our hotel block is 97% sold out, get [tix](https://ai.engineer/nyc/2026#tickets) & travel ASAP - we will announce speakers from Bridgewater, Ramp, Coatue, Mastercard, Vanguard, Coinbase, Blackrock, Fidelity, Point72, Capital One, JPMC, Wells Fargo, Bloomberg, A24 (yes the movie studio) Labs, Two Sigma, Apollo Global, and more soon!*

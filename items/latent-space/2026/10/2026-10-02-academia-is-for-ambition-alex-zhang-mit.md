@@ -51,6 +51,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/218414422/044c92ee79bb60914986e42706d74969.mp3
+  duration_seconds: 6088
 ---
 
 *Last call for regular tickets for [AI Engineer NYC](https://ai.engineer/nyc)! As an exclusive for Latent Space subscribers, the first 30 of you can [take a 30% off code](https://app.ai.engineer/e/ai-engineer-new-york-2026?discount=LS-NYC26) if it helps - for new tickets only, no refunds! See you in 2 weeks!*

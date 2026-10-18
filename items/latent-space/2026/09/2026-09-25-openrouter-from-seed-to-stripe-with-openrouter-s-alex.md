@@ -23,6 +23,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/217456046/69e6d188059a812b68e47c97b6495374.mp3
+  duration_seconds: 4844
 ---
 
 From the earliest days of open-weight models to becoming the neutral routing layer for more than **10 million developers**, OpenRouter is one of the clearest bets that the future of AI will be multi-model. In this episode, **OpenRouter co-founder & CEO Alex Atallah, with AMP’s Anjney Midha [returning](https://www.youtube.com/watch?v=h5dlIPM0X18&t=2s&pp=0gcJCS8MAYcqIYzv)** with swyx to unpack how OpenRouter emerged from [the first wave of Llama](https://ai.engineer/speakers/alex-atallah), Alpaca, Mistral, and Midjourney, why model diversity mattered before it was consensus, and how **a company dismissed as “just a wrapper” became critical infrastructure for the AI ecosystem.**

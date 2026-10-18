@@ -16,19 +16,10 @@ summary: |-
 
   🗞️ Newsletter: https://bytes.dev
   🧠 Courses: https://fireship.dev
-content: feed
+content: extracted
 html: 2026-10-07-a-6-3-billion-open-weight-model-just-got-embarrassed-by-the.html
 remote_preview:
   url: https://i4.ytimg.com/vi/WrCjAAl9okA/hqdefault.jpg
 extra:
   thumbnail: https://i4.ytimg.com/vi/WrCjAAl9okA/hqdefault.jpg
 ---
-
-Kernel is the simplest way to let your agents act on any website. Use code: FIRESHIP to get a $30 free coupon to upgrade to the Hobbyist tier - https://kernel.sh/fireship
-
-Mistral, Reflection AI, and Moonshot all made big moves in the open-weight race this week. Let's dive in.
-
-Want more Fireship?
-
-🗞️ Newsletter: https://bytes.dev\
-🧠 Courses: https://fireship.dev

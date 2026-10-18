@@ -13,6 +13,7 @@ html: 2026-10-14-lab-in-the-loop-at-compute-speed-ian-quigley-leash-bio.html
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/220316507/088d386ca7b830a53c64e1cd2678e427.mp3
+  duration_seconds: 6597
 ---
 
 A few years ago I stumbled upon [Leash Bio’s](https://www.leash.bio/) [Substack](https://leashbio.substack.com/), and was hooked. Be it their [Kaggle competition](https://leashbio.substack.com/p/introducing-belka) that showed that [no, we really haven’t solved protein-ligand binding](https://leashbio.substack.com/p/belka-results-suggest-computers-can), or their crazy discovery that knowing [a molecule’s author is perhaps all you need to know to predict how good it is](https://leashbio.substack.com/p/ai-for-chemistry-in-2025-is-like). Their substack — or at least [Owl Posting](https://www.owlposting.com/)’s [1](https://www.latent.space/p/lab-in-the-loop-at-compute-speed#footnote-1) [deep dive](https://www.owlposting.com/p/an-ml-drug-discovery-startup-trying) on them — should be required reading for any scientist trying to do chemistry with AI.

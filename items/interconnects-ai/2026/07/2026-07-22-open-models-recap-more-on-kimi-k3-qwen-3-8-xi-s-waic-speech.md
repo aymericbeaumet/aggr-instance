@@ -25,6 +25,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/207969620/a82e3d40f39345b0609610ffedd72469.mp3
+  duration_seconds: 2945
 ---
 
 ##### Exciting news! My [book](https://rlhfbook.com/) trying to share post-training knowledge with the world is done and shipping soon. Order on [Manning](https://hubs.la/Q03TsMBq0) or [Amazon](https://amzn.to/4cwCDJQ). Thanks for the support. It’s currently the #1 AI book on Amazon :).

@@ -8,7 +8,7 @@ first_seen: 2026-10-06T19:48:54.930461426Z
 authors:
 - Gergely Orosz
 summary: A look into what has changed, what’s still the same – and what’s broken – in the tech industry. The full video and the summary of my keynote at LDX3 New York
-content: feed
+content: extracted
 html: 2026-10-06-the-state-of-the-tech-industry-in-2026.html
 remote_preview:
   url: https://substackcdn.com/image/fetch/$s_!wmBO!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F55ac4f75-983e-45c6-bde0-40307f3bcd03_2048x1366.jpeg
@@ -40,11 +40,7 @@ You can watch the full talk, which is 29 minutes long:
 
 [Watch the full talk](https://youtu.be/Ru99FGJ_yuE)
 
-*The bottom of this article could be cut off in some email clients. [Read the full article uninterrupted, online.](https://newsletter.pragmaticengineer.com/p/the-state-of-the-tech-industry-in)*
-
-[Read the full article online](https://newsletter.pragmaticengineer.com/p/the-state-of-the-tech-industry-in)
-
-## 1\. Speed of change
+Paid subscribers can also access the slides for the presentation:
 
 People in tech are more than used to change; seeing the internet go from zero to everywhere, the arrival of mobile communications and smartphones exploding in popularity, cloud computing rising from a niche concern, and the development of programming languages like Go and Rust, and frameworks like React (web) and Jetpack Compose (Android).
 
@@ -66,21 +62,11 @@ Despite this, the scale and pace of the impact AI is having at present is still 
 
 My own take is similar; we are without doubt at the beginning of a massive technological transformation, and after it, software will be built differently from how we’ve been doing for decades, although some parts of development will remain the same. At the very least, the tooling and best practices will look different, and things are changing faster than ever.
 
-## 2\. What’s changed?
-
-### #1 Nobody writes code by hand anymore
-
 As the calendar enters Q4 of this year, we see this has solidified into a mega trend since the end of 2025 year when models greatly improved at coding. Related to this, in the very first article of this year we asked the question: [when AI writes almost all code, what happens to software engineering?](https://newsletter.pragmaticengineer.com/p/when-ai-writes-almost-all-code-what)
-
-[![](https://substackcdn.com/image/fetch/$s_!X5AC!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F2787b7a8-1c9d-4bd1-995b-44c1bc9ae6f4_1452x830.png "Screenshot 2026-09-15 at 01.52.05.png")](https://substackcdn.com/image/fetch/$s_!X5AC!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F2787b7a8-1c9d-4bd1-995b-44c1bc9ae6f4_1452x830.png)
-
-*From ‘[When AI writes almost all code, what happens to software engineering?](https://newsletter.pragmaticengineer.com/p/when-ai-writes-almost-all-code-what)’*
 
 Today, there are plenty of signs that most engineers have stopped writing code by hand, and it was also a sign of the times recently when the Ruby on Rails creator sparked a “death of coding by hand” debate. Personally, I’m excited by the new opportunity that AI creates, and it’s exciting to experience this revolution firsthand. As mentioned in that [deepdive](https://newsletter.pragmaticengineer.com/p/when-ai-writes-almost-all-code-what), I’m certain that my way of coding will change drastically in 2026, and there’ll be plenty of knock-on effects.
 
 For more on this topic, check out this recent edition of [The Pulse](https://newsletter.pragmaticengineer.com/p/the-pulse-end-of-coding-by-hand).
-
-### #2 Working with several parallel agents is increasingly common
 
 I like talking to engineers at AI labs because their working practices are often a few months ahead of the rest of the industry. Claude Code creator, Boris Cherny, revealed the new way he gets things done [on the podcast:](https://newsletter.pragmaticengineer.com/p/building-claude-code-with-boris-cherny)
 
@@ -92,13 +78,11 @@ A few months after these comments, on [last week’s pod](https://newsletter.pra
 
 I also asked a former coworker at Uber, who’s also an extremely productive software engineer, how he works these days. Dima Zaytsev (now a software engineer at Linear), told me:
 
-> “⁠It used to be a simple world: one mouse, one keyboard, one screen. You physically can’t work on more than one thing at once. Now, you no longer have that limitation.
+> “It used to be a simple world: one mouse, one keyboard, one screen. You physically can’t work on more than one thing at once. Now, you no longer have that limitation.
 >
 > **I end up having 5-10 (literally) worktrees locally that I rotate between.** Prompt one agent, and while it is working, move on to another to test output or review code.”
 
 Nearly all of the most productive software engineers I’ve met – who were hand-writing code a year ago – no longer write the code by hand and also run several parallel agents. What a change!
-
-### #3 Rapid rise of agent-generated PRs
 
 Fresh data that GitHub shared with me:
 
@@ -110,9 +94,7 @@ I’ve given GitHub grief [for its ongoing reliability issues](https://newslette
 
 **Food for thought: there were more agent-authored PRs in August 2026 on GitHub than human-authored ones**! It’s reasonable to speculate that the number of agent-generated PRs will be permanently exceeding human-generated ones on the platform, going forward.
 
-To give a sense of the number of AI-generated PRs: as of today (October 2025), there is likely to be 3x as many fully AI-generated PRs, per month (probably 75M+), than human generated ones at the end of 2023 (25M in December 2023). And the pace of AI-generated PRs does not seem to be slowing down, at least not now.
-
-### #4 Agent-generated issues also rising rapidly
+To give a sense of the number of AI-generated PRs: as of today (October 2026), there is likely to be 3x as many fully AI-generated PRs, per month (probably 75M+), than human generated ones at the end of 2023 (25M in December 2023). And the pace of AI-generated PRs does not seem to be slowing down, at least not now.
 
 Agents are not just generating PRs, they’re also opening tickets. Some more exclusive data, this time from my friends at Linear, which added [first-class MCP support](https://linear.app/docs/mcp) for agentic creation of issues:
 
@@ -120,15 +102,11 @@ Agents are not just generating PRs, they’re also opening tickets. Some more ex
 
 *More agent-created issues than human-created ones since July. Source: [Linear](https://linear.app/)*
 
-### #5 Agent skills usage is mainstream
-
 Both engineers and non-engineers use agent skills, and lots of companies are building their own agent skills repositories for all staff to create, share, and evaluate. An interesting data point on skills usage trending heavily up comes from autonomous software factory vendor [Factory AI](https://factory.com/), which shared with me:
 
 [![](https://substackcdn.com/image/fetch/$s_!SYJ3!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F99c9d609-112d-419d-829f-131948221058_1140x1110.png "Screenshot 2026-09-14 at 23.14.10.png")](https://substackcdn.com/image/fetch/$s_!SYJ3!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F99c9d609-112d-419d-829f-131948221058_1140x1110.png)
 
 *83% of Factory AI users use skills, up 2.5x from February. Source: Factory AI*
-
-### #6 The fading IDE
 
 I have great respect for software engineer Steve Yegge, who’s good at identifying emerging trends and learning about them. In a [podcast episode](https://newsletter.pragmaticengineer.com/p/from-ides-to-ai-agents-with-steve), he said the IDE is effectively over:
 
@@ -172,10 +150,6 @@ Steve believes that “AI-pilled” engineers will abandon the IDE, and I’m se
 
 *How every coding tool looks these days – gone is the IDE? Source: [Cursor](https://cursor.com/changelog/3-0)*
 
-[![](https://substackcdn.com/image/fetch/$s_!cvaP!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fa49968de-1f08-412e-a07b-80e68bc0af08_2048x1075.png)](https://substackcdn.com/image/fetch/$s_!cvaP!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fa49968de-1f08-412e-a07b-80e68bc0af08_2048x1075.png)
-
-*JetBrains also joining the trend with [JetBrains Air](https://www.jetbrains.com/air/)*
-
 Industry legend Kent Beck told me something interesting when we discussed why IDEs are slowly vanishing:
 
 > “It’s not that we don’t need more perspective and context for our human-based decisions; it’s that the context has changed.”
@@ -184,13 +158,7 @@ Industry legend Kent Beck told me something interesting when we discussed why ID
 
 I’d also add that IDEs need to evolve into a validation and verification interface: how do we know that the agents’ output works as expected, how can we verify what tests it passes, how it looks, and whether you can try out whatever the agent builds. Tools like this are surely coming and will be widely adopted.
 
-### #7 Everyone is building their own harness/agent platform
-
 In August, I posed a question on social media about whether it’s possible to be a serious tech business without having built an AI harness:
-
-[![](https://substackcdn.com/image/fetch/$s_!J49A!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F76362981-22b8-4a9a-b63c-0d39a532a476_1172x442.png "Screenshot 2026-09-13 at 21.21.41.png")](https://substackcdn.com/image/fetch/$s_!J49A!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F76362981-22b8-4a9a-b63c-0d39a532a476_1172x442.png)
-
-*A provocative [question](https://x.com/GergelyOrosz/status/2089453926990983571?s=20)*
 
 I asked it because most mid-sized-and-above companies have built their own agent harnesses, at this point! A few examples:
 
@@ -206,8 +174,6 @@ I asked it because most mid-sized-and-above companies have built their own agent
 
 - … and many, many more!
 
-### #8 Dev work often starts in Slack
-
 [![](https://substackcdn.com/image/fetch/$s_!TzxF!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F49218305-4a3f-4f3c-a424-46349d138880_2048x1366.jpeg)](https://substackcdn.com/image/fetch/$s_!TzxF!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F49218305-4a3f-4f3c-a424-46349d138880_2048x1366.jpeg)
 
 *LDX3 keynote: much dev work starts in Slack for startups*
@@ -216,17 +182,9 @@ What I’ve learned by visiting startups is that more and more development kicks
 
 Coding agents work really well when deeply integrated into a company’s stack, when the Slack agent kicks off a coding agent that runs in the cloud.
 
-### #9 Agentic software factories being built everywhere
-
 We have covered in-depth how [OpenAI is building an agentic software factory](https://newsletter.pragmaticengineer.com/p/openai-software-factory), and a lot of feedback from readers about that article has been an “we are too!” type response. Many readers say that their company is building a similar “agentic software factory.”
 
-[![](https://substackcdn.com/image/fetch/$s_!ZX7g!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc63c2317-ee2c-44f5-933d-d866f9f66e8f_1456x1253.png)](https://substackcdn.com/image/fetch/$s_!ZX7g!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc63c2317-ee2c-44f5-933d-d866f9f66e8f_1456x1253.png)
-
-*From the deepdive [Inside OpenAI’s agentic software factory](https://newsletter.pragmaticengineer.com/p/openai-software-factory)*
-
 The “agentic software factory” adds AI functionality to a bunch of existing systems such as the CI/CD system; for instance, in being able to interact with CI/CD via Slack, or creating brand new systems with agents in them like agentic code review tools, OpenAI’s agentic deploy system, or the Perf Factory.
-
-### #10 Migrations no longer take years
 
 We’re seeing many migrations that would have taken years to complete, now taking mere weeks or months:
 
@@ -240,8 +198,6 @@ We’re seeing many migrations that would have taken years to complete, now taki
 
 - **Uber**: migrating 600,000 JUnit 4 tests across 15 million lines of code (!!) to JUnit 5: took [4 months](https://www.uber.com/us/en/blog/junit-migration/) (instead of estimated several years)
 
-### #11 AI costs a major engineering concern
-
 In May, we covered the [trend of companies wanting to cut back on AI spend within engineering departments](https://newsletter.pragmaticengineer.com/p/the-pulse-a-trend-of-trying-to-cut), and last month, I reported on how tech companies [are moving to open AI models to save 50% or more in token costs](https://newsletter.pragmaticengineer.com/p/the-pulse-tech-companies-move-to). Uber is a good example, where, despite token usage trending upwards, costs have stayed flat since May thanks to them running open models and doing smart model routing:
 
 [![](https://substackcdn.com/image/fetch/$s_!rfjA!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fb2dc4aab-00b5-49d9-afda-7acda65c32f5_1456x814.png)](https://substackcdn.com/image/fetch/$s_!rfjA!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fb2dc4aab-00b5-49d9-afda-7acda65c32f5_1456x814.png)
@@ -254,15 +210,11 @@ Three weeks after my article, Bloomberg [confirmed](https://www.bloomberg.com/ne
 
 *Most efficient way to cut back on token costs. Image source: [Databricks](https://www.databricks.com/blog/managing-ai-coding-costs-scale)*
 
-### #12 Projects get done with only one or two engineers
-
 Katelyn Lesse, Head of Engineering for Claude Platform, told me how her team works inside Anthropic. From our [deepdive](https://newsletter.pragmaticengineer.com/p/inside-anthropic):
 
 > “On an individual project, you often cannot have more than two people working on it. This is because each engineer is already running several agents. And so as an engineer, you’re already fighting against your agents, which are stepping on each other’s toes on implementation. And in this setup, you just cannot have that many humans, who also come with all their agents!”
 
 These days, I see the same thing happening at companies both small and large.
-
-### Other changes
 
 - **13\. Engineering specializations are disappearing**. Specifically, there seems to be less demand for iOS, Android, and frontend specializations, and more for “generic” software engineers. We covered this trend with data in the [State of the software engineering job market in 2026](https://newsletter.pragmaticengineer.com/p/the-job-market-in-2026-part-2), observing how [mobile and frontend demand is dropping](https://newsletter.pragmaticengineer.com/i/201325168/3-mobile-and-frontend-demand-drops-ai-and-fde-surges) (while AI & FDE demand surges)
 
@@ -272,17 +224,7 @@ These days, I see the same thing happening at companies both small and large.
 
 - **16\. Agentic infra is becoming its own discipline**. Most mid-sized-and-above companies are building out agentic platforms, and infra teams are increasingly morphing into agentic infra teams.
 
-## 3\. What’s broken?
-
-### Assumptions about code quantity and frequency
-
 It’s been a commonly held belief that code quantity grows roughly linearly. But with agents, both the lines of code and number of commits are growing exponentially, as shown in data from GitHub:
-
-[![](https://substackcdn.com/image/fetch/$s_!IlaV!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F1cdb6de7-271c-4086-b8a9-1551a0e65a36_1348x754.png "Screenshot 2026-09-14 at 21.38.13.png")](https://substackcdn.com/image/fetch/$s_!IlaV!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F1cdb6de7-271c-4086-b8a9-1551a0e65a36_1348x754.png)
-
-*Source: [GitHub’s load increase speeds up](https://newsletter.pragmaticengineer.com/i/213033945/githubs-load-increase-speeds-up)*
-
-### (Human) code reviews are dead
 
 A software engineer at a mid-sized startup told me something that’s pretty much an open secret across the industry, including at places with code reviews in place.
 
@@ -292,23 +234,17 @@ A software engineer at a mid-sized startup told me something that’s pretty muc
 
 At the LDX3 conference, there was a strong reaction among the audience when they heard the bolded sentence out above. Today at most companies, there is indeed a “theater of code reviews”. The fact is that no engineer can keep up with 5-10 times more code to review, so most don’t thoroughly review the code.
 
-### Agent-only code reviews trending up
-
 Fresh data from Linear shows that PRs which are reviewed solely by AI agents are a rising trend, and I expect it’ll continue:
 
 [![](https://substackcdn.com/image/fetch/$s_!OImA!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F058e9982-91aa-4fac-8202-ecd020aeb02f_1516x782.png)](https://substackcdn.com/image/fetch/$s_!OImA!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F058e9982-91aa-4fac-8202-ecd020aeb02f_1516x782.png)
 
 *AI-only PR reviews are up. Source: [Linear](https://linear.app/)*
 
-### Quality and reliability down
-
 We see this in many of the digital products we use. As Mario Zechner, the creator of Pi, said [on the podcast](https://newsletter.pragmaticengineer.com/p/building-pi-and-what-makes-self-modifying):
 
 > “Everything is broken. It sure feels like software has become a brittle mess, with 98% uptime becoming the norm instead of the exception, including for big services. And user interfaces have the weirdest bugs that you’d think a QA team would catch. I give you that that’s been the case for longer than agents exist. But we seem to be accelerating.”
 
 We covered the phenomenon of quality being worse with more AI usage in March, in ‘[Are AI agents actually slowing us down?](https://newsletter.pragmaticengineer.com/p/are-ai-agents-actually-slowing-us)’
-
-### Infra capacity shortage
 
 It’s common knowledge that there’s a GPU shortage and [memory shortage](https://newsletter.pragmaticengineer.com/i/183931240/spiking-memory-prices-and-big-tech-unable-to-buy-ram) in the market. In addition, there’s also the growing trend of [CPU shortages](https://newsletter.pragmaticengineer.com/i/215080052/1-new-trend-of-cpu-shortages). As I covered last month:
 
@@ -320,15 +256,11 @@ If you’re at a company with a non-trivial amount of CPU usage, securing capaci
 >
 > If your company has dynamic workloads, and you’ve used spot instances in the past, now could be a good time to allocate fixed capacity – even if it’s more expensive. If you expect meaningful growth, doing so now might mean having options at some cloud providers or in some regions.”
 
-### A hit on personal focus and productivity
-
 Software engineer Dima Zaytsev (currently at Linear, formerly my colleague at Uber) told me something that felt very relatable on AI and productivity:
 
 > “There’s lots of context switching: there’s always another agent that waits on your response.
 >
 > Also, it’s just more work. When AI was ramping up, I felt more productive than my peers: I did in an hour what others needed a day for. Now, the expectation has become that everyone works on parallel things. And so, I end up feeling I have more work compared to pre-AI.”
-
-### Engineering leaders taking career breaks
 
 An interesting, unexpected trend that has emerged is CTOs, Heads of Engineering, and VPs of Engineering resigning from their jobs, often with nothing specific lined up. From a current CTO who asked to remain anonymous:
 
@@ -341,8 +273,6 @@ An interesting, unexpected trend that has emerged is CTOs, Heads of Engineering,
 > In the end, building is why they got into this field in the first place.”
 
 We cover this in the deepdive ‘[Headed for the exit: the great engineering leader career break](https://newsletter.pragmaticengineer.com/p/the-great-engineering-leader-career-break)’.
-
-## 4\. What’s still the same?
 
 In the LDX3 keynote, I also covered areas that are mostly unchanged from before AI:
 
@@ -373,8 +303,6 @@ What I did learn about are cases where these folks create bugfixes – often unk
 As mentioned in the podcast, Matt is now reading classic software engineering books to find other “leading words” that guide agents efficiently.
 
 In general, I’m noticing that “old” best practices are helpful when building better software when working with AI. This includes writing unit tests, building a “golden path” first (aka a “tracer bullet”), architecting an application upfront, and even using design patterns. The amusing thing is that we’re talking about decades-old best practices here.
-
-## 5\. What comes next?
 
 It’s possible to look ahead at where the tech industry is headed by identifying trends that are underway, and which look certain to conitnue:
 
@@ -423,3 +351,5 @@ In the context of software engineering, “wisdom” is most easily earned by be
 **Finally: remind yourself why you got into the tech industry**. At the end of [my podcast with Peter Mattis](https://newsletter.pragmaticengineer.com/p/distributed-databases-with-peter), the cofounder and CTO of Cockroach Labs, we talked about how it feels pretty exhausting right now to keep up with the pace of change. He said:
 
 > “Remind yourself why you got into this in the first place. I got into software engineering because I like building stuff. Now I can build faster, and without some of the compromises that I had before!”
+
+No posts

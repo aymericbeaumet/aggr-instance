@@ -8,7 +8,7 @@ first_seen: 2026-10-06T14:27:15.665084215Z
 authors:
 - Nathan Lambert
 summary: Open-weights, ideology, and acknowledging trade-offs.
-content: feed
+content: extracted
 html: 2026-10-06-the-cyber-risk-discourse-is-broken.html
 remote_preview:
   url: https://substack-post-media.s3.amazonaws.com/public/images/12ea1add-1879-4004-a05c-017c3091dd6a_3182x1790.png
@@ -25,10 +25,6 @@ Much has been written about the views of various players in this debate, which I
 3. **Chinese companies continuing to release open-weight models with strong cyber capabilities**, who are making decisions based on the risk assessments of their society and government.
 
 This list is also organized by volume or clarity of message in the Western AI ecosystem. The risk-focused discussions have been disproportionately visible, including pieces of work which I view as very detrimental to potential of engaging across assumed party lines on this issue. There’s also very little substantive engagement trying to understand how Chinese companies assess risk — rather, mostly arguments that border on ad hominem attacks like “Chinese labs don’t care about safety.”
-
-Interconnects AI is a reader-supported publication. Consider becoming a subscriber.
-
-### The delusions of the anti open-weight alliance
 
 The most recent publication from the “open-weights are dangerous” crowd was the [report](https://www.anthropic.com/research/glm-5-3-and-the-spread-of-advanced-cyber-capabilities) by Anthropic on the risks of GLM-5.3 as an offensive cyber tool. The problem with this is not the technical research they did, which is largely reasonable, but the failure to engage on more cross cutting questions like: What happens if we ban open models due to cyber risks or why do Chinese companies deem these models safe to release?
 
@@ -50,8 +46,6 @@ These together make me come to the conclusion that if you think the latest open-
 
 [Share](https://www.interconnects.ai/p/the-cyber-risk-discourse-is-broken?utm_source=substack&utm_medium=email&utm_content=share&action=share)
 
-### Explaining China’s AI risk posture
-
 China cares about AI safety. They have come to this discourse in a complete, endogenous manner relating to Chinese culture and power structures. There are some big picture pieces of this puzzle that reflect in other ways, such as Chinese society’s techno-optimism that extends into AI and the Chinese government’s complete focus on political stability. These things do, of course, interface with emerging AI risks like cybersecurity.
 
 They are in their own AI risk dynamic, which hasn’t risen to the prominence of the political dance between the White House and the frontier labs which we have followed in the U.S. for a few months. My understanding is that the Chinese companies have to register every major model release with the Chinese government. This includes evaluations, which originated around information control for banned government information. It is unclear if this framework has expanded meaningfully into any risks like cyber or bio. The Chinese government is very decentralized and information from the labs needs to go through existing structures to make it to the top.
@@ -63,8 +57,6 @@ Overall, the political oversight seems much earlier than in the U.S. The Western
 I do think that the companies consider the global implications of their work. These labs also clearly are incentivized, and often pushed via the government (at least in public messaging) to compete as much as they can. Running comprehensive safety evaluations on a frontier model like Kimi K3 could cost tens of millions of dollars in compute. These labs would much rather leave that for training.
 
 The correct debate is “what is the correct minimum amount of compute a lab should spend on safety testing before releasing each model?” There’s surely a case to be made that it’s more than the Chinese labs do, or at least they should be more transparent on what they do, but I would be hard pressed to agree if you said the minimum amount of compute would match what Anthropic or OpenAI does. It is not clear that, for all the effort Anthropic and OpenAI make on creating an institution that prioritizes understanding risks, they put it before business value and economic success in their priority stack. This “hands off the wheel” vibe from incidents like the HuggingFace—OpenAI incident was [one of my lasting takeaways](https://www.interconnects.ai/i/210408487/4-frontier-labs-do-not-seem-like-theyre-watching-the-models-closely-enough-due-to-a-general-frenetic-competitive-environment-and-current-sf-culture). It’s exemplified in the [Hacktron hacking of OpenAI](https://www.hacktron.ai/blog/hacking-openai) — it’s hard to be the world’s trust cyber partner if your own house is teeming with leaks. I trust many of the individuals at the labs to work hard to ensure safety, but I’m not trustworthy of the institutions overall.
-
-### Open-weight Mythos in April would’ve been fine?
 
 When Claude Mythos was announced, it was previewed as if it was a new class of cyber weapon, where if it ended up in the wrong hands it would’ve caused mass societal destabilization.
 

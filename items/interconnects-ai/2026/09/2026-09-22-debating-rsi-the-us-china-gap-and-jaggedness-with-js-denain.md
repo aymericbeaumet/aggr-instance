@@ -25,6 +25,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/216367194/2268ba219050be1948735ba859250a79.mp3
+  duration_seconds: 3929
 ---
 
 This episode is with Jean-Stanislas “JS” Denain of Epoch AI, who leads their Insights Team and is one of the people I find myself debating the state and trajectory of AI with more and more. We’ve had follow-on discussions of many of my favorite recent posts online and/or in private, so I wanted to dig into the nuance in a public episode.

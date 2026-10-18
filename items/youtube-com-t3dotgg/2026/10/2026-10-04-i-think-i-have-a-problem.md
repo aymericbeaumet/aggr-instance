@@ -8,12 +8,10 @@ first_seen: 2026-10-04T23:33:20.111308199Z
 authors:
 - Theo - t3․gg
 summary: Sup nerds we got things to discuss.
-content: feed
+content: extracted
 html: 2026-10-04-i-think-i-have-a-problem.html
 remote_preview:
   url: https://i4.ytimg.com/vi/kt_2wFglK3c/hqdefault.jpg
 extra:
   thumbnail: https://i4.ytimg.com/vi/kt_2wFglK3c/hqdefault.jpg
 ---
-
-Sup nerds we got things to discuss.

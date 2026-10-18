@@ -16,19 +16,10 @@ summary: |-
 
   🗞️ Newsletter: https://bytes.dev
   🧠 Courses: https://fireship.dev
-content: feed
+content: extracted
 html: 2026-10-14-the-fbi-just-arrested-an-openai-engineer-for-spying.html
 remote_preview:
   url: https://i2.ytimg.com/vi/QZVzuq28eFw/hqdefault.jpg
 extra:
   thumbnail: https://i2.ytimg.com/vi/QZVzuq28eFw/hqdefault.jpg
 ---
-
-Run GitHub Actions 2x faster and build with Codesmith at https://www.blacksmith.sh/
-
-An OpenAI engineer built a wiretap with his wife’s ChatGPT account, hid it in toilet paper behind the executive boardroom TV, and lasted 48 hours before getting caught. Let's dive in.
-
-Want more Fireship?
-
-🗞️ Newsletter: https://bytes.dev\
-🧠 Courses: https://fireship.dev

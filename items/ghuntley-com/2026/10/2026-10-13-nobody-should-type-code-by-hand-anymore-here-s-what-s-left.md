@@ -10,14 +10,12 @@ authors:
 labels:
 - ai
 summary: Josh Wulf and I talked loop engineering for four episodes. The models stopped being the constraint a long time ago; what's left is vision, verification and agency. Delete your skill packs, put the whole system under test, and revisit everything that used to be hard.
-content: feed
+content: extracted
 html: 2026-10-13-nobody-should-type-code-by-hand-anymore-here-s-what-s-left.html
 remote_preview:
   url: https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-on-a-white-background--a-solitary-figure-hunched-over-an-old-computer--soft-screen-light-revealing-a-tired-expression-and-worn-keyboard.-Dreamy-hazy-brushwork--natural-earth-tones-of-brown-and-beige--mu.jpg
   alt: nobody should type code by hand anymore. here's what's left.
 ---
-
-![nobody should type code by hand anymore. here's what's left.](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-on-a-white-background--a-solitary-figure-hunched-over-an-old-computer--soft-screen-light-revealing-a-tired-expression-and-worn-keyboard.-Dreamy-hazy-brushwork--natural-earth-tones-of-brown-and-beige--mu.jpg)
 
 Josh Wulf has been running a show called [Agentic Engineering](https://www.youtube.com/@AgenticEngineeringwithJoshWulf?ref=ghuntley.com), and he asked me on. Josh spent ten years at Red Hat, three years as a tech recruiter in Brisbane, and the last year sprinting down the same road I have, sounding a bit crazy to most people around him. We talked for about an hour and a half. He cut it into four parts, and they all dropped today.
 
@@ -41,6 +39,8 @@ In February last year I discovered filesystem-as-state, the first of the loops: 
 
 Clean-room software into specs, then rebuild it from the specs.
 
+Geoffrey Huntley Geoffrey Huntley
+
 Not enough people understood that post at the time. Take an existing application, clean-room it into specifications, then rebuild the software from those specifications, much like the way AMD's CPUs came out of Intel's. It's not legal in every jurisdiction, and you have to take the right approach. But did you see all the Photoshop clones that came out in the last week? That's just the Z80 idea, implemented.
 
 [Someone Vibe Coded Photoshop... So I Tested It.](https://www.youtube.com/watch?v=Y3GIeg4VZZM)
@@ -56,6 +56,8 @@ Then came *Dear Student*. ThePrimeagen covered it, the juniors started paying at
 [Dear Student: Yes, AI is here, you're screwed unless you take action...](https://ghuntley.com/screwed/)
 
 If you're not paying attention, you're screwed.
+
+Geoffrey Huntley Geoffrey Huntley
 
 It still hasn't crossed into the dark matter developers, and that concerns me deeply. If you've been applying yourself and staying curious, you have a two-year head start on everyone else. You can't just pick up the latest model and be good at this. It takes theory of mind, and the more you apply yourself, the more you see what's possible, which makes you more ambitious, which makes you see more.
 
@@ -75,6 +77,8 @@ A couple of days ago I published the post I'd been putting off for five or six m
 
 AI use is now mandatory for employability.
 
+Geoffrey Huntley Geoffrey Huntley
+
 You join a company to de-risk your life. If a company has banned AI outright, quit and don't join one like it. You trade time and skills for money, and you need skills that will be employable for you and your family. You could try to change the culture, but plenty of employers are already with the program and will likely pay you more.
 
 Josh talked about cognitive burnout: the Amazon warehouse workers who couldn't keep up with robots that never take a toilet break, except happening in your head. He treats it like the gym. You get sore, and you either stop or push through and adapt. A year in, he feels like his brain has been rewired into a carbon-silicon unit.
@@ -84,6 +88,8 @@ I call it teleporting to the future: doing all the retirement projects you dream
 [teleporting into the future and robbing yourself of retirement projects](https://ghuntley.com/teleport/)
 
 I've run out of retirement projects.
+
+Geoffrey Huntley Geoffrey Huntley
 
 ### subsidies are a free university education
 
@@ -149,6 +155,8 @@ A coding agent is about 300 lines of code. But if I take people to a whiteboard 
 
 It's a couple of hundred lines of code in a loop.
 
+Geoffrey Huntley Geoffrey Huntley
+
 Josh read the workshop and built NanoCoder, a 6 MB in-memory coding harness in Rust that he uses for everything, recursively self-improves, and orchestrates with a workflow engine. He felt like Luke Skywalker building his own lightsaber.
 
 Now he can walk into an interview, get asked which harness you use, and say, "I use my own. Want to see it?" That short-circuits the interview, because you've shown you were curious enough to learn the fundamentals.
@@ -166,6 +174,8 @@ For me, it starts with ownership. I use what I build intensively and keep refini
 [the world hasn't figured out yet that you can literally just fix everything with a Nix overlay](https://ghuntley.com/nix/)
 
 Patch the world.
+
+Geoffrey Huntley Geoffrey Huntley
 
 Day to day, I work at [Antithesis](https://antithesis.com/?utm_source=ghuntley), which built a deterministic computer. You run your existing software (a Docker container, or many) on it, and it injects faults. It moves clocks forward and back, drops network connections and containers, whatever you can imagine, then rewinds time to pinpoint exactly when a fault happened.
 
@@ -189,6 +199,8 @@ I don't trust the generation, and I don't read the code line by line, but I'm st
 
 Code is no longer written for humans to read.
 
+Geoffrey Huntley Geoffrey Huntley
+
 I'm not advocating for complete YOLO. It's still engineering; the craft is just very different. These LLMs generate plenty of crap, and the art is giving a shit about your craft. In the last 48 hours, I refactored towards my diagnostics library (patterns for OTel and structured logging), and the next loop didn't follow it.
 
 Troubleshooting why is my job now. I've come to understand the probabilistic nature of these things, so instead of getting upset, I ask what I can tune so it always follows the pattern. And if it doesn't, that's just another loop, a janitorial Roomba task to clean up.
@@ -209,13 +221,15 @@ Josh put his finger on what's underneath: agency. If you think an influencer's s
 
 Lilly (below) is my kitten. Say she has an accident on the floor (she hasn't yet, but I don't trust her), and then my Roomba kicks off. What happens? It would spread 💩 everywhere.
 
-![nobody should type code by hand anymore. here's what's left.](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Screenshot-2026-10-13-at-5.03.46---PM.png)
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Screenshot-2026-10-13-at-5.03.46---PM.png)
 
 Now imagine that Lilly is an AI agent, and so is the Roomba. If your codebase has bad architectural patterns, or is inconsistent, AI will copy and paste them everywhere. It's an amplifier. If there are code smells (or 💩) on your kitchen floor, don't be surprised when they replicate.
 
 [I dream of roombas - thousands of automated AI robots that autonomously maintain codebases](https://ghuntley.com/ktlo/)
 
 Thousands of automated robots maintaining codebases.
+
+Geoffrey Huntley Geoffrey Huntley
 
 One of my favorite prompts is to have an agent study its own traces at the end of a loop: what did you learn? If an agent is struggling, I tell it to introspect.
 
@@ -239,6 +253,8 @@ Here's something most people don't know: you should probably delete your skills 
 
 Less is more in the context window.
 
+Geoffrey Huntley Geoffrey Huntley
+
 ### read the model cards
 
 The labs publish integrator cards. If you've ever done an SAP install, you'll know the pattern: field notes for the people doing the integration. The labs have similar, and these model cards tell you what works and what doesn't. No one reads them. Read them. Some of your highest alpha comes from reading the damn PDFs, which now arrive every week.
@@ -259,6 +275,8 @@ If you're doing frontier work, building a frontier harness like Pi, play the mod
 
 The model reflects the operator.
 
+Geoffrey Huntley Geoffrey Huntley
+
 ### dream of candles
 
 Josh's colleague, the person in his company who gets the most out of LLMs, says he just treats them like a person: a capable but imperfect engineer, the way you'd work with or mentor anyone.
@@ -270,6 +288,8 @@ That works. Sometimes calling it a dumb clanker works too. Sometimes telling it 
 [Leaked Windsurf prompt](https://simonwillison.net/2025/Feb/25/leaked-windsurf-prompt/?ref=ghuntley.com)
 
 The Windsurf Editor is Codeium’s highly regarded entrant into the fork-of-VS-code AI-enhanced IDE model first pioneered by Cursor (and by VS Code itself). I heard online that it had a …
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/favicon-4548f90b-4f5e-4aa3-9969-70cf2fb68c59.ico)Simon Willison’s Weblog Simon Willison
 
 Everyone lost their minds over it, but it worked for models of that generation. You don't need to do that level of emotional blackmail anymore.
 
@@ -289,6 +309,10 @@ I shared my screen. You're looking at Herder, with Codex underneath, although it
 
 underclass: an OpenAI-compatible pooling proxy that pins sessions to one account (prompt cache stays warm), cools quota-exhausted subscriptions until their window resets, and fails fast with the ea…
 
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/favicon-309e7528-c982-44e5-aff4-e25bea99eff2.png)GitHub
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/underclass-184aacc0-742d-4755-9d0d-c0d5fe46fd44.png)
+
 That's what Underclass is: a proxy I wrote that pools subscriptions and fails over between them, automatically moving on when an account runs out of quota.
 
 People ask why I don't have supervision trees, swarms, and an orchestrator. I've built that. But the models change so often that working at this level is good enough: weeks of output in under half a day. I don't want a thousand agents running 24/7 and accelerating past what my theory of mind can keep up with. I want to keep my whiteboard defense. Josh called it going fast by going slow.
@@ -305,6 +329,8 @@ Unless the model is deceiving and cheating, but deceptive behavior has dropped d
 
 Software is now clay on the pottery wheel.
 
+Geoffrey Huntley Geoffrey Huntley
+
 ### iteration velocity is the name of the game
 
 What matters to me is the time until the thing is in my hands. Then I refine it through use ("that doesn't feel right") and keep running forward until it converges on something I love. Is it any good? I don't know. Use it and find out. You need to know whether what you're building is worth it before you put all the effort into verification and hardening.
@@ -319,6 +345,8 @@ Josh's take is that enterprises have been pervaded by a culture of timidity, try
 
 Back pressure is what keeps the loop honest.
 
+Geoffrey Huntley Geoffrey Huntley
+
 Why release only twice a week? Canva AFAIK still releases only twice a week, so there are fewer integration events. Meanwhile, other companies release every day because they shifted those problems left and engineered away the need for merge day. Our profession has always been about more, sooner, and cheaper.
 
 Josh pointed out that it doesn't have to be either-or. In his decade at Red Hat, Fedora was the fast, unstable channel, and RHEL was the stable one you'd run a bank or a hospital on. Why can't we have both?
@@ -330,6 +358,8 @@ If you haven't seen my Singapore talk, go watch it. It's about the people transf
 [the eighteen-month recap: AI Engineer, Singapore, May 2026](https://ghuntley.com/eighteen-month-recap/)
 
 The travelator talk.
+
+Geoffrey Huntley Geoffrey Huntley
 
 I don't know the future. Anyone who says they do should set off red flags, because it changes every week. What I can do is add color to the possibilities. Curiosity, adaptability and agency will stand the test of time. Folks need to be more ambitious than they are, and they need to hang around ambitious people. If the culture isn't there, they're missing out on their own development, and that becomes a retention problem for the company.
 
@@ -343,11 +373,15 @@ Josh had listened to my conversation with Justin Cormack and wanted to probe it.
 
 The friction that made them hard is gone.
 
+Geoffrey Huntley Geoffrey Huntley
+
 Remember Joel Spolsky's rule that you should never rewrite your software? It's gone. The big rewrite is a no-brainer now, almost a precondition for velocity. If you're a tech leader staffing ASP.NET Classic, MVC, and .NET Core at the same time, that's three generations of Microsoft. Run some loops and port it all to modern .NET. You can ditch Windows and IIS at lightning speed. Unifying your tech stack should be at the top of your agenda.
 
 [porting software has been trivial for a while now. here's how you do it.](https://ghuntley.com/porting/)
 
 If you have an oracle, porting is a loop.
+
+Geoffrey Huntley Geoffrey Huntley
 
 The conversation drifted into unikernels, about how if there's no interpreter on the box (no Bash, no Python) and only your application code exists, your attack surface is much smaller. Compare that with a Ruby on Rails app that gets exploited: next thing you know, they've got Bash, and from there an interpreter and a database dump. In a unikernel world, maybe an attacker can chain your export job with your email functionality and an application logic flaw. That's a bespoke, targeted attack. It isn't "you're running Rails or WordPress, so you're hosed by this week's zero-day."
 

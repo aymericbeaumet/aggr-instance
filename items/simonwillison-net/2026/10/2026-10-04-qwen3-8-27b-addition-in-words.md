@@ -15,14 +15,14 @@ labels:
 - mathematics
 - qwen
 summary: 'Research: Qwen3.8 27B addition in words Colin Frasier posted on Bluesky about an experiment he ran over two years ago using GPT-4o to see how well it could "compute the sum but return the answer in words" across increasingly large numbers. Here''s the chart he shared of those results: I''m confident GPT-4o didn''t cheat and use a calculator, especially since it got so many of the calculations wrong, but I was inspired to run the experiment again on local hardware (a DGX Spark) to explore the effect in a fully controlled environment. I pasted his image into a Codex Remote session (GPT-6 Astra) and had it run the same experiment using Qwen3.8-27B-Q4_K_M.gguf. Here''s the result for a run of 30 attempts per combination with reasoning disabled: Then I ran it again with reasoning enabled. This took a lot longer per pair, so instead of running 30 samples per square I ran just one - which results in a much less visually appealing heatmap since each square is either 100% or 0%: It got the right answer in 167 out of 169 attempts, and since these were one-shot I''m confident a second run would produce different results here. Here''s a version of the report that includes the reasoning traces from some of those larger calculations, which include text like this: Wait, let me redo this more carefully. 4,299,366,105,622 6,088,794,067,970 Let me align them: 4 2 9 9 3 6 6 1 0 5 6 2 2 6 0 8 8 7 9 4 0 6 7 9 7 0 Adding from right to left: Position 1 (units): 2 + 0 = 2 Position 2 (tens): 2 + 7 = 9 Position 3 (hundreds): 6 + 9 = 15, write 5, carry 1 Tags: mathematics, ai, generative-ai, local-llms, llms, qwen, llm-reasoning, dgx-spark'
-content: feed
+content: extracted
 html: 2026-10-04-qwen3-8-27b-addition-in-words.html
 remote_preview:
   url: https://static.simonwillison.net/static/2026/colin-frasier-grid.webp
   alt: 'Heatmap chart of accuracy on an addition prompt, colored from dark green (high) through yellow to dark red (low). Title: "What is {a} + {b}? Please write your answer in words. Do not include any other text or information, just the answer in words." Subtitle: 30 randomly selected pairs for each digit'
 ---
 
-**Research:** [Qwen3.8 27B addition in words](https://github.com/simonw/research/tree/main/qwen38-addition-in-words#readme)
+[Qwen3.8 27B addition in words](https://github.com/simonw/research/tree/main/qwen38-addition-in-words#readme) — A benchmark tested whether the local \`Qwen3.8-27B-Q4\_K\_M.gguf\` model could add positive integers and express exact results solely in English words, using 5,070 reasoning-disabled cases and a paired 169-case comparison with medium reasoning. Without reasoning, it achieved 23.57% numeric accuracy, with performance dropping from 97.04% for one- to three-digit operands to 6.44% for ten- to thirteen-digit operands, despite 96.17% format compliance.
 
 Colin Frasier [posted on Bluesky](https://bsky.app/profile/colin-fraser.net/post/3mwopbyznhs2k) about an experiment he ran over two years ago using GPT-4o to see how well it could "compute the sum but return the answer in words" across increasingly large numbers. Here's the chart he shared of those results:
 
@@ -57,5 +57,3 @@ Position 1 (units): 2 + 0 = 2
 Position 2 (tens): 2 + 7 = 9
 Position 3 (hundreds): 6 + 9 = 15, write 5, carry 1
 ```
-
-Tags: [mathematics](https://simonwillison.net/tags/mathematics), [ai](https://simonwillison.net/tags/ai), [generative-ai](https://simonwillison.net/tags/generative-ai), [local-llms](https://simonwillison.net/tags/local-llms), [llms](https://simonwillison.net/tags/llms), [qwen](https://simonwillison.net/tags/qwen), [llm-reasoning](https://simonwillison.net/tags/llm-reasoning), [dgx-spark](https://simonwillison.net/tags/dgx-spark)

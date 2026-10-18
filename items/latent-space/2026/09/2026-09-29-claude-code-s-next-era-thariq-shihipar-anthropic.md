@@ -75,6 +75,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/217893105/b910afe71a4c96e14fd7271715a2cd15.mp3
+  duration_seconds: 5549
 ---
 
 *We are excited to have Anthropic share their latest AI x Finance work at [AI Engineer New York](https://ai.engineer/nyc/2026), coming up in 2 weeks!*

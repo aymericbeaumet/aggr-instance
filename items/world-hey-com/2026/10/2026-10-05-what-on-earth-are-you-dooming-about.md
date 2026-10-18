@@ -7,7 +7,7 @@ updated: 2026-10-05T13:30:45Z
 first_seen: 2026-10-05T18:49:38.624325496Z
 authors:
 - David Heinemeier Hansson
-content: feed
+content: extracted
 html: 2026-10-05-what-on-earth-are-you-dooming-about.html
 ---
 

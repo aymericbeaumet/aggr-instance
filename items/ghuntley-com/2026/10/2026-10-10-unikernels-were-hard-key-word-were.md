@@ -10,14 +10,12 @@ authors:
 labels:
 - ai
 summary: Justin Cormack, who worked on MirageOS back in the day, called me at the pub to talk about why unikernels are coming back. The friction that made them hard is gone, the operating system is design debt, and if you care about security you should seriously consider them.
-content: feed
+content: extracted
 html: 2026-10-10-unikernels-were-hard-key-word-were.html
 remote_preview:
   url: https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-portraying-a-unikernel-operating-system-as-a-lively-streamlined-digital-core-with-complex-ornamental-circuitry--bright-vibrant-retro-colors--intense-dramatic-lighting--energetic-glowing-accents--sharp-h.jpg
   alt: 'unikernels were hard. key word: were.'
 ---
-
-![unikernels were hard. key word: were.](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-portraying-a-unikernel-operating-system-as-a-lively-streamlined-digital-core-with-complex-ornamental-circuitry--bright-vibrant-retro-colors--intense-dramatic-lighting--energetic-glowing-accents--sharp-h.jpg)
 
 Justin Cormack, who worked on MirageOS and Unikernel Systems back in the day, has been noticing what I've been noticing: people are discovering (or rediscovering) unikernels again. He's running a series of conversations on the topic for his newsletter, and I was first up. He emailed me, and five minutes later I was talking to him from the pub with a stein of beer in hand. We went deep on Mirage, Orleans, Haskell, Nix, Cursed and a whole lot more.
 
@@ -63,6 +61,8 @@ That works because the original tool is a golden oracle. Generate filesystems at
 
 If you have an oracle, porting is a loop.
 
+Geoffrey Huntley Geoffrey Huntley
+
 Storage was the other big gap. Most workloads these days are cloud-shaped, even on-prem, so take the [turbopuffer](https://turbopuffer.com/?ref=ghuntley.com) approach: S3 as your primary, infinitely growable storage, with a local NVMe block cache and an LRU (or whatever caching algorithm you like) for the hot bits. Justin is a massive "S3 for everything" fan too. As long as latency isn't the constraint, you get infinite storage with multi-user access, and you can build everything on it.
 
 ## nix machine tests and overlays
@@ -76,6 +76,8 @@ And when something upstream is broken, or there's a supply chain problem in your
 [the world hasn't figured out yet that you can literally just fix everything with a Nix overlay](https://ghuntley.com/nix/)
 
 Patch the world.
+
+Geoffrey Huntley Geoffrey Huntley
 
 > If you have to tool-call a human, also known as "Dear Maintainer", who might be on holiday or might have abandoned the project, and wait a day, two days, or even five minutes, that's not AGI.
 
@@ -143,6 +145,8 @@ Justin asked what it actually costs to make a new language successful now. Go wa
 
 It's the only compiled language that lets you code with sus, slay and vibes.
 
+Geoffrey Huntley Geoffrey Huntley
+
 Cursed was built with Sonnet 3.5 and 3.7, a deliberately underspecified prompt, and three months of running it in a loop. I started in C (not enough back pressure; I wasted too much time in Valgrind as the agent clobbered its own updates), then Rust, then Zig. Zig was a mistake; it would work today if I'd stayed with Rust. It cost roughly US$6,000, and I did it three times over. Compare that to what Go cost.
 
 Now the real bit, the part that still scares me. If you allocate the context window correctly — a lookup table of the lexical structure and grammar — the model can program in a language that isn't in its weights. It's brute force and inefficient, but it works.
@@ -158,6 +162,8 @@ As the pub was shutting, Justin asked what was on my mind. If you haven't read m
 [if your team is too busy doing their 'normal job' to experiment with AI, you're preparing them to be replaced](https://ghuntley.com/replaced/)
 
 AI use is now mandatory for employability.
+
+Geoffrey Huntley Geoffrey Huntley
 
 Yes, the labs trained on the commons. I hate that, and I get it. But you trade time and skill for money; employers have minimum standards, and those standards have changed faster than ever before in our industry. Be curious, learn how to build an agent, and go create beautiful stuff. We're in a renaissance.
 

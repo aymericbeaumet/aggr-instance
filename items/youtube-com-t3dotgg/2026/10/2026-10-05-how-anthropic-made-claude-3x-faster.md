@@ -8,24 +8,10 @@ first_seen: 2026-10-05T09:35:15.036553018Z
 authors:
 - Theo - t3․gg
 summary: "Anthropic's latest blog post after releasing Opus 5.5 has a surprising amount of insight on how to make your work faster and better, lets check it out\n\nThank you to WorkOS for Sponsoring! Check them out here:\nhttps://soydev.link/workos\n\nSource: \nhttps://claude.dev/blog/how-we-made-claude-ai-faster/\n\nWant to sponsor a video? Learn more here: https://soydev.link/sponsor-me\n\nCheck out my Twitch, Twitter, Discord more at https://t3.gg\n\nS/O @Ph4seon3 for the awesome edit 🙏"
-content: feed
+content: extracted
 html: 2026-10-05-how-anthropic-made-claude-3x-faster.html
 remote_preview:
   url: https://i3.ytimg.com/vi/FsDUOUV9Vs8/hqdefault.jpg
 extra:
   thumbnail: https://i3.ytimg.com/vi/FsDUOUV9Vs8/hqdefault.jpg
 ---
-
-Anthropic's latest blog post after releasing Opus 5.5 has a surprising amount of insight on how to make your work faster and better, lets check it out
-
-Thank you to WorkOS for Sponsoring! Check them out here:\
-https://soydev.link/workos
-
-Source: \
-https://claude.dev/blog/how-we-made-claude-ai-faster/
-
-Want to sponsor a video? Learn more here: https://soydev.link/sponsor-me
-
-Check out my Twitch, Twitter, Discord more at https://t3.gg
-
-S/O @Ph4seon3 for the awesome edit 🙏

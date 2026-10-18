@@ -8,7 +8,7 @@ first_seen: 2026-10-04T12:50:30.804479567Z
 authors:
 - Sebastian Raschka, PhD
 summary: A Look at Recurrent Depth, Hidden Chains of Thought, and Recent Research on Looping Transformer Blocks
-content: feed
+content: extracted
 html: 2026-09-09-gpt-6-astra-looped-transformers-and-hidden-reasoning.html
 remote_preview:
   url: https://substack-post-media.s3.amazonaws.com/public/images/3d2ac2ec-ab80-43a8-aa93-a33a846dda43_1564x874.png
@@ -24,21 +24,13 @@ PS: I also have a shorter video version here that I recorded before writing this
 
 [www.youtube.com](https://www.youtube.com/watch?v=KT4n-z_4QJU)
 
-## 1\. GPT-6 Astra impressions
-
 First things first. Before getting into the architecture rumors and related research literature, let me briefly summarize some GPT-6 Astra observations and tidbits.
 
 Last week, OpenAI’s new GPT-6 Astra was released with a big fanfare. I used it over the past couple of days, and it’s an exceptionally good model, likely the best I’ve used as of this writing. But what, exactly, has it improved, and how?
 
-### 1.1 Astra benchmarks
-
 Astra is the best model I’ve used so far, and it’s disproportionately good at 3D rendering and animation tasks (relative to other models). With that, I mean that while it leapfrogs its GPT-5.6 predecessor in practically all categories (writing, math, coding, and more), it especially does so when it comes to graphical demos.
 
 We can see this also reflected in the benchmarks. For instance, GPT-6 Astra is really good at math and coding, as shown below.
-
-[![benchmarks-1](https://substackcdn.com/image/fetch/$s_!J4zO!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc7647174-392d-4637-a1ab-baf3b24a3704_8765x7510.png "benchmarks-1")](https://substackcdn.com/image/fetch/$s_!J4zO!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc7647174-392d-4637-a1ab-baf3b24a3704_8765x7510.png)
-
-Figure 1: Selection of three popular coding benchmarks and one challenging math benchmark. More benchmarks are shared on the Astra release blog: [https://openai.com/index/gpt-6-astra/](https://openai.com/index/gpt-6-astra/)
 
 One of the highlights (not shown in the figure) is that Astra also achieves 99.9% on the [ARC-AGI-3 benchmark](https://arcprize.org/arc-agi/3) (GPT-5.6 Sol only 7.8%), which measures a mix of solving logic puzzles and generalization. However, the math, coding, and computer use benchmarks are more interesting because they are closer to real-world use. (However, there was then also an [article](https://openai.com/index/how-two-settings-tripled-our-arc-agi-3-scores/) by OpenAI describing two further changes to the harness that also tripled GPT 5.6 Sol’s performance from to 13.3% to 38.3%.)
 
@@ -60,8 +52,6 @@ As a side note, as a colleague recently suggested to me (as also recommended by 
 
 Of course, I am not suggesting never using `SKILL.md` files again, but for some workflows, because they can improve efficiency upon reuse, since the model doesn’t have to rediscover them. But what I am suggesting is that some workflows don’t need describing, and “old” descriptions may no longer be ideal, and the LLM may be able to come up with better solutions. So, it’s perhaps time to update or regenerate said instruction files.
 
-### 1.2 Computer use capabilities
-
 GPT-6 Astra seems to be exceptionally strong in image and rendering tasks. When these tasks involve interacting with graphical user interfaces, they also demonstrate computer-use capabilities, meaning the model operates software on your local computer through the Codex/ChatGPT app.
 
 Computer use is where the model really shines compared to others, and anything graphic-related also makes for interesting and intuitive demos on social media platforms. There are tons of examples of impressive demos out there, from modeling [rendering New York City in blender](https://x.com/higgsfield_ai/status/2096495974734794840?s=20) to [virtual open house tours](https://x.com/Dimillian/status/2095596700815516004?s=20).
@@ -75,8 +65,6 @@ This is not the first model that, inside a harness, is capable of general comput
 At the same time, there are many tools and software that don’t expose CLIs (yet), and instead of waiting until someone designs that interface, why not improve models to use graphical user interfaces (and, as mentioned before, this makes for pretty and impressive demos, anyway)? This is somewhat analogous to the emerging humanoid robot developments. Sure, humanoid robots are not the most efficient robots, for example, at the assembly line, where special-purpose machines exist. But they are versatile.
 
 So, I expect the upcoming months (or years) also to be an era of computer use refinement on both the LLM and the agent harness layer. I.e., in addition to the current capabilities, and expanding their math and coding capabilities, models will be trained with an increasing amount of computer use in mind. And this will also make LLMs more accessible for everyday computer tasks outside the tech world (”Hey ChatGPT, please do my tax return” :))
-
-### 1.3 Computer use training
 
 The computer usage trend is also consistent with the [recent reporting](https://finance.yahoo.com/technology/ai/articles/apple-suddenly-ai-infrastructure-stock-130223938.html) that OpenAI purchased tens of thousands of Mac Minis and Mac Studios for Reinforcement Learning. So, here the Macs are not used to literally train the models (it’s better to use GPUs for that) but rather to expose macOS during the model training for the model to learn to use said operating system and the tools therein.
 
@@ -104,19 +92,11 @@ Figure 3: Overview of a computer-use training workflow.
 
 Again, the Mac is mostly the environment here and not the machine for running or updating the model during training. The model likely sits on NVIDIA GPUs and is fed via API to said Mac. By the way, [NVIDIA’s CEO mentioned](https://x.com/JensenHuang/status/2096700264569090384?s=20) that GPT-6 Astra was being trained on ~100,000 Grace Blackwell GPUs.
 
-### 1.4 GPT-6 Astra is still a reasoning model
-
 The focus on computer-use training discussed in the previous section is not a fundamental paradigm shift in the training pipeline. GPT-6 Astra (and likely any LLM in the foreseeable future) is still a reasoning model. This means the LLM is trained with reinforcement learning with verifiable rewards (RLVR) and produces intermediate reasoning traces (chains of thought)
 
 But I will discuss the reasoning model aspects of GPT-6 Astra (especially regarding hiding chains of thought) a bit later in this article.
 
-## 2\. Looped transformers
-
-That being said, about two days before the official model, the news magazine The Information published an [article](https://www.theinformation.com/articles/secret-technique-behind-openais-astra-model-sparks-security-concerns)reporting that, according to some inside information, Astra is using a concept called “recurrent depth” or “looped transformers.”
-
-[![the-information](https://substackcdn.com/image/fetch/$s_!1E15!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fb5611bff-b063-4082-8ed5-bed48619cd1b_3674x3073.png "the-information")](https://substackcdn.com/image/fetch/$s_!1E15!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fb5611bff-b063-4082-8ed5-bed48619cd1b_3674x3073.png)
-
-Figure 4: Quote from The Information (Source: [https://www.theinformation.com/articles/secret-technique-behind-openais-astra-model-sparks-security-concerns](https://www.theinformation.com/articles/secret-technique-behind-openais-astra-model-sparks-security-concerns))
+That being said, about two days before the official model, the news magazine The Information published an [article](https://www.theinformation.com/articles/secret-technique-behind-openais-astra-model-sparks-security-concerns) reporting that, according to some inside information, Astra is using a concept called “recurrent depth” or “looped transformers.”
 
 Since LLM architectures are within my area of expertise and my passion, I created a short lecture video explaining the general looped transformer mechanism and addressing the comment about hidden reasoning chains, which you can find below.
 
@@ -126,13 +106,9 @@ In the following subsections, I’ll first explain what looped transformers are,
 
 (The looped transformer explanation may seem a bit long, but I really think that it helps with establishing a foundational understanding of the technique, which is then useful to judging the claim that it obscures the reasoning traces or chains of thought.)
 
-### 2.1 Reusing transformer blocks
-
 So, what’s a looped transformer?
 
 A Looped Transformer is essentially an architectural tweak, with the main idea being to pass the intermediate representations through the same transformer blocks multiple times (instead of just once). Compared to just adding more blocks, the “trick” here is that the weights stay the same across these passes.
-
-* * *
 
 **Definitions & Jargon**
 
@@ -143,8 +119,6 @@ Throughout this article, I’ll use the following terms:
 - A **stack** is a sequence of transformer blocks.
 
 - A **block application** means running an input through a transformer block once.
-
-* * *
 
 The looped transformer is nothing new, and the basic idea already appeared in the [Universal Transformers](https://arxiv.org/abs/1807.03819) paper from 2018. But before discussing Universal Transformer, let’s start with a simpler example, [Nanbeige4.2-3B](https://arxiv.org/abs/2607.22083), a recent open-weight LLM that came out in July and that I covered on Substack [Notes](https://substack.com/@rasbt/note/c-302083551) and in my [LLM Architecture Gallery](https://www.sebastianraschka.com/llm-architecture-gallery/looped-depth-sharing/) earlier this summer.
 
@@ -168,8 +142,6 @@ So, the whole idea here is that we increase the effective depth from 22 to 44 bl
 
 By the way, why 2 rounds, not 3, 4, or more? There are not many details in the Nanbeige paper, but they say that this was essentially the most efficient setup. Increasing the loops from 2 to 3 can increase modeling performance, but the extra computational cost wasn’t worth it.
 
-### 2.2 Looping costs
-
 So, why would we do this looping in general? This is essentially an alternative to just making the model bigger by adding more transformer blocks.
 
 So, for instance, a model that uses 22 transformer blocks twice has roughly half as many (transformer-block) parameters compared to a model with 44 conventional blocks.
@@ -183,6 +155,16 @@ Figure 7: Side-by-side comparison showing how many parameters would be required 
 Of course, reusing the same blocks in a loop still requires computation. More precisely, we pass the intermediate inputs through 44 block applications during the forward pass. And, during training, gradients flow backward through both repetitions of the shared stack. So, compared to using the 22 blocks only once, this adds substantial work. Actually, it’s similarly expensive as having 44 distinct blocks (except the optimizer has fewer distinct parameters to update; backprop still runs through all 44 block applications).
 
 There is also the KV cache, which stores the attention keys and values of previous tokens for reuse in conventional and looped transformers in each next-token generation step. By the way, I have a standalone article on KV caching here if useful:
+
+## [Understanding and Coding the KV Cache in LLMs from Scratch](https://magazine.sebastianraschka.com/p/coding-the-kv-cache-in-llms)
+
+·
+
+June 17, 2025
+
+[![Understanding and Coding the KV Cache in LLMs from Scratch](https://substackcdn.com/image/fetch/$s_!lRr3!,w_1300,h_650,c_fill,f_auto,q_auto:good,fl_progressive:steep,g_auto/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F1045ae83-d2ba-4b44-ac93-4159d8a610a1_3659x2622.png)](https://magazine.sebastianraschka.com/p/coding-the-kv-cache-in-llms)
+
+KV caches are one of the most critical techniques for efficient inference in LLMs in production. KV caches are an important component for compute-efficient LLM inference in production. This article explains how they work conceptually and in code with a from-scratch, human-readable implementation.
 
 But back to the topic. Even though there is weight-sharing in looped transformers, the intermediate states that enter a block are different on the second pass. Consequently, in KV caching, the resulting keys and values are also different between these two transformer stacks (just like in the no-looping case). So, there are no KV cache-related savings either.
 
@@ -198,8 +180,6 @@ Just to complete the Nanbeige discussion before moving on and looking at some ot
 
 So, the number of passes is another architectural choice we have to make. As mentioned before, in Nanbeige, this is fixed at two. But we can also make it depend on the token, as we will see next.
 
-### 2.3 Universal Transformers and flexible loop counts
-
 Now, let’s come back to [Universal Transformers](https://arxiv.org/abs/1807.03819). In Nanbeige, we apply a stack of 22 transformer blocks twice. In the Universal Transformer paper from 2018, we repeatedly apply the same transformer block instead of repeating a stack of transformer blocks. The main idea is similar, though.
 
 Also, the number of steps can be fixed, but the paper also explores adaptive halting. For example, a token at a particular position may only go through one or two loops. Another may go through three or four loops, and so on. This gives the model flexibility to allocate the compute to those tokens that benefit from extra computation.
@@ -211,8 +191,6 @@ How is the looping number decided? Here, the model uses a small, trained functio
 Figure 8: Adaptive halting in a Universal Transformer.
 
 Another example of a looped transformer is ByteDance’s [Ouro](https://arxiv.org/abs/2510.25741), which I also covered in my [LLM Architecture Gallery](https://sebastianraschka.com/llm-architecture-gallery/looped-depth-sharing/). For instance, Ouro-Thinking 2.6B applies the same stack of 48 transformer blocks four times. That’s 192 block applications while storing weights for 48 distinct blocks. Basically, that’s a more extreme case than Nanbeige. Additionally, a learned exit gate assigns probabilities to the different exits, and a threshold on the cumulative probability determines which pass supplies the output. So, it’s also borrowing the adaptive halting idea from Universal Transformer, which Nanbeige didn’t use. (However, there is a practical caveat here. The released [Hugging Face implementation](https://huggingface.co/ByteDance/Ouro-2.6B-Thinking/blob/main/modeling_ouro.py) computes all configured passes before selecting an output, so it seems like the number of loops is effectively hard-coded to 4).
-
-### 2.4 Routing flexible loop counts
 
 Another approach is [Mixture-of-Recursions](https://arxiv.org/abs/2507.10524), a paper from 2025 that is essentially a more sophisticated version of the Universal Transformer discussed earlier. Similar to the Universal Transformer, individual tokens pass the transformer blocks one or more times as illustrated in the figure below. However, the innovation is how this looping number is determined on a per-token basis.
 
@@ -236,13 +214,7 @@ In *expert-choice routing*, which is shown in the left subpanel in the figure ab
 
 In both cases, the transformer weights are reused across passes, similar to Nanbeige, etc. But the additional flexibility comes from choosing how much computation each token receives. The model and its routers are trained together, so the model learns to work with these different paths during training.
 
-### 2.5 How well does this work?
-
 The plot from the Mixture-of-Recursions paper below compares a regular transformer (Vanilla), a transformer with fixed recursion (Recursive), and Mixture-of-Recursions (MoR) for different model sizes and compute budgets (x-axis).
-
-[![mor-results](https://substackcdn.com/image/fetch/$s_!zvn3!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fa7d21ed3-cf75-45a1-ac2f-dc1a0ba705fb_8617x2565.png "mor-results")](https://substackcdn.com/image/fetch/$s_!zvn3!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fa7d21ed3-cf75-45a1-ac2f-dc1a0ba705fb_8617x2565.png)
-
-Figure 11. Validation loss across four model scales and three training compute budgets. Figure from the [Mixture-of-Recursions paper](https://arxiv.org/abs/2507.10524).
 
 At the smallest model scale, the regular transformer performs best. For the larger models, Mixture-of-Recursions catches up and often performs better, especially at the smaller training budgets. At the largest budget, several of the curves are very close. So, the advantage depends on the model size and how much compute we spend on training.
 
@@ -251,8 +223,6 @@ Another detail here is that equal training compute doesn’t necessarily mean an
 I think this is an interesting example because it shows that there are several choices within the looped-transformer idea, that is, how many loops there are at each position and how that’s decided.
 
 So, in short, we can say that using looped transformers can improve model quality at a fixed compute budget if the model is large enough. (It also illustrates the importance of running some experiments at scale; e.g., just looking at the smaller 135M parameter model, we would have drawn the opposite conclusion.)
-
-## 3\. Side note: Recurrent Neural Networks (RNNs)
 
 By the way, if you have a background in deep learning (or even artificial neural networks in the 1990s), the looping or “recurrent depth” idea should be somewhat familiar. Remember recurrent neural networks (RNNs)? The whole idea in RNNs is to reuse the layers (weights) from a previous iteration.
 
@@ -272,13 +242,7 @@ If this analogy is a bit too confusing, don’t worry about it too much. A perha
 
 Figure 13: Side-by-side comparison of the “recurrence” in an RNN and a looped transformer.
 
-## 4\. Does Astra even use looped transformers?
-
 Before we discuss whether the looped transformer mechanism obscured reasoning traces, as rumored in The Information quote from earlier, does GPT-6 Astra even use the looped transformer concepts?
-
-[![the-information-2](https://substackcdn.com/image/fetch/$s_!F61i!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F59a0eb95-7843-40d9-bd59-ee79f0cf2022_3674x3073.png "the-information-2")](https://substackcdn.com/image/fetch/$s_!F61i!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F59a0eb95-7843-40d9-bd59-ee79f0cf2022_3674x3073.png)
-
-Figure 14: Quote from The Information (Source: [https://www.theinformation.com/articles/secret-technique-behind-openais-astra-model-sparks-security-concerns](https://www.theinformation.com/articles/secret-technique-behind-openais-astra-model-sparks-security-concerns))
 
 We have to keep in mind that this is still just a rumor or scoop, with no official confirmation. If the model were open-weight, we could double-check this ourselves, of course, but in this case we have to rely on unverified reporting.
 
@@ -292,8 +256,6 @@ In my opinion, the success (i.e., good modeling performance) behind Astra is lik
 
 The looped transformer tweak might help a bit, but I think that The Information is overestimating its contribution.
 
-## 5\. Hiding chains of thought
-
 Next, let’s finally address the elephant in the room: does looped transformer obscure the reasoning traces?
 
 First, OpenAI has been hiding (most of) the reasoning traces from users from the very beginning, since OpenAI o1, anyway. So, for the end-user, there shouldn’t be a big difference.
@@ -301,8 +263,6 @@ First, OpenAI has been hiding (most of) the reasoning traces from users from the
 So, the interpretation-concern is mostly with respect to the model developers.
 
 Either way, I don’t think that looped transformers are significant contributors towards hiding or obscuring chains of thought. To explain my own reasoning (no pun intended), let’s take a step back and explain how reasoning models work.
-
-### 5.1 Reasoning in brief
 
 Reasoning models typically generate intermediate steps before producing a final answer. These steps use regular text token (that are optionally hidden from the user in some user interfaces) and called a reasoning trace or chain of thought.
 
@@ -320,29 +280,15 @@ The final answer can then be much shorter than the reasoning trace that preceded
 
 For more details on understanding and developing reasoning models, I recommend my book [Build a Reasoning Model From Scratch](https://amzn.to/4aAKiFY).
 
-[![reasoning-book](https://substackcdn.com/image/fetch/$s_!c9rH!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8e53a1b1-4d0d-47f1-baa8-e9a0f0269d27_4545x3015.png "reasoning-book")](https://substackcdn.com/image/fetch/$s_!c9rH!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8e53a1b1-4d0d-47f1-baa8-e9a0f0269d27_4545x3015.png)
-
-Figure 16: My [Build a Reasoning Model From Scratch](https://amzn.to/4aAKiFY) book covers the fundamentals of reasoning models.
-
-### 5.2 Token usage and shorter chains of thought
-
 Now, extra tokens in the reasoning trace add more computation. Looped transformers add more computation, because the tokens go through more transformer blocks. One might argue that a model with looping uses more computation internally, it doesn’t need as many external thinking tokens.
 
 Below is a selection of the [GPT-6 benchmarks](https://openai.com/index/gpt-6-astra/) with the output token number on the x-axis.
-
-[![output-tokens](https://substackcdn.com/image/fetch/$s_!JamS!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F3faf505f-8ea7-477b-af46-d7b355f5e3d4_7645x6659.png "output-tokens")](https://substackcdn.com/image/fetch/$s_!JamS!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F3faf505f-8ea7-477b-af46-d7b355f5e3d4_7645x6659.png)
-
-Figure 17: Selected GPT-6 Astra benchmarks from [https://openai.com/index/gpt-6-astra/](https://openai.com/index/gpt-6-astra/)
 
 We can see that GPT-6 Astra doesn’t necessarily use fewer tokens than its GPT 5.6 Sol predecessor across effort levels overall. However, at a fixed accuray, it is true that GPT-6 Astra uses fewer tokens than GPT 5.6 Sol.
 
 Is this a concern for interpretability? Not necessarily. Using fewer tokens could just mean that the model is more capable and makes fewer mistakes, uses less backtracking, and so on. I.e., it might just get more things right on the first try. To me, that doesn’t raise an immediate concern regarding interpretability.
 
 I mean, the same is true for previous models. I don’t think that anyone has strong concerns that GPT 5.6 Sol is so much less interpretable than the smaller GPT 5.6 Luna model, which uses many more tokens for the same task performance, as shown below.
-
-[![luna-sol-token-usage](https://substackcdn.com/image/fetch/$s_!2hY2!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F1e048a54-2b50-423c-a7e7-87edd933cb1f_5324x2149.png "luna-sol-token-usage")](https://substackcdn.com/image/fetch/$s_!2hY2!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F1e048a54-2b50-423c-a7e7-87edd933cb1f_5324x2149.png)
-
-Figure 18: Token usage in Luna and Sol at similar task performance levels. Numbers from the [Artificial Intelligence Index v4.3](https://artificialanalysis.ai/#intelligence).
 
 In fact, as we can see that Luna uses 80% more tokens than Sol at similar modeling performance. Does that make Sol that much less interpretable?
 
@@ -358,11 +304,7 @@ A few hours after I shared [my thoughts](https://x.com/rasbt/status/209514125495
 
 The “confused reporting” likely refers to The Information’s aforementioned paragraph here, implying that the looping aspect does not have anything to do with chain-of-thought changes.
 
-## 6\. Looped transformer research
-
 Lastly, I want to share some interesting papers related to looped transformer architectures beyond the ones we already discussed.
-
-### 6.1 Latent reasoning
 
 Related to the Universal Transformer, the 2025 [Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://arxiv.org/abs/2502.05171) paper studies how a model can use additional loops at inference time. For this, they trained a relatively modest but also not super tiny 3.5B-parameter model on 800B tokens.
 
@@ -384,8 +326,6 @@ The overall benefit depends on the task. In their evaluations, HellaSwag perform
 
 However, while the title of the paper mentions “latent reasoning”, the model can still generate a textual chain of thought. Looping just gives it additional computation before each output token.
 
-### 6.2 Knowledge retrieval vs reasoning
-
 There’s a useful distinction between storing information and using it to solve a problem. For instance, the [Beyond Parameters: Exploring Virtual Logic Depth for Scaling Laws](https://arxiv.org/abs/2506.18233) paper from June 2025 investigates this by measuring memorization and reasoning in an LLM separately.
 
 First, in the memorization experiments, looping leaves the amount of stored information nearly unchanged when the parameter count stays fixed. Increasing the number of distinct parameters does increase this capacity. From this, we can conclude that looping doesn’t add or let’s the model retrieve more knowledge. This makes sense. Information retrieval is a relatively simple task once the information is stored. Also, looping in itself is computing not “storing” mechanism.
@@ -396,23 +336,15 @@ Second, in separate reasoning experiments, reusing the blocks improves performan
 
 Figure 20. In this memorization test, capacity grows with parameter count but changes little with additional block applications. Annotated figure from [Zhu et al.](https://arxiv.org/html/2506.18233v3)
 
-### 6.3 Looping at a matched compute budget
-
 The just-released [SMELT: Scaling Laws for Compute-Matched MoE Looped Transformers](https://arxiv.org/abs/2609.01343) paper from September 2026 comes back to the cost comparison from section 2.2. What happens if we compare looped and conventional transformers with approximately the same compute per token, total non-embedding parameters, and KV cache requirements?
 
 The researchers use a mixture-of-experts architecture and apply the middle half of the transformer blocks twice, kind of similar to Nanbeige except with the sandwiching in Latent Reasoning.
 
 However, they narrow the hidden dimension to compensate for the compute needed for the extra block applications. And then, because that makes the parameter count smaller, they then add experts to recover the total parameter count. They also adjust the attention head configuration to keep the KV cache comparable.
 
-[![SMELT worked example comparing model width, experts, block applications, parameters, compute, and KV cache](https://substackcdn.com/image/fetch/$s_!R2wv!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F4fb8b33b-9a12-4a86-97fd-62e9ce4a4637_6724x2983.png "SMELT worked example comparing model width, experts, block applications, parameters, compute, and KV cache")](https://substackcdn.com/image/fetch/$s_!R2wv!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F4fb8b33b-9a12-4a86-97fd-62e9ce4a4637_6724x2983.png)
-
-Figure 21. SMELT overview from the example given in [SMELT, section 3.2](https://arxiv.org/html/2609.01343v1).
-
 The experiments scale up to 54B non-embedding parameters and so on. Then, from fitted scaling curves, the researchers estimate that SMELT requires about 6.8-18% less training compute to reach the same validation loss within the studied compute range.
 
 So, this answers the question of whether looped transformers are worth it computationally: Yes! They give us a slightly better model when using the same compute budget.
-
-### 6.4 Full-bandwidth transformer
 
 Finally, the also very recent [Full-bandwidth transformer](https://arxiv.org/abs/2608.08888) paper from August 2026 studies recurrence across token positions. At each decoding step, it combines the previous token’s final hidden state with the newly sampled token’s embedding through a learned gate. This becomes the input for the next forward pass.
 
@@ -428,8 +360,6 @@ Anyway, this is interesting because this connects directly to the earlier discus
 
 Also, the big caveat of the study is that they didn’t test whether increasing the size of the model in conventional ways (adding more transformer blocks instead of looping) has a similar effect on the reasoning trace lengths.
 
-## Conclusion
-
 To wrap it all up, we can say that yes, OpenAI GPT-6 Astra is a very strong model. And it’s making a particularly large leap in computer use. I believe computer use will be the next big focus area for open-source and proprietary harnesses in the upcoming months. I find open-source especially important when it comes to computer use, as “with great power come great responsibilities”, and it’s nice to be able to audit the harness before giving it access to my main computer.
 
 Besides, GPT-6 Astra is likely to use a variant of the looped transformer. Looped transformers simply give better modeling performance at a fixed compute budget.
@@ -438,14 +368,10 @@ Also, better modeling performance may decrease in shorter reasoning chains. But 
 
 In my opinion, shorter reasoning traces are a side effect of more “intelligent” or capable models that make fewer mistakes and can access more compute internally inside their architecture versus using a reasoning trace as a scratchpad. In a sense, the same is true for humans. During an in-person college math exam, a smart and well-prepared student likely requires less use of the notepaper and needs to backtrack less often, and so on.
 
-* * *
-
 **Thanks for reading and supporting my work!**
 
 If you’d like to learn how to build reasoning models yourself, check out my book [Build a Reasoning Model (From Scratch)](https://amzn.to/4aAKiFY). We start with a pre-trained LLM and add reasoning capabilities step by step, with code you can run and experiment with. It’s both fun and rewarding, and a good investment in future-self to build the fundamentals to keep up with the AI field.
 
 Also, if you’ve read one of my books, I’d appreciate a short, honest review on Amazon. Reviews help other readers decide whether a book is right for them and are a simple way to support authors.
 
-[![scratch](https://substackcdn.com/image/fetch/$s_!n5TA!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fe6fb7c68-790c-47c7-8324-05f100efb90b_4410x2252.png "scratch")](https://substackcdn.com/image/fetch/$s_!n5TA!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fe6fb7c68-790c-47c7-8324-05f100efb90b_4410x2252.png)
-
-Figure 23: Selected illustrations from my *[Build a Reasoning Model (From Scratch)](https://amzn.to/4aAKiFY)* book, covering inference-time scaling, distillation, and reinforcement learning.
+No posts

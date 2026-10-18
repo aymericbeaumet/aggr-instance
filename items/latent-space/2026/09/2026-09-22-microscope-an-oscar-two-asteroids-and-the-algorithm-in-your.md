@@ -25,6 +25,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/216845528/5d04ab99938b8bf3aee2b0e2099bfa53.mp3
+  duration_seconds: 7286
 ---
 
 How often do you get to talk to a guest who has both an Academy Award and who invented textbook machine learning algorithms? John Platt has an [Oscar](https://www.atogt.com/askoscar/display-person.php?id=78091&var=0), two [textbook](https://en.wikipedia.org/wiki/Platt_scaling) [algorithms](https://en.wikipedia.org/wiki/Sequential_minimal_optimization), two named asteroids, and an [Erdos-Bacon number](https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93Bacon_number) of 6. This was easily the most fun bio of all the guests we’ve read to date. And the result was an epic and fun chat covering Google’s [Empirical Research Assistance](https://research.google/blog/empirical-research-assistance-era-from-nature-publication-to-catalyzing-computational-discovery/) (ERA), how AI can help battle climate change, and tons of great stories about the co-evolution of science and AI.

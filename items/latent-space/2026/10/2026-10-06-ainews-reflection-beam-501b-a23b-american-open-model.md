@@ -6,7 +6,7 @@ published: 2026-10-06T06:28:43Z
 updated: 2026-10-06T06:28:43Z
 first_seen: 2026-10-06T07:29:29.789711479Z
 summary: A small win for US open source
-content: feed
+content: extracted
 html: 2026-10-06-ainews-reflection-beam-501b-a23b-american-open-model.html
 remote_preview:
   url: https://substackcdn.com/image/youtube/w_728,c_limit/DIu7xA898go
@@ -23,10 +23,6 @@ But they stayed “stealth” longer than Thinking Machines and it was not clear
 They compare themselves to Inkling, Nemotron, and GLM 5.2, but the SOTA GLM 5.3, Kimi K3, Qwen 3.8 Max, and DeepSeek V4.1 Flash are generally ahead. Still, since this is US-trained from scratch, there’s a segment of the market that has been eagerly waiting for more options here, and more importantly, Reflection has now announced its arrival as a functional neolab!
 
 > AI News for 10/03/2026-10/5/2026. We checked 12 subreddits, [544 Twitters](https://twitter.com/i/lists/1585430245762441216) and no further Discords. [AINews’ website](https://news.smol.ai/) lets you search all past issues. As a reminder, [AINews is now a section of Latent Space](https://www.latent.space/p/2026). You can [opt in/out](https://support.substack.com/hc/en-us/articles/8914938285204-How-do-I-subscribe-to-or-unsubscribe-from-a-section-on-Substack) of email frequencies!
-
-* * *
-
-# **AI Twitter Recap**
 
 **Reflection’s Beam Leads a Wave of Open-Weight Releases**
 
@@ -204,13 +200,3 @@ They compare themselves to Inkling, Nemotron, and GLM 5.2, but the SOTA GLM 5.3,
 - [Theo: Anthropic vs OpenAI for coding, July vs September](https://x.com/theo/status/2106847019319062819) — 5.2K
 
 - [HF: coding harnesses as RL environments](https://x.com/ClementDelangue/status/2107120717980471638) — 2.5K
-
-* * *
-
-# **AI Reddit Recap**
-
-## **/r/LocalLlama + /r/localLLM Recap**
-
-### **1\. Local LLM Hardware at Extreme Scale**
-
-[Read more](https://www.latent.space/p/ainews-reflection-beam-501b-a23b)

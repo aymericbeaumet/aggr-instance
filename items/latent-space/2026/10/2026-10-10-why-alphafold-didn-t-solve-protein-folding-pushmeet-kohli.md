@@ -11,6 +11,7 @@ html: 2026-10-10-why-alphafold-didn-t-solve-protein-folding-pushmeet-kohli.html
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/219666029/a55c7eb779368b4623e64d0933a07f0f.mp3
+  duration_seconds: 1916
 ---
 
 From the **Bitter Lesson of AI** scaling to the unsolved **mysteries of protein folding**, **Google DeepMind’s Pushmeet Kohli** and **Biohub’s Sal Candido** are rethinking what it takes to build AI that truly understands biology. In this special panel moderated by **Brandon Anderson**, they explore why **AlphaFold’s breakthrough was only the beginning**, why scaling compute and data alone won’t solve biology, and how the next generation of AI models could transform our understanding of proteins, cells, and human disease.

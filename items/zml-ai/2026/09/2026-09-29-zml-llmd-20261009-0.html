@@ -1,7 +1,153 @@
-<p>Another week, another release. We&rsquo;re happy to announce the release of <code>zml/llmd 20261009.0</code>, which brings considerable
+<div id="readability-page-1" class="page"><div>
+      
+      <main id="main-content">
+        
+  
+    <nav aria-label="Primary">
+    <a href="https://zml.ai/">ZML - Model to Metal</a>
+    <ul>
+        <li><a href="https://zml.ai/posts/">Blog</a></li>
+        <li><a href="https://zml.ai/llmd/">LLMD</a></li>
+        <li>
+            <a href="https://github.com/zml/zml" target="_blank" rel="noopener">
+                
+                GitHub <span data-github-stars="zml/zml">3.5K</span>
+            </a>
+        </li>
+        <li>
+            <a href="https://github.com/zml/zml/tree/master/docs" target="_blank" rel="noopener">Docs</a>
+        </li>
+        <li>
+            <a href="https://discord.com/invite/puhdWt8gzZ" target="_blank" rel="noopener">Discord</a>
+        </li>
+        <li>hello@zml.ai</li>
+    </ul>
+</nav>
+
+  
+  <article>
+    <div>
+      
+        <a href="https://zml.ai/posts/" aria-label="Back to posts">
+          
+          <span>Back to posts</span>
+        </a>
+      
+
+      <header>
+        <p>Article</p>
+        
+        
+          <p>Performance is all around me, and so the feeling grows.</p>
+        
+        
+          <p><span>October 9, 2026</span>
+            
+            
+              <span>inference / serving / NVIDIA / AMD / TPU / Metal / Intel</span></p>
+        
+      </header>
+
+      <div>
+        <p>Another week, another release. We’re happy to announce the release of <code>zml/llmd 20261009.0</code>, which brings considerable
 performance improvements across the board.</p>
-<h1 id="faster-compilation">Faster Compilation</h1>
-<p>In this release, we have spent a considerable amount of effort into improving compilation performance. Notably, when in
-multiple GPU configurations, auto-tunning is now done in parallel across GPUs. This has a significant impact on
+<h2 id="faster-compilation">Faster Compilation</h2>
+<p>In this release, we have spent a considerable amount of effort improving compilation performance. Notably, in
+configurations with multiple GPUs, autotuning is now done in parallel across GPUs. This has a significant impact on
 cold-start performance, as shown below.</p>
-<p>This changes impact NVIDIA, AMD, Intel and Apple Metal backends.</p>
+<p>These changes impact NVIDIA, AMD, Intel and Apple Metal backends.</p>
+<figure>
+  <figcaption>Cold Start, deepseek-ai/DeepSeek-V4.1-Flash, 4xGB300, less is better</figcaption>
+  
+</figure>
+<p>And here is a visual representation of the compilation time improvements (BEFORE / AFTER):
+<img src="https://zml.ai/posts/llmd-20261009.0/compilation_before_after.png" alt="">
+</p>
+<h2 id="faster-qwen38-27b">Faster Qwen3.8-27B</h2>
+<p>In this release, we have decided to focus on some fundamental performance work and apply it to Qwen/Qwen3.8-27B
+as a testing ground.</p>
+<p>We chose to benchmark it with the ridiculous <code>bs=1024</code> pure decode path because we found it tends to highlight
+inefficiencies better.</p>
+<figure>
+  <figcaption>Token Generation, Qwen/Qwen3.8-27B, w16a16, bs=1024, 4xGB300, more is better</figcaption>
+  
+</figure>
+<figure>
+  <figcaption>Apple M3 Max, nvidia/Qwen3.8-27B-NVFP4, pp1024/tg128, bs=1, more is better <span>(tg tok/s)</span></figcaption>
+  
+</figure>
+<details>
+<summary>Command lines</summary>
+<h3 id="zmlllmd">zml/llmd</h3>
+<div><pre><code data-language="bash">llmd --model=/var/models/Qwen/Qwen3.8-27B --batch-size=1024
+</code></pre></div><h3 id="sglang">SGLang</h3>
+<div><pre><code data-language="bash">uv run sglang serve \
+    --trust-remote-code \
+    --model-path /var/models/Qwen/Qwen3.8-27B \
+    --mem-fraction-static 0.85 \
+    --reasoning-parser qwen3 \
+    --tool-call-parser qwen3_coder \
+    --mamba-full-memory-ratio 3.67 \
+    --host 0.0.0.0 \
+    --port 30000 \
+    --mamba-radix-cache-strategy extra_buffer_lazy \
+    --mamba-ssm-dtype float32 \
+    --max-running-requests 1024 \
+    --tp 4 \
+    --cuda-graph-max-bs-decode 1024 \
+    --enable-torch-compile
+</code></pre></div></details>
+<h2 id="faster-deepseek-v41-flash">Faster DeepSeek-V4.1-Flash</h2>
+<p>As stated in the previous blog post, we chose to release DeepSeek-V4.1-Flash early, even though we were not yet at the
+performance level we can achieve. This release brings incremental performance improvements to DeepSeek-V4.1-Flash, as shown below.</p>
+<figure>
+  <figcaption>Token Generation, deepseek-ai/DeepSeek-V4.1-Flash, bs=1, 4xGB300 <span>(tok/s)</span></figcaption>
+  
+</figure>
+
+<p>We had missed enabling speculative decoding on Metal in the previous release. This release brings it back, and it works
+well. DFlash, DFlash2 and DSpark are all supported. If the model natively supports it, you can also pass the
+<code>--speculative-drafter-model=native</code> flag to enable it.</p>
+<h2 id="zio-is-now-the-default-io-backend">ZIO is now the default I/O backend</h2>
+<p>This release now enables <a href="https://github.com/lalinsky/zio">ZIO</a> as the default Zig <code>std.Io</code> backend.</p>
+<blockquote>
+<p>ZIO is an asynchronous runtime for Zig, in the same spirit as Go’s runtime or Tokio: it schedules lightweight
+coroutines onto a pool of OS threads, and gives you blocking-looking network, file, and process I/O that’s actually
+backed by non-blocking, event-driven OS APIs under the hood.</p>
+</blockquote>
+<p>Thanks to it, zml/llmd runs on top of <code>kqueue</code> on macOS and <code>epoll</code> or <code>io_uring</code> on Linux (detected at runtime).</p>
+<p>ZIO is exactly what we wanted to build ourselves (and had started to prior to <code>std.Io</code> in older <code>zml/zml</code> versions).
+So a huge shout-out to <a href="https://lalinsky.com/">Lukáš Lalinský</a>. Great job.</p>
+<p>The old <code>std.Io.Threaded</code> backend is still available and can be enabled with the <code>--io-impl=threaded</code> flag.</p>
+<h2 id="try-it-today">Try it today</h2>
+<p><strong>NVIDIA</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --shm-size=256GB --gpus=all -e HF_TOKEN -it zmlai/llmd:cuda \
+    --model=hf://deepseek-ai/DeepSeek-V4.1-Flash
+</code></pre></div><p><strong>AMD</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --shm-size=256GB --device=/dev/kfd --device=/dev/dri -e HF_TOKEN -it zmlai/llmd:rocm \
+    --model=hf://deepseek-ai/DeepSeek-V4.1-Flash
+</code></pre></div><p><strong>Intel</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --device=/dev/dri -e HF_TOKEN -it zmlai/llmd:oneapi \
+    --model=hf://Qwen/Qwen3.8-27B
+</code></pre></div><p><strong>Google TPU</strong></p>
+<div><pre><code data-language="bash">docker run --net=host --privileged -e HF_TOKEN -it zmlai/llmd:tpu \
+    --model=hf://Qwen/Qwen3.8-27B
+</code></pre></div><p><strong>Apple Metal</strong></p>
+<div><pre><code data-language="bash">brew install zml/zml/llmd
+llmd --model=hf://nvidia/Qwen3.8-27B-NVFP4 --batch-size=1
+</code></pre></div>
+      </div>
+
+      
+        
+      
+    </div>
+  </article>
+  
+    
+
+  
+
+      </main>
+      
+    </div></div>

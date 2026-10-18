@@ -12,20 +12,10 @@ labels:
 - anthropic
 - claude
 summary: "Haiku 5.5 finally gives Anthropic a small model I’d use, but its cheapest pricing comes with a 100,000-token context threshold so lets break down if they're worth it \n\nThank you Coderabbit for sponsoring! Check them out at: https://soydev.link/coderabbit\n\nWant to sponsor a video? Learn more here: https://soydev.link/sponsor-me\n\nCheck out my Twitch, Twitter, Discord more at https://t3.gg\n\nS/O @Ph4seon3 for the awesome edit 🙏\n\n#claude #anthropic #ai"
-content: feed
+content: extracted
 html: 2026-10-09-finally-a-good-small-model.html
 remote_preview:
   url: https://i4.ytimg.com/vi/38_6C0dkKmU/hqdefault.jpg
 extra:
   thumbnail: https://i4.ytimg.com/vi/38_6C0dkKmU/hqdefault.jpg
 ---
-
-Haiku 5.5 finally gives Anthropic a small model I’d use, but its cheapest pricing comes with a 100,000-token context threshold so lets break down if they're worth it
-
-Thank you Coderabbit for sponsoring! Check them out at: https://soydev.link/coderabbit
-
-Want to sponsor a video? Learn more here: https://soydev.link/sponsor-me
-
-Check out my Twitch, Twitter, Discord more at https://t3.gg
-
-S/O @Ph4seon3 for the awesome edit 🙏

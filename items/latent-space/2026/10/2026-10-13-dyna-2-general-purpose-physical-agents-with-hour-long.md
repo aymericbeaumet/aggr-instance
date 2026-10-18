@@ -11,6 +11,7 @@ html: 2026-10-13-dyna-2-general-purpose-physical-agents-with-hour-long.html
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/220234130/c77b90e7331c0fabae60105d2325e9a0.mp3
+  duration_seconds: 4317
 ---
 
 *Watch along [AIE NYC](https://www.youtube.com/watch?v=akEqiXFo3GM) and join us at [AIE CODE](https://ai.engineer/code/2026) in SF next month!*

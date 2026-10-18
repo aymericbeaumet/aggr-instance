@@ -6,7 +6,7 @@ published: 2026-10-08T07:27:51Z
 updated: 2026-10-08T07:27:51Z
 first_seen: 2026-10-08T13:19:06.446835656Z
 summary: yay small models
-content: feed
+content: extracted
 html: 2026-10-08-ainews-claude-haiku-5-5-better-than-gpt-6-luna-at-the-same.html
 remote_preview:
   url: https://substackcdn.com/image/fetch/$s_!q_iv!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fpbs.substack.com%2Fmedia%2FHUDOG1Jb0AAHQ2I.jpg
@@ -16,15 +16,15 @@ It’s been about a year since Anthropic [shipped Haiku 4.5](https://www.latent.
 
 Well, it’s here, and it’s a welcome update. More in the summary below.
 
+> Artificial Analysis @ArtificialAnlys
+>
+> Anthropic has released Claude Haiku 5.5, scoring 43 on the Artificial Analysis Intelligence Index - up 26 points one year after the last Haiku release Haiku 5.5 is the first Haiku model with Anthropic’s effort settings and adaptive thinking, and Anthropic has introduced tiered …
+>
+> [@ArtificialAnlys on X](https://x.com/ArtificialAnlys/status/2107911905822351609)
+
 > AI News for 10/06/2026-10/7/2026. We checked 12 subreddits, [544 Twitters](https://twitter.com/i/lists/1585430245762441216) and no further Discords. [AINews’ website](https://news.smol.ai/) lets you search all past issues. As a reminder, [AINews is now a section of Latent Space](https://www.latent.space/p/2026). You can [opt in/out](https://support.substack.com/hc/en-us/articles/8914938285204-How-do-I-subscribe-to-or-unsubscribe-from-a-section-on-Substack) of email frequencies!
 
-* * *
-
-# **AI Twitter Recap**
-
 **Top Story: Anthropic releases Claude Haiku 5.5**
-
-## **What happened**
 
 **Anthropic shipped Claude Haiku 5.5, its first Haiku-tier update in about a year. It is priced to match OpenAI’s GPT-6 Luna, and Anthropic cut prices on Sonnet 5.5 and its subscription plans the same day.**
 
@@ -55,8 +55,6 @@ Well, it’s here, and it’s a welcome update. More in the summary below.
   - Arena: added to Agent Arena, Code Arena WebDev, Text, Document and Vision, with scores pending ([@arena](https://x.com/arena/status/2107906881276826082)).
 
   - OpenDocRouter: added the same day (details below).
-
-## **Independent evaluation: Artificial Analysis**
 
 [@ArtificialAnlys](https://x.com/ArtificialAnlys/status/2107911905822351609) published the most detailed third-party numbers ([per-eval breakdown](https://x.com/ArtificialAnlys/status/2107911912499618086), [comparison page](https://x.com/ArtificialAnlys/status/2107911915788018161)).
 
@@ -101,8 +99,6 @@ Well, it’s here, and it’s a welcome update. More in the summary below.
 
   - 5-minute cache writes cost $0.125 per 1M tokens ($0.625 above 100K).
 
-## **Other benchmark claims (mostly vendor or secondhand)**
-
 - [@ShayneRedford](https://x.com/ShayneRedford/status/2107942496601010512) summarized Anthropic’s reported jumps:
 
   - OSWorld (computer use): 15% → 72%.
@@ -128,8 +124,6 @@ Well, it’s here, and it’s a welcome update. More in the summary below.
   - [@simonw](https://x.com/simonw/status/2107938675405586713) wrote pricing notes and ran his pelican-on-a-bicycle test. He says it is “SO MUCH better” than Haiku 4.5, which costs 10x more ([comparison](https://x.com/simonw/status/2107939154122404015)).
 
   - [@AI\_Screening](https://x.com/AI_Screening/status/2107906044915749274) says Haiku 5.5 “cooked” Luna on a Three.js zebra simulation (single prompt, not systematic).
-
-## **Opinions and reactions**
 
 **Bullish**
 
@@ -170,8 +164,6 @@ Well, it’s here, and it’s a welcome update. More in the summary below.
 
 - **Not yet benchmarked:** Arena scores are pending, and independent cost-per-task figures await tiered-pricing support.
 
-## **Context**
-
 - Haiku 4.5 has been Anthropic’s small model since October 2025. Since then, OpenAI’s GPT-6 Luna, Gemini 3.8 Flash, GLM-5.3 Flash and DeepSeek V4.1 Flash have competed at the low-cost end.
 
 - Haiku 5.5 matches Luna’s sticker price exactly. It adds effort control and a 1M context.
@@ -180,8 +172,4 @@ Well, it’s here, and it’s a welcome update. More in the summary below.
 
 - Anthropic paired it with Sonnet cache-read cuts and subscription API credits, a coordinated push on agent economics. That push lands amid wider debate over token bills (see [@theo](https://x.com/theo/status/2107924138094703084) below).
 
-## **Other News**
-
 **OpenAI’s 722 Math Manuscripts: Scale, Efficiency and Fallout**
-
-[Read more](https://www.latent.space/p/ainews-claude-haiku-55-better-than)

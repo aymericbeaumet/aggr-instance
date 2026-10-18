@@ -8,7 +8,7 @@ first_seen: 2026-10-17T16:38:09.894543738Z
 authors:
 - Nathan Lambert
 summary: US open weights are back!
-content: feed
+content: extracted
 html: 2026-10-17-meta-shakes-up-the-frontiers-open-and-closed.html
 remote_preview:
   url: https://substack-post-media.s3.amazonaws.com/public/images/95f73e17-9e3c-49ea-8d4c-e0ae87c89257_3182x1790.png
@@ -26,9 +26,7 @@ That is a very nuanced question, which I’ll dig into another time. Today’s p
 
 [Share](https://www.interconnects.ai/p/meta-shakes-up-the-frontiers-open?utm_source=substack&utm_medium=email&utm_content=share&action=share)
 
-### Why Muse Spark Open should take off — and why it may not
-
-One thing we see again and again at Interconnects through our open model analysis is that Western open-weight models get astonishingly more adoption than Chinese models with the same performance-to-size footprint (even though the Chinese models usually come out first)! Muse Spark Open is landing into this environment, at the same time as when open-ended LLM agents are finally real (~[GLM 5.2 capabilities and on](https://www.interconnects.ai/p/glm-52-is-the-step-change-for-open)).
+One thing we see again and again at Interconnects through our open model analysis is that Western open-weight models get astonishingly more adoption than Chinese models with the same performance-to-size footprint (even though the Chinese models usually come out first)! Muse Spark Open is landing into this environment, at the same time as when open-ended LLM agents are finally real (~ [GLM 5.2 capabilities and on](https://www.interconnects.ai/p/glm-52-is-the-step-change-for-open)).
 
 Riding off a rapid increase in performance of Chinese models, the open ecosystem has been living through an acceleration in demand. The inference providers are rapidly scaling, the open post-training economy is forming, and countless enterprises are looking to own their intelligence. Muse Spark Open’s performance falls somewhere above GLM 5.2, near DeepSeek V4.1 Flash, and behind GLM 5.3 or Kimi K3. It should be squarely “good enough” to slot right into this.
 
@@ -60,13 +58,13 @@ We’re at a weird equilibrium where this license is complex and unproven in cou
 
 For now, licenses haven’t been the determining factor of AI adoption, but this could change in the future. This is why we think it’s an unnecessary strategic risk for labs trying to compete and regain adoption to have complex, non-standard open licenses for their models.
 
-Interconnects AI is a reader-supported publication. Consider becoming a subscriber.
-
-### Is Meta a tier 1 (OpenAI/Anthropic) or tier 2 (Gemini/xAI) frontier lab?
-
-Just a few days before Muse Spark Open, Meta unveiled their closed frontier models, [Muse Wonder and Muse Wonder Full](https://research.meta.ai/blog/muse-wonder).[1](https://www.interconnects.ai/p/meta-shakes-up-the-frontiers-open#footnote-1) On traditional benchmarks, these are very strong models only behind Anthropic’s Opus 5.5 and similar to OpenAI’s GPT-6-Astra or Google’s Gemini-4-Argon.
+Just a few days before Muse Spark Open, Meta unveiled their closed frontier models, [Muse Wonder and Muse Wonder Full](https://research.meta.ai/blog/muse-wonder). [1](https://www.interconnects.ai/p/meta-shakes-up-the-frontiers-open#footnote-1) On traditional benchmarks, these are very strong models only behind Anthropic’s Opus 5.5 and similar to OpenAI’s GPT-6-Astra or Google’s Gemini-4-Argon.
 
 These major releases are coming just over a year out from Meta’s massive AI redirection, characterized by CEO Mark Zuckerberg’s [Personal Superintelligence](https://www.meta.com/superintelligence/?srsltid=AU7gw4XKcgMv1WYya2PFc2kUjMo91dGE7wynRverFh7HmN5-rEmKYJag) post, which got a lot of criticism at the time. Meta is the only *American* company with frontier open and closed models. Alibaba’s Qwen has followed a similar strategy, but with a far more open-leaning approach.
+
+![](https://substackcdn.com/image/fetch/$s_!s8nR!,w_720,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc3339c76-65e7-4ed9-a13e-53eecdd5a90d_4320x5200.png)![](https://substackcdn.com/image/fetch/$s_!4u7W!,w_720,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F100a6e22-bd58-4eb2-9d4d-ce8b346f9ca3_3240x4890.webp)
+
+Muse Spark Open and Wonder Benchmarks. Tap to expand.
 
 The vibe checks across all of these models have been solid, but the expectations were for them to not immediately challenge the level of refinement of the most recent Anthropic and OpenAI models in real-world usage. I’m excited to try them more — time to sign up for another AI subscription.
 
@@ -87,8 +85,6 @@ Here’s the state of play among the companies that this post focused on, plus X
 [![](https://substackcdn.com/image/fetch/$s_!p7ID!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F6ec13bec-5d2f-4a3f-b11f-64fe7fd78bcf_2464x944.png)](https://substackcdn.com/image/fetch/$s_!p7ID!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F6ec13bec-5d2f-4a3f-b11f-64fe7fd78bcf_2464x944.png)
 
 [Share](https://www.interconnects.ai/p/meta-shakes-up-the-frontiers-open?utm_source=substack&utm_medium=email&utm_content=share&action=share)
-
-### Open questions for the AI industry
 
 After a long time of predicting the frontier model game getting too expensive for many to keep up, we may be seeing this play out among Western models. We seem very far from “one person wins” with RSI given how close all the models are to each other, but we’re narrowing down the number of labs who can compete in the US from a much wider net with surprises, to the 5 of Anthropic, OpenAI, Meta, Gemini, and xAI. If Microsoft starts releasing models, as they’re posting [strong scaling science results](https://microsoft.ai/news/frontier-pre-training-at-microsoft-ai/), they could join this list — given their financial backing with a hyper-scale business and direct access to OpenAI’s intellectual property for training models.
 

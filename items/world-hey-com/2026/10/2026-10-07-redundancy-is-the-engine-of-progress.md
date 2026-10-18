@@ -7,14 +7,12 @@ updated: 2026-10-07T08:01:15Z
 first_seen: 2026-10-07T13:12:11.295552311Z
 authors:
 - David Heinemeier Hansson
-content: feed
+content: extracted
 html: 2026-10-07-redundancy-is-the-engine-of-progress.html
 remote_preview:
   url: https://world.hey.com/dhh/76499402/representations/eyJfcmFpbHMiOnsiZGF0YSI6MjczMDczMzM5NywicHVyIjoiYmxvYl9pZCJ9fQ--022b7f95a08c23ab95f3fd54c2f3306a210aca5861f973b93108e82ca0b15b63/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJyZXNpemVfdG9fbGltaXQiOlszODQwLDI1NjBdLCJxdWFsaXR5Ijo2MCwibG9hZGVyIjp7InBhZ2UiOm51bGx9LCJjb2FsZXNjZSI6dHJ1ZX0sInB1ciI6InZhcmlhdGlvbiJ9fQ--7edc7b21f6fad97fa22412618822c4d19725431f296c7ce47dc174b61535d27c/image.png
   alt: image.png
 ---
-
-In the 18th century, [90% of Americans worked in agriculture](https://data.nass.usda.gov/About_NASS/pdf/The%20Story%20of%20U.S.%20Agricultural%20Estimates.pdf) to feed themselves and the nation. Today, it's [around 1%](https://www.bls.gov/cps/cpsaat18.htm). In the 1950s, there were [hundreds of thousands of telephone switchboard operators](https://fraser.stlouisfed.org/title/handbook-women-workers-5561/1969-handbook-women-workers-539721). Today, they're all gone. There used to be well over a million professional typists too, but word processing largely killed those jobs as well.
 
 This is what progress usually looks like: redundancy.
 

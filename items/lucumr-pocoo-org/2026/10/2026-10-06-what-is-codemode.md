@@ -7,7 +7,10 @@ updated: 2026-10-06T00:00:00Z
 first_seen: 2026-10-06T14:27:15.665084215Z
 authors:
 - Armin Ronacher
-content: feed
+labels:
+- ai
+- pi
+content: extracted
 html: 2026-10-06-what-is-codemode.html
 ---
 
@@ -285,3 +288,7 @@ So where does this leave us? Is this a reversal of what I wrote a year ago where
 There are however also some things that we still need to figure out. For one, durability with Codemode is trickier. We might have to adopt some ideas from durable workflow engines here to snapshot invocations. Or maybe, something like Starlark is a better composition language than JavaScript given its deterministic nature.
 
 Images, binary data and just the inability of this pattern to work with smaller models is also something that needs to be fleshed out. So it’s for sure not a perfect solution yet, but it’s quite a useful pattern that I expect us to leverage more.
+
+This entry was tagged [ai](https://lucumr.pocoo.org/tags/ai/) and [pi](https://lucumr.pocoo.org/tags/pi/)
+
+[copy as](https://lucumr.pocoo.org/2026/10/6/codemode.md) / [view](https://lucumr.pocoo.org/2026/10/6/codemode.md) markdown

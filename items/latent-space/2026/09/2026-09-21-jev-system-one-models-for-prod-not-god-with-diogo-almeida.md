@@ -41,6 +41,7 @@ images:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/216783460/cdf8e02436aa264178bb2aa2c85db57c.mp3
+  duration_seconds: 8453
 ---
 
 *Tickets for [AIE NYC](https://ai.engineer/nyc/2026) now open, and [apply](https://ai.engineer/code/2026/apply) for the invite-only [AIE CODE](https://ai.engineer/code/2026). [Join us](https://x.com/aiDotEngineer/status/2078502554200359344)!*

@@ -17,20 +17,10 @@ summary: |-
   Check out my Twitch, Twitter, Discord more at https://t3.gg
 
   S/O @Ph4seon3 for the awesome edit 🙏
-content: feed
+content: extracted
 html: 2026-10-10-you-can-rewrite-typescript-in-rust-for-420k.html
 remote_preview:
   url: https://i3.ytimg.com/vi/ND_kRgU_WlY/hqdefault.jpg
 extra:
   thumbnail: https://i3.ytimg.com/vi/ND_kRgU_WlY/hqdefault.jpg
 ---
-
-I ported all of typescrict into rust, and it only cost me $420k... the second time was way cheaper though
-
-Thank you Qdrant for sponsoring! Check them out at: https://soydev.link/qdrant
-
-Want to sponsor a video? Learn more here: https://soydev.link/sponsor-me
-
-Check out my Twitch, Twitter, Discord more at https://t3.gg
-
-S/O @Ph4seon3 for the awesome edit 🙏
