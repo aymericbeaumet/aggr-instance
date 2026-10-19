@@ -1,0 +1,212 @@
+<div id="readability-page-1" class="page"><div>
+<p>With the growing capability of large language models (LLMs), a new class of models has emerged: <a href="https://huggingface.co/blog/vlms-2025">Vision Language Models (VLMs)</a>. These models can analyze images and videos to describe scenes, create captions, and answer questions about visual content.</p>
+<p>While running AI models on your own device can be difficult as these models are often computationally demanding, it also offers significant benefits: including improved privacy since your data stays on your machine, and enhanced speed and reliability because you're not dependent on an internet connection or external servers. This is where tools like <a href="https://huggingface.co/docs/optimum-intel/en/index">Optimum Intel</a> and <a href="https://docs.openvino.ai/2025/index.html" rel="nofollow">OpenVINO</a> come in, along with a small, efficient model like <a href="https://huggingface.co/blog/smolvlm">SmolVLM</a>. In this blog post, we'll walk you through three easy steps to get a VLM running locally, with no expensive hardware or GPUs required (though you can run all the code samples from this blog post on Intel GPUs).</p>
+<h2>
+	<a id="deploy-your-model-with-optimum" href="#deploy-your-model-with-optimum" rel="nofollow">
+		
+	</a>
+	<span>
+		Deploy your model with Optimum
+	</span>
+</h2>
+<p>Small models like SmolVLM are built for low-resource consumption, but they can be further optimized. In this blog post we will see how to optimize your model, to lower memory usage and speedup inference, making it more efficient for deployment on devices with limited resources.</p>
+<p>To follow this tutorial, you need to install <code>optimum</code> and <code>openvino</code>, which you can do with:</p>
+<pre><code data-language="bash">pip install optimum-intel[openvino] transformers==4.52.*
+</code></pre>
+<h2>
+	<a id="step-1-convert-your-model" href="#step-1-convert-your-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 1: Convert your model
+	</span>
+</h2>
+<p>First, you will need to convert your model to the <a href="https://docs.openvino.ai/2025/documentation/openvino-ir-format.html" rel="nofollow">OpenVINO IR</a>. There are multiple options to do it:</p>
+<ol>
+<li>You can use the <a href="https://huggingface.co/docs/optimum-intel/en/openvino/export#using-the-cli">Optimum CLI</a></li>
+</ol>
+<pre><code data-language="bash">optimum-cli export openvino -m HuggingFaceTB/SmolVLM2-256M-Video-Instruct smolvlm_ov/
+</code></pre>
+<ol start="2">
+<li>Or you can convert it <a href="https://huggingface.co/docs/optimum-intel/en/openvino/export#when-loading-your-model">on the fly</a> when loading your model:</li>
+</ol>
+<pre><code data-language="python">from optimum.intel import OVModelForVisualCausalLM
+
+model_id = "HuggingFaceTB/SmolVLM2-256M-Video-Instruct"
+model = OVModelForVisualCausalLM.from_pretrained(model_id)
+model.save_pretrained("smolvlm_ov")
+</code></pre>
+<h2>
+	<a id="step-2-quantization" href="#step-2-quantization" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 2: Quantization
+	</span>
+</h2>
+<p>Now it’s time to optimize your model. Quantization reduces the precision of the model weights and/or activations, leading to smaller, faster models. Essentially, it's a way to map values from a high-precision data type, such as 32-bit floating-point numbers (FP32), to a lower-precision format, typically 8-bit integers (INT8). While this process offers several key benefits, it can also impact in a potential loss of accuracy.</p>
+<p>
+  <img src="https://huggingface.co/datasets/OpenVINO/documentation/resolve/main/blog/openvino_vlm/quantization.png" alt="Quantization" width="700">
+</p>
+
+<p>Optimum supports two main post-training quantization methods:</p>
+<ul>
+<li><a href="https://huggingface.co/docs/optimum-intel/en/openvino/optimization#weight-only-quantization">Weight Only Quantization (WOQ)</a></li>
+<li><a href="https://huggingface.co/docs/optimum-intel/en/openvino/optimization#full-quantization">Static Quantization</a></li>
+</ul>
+<p>Let’s explore each of them.</p>
+<h3>
+	<a id="option-1-weight-only-quantization" href="#option-1-weight-only-quantization" rel="nofollow">
+		
+	</a>
+	<span>
+		Option 1: Weight Only Quantization
+	</span>
+</h3>
+<p>Weight-only quantization means that only the weights are quantized but activations remain in their original precisions. As a result, the model becomes smaller and more memory-efficient, improving loading times. But since activations are not quantized, inference speed gains are limited. Weight-only quantization is a simple first step since it usually doesn’t result in significant accuracy degradation.</p>
+<blockquote>
+<p>Since OpenVINO 2024.3, if the model's weight have been quantized, the corresponding activations will also be quantized at runtime, leading to additional speedup depending on the device.</p>
+</blockquote>
+<p>In order to run it, you will need to create a quantization configuration <code>OVWeightQuantizationConfig</code> as follows:</p>
+<pre><code data-language="python">from optimum.intel import OVModelForVisualCausalLM, OVWeightQuantizationConfig
+
+q_config = OVWeightQuantizationConfig(bits=8)
+q_model = OVModelForVisualCausalLM.from_pretrained(model_id, quantization_config=q_config)
+q_model.save_pretrained("smolvlm_int8")
+</code></pre>
+<p>or equivalently using the CLI:</p>
+<pre><code data-language="bash">optimum-cli export openvino -m HuggingFaceTB/SmolVLM2-256M-Video-Instruct --weight-format int8 smolvlm_int8/
+</code></pre>
+<h2>
+	<a id="option-2-static-quantization" href="#option-2-static-quantization" rel="nofollow">
+		
+	</a>
+	<span>
+		Option 2: Static Quantization
+	</span>
+</h2>
+<p>With Static Quantization, both weights and activations are quantized before inference. To achieve the best estimate for the activation quantization parameters, we perform a calibration step. During this step, a small representative dataset is fed through the model. In our case, we will use 50 samples of the <a href="https://huggingface.co/datasets/ucla-contextual/contextual_test">contextual dataset</a> and will apply static quantization on the vision encoder while weight-only quantization will be applied on the rest of the model. Experiments show that applying static quantization on the vision encoder provides a noticeable performance improvement without significant accuracy degradation. Since the vision encoder is called only once per generation, the overall performance gain from applying static quantization on this component is lower than the gain achieved by optimizing more frequently used components like the language model. Nevertheless, this approach can be beneficial in certain scenarios. For example, when short answers are needed, especially with multiple images as input.</p>
+<pre><code data-language="python">from optimum.intel import OVModelForVisualCausalLM, OVPipelineQuantizationConfig, OVQuantizationConfig, OVWeightQuantizationConfig
+
+q_config = OVPipelineQuantizationConfig(
+    quantization_configs={
+        "lm_model": OVWeightQuantizationConfig(bits=8),
+        "text_embeddings_model": OVWeightQuantizationConfig(bits=8),
+        "vision_embeddings_model": OVQuantizationConfig(bits=8),
+    },
+    dataset=dataset,
+    num_samples=num_samples,
+)
+q_model = OVModelForVisualCausalLM.from_pretrained(model_id, quantization_config=q_config)
+q_model.save_pretrained("smolvlm_static_int8")
+</code></pre>
+<p>Quantizing activations adds small errors that can build up and affect accuracy, so careful testing afterward is important. More information and examples can be found in <a href="https://huggingface.co/docs/optimum-intel/en/openvino/optimization#pipeline-quantization">our documentation</a>.</p>
+<h3>
+	<a id="step-3-run-inference" href="#step-3-run-inference" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 3: Run inference
+	</span>
+</h3>
+<p>You can now run inference with your quantized model:</p>
+<pre><code data-language="python">generated_ids = q_model.generate(**inputs, max_new_tokens=100)
+generated_texts = processor.batch_decode(generated_ids, skip_special_tokens=True)
+print(generated_texts[0])
+</code></pre>
+<p>If you have a recent Intel laptop, Intel AI PC, or Intel discrete GPU, you can load the model on GPU by adding <code>device="gpu"</code> when loading your model:</p>
+<pre><code data-language="python">model = OVModelForVisualCausalLM.from_pretrained(model_id, device="gpu")
+</code></pre>
+<p>We also <a href="https://huggingface.co/spaces/echarlaix/vision-langage-openvino">created a space</a> so you can play with the <a href="https://huggingface.co/echarlaix/SmolVLM2-256M-Video-Instruct-openvino">original model</a> and its quantized variants obtained by respectively applying <a href="https://huggingface.co/echarlaix/SmolVLM2-256M-Video-Instruct-openvino-8bit-woq-data-free">weight-only quantization</a> and <a href="https://huggingface.co/echarlaix/SmolVLM2-256M-Video-Instruct-openvino-8bit-mixed">mixed quantization</a>. This demo runs on 4th Generation Intel Xeon (Sapphire Rapids) processors.</p>
+<p>
+  <img src="https://huggingface.co/datasets/OpenVINO/documentation/resolve/main/blog/openvino_vlm/chat1.png" alt="HF Space" width="500">
+</p>
+
+<p>To reproduce our results, check out our <a href="https://github.com/huggingface/optimum-intel/blob/main/notebooks/openvino/vision_language_quantization.ipynb" rel="nofollow">notebook</a>.</p>
+<h2>
+	<a id="evaluation-and-conclusion" href="#evaluation-and-conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation and Conclusion
+	</span>
+</h2>
+<p>We ran a benchmark to compare the performance of the <a href="https://huggingface.co/HuggingFaceTB/SmolVLM2-256M-Video-Instruct">PyTorch</a>, <a href="https://huggingface.co/echarlaix/SmolVLM2-256M-Video-Instruct-openvino">OpenVINO</a>, and <a href="https://huggingface.co/echarlaix/SmolVLM2-256M-Video-Instruct-openvino-8bit-woq-data-free">OpenVINO 8-bit WOQ</a> versions of the original model. The goal was to evaluate the impact of weight-only quantization on latency and throughput on Intel CPU hardware. For this test, we used <a href="https://huggingface.co/datasets/OpenVINO/documentation/resolve/main/blog/openvino_vlm/flower.png">a single image</a> as input.</p>
+<p>We measured the following metrics to evaluate the model's performance:</p>
+<ul>
+<li>Time To First Token (TTFT) : Time it takes to generate the first output token.</li>
+<li>Time Per Output Token (TPOT): Time it takes to generate each subsequent output tokens.</li>
+<li>End-to-End Latency : Total time it takes to generate the output all output tokens.</li>
+<li>Decoding Throughput: Number of tokens per second the model generates during the decoding phase.</li>
+</ul>
+<p>Here are the results on Intel CPU:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Configuration</th>
+<th>Time To First Token (TTFT)</th>
+<th>Time Per Output Token (TPOT)</th>
+<th>End-to-End Latency</th>
+<th>Decoding Throughput</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>pytorch</td>
+<td>5.150</td>
+<td>1.385</td>
+<td>25.927</td>
+<td>0.722</td>
+</tr>
+<tr>
+<td>openvino</td>
+<td>0.420</td>
+<td>0.021</td>
+<td>0.738</td>
+<td>47.237</td>
+</tr>
+<tr>
+<td>openvino-8bit-woq</td>
+<td>0.247</td>
+<td>0.016</td>
+<td>0.482</td>
+<td>63.928</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>This benchmark demonstrates how small, optimized multimodal models, like <a href="https://huggingface.co/HuggingFaceTB/SmolVLM2-256M-Video-Instruct">SmolVLM2-256M</a>, perform on Intel CPUs across different configurations. According to the tests, the PyTorch version shows high latency, with a time to first token (TTFT) of over 5s with a decoding throughput of 0.7 tokens/s. Simply converting the model with Optimum and running it on OpenVINO drastically reduces the time to first token (TTFT) to 0.42s (<strong>x12</strong> speedup) and raises throughput to 47 tokens/s (<strong>x65</strong>). Applying 8-bit weight-only quantization further reduces TTFT (<strong>x1.7</strong>) and increases throughput (<strong>x1.4</strong>), while also reducing model size and improving efficiency.</p>
+<blockquote>
+<p><strong>Platform configuration</strong>
+Platform Configuration for performance claims above:</p>
+<p><strong>System Board:</strong> MSI B860M GAMING PLUS WIFI (MS-7E42)<br><strong>CPU:</strong> Intel® Core™ Ultra 7 265K<br><strong>Sockets/Physical Cores:</strong> 1/20 (20 threads)<br><strong>HyperThreading/Turbo Settings:</strong> Disabled<br><strong>Memory:</strong> 64 GB DDR5 @ 6400 MHz<br><strong>TDP:</strong> 665W<br><strong>BIOS:</strong> American Megatrends International, LLC. 2.A10<br><strong>BIOS Release Date:</strong> 28.11.2024<br><strong>OS:</strong> Ubuntu 24.10<br><strong>Kernel:</strong> 6.11.0–25-generic<br><strong>OpenVINO Version:</strong> 2025.2.0<br><strong>torch:</strong> 2.8.0<br><strong>torchvision:</strong> 0.23.0+cpu<br><strong>optimum-intel:</strong> 1.25.2<br><strong>transformers:</strong> 4.53.3<br><strong>Benchmark Date:</strong> 15.05.2025<br><strong>Benchmarked by:</strong> Intel Corporation
+Performance may vary by use, configuration, and other factors. See the platform configuration below.</p>
+</blockquote>
+<h2>
+	<a id="useful-links--resources" href="#useful-links--resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Useful Links &amp; Resources
+	</span>
+</h2>
+<ul>
+<li><a href="https://github.com/huggingface/optimum-intel/blob/main/notebooks/openvino/vision_language_quantization.ipynb" rel="nofollow">Notebook</a></li>
+<li><a href="https://huggingface.co/spaces/echarlaix/vision-langage-openvino">Try our Space</a></li>
+<li><a href="https://web.cvent.com/event/d550a2a7-04f2-4a28-b641-3af228e318ca/regProcessStep1?utm_campaign=speakers4&amp;utm_medium=organic&amp;utm_source=Community" rel="nofollow">Watch the webinar recording</a></li>
+<li><a href="https://huggingface.co/docs/optimum-intel/en/openvino/inference">Optimum Intel Documentation</a></li>
+</ul>
+<blockquote>
+
+<h2>
+	<a id="notices--disclaimers" href="#notices--disclaimers" rel="nofollow">
+		
+	</a>
+	<span>
+		Notices &amp; Disclaimers
+	</span>
+</h2>
+<p>Performance varies by use, configuration, and other factors. Learn more on the Performance Index site.
+Performance results are based on testing as of dates shown in configurations and may not reflect all publicly available updates. See backup for configuration details. No product or component can be absolutely secure. Your costs and results may vary. Intel technologies may require enabled hardware, software or service activation.
+© Intel Corporation. Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries.</p>
+</blockquote>
+</div></div>

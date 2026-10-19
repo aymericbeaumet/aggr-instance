@@ -1,4 +1,81 @@
-<p>Article URL: <a href="https://disconnect3d.pl//2026/10/02/dont-put-tilde-in-your-path/">https://disconnect3d.pl//2026/10/02/dont-put-tilde-in-your-path/</a></p>
-<p>Comments URL: <a href="https://news.ycombinator.com/item?id=50042425">https://news.ycombinator.com/item?id=50042425</a></p>
-<p>Points: 181</p>
-<p># Comments: 109</p>
+<div id="readability-page-1" class="page"><div>
+
+  
+
+  <article>
+  <p>I was playing with the <a href="https://nono.sh/">nono</a> agent sandboxing tool and it greeted me with a warning: <code>PATH entries the sandbox can write to: ~/.local/bin/</code> which looked suspicious.</p>
+
+<p><img src="https://disconnect3d.pl/assets/posts/tilde-in-path-nono-warning.png" alt="nono warning about PATH entries the sandbox can write to"></p>
+
+
+
+<p>In other words, doing this in your <code>~/.bashrc</code> or <code>~/.zshrc</code>:</p>
+
+<div><pre><code data-language="sh">export PATH="$PATH:~/.local/bin/"
+</code></pre></div>
+
+<p>will not expand the <code>~</code> (tilde) into the home path (or <code>$HOME</code>) as the tilde to home expansion happens only in unquoted inputs, as also the <a href="https://www.gnu.org/software/bash/manual/html_node/Tilde-Expansion.html">bash documentation says</a>:</p>
+
+<blockquote>
+  <p>If a word begins with an unquoted tilde character (‘~’), all of the characters up to the first unquoted slash (…) are considered a tilde-prefix. (…)</p>
+
+  <p>Bash checks each variable assignment for unquoted tilde-prefixes immediately following a ‘:’ or the first ‘=’, and performs tilde expansion in these cases. (…)</p>
+</blockquote>
+
+<p>So instead of having <code>/home/&lt;user&gt;/.local/bin/</code> added to <code>PATH</code> we end up with <code>./~/.local/bin/</code> added to <code>PATH</code>.</p>
+
+<p>And to fix this, we can do this:</p>
+<div><pre><code data-language="sh">export PATH="$PATH:$HOME/.local/bin/"
+</code></pre></div>
+
+<p>Note that the unquoted version <code>export PATH=$PATH:~/.local/bin</code> actually works in Bash and Zsh, because tilde expansion is also performed in variable assignments after <code>=</code> and after each <code>:</code>. But relying on that is fragile as for example, a whitespace will break the variable assignment.</p>
+
+<p>The problem can also be seen here:</p>
+
+<div><pre><code data-language="sh">$ ls -la
+total 0
+drwxr-xr-x@   2 dc  staff    64 Oct  2 13:37 .
+drwxr-x---+ 105 dc  staff  3360 Oct  2 13:37 ..
+$ mkdir -p ./~/.local/bin/
+$ printf '#include &lt;stdio.h&gt;\nint main() { puts("hello"); }'&gt;a.c; gcc a.c -o ./~/.local/bin/kek
+$ PATH="~/.local/bin/" kek
+hello
+$ tree -f
+.
+├── ./~
+│   └── ./~/.local
+│       └── ./~/.local/bin
+│           └── ./~/.local/bin/kek
+└── ./a.c
+
+4 directories, 2 files
+</code></pre></div>
+
+<p><img src="https://disconnect3d.pl/assets/posts/tilde-in-path.png" alt="Demo showing that a literal tilde in PATH resolves to a ./~/ directory in the current working directory"></p>
+
+<p>As we can see, the <code>kek</code> binary was found and executed from <code>./~/.local/bin/</code> — the home directory was never involved.</p>
+
+<h2 id="check-your-path">Check your PATH</h2>
+
+<p>You can quickly check whether you have this problem with:</p>
+
+<div><pre><code data-language="sh">$ echo "$PATH" | grep -- '~'
+</code></pre></div>
+
+<p>or, to see each entry on its own line:</p>
+
+<div><pre><code data-language="sh">$ echo "$PATH" | tr ':' '\n' | grep '~'
+~/.local/bin/
+</code></pre></div>
+
+<p>If it prints anything, go fix your <code>.bashrc</code>/<code>.zshrc</code>/<code>.profile</code> and replace the <code>~</code> with <code>$HOME</code> :).</p>
+
+<p>Btw, kudos to the nono tool for warning about this - even though the warning could be more verbose (PR incoming).</p>
+
+
+  
+
+  </article>
+
+
+</div></div>
