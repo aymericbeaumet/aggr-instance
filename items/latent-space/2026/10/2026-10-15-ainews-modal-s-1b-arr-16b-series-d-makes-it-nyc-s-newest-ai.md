@@ -6,15 +6,29 @@ published: 2026-10-15T10:08:08Z
 updated: 2026-10-15T10:08:08Z
 first_seen: 2026-10-15T14:23:03.950687001Z
 summary: Sandboxes are all you need.
-content: feed
+content: extracted
 html: 2026-10-15-ainews-modal-s-1b-arr-16b-series-d-makes-it-nyc-s-newest-ai.html
 remote_preview:
   url: https://substackcdn.com/image/youtube/w_728,c_limit/J-smU_ImO5g
 ---
 
+Sandboxes are all you need.
+
 Today Modal switches from our [infra unicorn](https://www.latent.space/p/ainews-new-ai-infra-unicorns-exa?utm_source=publication-search) category to [infra decacorn](https://www.latent.space/p/ainews-new-ai-infra-decacorns-fireworks?utm_source=publication-search). We last caught up with Modal CTO Akshat in July:
 
+[![Why AI Infrastructure must evolve for Agent Experience — Akshat Bubna, Modal CTO](https://substackcdn.com/image/fetch/$s_!_zJU!,w_140,h_140,c_fill,f_auto,q_auto:good,fl_progressive:steep,g_auto/https%3A%2F%2Fsubstack-video.s3.amazonaws.com%2Fvideo_upload%2Fpost%2F205716015%2Ffb38c4a8-f16f-4233-b4bc-1e1b17562d8f%2Ftranscoded-1783399000.png)](https://www.latent.space/p/modal2026)
+
 On the [last day of AIE NYC](https://www.youtube.com/watch?v=jiUC6IUMdvc), Akshat had a lot to share about the kind of infrastructure agents are needing for “*millions of concurrent sandboxes, launch RDMA clusters securely and elastically for distributed training, train state of the art speculators for inference, build a whole new sandbox runtime, and more*”:
+
+> Akshat Bubna @akshat\_b
+>
+> In early 2022, the first “real” @modal user was using us for processing large scale weather data. We were anxious about going up to them and asking them to pay ~$500 for continuing to run these jobs. (We thought it was a lot!) Obviously the numbers are much bigger now. But…
+>
+> > Modal @modal
+> >
+> > Today we're announcing that Modal has crossed $1B in annualized run rate, as well as raised a $750M Series D at a $15.75B valuation, led by @Accel. Since our Series C, usage has tripled and we’ve grown more than 15x year-over-year. We are deeply grateful to the developers and https://t.co/8KqHfbnwH4
+>
+> [@akshat_b on X](https://x.com/akshat_b/status/2110399545834176722)
 
 As Erik notes in [his fundraise post](https://x.com/bernhardsson/status/2110377648572563831):
 
@@ -25,10 +39,6 @@ We were at their recent (first?) user conference and Erik’s keynote is a great
 [www.youtube.com](https://www.youtube.com/watch?v=J-smU_ImO5g)
 
 > AI News for 10/13/2026-10/14/2026. We checked 12 subreddits, [544 Twitters](https://twitter.com/i/lists/1585430245762441216) and no further Discords. [AINews’ website](https://news.smol.ai/) lets you search all past issues. As a reminder, [AINews is now a section of Latent Space](https://www.latent.space/p/2026). You can [opt in/out](https://support.substack.com/hc/en-us/articles/8914938285204-How-do-I-subscribe-to-or-unsubscribe-from-a-section-on-Substack) of email frequencies!
-
-* * *
-
-# **AI Twitter Recap**
 
 **Gemini 4 Argon Launch: Capabilities, Rollout and a Weaker Monitorability Profile**
 
@@ -217,5 +227,3 @@ We were at their recent (first?) user conference and Erik’s keynote is a great
 - [OpenAI: EU enterprise shift to agents](https://x.com/OpenAI/status/2110442001749659890) — 2.0K
 
 - [Theo: Argon unusable for real code work](https://x.com/theo/status/2110461356935983257) — 2.0K
-
-[Read more](https://www.latent.space/p/ainews-modals-1b-arr-16b-series-d)

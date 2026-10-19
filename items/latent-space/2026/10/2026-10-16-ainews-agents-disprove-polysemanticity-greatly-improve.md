@@ -6,17 +6,23 @@ published: 2026-10-16T04:16:45Z
 updated: 2026-10-16T04:16:45Z
 first_seen: 2026-10-16T04:55:12.775129010Z
 summary: Nick Cammarata out of nowhere with some major claims!
-content: feed
+content: extracted
 html: 2026-10-16-ainews-agents-disprove-polysemanticity-greatly-improve.html
 remote_preview:
   url: https://substackcdn.com/image/fetch/$s_!riZI!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F50483d29-b6d4-485b-b93a-5b6a14e29ce6_2028x1228.png
 ---
 
+Nick Cammarata out of nowhere with some major claims!
+
 A version of [Muse Spark Open](https://news.ycombinator.com/item?id=50107379) was released today, [fulfilling their original promise](https://www.latent.space/p/ainews-muse-glimmer-and-spark-open) but with a model weaker than their Spark 1.3. It’s also worth watching the [Tesla Roadster](https://news.ycombinator.com/item?id=50112657) demo - not strictly AI but nothing cooler than real life flying cars.
 
 Our title story today is a rare one on interpretability and alignment. We last caught up with [Goodfire in Feb](https://www.latent.space/p/goodfire?utm_source=publication-search):
 
+[![The First Mechanistic Interpretability Frontier Lab — Myra Deng & Mark Bissell of Goodfire AI](https://substackcdn.com/image/fetch/$s_!ucWR!,w_140,h_140,c_fill,f_auto,q_auto:good,fl_progressive:steep,g_auto/https%3A%2F%2Fsubstack-video.s3.amazonaws.com%2Fvideo_upload%2Fpost%2F187000315%2Ffeac48d1-cfc4-4d71-821f-8f33fd5b0e37%2Ftranscoded-1770320510.png)](https://www.latent.space/p/goodfire)
+
 and [the bitter-lesson scaling of interpretability methods with Anthropic last year](https://www.latent.space/p/circuit-tracing?utm_source=publication-search):
+
+[![The Utility of Interpretability — Emmanuel Amiesen, Anthropic](https://substackcdn.com/image/fetch/$s_!CFKg!,w_140,h_140,c_fill,f_auto,q_auto:good,fl_progressive:steep,g_auto/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F2e8f892a-295b-4046-a0ce-0a7e78f4a393_2048x945.jpeg)](https://www.latent.space/p/circuit-tracing)
 
 And now Nick Cammarata at Goodfire has an [important essay](https://already-clean.goodfire.com/) out stating his working theory that “[Neural Networks Are Already Clean](https://already-clean.goodfire.com/)” — showing that many known cases of polysemanticity and superposition - causing tangled “knots” of weights that resist human interpretation - simply fall to further agentic analysis:
 
@@ -24,13 +30,29 @@ And now Nick Cammarata at Goodfire has an [important essay](https://already-clea
 
 Don’t take our word for it:
 
+> Deedy @deedydas
+>
+> This is one of the most important results in AI, period. TLDR: neural networks are not tangled knots (polysemanticity is wrong). You can study their own neurons directly, without first "unfolding" them with a second model. 90% of neurons in Qwen-32B have one job. Nick Cammarata…
+>
+> > Nick @nickcammarata
+> >
+> > interpretability might be the most important scientific problem in the world right now, as I don't think we can solve alignment if we don't know what we're building. I think I have good news about it. I co-authored early work in mechanistic interpretability at OpenAI and came
+>
+> [@deedydas on X](https://x.com/deedydas/status/2110785912074277221)
+
 and a global lowering of P(doom) seems worth celebrating:
 
+> roon @tszzl
+>
+> when nick told me that he had some interp breakthroughs, he was uh, underselling it. i think this may be remembered as a major moment in scientific history. news so good even eliezer will have to lower his pdoom. we can start making alignment into a 'normal science'
+>
+> > Nick @nickcammarata
+> >
+> > interpretability might be the most important scientific problem in the world right now, as I don't think we can solve alignment if we don't know what we're building. I think I have good news about it. I co-authored early work in mechanistic interpretability at OpenAI and came
+>
+> [@tszzl on X](https://x.com/tszzl/status/2110758311339729061)
+
 > AI News for 10/14/2026-10/15/2026. We checked 12 subreddits, [544 Twitters](https://twitter.com/i/lists/1585430245762441216) and no further Discords. [AINews’ website](https://news.smol.ai/) lets you search all past issues. As a reminder, [AINews is now a section of Latent Space](https://www.latent.space/p/2026). You can [opt in/out](https://support.substack.com/hc/en-us/articles/8914938285204-How-do-I-subscribe-to-or-unsubscribe-from-a-section-on-Substack) of email frequencies!
-
-* * *
-
-# **AI Twitter Recap**
 
 **Meta Releases Muse Spark Open, the Top-Scoring US Open-Weight Model**
 
@@ -206,16 +228,6 @@ and a global lowering of P(doom) seems worth celebrating:
 
 - [NVIDIA: Nemotron 3.5 Super VL](https://x.com/NVIDIAAI/status/2110749836450713896) — 4.7K
 
-* * *
-
-# **AI Reddit Recap**
-
-## **/r/LocalLlama + /r/localLLM Recap**
-
-### **1\. Frontier Open-Weight Agent Models**
-
 - **[Introducing Muse Spark Open: the most capable US open-weight model to date](https://www.reddit.com/r/LocalLLaMA/comments/1x6r9pz/introducing_muse_spark_open_the_most_capable_us/)** (Activity: 1594): **The [image](https://i.redd.it/4nv4g9cnvnvh1.png) is a benchmark table supporting Meta’s claim that Muse Spark Open is a top-tier US open-weight model:** `816B` **total parameters,** `42B` **active,** `1M` **context, and multimodal text/image/video/audio support. Muse Spark Open is highlighted as competitive or leading across agentic, reasoning, coding, and multimodal evaluations, including scores like** `61.8` **on JobBench,** `89.2` **on MCP-Atlas,** `26.1` **on HLE-Diamond, and** `50.0` **on ZeroBench, compared against models such as Inkling, Nemotron 3 Ultra, Qwen3.8, GLM 5.3, and Kimi K3. The post also emphasizes deployment practicality via SGLang Helion kernels, broad inference-engine support, Apple MLX optimization, and hosted/API availability.** Comments were mixed: users noted the model’s very large size and appreciated broad inference support, custom SGLang kernels, and NVFP4 availability, but several objected to Meta’s license/data posture and **safety post-training**. One technical commenter argued that heavy safety tuning could make it unsuitable for cybersecurity workflows, favoring GLM 5.3 as a similarly capable but less restricted alternative.
 
 -
-
-[Read more](https://www.latent.space/p/ainews-agents-disprove-polysemanticity)

@@ -1,4 +1,523 @@
-<p>Article URL: <a href="https://rea.tools/">https://rea.tools/</a></p>
-<p>Comments URL: <a href="https://news.ycombinator.com/item?id=50028275">https://news.ycombinator.com/item?id=50028275</a></p>
-<p>Points: 105</p>
-<p># Comments: 17</p>
+<div id="readability-page-1" class="page"><div id="main">
+      <div id="setup">
+          <div>
+            <p>Reverse engineering, with your coding agent</p>
+            <h2>Find out how<br>software works.</h2>
+            <p>
+              Ask your coding agent about an app, a game or a website. REA gives
+              it the tools to inspect the code behind the answer.
+            </p>
+            
+            <div>
+              <p>
+                <a href="https://rea.tools/showcase/">Showcases →</a> — investigations and
+                interactive demos.
+              </p>
+              <p>
+                <a href="https://rea.tools/blog/">Blog →</a> — methods and reconstruction notes.
+              </p>
+            </div>
+          </div>
+          <div id="install">
+              <h2>Set up REA</h2>
+              <p>Copy this into your coding agent:</p>
+              <div>
+                
+                <p>
+                  <span id="home-install-prompt">Install REA and connect it to this coding agent using
+                    <span translate="no">npx rea-agents@latest setup</span>.
+                    Show me the setup plan for approval, then verify the
+                    installation.</span>
+                </p>
+              </div>
+            </div>
+        </div>
+
+      <div id="what-is-re">
+          <p>
+            <h2>How it works</h2>
+          </p>
+          <p>
+            Reverse engineering means learning how software works by inspecting
+            the program itself. With REA, your agent can follow the code,
+            explain a feature and help you rebuild it.
+          </p>
+          <ol id="how-rea-helps">
+            <li>
+              <h3>Ask about one feature</h3>
+              <p>Give your agent a program or page and a question.</p>
+            </li>
+            <li>
+              <h3>Inspect the program</h3>
+              <p>REA returns code, references and runtime observations.</p>
+            </li>
+            <li>
+              <h3>Explain it, then try a change</h3>
+              <p>
+                Your agent uses the findings to explain or rebuild the feature.
+              </p>
+            </li>
+          </ol>
+          <details>
+            <summary>See the full Calculator investigation</summary>
+            <p>
+              Why does Calculator give 220 for
+              <span translate="no">200 + 10%</span>?
+            </p>
+            <figure>
+              <div data-step-comparison="">
+                <h3>
+                  Follow the instructions step by step
+                </h3>
+                
+                <div>
+                  <details open="">
+                    
+                    <pre><code>0x180124945: MOV EAX, dword ptr [R13 + 0x18]
+0x180124949: CMP EAX, 0x5c
+0x18012494c: JZ 0x180124aba
+0x180124952: CMP EAX, 0x5b
+0x180124955: JZ 0x180124aba
+0x18012495b: MOV EDX, 0x64
+0x180124960: LEA RCX, [RSP + 0x160]
+0x180124968: CALL 0x180122650
+0x18012496e: LEA RDX, [R13 + 0x160]
+0x180124975: LEA RCX, [RSP + 0x78]
+0x18012497a: CALL 0x180109720
+0x18012497f: MOV RSI, RAX
+0x180124982: MOV qword ptr [RSP + 0x28], RAX
+0x180124987: LEA RDX, [RSP + 0x160]
+0x18012498f: MOV RCX, RAX
+0x180124992: CALL 0x180123190
+; … value-copy instructions omitted …
+0x180124a14: MOV RDX, RDI
+0x180124a17: LEA RCX, [RSP + 0xf8]
+0x180124a1f: CALL 0x180109720
+0x180124a24: LEA R8, [RSP + 0x30]
+0x180124a29: MOV RDX, RAX
+0x180124a2c: LEA RCX, [RSP + 0xb8]
+0x180124a34: CALL 0x180123c10</code></pre>
+                  </details>
+                  
+                </div>
+                <p>
+                  <strong>You decode the instructions, follow the calls and
+                    reconstruct the calculation.</strong>
+                </p>
+              </div>
+              <div id="ask-your-agent">
+                <p>Ask your agent the same question</p>
+                <div>
+                  
+                  <p>
+                    <span id="home-analysis-prompt">Use REA to inspect Windows Calculator. Why does
+                      <span translate="no">200 + 10%</span> give 220?</span>
+                  </p>
+                  <div>
+                    <p>
+                      Example answer · based on the findings
+                    </p>
+                    <p>
+                      After +, the % button takes
+                      <strong>a percentage of the first number.</strong>
+                    </p>
+                    <p><code>10% of 200 = 20</code><strong>200 + 20 = 220</strong></p>
+                  </div>
+                </div>
+                <dl>
+                  <p>
+                    <dt>REA supplies</dt>
+                    <dd>
+                      The handler’s instructions, decompiled code and calls.
+                    </dd>
+                  </p>
+                  <p>
+                    <dt>Your agent explains</dt>
+                    <dd>
+                      Which branch applies, what it calculates and how to
+                      rebuild it.
+                    </dd>
+                  </p>
+                </dl>
+              </div>
+              <figcaption>
+                Selected assembly from the installed Calculator DLL. The
+                thoughts and reply illustrate the findings.
+                <a href="#calculator">Continue with the Calculator example ↓</a>
+              </figcaption>
+            </figure>
+          </details>
+        </div>
+
+      <div id="dinosaur">
+          <p>
+            Let’s try two examples: change a game’s speed, then rebuild
+            Calculator’s % button.
+          </p>
+          <div>
+            <p>Example 01 · Chrome’s dinosaur game</p>
+            <h2>Why does the dinosaur get faster?</h2>
+          </div>
+          <p>
+            The game gets faster as you run. To rebuild it with a speed control,
+            we first need to find out how the speed changes.
+          </p>
+          <div>
+            <div>
+              <h3>1. Ask about the speed</h3>
+              <div>
+                
+                <p>
+                  <span id="dino-analysis-prompt">Use REA to inspect this dinosaur game. Why does it get
+                    faster? Show the speed rule, then build a small version with
+                    an adjustable speed.</span>
+                </p>
+              </div>
+              <h3>2. Find the speed rule</h3>
+              <p>
+                REA lets the agent read the game’s running code. The speed
+                starts at 6 and increases a little each update while it is below
+                13.
+              </p>
+            </div>
+            <div>
+              <h3>3. Play the result</h3>
+              <p>
+                We rebuilt that rule in the mini-game below and added a speed
+                slider. Press Play, then choose your own speed.
+              </p>
+              <figure data-dino-demo="">
+                <p>
+                  
+                  
+                </p>
+                
+                <p data-dino-status="" role="status">
+                  Original rule: start at 6, then increase toward 13.
+                </p>
+                <figcaption>
+                  Move the slider to set your own speed. Space or Jump clears a
+                  cactus.
+                </figcaption>
+                <p>
+                    Enable JavaScript to play. You can still read the rule and
+                    open the source code below.
+                  </p>
+              </figure>
+              <p><a href="https://rea.tools/examples/dino-lab/">Open the speed lab →</a></p></div>
+          </div>
+          <details>
+            <summary>
+              See the script, checks and how to try the analysis
+            </summary>
+            <p>
+              Inspected target:
+              <a href="https://wayou.github.io/t-rex-runner/">wayou’s Chromium-derived browser edition</a>.
+            </p>
+            <div>
+              
+              <pre><code>if (this.currentSpeed &lt; this.config.MAX_SPEED) {
+  this.currentSpeed += this.config.ACCELERATION;
+}</code></pre>
+            </div>
+            <p>
+              Start at 6. Add 0.001 each update without a collision, while speed
+              is below 13.
+            </p>
+            <figure>
+              <p>What each part does</p>
+              <ol>
+                <li>
+                  <span>01 · REA</span><span>Read the running game’s script</span><span>Return its actual code and settings to the agent.</span>
+                </li>
+                <li>
+                  <span>02 · Your agent</span><span>Rebuild the rule, add a control</span><span>Use the recovered acceleration in a small game with a speed
+                    slider.</span>
+                </li>
+                <li>
+                  <span>03 · You</span><span>Change the speed and play</span><span>Try the original acceleration, then choose your own
+                    pace.</span>
+                </li>
+              </ol>
+            </figure>
+            <p>
+              REA inspected the HTTP browser edition through a local debugging
+              connection and returned the loaded <code>index.js</code>,
+              including its source and digest.
+            </p>
+            <div>
+              
+              <pre><code>ACCELERATION: 0.001,
+MAX_SPEED: 13,
+SPEED: 6</code></pre>
+            </div>
+            <p>
+              We called the original game’s update function in a controlled
+              browser check, with obstacles and automatic scheduling disabled.
+              After 4,000 updates, speed was 10.0; after 10,000, it was 13.0,
+              rounded to one decimal.
+            </p>
+            <p>
+              The new mini-game keeps that speed rule. Its drawing, jumping and
+              collision code are a small teaching implementation.
+              <a href="https://rea.tools/examples/dino-lab/">Open the lab</a> to see the new code
+              and run the same speed check.
+            </p>
+            <p>
+              To inspect the target yourself, follow the
+              <a href="https://rea.tools/guides/browser/#prepare">browser connection steps</a>
+              using
+              <a href="https://wayou.github.io/t-rex-runner/">the dinosaur page</a>. Give your agent that page URL and your local debugging
+              endpoint, then copy the prompt above.
+            </p>
+            <p>
+              <a href="https://github.com/wayou/t-rex-runner/blob/5455bfa408ec6b707c7300ff194b7390733a766d/index.js#L565-L571">Inspected speed code</a>
+              ·
+              <a href="https://rea.tools/assets/licenses/dinosaur.txt">Chromium Authors · BSD license</a>
+            </p>
+          </details>
+        </div>
+
+      <div id="calculator">
+          <div>
+            <p>Example 02 · Windows Calculator</p>
+            <h2>Rebuild Calculator’s % button.</h2>
+          </div>
+          <p>
+            The % button does different things after + and ×. Let’s find both
+            rules and try them in a small calculator.
+          </p>
+          <div>
+            <div>
+              <h3>1. Ask about the % button</h3>
+              <div>
+                
+                <p>
+                  <span id="calculator-analysis-prompt">Use REA to inspect Windows Calculator’s % button. Recover
+                    the rules after + and ×, then build a small calculator that
+                    uses both.</span>
+                </p>
+              </div>
+              <h3>2. Find both rules</h3>
+              <p>
+                REA helps the agent read the code behind the % button. It
+                applies two different rules:
+              </p>
+              <dl>
+                <p>
+                  <dt>With +</dt>
+                  <dd>
+                    <span>Take 10% of the first number.</span><code>10% of 200 = 20 → 200 + 20 = 220</code>
+                  </dd>
+                </p>
+                <p>
+                  <dt>With ×</dt>
+                  <dd>
+                    <span>Turn 10% into 0.1.</span><code>200 × 0.1 = 20</code>
+                  </dd>
+                </p>
+              </dl>
+            </div>
+            <div>
+              <h3>3. Try the % button</h3>
+              <p>
+                We recreated both rules below. Choose + or ×, press %, then
+                press =.
+              </p>
+              <figure data-percent-demo="">
+                
+                <p><span data-percent-expression="">200 +</span>
+                  <strong data-percent-display="">20</strong></p>
+                
+                <p data-percent-status="" role="status">
+                  10% of 200 = 20. Then 200 + 20 = 220.
+                </p>
+                <figcaption>
+                  Interactive illustration of the inspected percentage rule.
+                </figcaption>
+              </figure>
+            </div>
+          </div>
+          <details>
+            <summary>See the real code and how the answer was checked</summary>
+            <p>
+              For this example, <code>previous = 200</code> and
+              <code>current = 10</code>.
+            </p>
+            <div>
+              
+              <pre><code>if (operation == multiply || operation == divide) {
+  percent = current / 100;
+} else {
+  percent = current * previous / 100;
+}</code></pre>
+            </div>
+            <figure>
+              <p>
+                From the installed app to a working % button
+              </p>
+              <ol>
+                <li>
+                  <span>01 · REA reads <span translate="no">calc.exe</span></span><span>It launches the Calculator app</span><span>The code opens <code>ms-calculator:</code>. The agent then
+                    selects the installed app’s library.</span>
+                </li>
+                <li>
+                  <span>02 · REA reads the library</span><span>Return the % handler’s code</span><span>The function checks the operator and uses the constant
+                    <code>100</code>.</span>
+                </li>
+                <li>
+                  <span>03 · Your agent interprets it</span><span>Explain and reproduce the rules</span><span>Crosscheck the branch with Microsoft’s source, then try +
+                    and × above.</span>
+                </li>
+              </ol>
+            </figure>
+
+            <div>
+              <div>
+                
+                <pre><code>0x180124945: MOV EAX, dword ptr [R13 + 0x18]
+0x180124949: CMP EAX, 0x5c
+0x18012494c: JZ 0x180124aba
+0x180124952: CMP EAX, 0x5b
+0x180124955: JZ 0x180124aba
+0x18012495b: MOV EDX, 0x64</code></pre>
+              </div>
+              <div>
+                
+                <pre><code>#define IDC_MUL 92      // 0x5c
+#define IDC_DIV 91      // 0x5b
+#define IDC_PERCENT 118 // 0x76
+
+0x64 = 100</code></pre>
+              </div>
+            </div>
+
+            <p>
+              Inspected with REA 4.1.0: Windows Calculator 11.2508.4.0, x64. The
+              readable summary uses names from Microsoft’s public source to
+              explain the recovered branch.
+            </p>
+            <p>
+              <a href="https://github.com/microsoft/calculator/blob/d125246a4e19842ce1332e6c7839cf0e110027d8/src/CalcManager/CEngine/scifunc.cpp#L98-L111">Percentage implementation</a>
+              ·
+              <a href="https://github.com/microsoft/calculator/blob/d125246a4e19842ce1332e6c7839cf0e110027d8/src/CalculatorUnitTests/CalculatorManagerTest.cpp#L350-L370">Microsoft’s test cases</a>
+              · <a href="https://rea.tools/guides/native/">Native setup guide</a>
+            </p>
+          </details>
+        </div>
+
+      <div id="showcases">
+          <div>
+            <div>
+              <h2>REA case studies.</h2>
+              <p>
+                Explore a feature in a released app or game, with code and
+                checked results.
+              </p>
+            </div>
+            <p><a href="https://rea.tools/showcase/">Showcases →</a></p></div>
+          <div>
+            <article>
+              <p>Android · APK analysis</p>
+              <h3>How an authenticator generates a login code</h3>
+              <p>
+                Trace Aegis's six-digit login code through its released APK,
+                then move a demo clock to see why it changes every 30 seconds.
+              </p>
+              <a href="https://rea.tools/showcase/aegis/">Read the Android case study</a>
+            </article>
+            <article>
+              <p>Electron · Feature tracing</p>
+              <h3>How Notion copies text and HTML</h3>
+              <p>
+                Follow Notion's packaged JavaScript to the system clipboard and
+                see how a copy preserves rich block data.
+              </p>
+              <a href="https://rea.tools/showcase/notion/">Read the Notion case study</a>
+            </article>
+            <article>
+              <p>Native · Reconstruction</p>
+              <h3>DX-Ball's sound-pan calculation</h3>
+              <p>
+                Recover how a ball's position becomes left/right sound in a 1996
+                Windows game.
+              </p>
+              <a href="https://rea.tools/showcase/dx-ball/">Read the DX-Ball case study</a>
+            </article>
+          </div>
+        </div>
+
+      <div id="try-rea">
+          <div>
+            <p>Your first investigation</p>
+            <h2>Try REA on a small app.</h2>
+            <p>
+              Download our Notes example, trace its CSV export, and check one
+              changed input.
+            </p>
+          </div>
+          <p><a href="https://rea.tools/first-investigation/">Try the guided example</a></p></div>
+
+      <div id="analyze">
+          <div>
+            <h2>Choose your target.</h2>
+            <p>
+              These guides cover setup and a first investigation for each kind
+              of software.
+            </p>
+          </div>
+          <div id="analysis-guides">
+            <div>
+              <h3>Native binaries</h3>
+              <p>
+                Inspect functions, strings, references and call relationships in
+                executables and libraries.
+              </p>
+              <p><a href="https://rea.tools/guides/native/">Native analysis guide</a></p></div>
+            <div>
+              <h3>JavaScript &amp; Electron</h3>
+              <p>
+                Map modules, routes, IPC and native dependencies from an
+                application folder or ASAR archive.
+              </p>
+              <p><a href="https://rea.tools/guides/javascript/">Application workflows</a></p></div>
+            <div>
+              <h3>Browser &amp; runtime activity</h3>
+              <p>
+                Capture selected browser or process activity, then compare the
+                results across runs.
+              </p>
+              <p><a href="https://rea.tools/guides/browser/">Browser observation guide</a></p></div>
+          </div>
+          <details id="project-prompts">
+            <summary>Try a larger project</summary>
+            <div>
+              <div>
+                <div>
+                  
+                  <p>
+                    <span id="website-project-prompt">Use REA to inspect
+                      <span translate="no">https://rea.tools/</span>. Clone this
+                      website for me.</span>
+                  </p>
+                </div>
+                <p>Yes, this one.</p>
+              </div>
+              <div>
+                <div>
+                  
+                  <p>
+                    <span id="game-project-prompt">Use REA to reconstruct this game from its executable.
+                      Recover the gameplay logic in C and test it against the
+                      original.</span>
+                  </p>
+                </div>
+                <p>
+                  <a href="https://rea.tools/showcase/dx-ball/">See the DX-Ball case study →</a>
+                </p>
+              </div>
+            </div>
+          </details>
+        </div>
+      
+    </div></div>

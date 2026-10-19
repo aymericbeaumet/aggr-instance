@@ -1,1 +1,79 @@
-<p><a href="https://lobste.rs/s/ucwapn/calling_function_c_without_naming_it">Comments</a></p>
+<div id="readability-page-1" class="page"><div>
+            <p>My school has a controlled remote code execution environment to automatically grade the code we submit. The system checks execution, verifies proper formatting and surely has other checks not shown to the user (e.g. a code plagiarism detection tool<sup><a href="#gconf-plagiarism">1</a></sup>). The interface reports results mismatches and compilation errors.</p>
+<p>A friend and I started to search for a way to have a single solution that could solve every exercise. The first step in that direction was to have a primitive that could give us arbitrary shell code execution. We assumed there would be an <code>sh</code> binary on the grading <a rel="external" href="https://en.wikipedia.org/wiki/Virtual_machine"><em>VM</em></a> such that we could simply call <a rel="external" href="https://en.wikipedia.org/wiki/Exec_(system_call)"><code>execve</code></a>.</p>
+<p>So... are we done? You guessed it, no.</p>
+<p>Remember when I told that the grading system had other sanity checks? Well, one of them is to check that you only use functions allowed in the subject of the exercise. And <code>execve</code> is never one of them, so it fails the submission before your code even gets to run. From what we experienced, the system is a little more involved than a simple <code>grep</code> of the source code. My guess is that it uses <code>clang</code> to pre-process and parse the code and then does its checks against the resulting <a rel="external" href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">AST</a>.</p>
+<p>This is where we get to the core of the problem. We need to call <code>execve</code> but we are not allowed to name the symbol. So how can we do it?</p>
+<p>Zooming back a bit, we know that our C code essentially gets compiled to a binary and calling a function boils down to a jump to some place in memory. Could we not retrieve the address of <code>execve</code> in memory, hardcode it in our program and call it directly?</p>
+<p>In modern laptop software, memory addresses are often execution-dependent. This happens because modern kernels implement <a rel="external" href="https://en.wikipedia.org/wiki/Address_space_layout_randomization"><em>Address Space Layout Randomization</em> (ASLR)</a> which randomizes addresses at which your binary, its libraries, heap and stack are placed. Nowadays, C code compiles using the <code>-pie</code> flag by default, this creates a <a rel="external" href="https://en.wikipedia.org/wiki/Position-independent_code#Position-independent_executables"><em>position-independent executable</em></a> and means that your binary can indeed take advantage of <em>ASLR</em>. We could use the <code>-no-pie</code> C compiler flag to disable this behavior and force fixed addresses for functions in our binary. This doesn't help because we most often do not control the build process in our case. Second, the <code>execve</code> function is not directly part of our executable but dynamically loaded, so it still is at a random place.</p>
+
+<p>Static addresses won't work. But <em>ASLR</em> only acts on the mapping of the segments, their content is left intact. Inside a segment, functions are still ordered in the same way. If we manage to know the static offset between the memory addresses of two functions f<sub>A</sub> and f<sub>B</sub>, obtaining the address of f<sub>A</sub> allows us to construct the address of f<sub>B</sub> and vice-versa.</p>
+<p>The offset varies from a machine to another because of a different version of the C library, or maybe a different architecture, or maybe for some other reason. There are multiple ways to obtain the fixed offset between two functions on the target machine. One of them is to just leak the offset in an exercise where you can name symbols of both f<sub>A</sub> and f<sub>B</sub>.</p>
+<p>Our target function is still <code>execve</code> which is part of <code>libc</code>. We assume we always have access to <code>printf</code>. We just have to leak the offset between the two functions on the VM. Let's test this locally first:</p>
+<pre><code data-language="c">printf("%td", (ptrdiff_t)((size_t)execve - (size_t)printf));</code></pre>
+<p>Running the program a couple of times gives us different results. Didn't we just say that the offset was fixed? Let's open the binary to investigate.</p>
+<pre><code data-language="plain">$ objdump --dynamic-syms ./offset | grep -E "\s(execve|printf)"
+0000000000000000      DF *UND*	0000000000000000 (GLIBC_2.2.5) execve
+000000000004dd64  w   DF .text	0000000000000005  Base        printf</code></pre>
+<p><code>objdump</code> is useful for any kind of object file analysis.  The <code>--dynamic-syms</code> option gives information about each symbol that will be loaded at runtime. The sixth column gives us a bit of information about where the symbol comes from. <code>execve</code> indeed comes from <code>glibc</code>, which is the implementation of the C standard library available on my laptop. But <code>printf</code> doesn't seem to come from <code>glibc</code>. Actually, the raw output of <code>objdump</code> has a bunch of <code>__interceptor_*</code> symbols which gives a clue on what's going on here.</p>
+<p>Since the beginning, I have been compiling all my code with <a rel="external" href="https://en.wikipedia.org/wiki/Code_sanitizer">ASan</a> (a.k.a <code>-fsanitize=address</code>) to catch memory errors early. <em>ASan</em> works by replacing a bunch of code, including memory reads and write, by a bunch of slow function calls that check the correctness of each action. It also replaces a bunch of functions in the C standard library like <code>malloc</code> or <code>printf</code>. By doing so, these functions do not live in the <code>glibc</code> object anymore as opposed to functions that aren't replaced, in our case <code>execve</code>. The automatic grader system also happens to check for memory errors and compiles with <em>ASan</em>.</p>
+<p>We could try to use a different symbol than <code>printf</code> that lives in the same segment as <code>execve</code>, but we still need a symbol that is allowed most of the time. Most of these symbols live in the <em>ASan</em> replaced segment, so let's commit to it. Maybe <code>execve</code> is not the only way. Looking for other useful symbols in this segment, <code>mmap</code> catches my eye.</p>
+<p>Why is <code>mmap</code> special? Because of the <a rel="external" href="https://en.wikipedia.org/wiki/W%5EX">W^X (write-xor-execute)</a> security policy, there is no section of memory that is writable and executable at the same time. Thus we cannot just write raw x86 instructions in a buffer and jump to it as if it was a function nor can we overwrite an existing function with our own code. But <code>mmap</code> solves this problem because we can just tell it to give us a page that has write and execute permissions.</p>
+<p>But let's not get ahead of ourselves. We can leak the offset between <code>printf</code> and <code>mmap</code> on the VM via another exercise where we can name both symbols. To use the offset we could use a bunch of casts but the code we hand to the grading system has to compile with <code>-pedantic</code> and this disallows cast from, to and between function pointers types. Because function pointers are still pointers in the end, we can try to modify it without the compiler noticing. I started to modify memory based on unoptimized stack slots<sup><a href="#stack-snippet">2</a></sup> but I was reminded that in C, <em>unsafety is a feature</em>, so we can actually just use unions.</p>
+<pre><code data-language="c">union notmmap_build {
+  int (*basefn)(const char *);
+  size_t addr;
+  void *(*fn)(void *addr, size_t length, int prot, int flags, int fd,
+              long offset);
+};
+
+union notmmap_build notmmap = {.basefn = printf};
+notmmap.addr += OFFSET; // whatever offset you leaked earlier</code></pre>
+<p>We can just make a bad x86 assembly routine that lets us make Linux syscalls as if it was a C function. This routine allows us to call any syscall with up to 3 arguments.</p>
+<pre><code data-language="plain">000000000040106a &lt;notsyscall&gt;:
+  40106a:	48 89 f8             	mov    %rdi,%rax
+  40106d:	48 89 f7             	mov    %rsi,%rdi
+  401070:	48 89 d6             	mov    %rdx,%rsi
+  401073:	48 89 ca             	mov    %rcx,%rdx
+  401076:	0f 05                	syscall
+  401078:	c3                   	ret</code></pre>
+<p>Copy those bytes into a newly mapped writable and executable page.</p>
+<pre><code data-language="c">unsigned char instructions[] = {
+  0x48, 0x89, 0xf8, 0x48, 0x89, 0xf7, 0x48, 0x89,
+  0xd6, 0x48, 0x89, 0xca, 0x0f, 0x05, 0xc3,
+};
+
+char *code =
+  notmmap.fn(NULL, 4096, PROT_READ | PROT_WRITE | PROT_EXEC,
+             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);</code></pre>
+<p>And call our routine as if nothing happened. You can check <a rel="external" href="https://www.chromium.org/chromium-os/developer-library/reference/linux-constants/syscalls/">chromium syscall docs</a> for the arguments Linux expects.</p>
+<pre><code data-language="c">char *argv[] = {
+    "/bin/sh",
+    "-c",
+    "echo 'Hello, World!'",
+    NULL,
+};
+
+union notsyscall_build {
+  char *ptr;
+  // execve is syscall 59 on x86-64 Linux
+  int (*notexecve)(int sys, char *path, char **argv, char **envp);
+};
+
+union notsyscall_build notsyscall = {.ptr = code};
+
+notsyscall.notexecve(59, argv[0], argv, NULL);</code></pre>
+<p>Running it on the target VM successfully prints <code>Hello, World!</code>.</p>
+<p>You can find the finished proof-of-concept <a rel="external" href="https://github.com/mrnossiom/learning-asm/tree/802b8374e24bde9f699cc6c88520ed13e0a245fa/execve">on GitHub</a>.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Because we know our code is compiled with <code>ASan</code>, we chose to leak the offset between <code>printf</code>, a function that is always allowed, and <code>mmap</code>, a function that gives us arbitrary assembly code execution. We can thus bypass the school's checks and call any syscall, in our case <code>execve</code> to get shell access.</p>
+<p>We did not investigate further and simply reported this possible issue to the school.</p>
+<p>I see no trivial way of patching this. As we've seen <em>ASLR</em> is not going to help here. One possible idea would be to relink the C standard library with a different order for each execution, randomizing the functions order each time (OpenBSD does that at boot time <a rel="external" href="https://isopenbsdsecu.re/mitigations/libc_symbols_randomization/">here</a>). But, you have to keep in mind that <em>ASan</em> still replaces functions with its own (so it doesn't mitigate anything here).</p>
+<p>The exploit is not that complicated but it was fun to understand the whole process by ourselves. It's in these kind of moment that all the rabbit holes you followed finally click together and help you move forward. Also the simplicity of the exploit resides in the fact that we already have quite liberal remote code execution (as a feature). Still, it involves <em>ASLR</em> bypass and requires a fair amount of understanding of what is going on.</p>
+<p>Discuss this article on <a rel="external" href="https://lobste.rs/s/ucwapn/calling_function_c_without_naming_it">Lobsters</a>, <a rel="external" href="https://news.ycombinator.com/item?id=50005719">Hacker News</a> or <a rel="external" href="https://www.reddit.com/r/cprogramming/comments/1x1itzo/calling_a_function_in_c_without_naming_it/">Reddit</a>.</p>
+<hr>
+<div id="gconf-plagiarism"><p><sup>1</sup></p><p>You can <a rel="external" href="https://www.youtube.com/watch?v=kc5P3ep3ViQ">watch a talk</a> about it (in French) from the research lab of the school.</p>
+</div>
+
+
+        </div></div>

@@ -1,1 +1,310 @@
-<p><a href="https://lobste.rs/s/fpcicg/last_rites_for_gentoo_s_chromium_package">Comments</a></p>
+<div id="readability-page-1" class="page"><div><main>
+<blockquote>
+<b>Did you know...?</b>
+<p>
+LWN.net is a subscriber-supported publication; we rely on subscribers
+       to keep the entire operation going.  Please help out by <a href="https://lwn.net/Promo/nst-nag4/subscribe">buying a subscription</a> and keeping LWN on the
+       net.
+</p></blockquote>
+
+<p><a href="https://www.chromium.org/Home/">Chromium</a>, the open-source
+upstream project for Google's Chrome web browser, is the browser of choice for
+many Linux users. It has also gained a reputation as being <a href="https://lwn.net/Articles/619158/">difficult for Linux distributions to
+package and build</a>: Chromium has a complex build system, the project bundles
+many of its dependencies, and it has frequent releases. All of that, plus user
+complaints, has led the maintainers of the <a href="https://packages.gentoo.org/packages/www-client/chromium">Gentoo Chromium
+package</a> to give up on trying to maintain the package.</p>
+
+<p>Gentoo focuses on allowing users to build their own software from source
+using the <a href="https://wiki.gentoo.org/wiki/Handbook:X86/Working/Portage">Portage</a>
+software-management tool. Gentoo packagers create <a href="https://wiki.gentoo.org/wiki/Ebuild">ebuild</a> files, which are text
+files written in a Bash-like syntax that contain the information needed by
+Portage to build the software. Users then build packages themselves using <a href="https://wiki.gentoo.org/wiki/Emerge"><code>emerge</code></a>, which is the
+command-line interface for Portage. <a href="https://github.com/gentoo-mirror/gentoo/blob/stable/www-client/chromium/chromium-151.0.7922.169-r1.ebuild">A
+recent ebuild for Chromium</a> illustrates the complexity of the package.</p>
+
+<p>Gentoo does offer prebuilt binary packages for some software via its <a href="https://wiki.gentoo.org/wiki/Project:Binhost">Binhost</a>
+project. However, building from source gives users the flexibility to declare <a href="https://wiki.gentoo.org/wiki/USE_flag"><code>USE</code> flags</a> to set compile-time
+options or change a package's configuration. For example, a user may wish to
+specify which optional libraries are linked with a package, or whether to
+install the accompanying documentation. With Chromium in particular, a
+user might employ the <code>-bundled-toolchain</code> <code>USE</code> flag (which tells Portage
+<em>not</em> to use the bundled toolchain) in order to use their
+system's version of Clang to compile Chromium rather than the <a href="https://chromium.googlesource.com/chromium/src/+/90.0.4430.72/docs/clang_sheriffing.md">bundled
+version included by the upstream project</a>. That is optional for Gentoo users
+on x86-64 systems, but <code>-bundled-toolchain</code> is required for users on
+other architectures, since Chromium's bundled toolchain is only shipped for
+x86-64.</p>
+
+<p>It is worth noting that Chromium is currently not available as a binary
+package from Gentoo due to problems with building the package with proprietary
+codecs.</p>
+
+<h4>Last rites</h4>
+
+<p>Many distributions, including Arch Linux, Debian, and Fedora, use the term
+"orphan" to refer to packages that have been abandoned by their maintainer; the
+developer announces that a package has been orphaned, and other contributors
+have the opportunity to claim maintainership of it if they wish to do
+so. Gentoo's terminology is a bit more dramatic: a package maintainer announces
+"last rites" for a package on the gentoo-dev-announce mailing list to notify the
+project that it will be unmaintained, and as an opportunity to allow other
+developers to claim maintainership.</p>
+
+<p>After a developer has declared last rites, the package's ebuild is <a href="https://wiki.gentoo.org/wiki/Knowledge_Base:Masking_a_package">masked</a>
+in <a href="https://wiki.gentoo.org/wiki/Ebuild_repository#The_Gentoo_ebuild_repository">Gentoo's
+ebuild repository</a> to ensure that users will not accidentally install a
+package that is no longer being maintained. Users who have the package installed
+and attempt an upgrade will receive a warning that it has been masked. Chromium
+package maintainer Sam James <a href="https://lwn.net/ml/all/87ld8rb0p1.fsf%40gentoo.org/">declared last rites
+for the Chromium package</a> on September 24, after a lengthy conversation in a
+<a href="https://bugs.gentoo.org/982204">bug report filed by Roman
+Žilka</a>.</p>
+
+<p>On September&nbsp;9, Žilka <a href="https://bugs.gentoo.org/982204#c0">had
+complained</a> that the latest stable version of the Chromium ebuild was
+outdated:</p>
+
+<blockquote>
+The latest stable www-client/chromium (and google-chrome and possibly others)
+is&nbsp;151.0.7922.169, which contains a catastrophic 602&nbsp;known
+vulnerabilities of all severities. Measures need to be taken by somebody
+qualified that this doesn't keep happening in packages as important as
+these.
+</blockquote>
+
+<p>He had attached <a href="https://982204.bugs.gentoo.org/attachment.cgi?id=970220">an ebuild for a
+newer version of Chromium</a> to the bug report, but noted that it would not work
+if a user tried to compile Chromium with the <code>-bundled-toolchain</code> <code>USE</code>
+flag.</p>
+
+<p>James <a href="https://bugs.gentoo.org/982204#c5">replied</a>, "<q>Chromium
+is horrible to maintain as a source package. It is easily the package in Gentoo
+that burns through maintainers the most.</q>" Complaining about its maintenance
+isn't helpful, he said, and added that the maintainers have come close to
+giving Chromium last rites several times over the years due to the difficulty in
+keeping it up to date. He also noted that he had mentioned this to Žilka before,
+and said that it would be welcome if he wanted to assist with the package.</p>
+
+<p>Indeed, Žilka had <a href="https://bugs.gentoo.org/980389">filed a similar
+bug</a> in August complaining about the number of vulnerabilities present in the
+Chromium ebuild; James had <a href="https://bugs.gentoo.org/980389#c1">replied then</a> that the package had always
+been difficult to maintain, "<q>and now they've added Go</q>" as a dependency as
+well. Prior to that, Žilka had shown up in a <a href="https://bugs.gentoo.org/show_bug.cgi?id=CVE-2025-14372">bug report filed
+by Matt Jolly about Chromium vulnerabilities</a> to <a href="https://bugs.gentoo.org/show_bug.cgi?id=CVE-2025-14372#c4">complain</a>
+that "<q>the update process needs fixing, so that events like these don't happen
+again in packages as critical as these!</q>"</p>
+
+<p>Jolly had <a href="https://bugs.gentoo.org/show_bug.cgi?id=CVE-2025-14372#c7">replied</a>
+that the maintainers are a team of volunteers who do their best, but "<q>build
+failures, human factors ('I messed up assigning the bug and automation didn't
+pick it up'), and my own limited free time are the biggest causes of
+delays</q>". The best way to change the situation, he said, would be for Žilka to
+volunteer his help.</p>
+
+<h4>Trial and error</h4>
+
+<p>There are various third-party repositories, called <a href="https://wiki.gentoo.org/wiki/Project:Overlays">overlays</a>, 
+that provide additional and alternative ebuilds for Gentoo. On
+September&nbsp;11, Nick Reale <a href="https://bugs.gentoo.org/982204#c11">said</a> that he had tried ebuilds for
+a newer version of Chromium from the <a href="https://obentoo.org/v/v3e/">Bentoo</a> and <a href="https://github.com/FireBurn/Overlay">Fireburn</a> overlays, but he
+couldn't get either one to work. A few days later he <a href="https://bugs.gentoo.org/982204#c16">reported success</a> with Bentoo's
+ebuild and a specific set of <code>USE</code> flags. There was some follow-on discussion from
+Reale and François Valenduc about various incantations they were able to use to
+compile an updated version of Chromium on Gentoo from other ebuilds.
+On September&nbsp;18, Valenduc <a href="https://bugs.gentoo.org/982204#c20">commented</a> that version
+153.0.8010.47 of Chromium was out, and that version was already available in
+Arch Linux, openSUSE, SUSE, and Ubuntu. "<q>We are still waiting for Gentoo
+despite all the proposals made here.</q>"</p>
+
+<p>James <a href="https://bugs.gentoo.org/982204#c21">replied</a> 
+that none of the maintainers have had a chance to look into
+the problems with the Chromium package yet. He said that the patches and
+ebuilds that had been submitted with the bug report were "<q>useful and
+appreciated, but it's not as simple as just grabbing it and committing
+it</q>". Users would complain, he said, if the maintainers had not tested the
+ebuilds and it broke on their systems.</p>
+
+<blockquote>
+It'll get done when it's done, but it's more likely to be last-rited if nobody
+is interested in handling it in the way these things have to be done (which goes
+beyond just attaching ebuilds).
+</blockquote>
+
+<p>Valenduc <a href="https://bugs.gentoo.org/982204#c22">said</a> that he was
+not able to maintain the package, "<q>but taking the ebuild from the bentoo
+overlay was not that difficult [...] It's just frustrating to see no updates in
+Gentoo.</q>" James <a href="https://bugs.gentoo.org/982204#c23">replied</a> that
+just because the ebuild worked for Valenduc did not mean it had all <code>USE</code> flags
+working. He added that no one had submitted a patch to the Gentoo ebuild, which
+meant that the maintainers would need to reverse-engineer the changes by diffing
+the ebuilds and work out what had been modified. "<q>All of that is a
+non-trivial amount of work and while having some ebuild to start with is useful
+for that, it doesn't mean one can just git add &amp;&amp; git commit &amp;&amp;
+git push it.</q>" Valenduc <a href="https://bugs.gentoo.org/982204#c24">acknowledged</a> that he could not
+test all possible <code>USE</code> flags, since it took between 15 and 16 hours to compile
+Chromium on his laptop.</p>
+
+<p>On September&nbsp;24, Žilka <a href="https://bugs.gentoo.org/982204#c30">commented</a>: "<q>This is
+ridiculous</q>". A few minutes later, James <a href="https://bugs.gentoo.org/982204#c31">replied</a> "<q>OK then</q>", and 
+<a href="https://bugs.gentoo.org/982204#c32">issued the last rites</a> for
+the package.</p>
+
+<h4>Can we keep it?</h4>
+
+<p>Maciej S. Szmigiero <a href="https://bugs.gentoo.org/982204#c35">asked</a> if
+it would be possible to keep the ebuild in Gentoo's repository and just declare
+that it was maintained at "best effort" level. "<q>Removing buildable/patchable
+Chromium is a huge loss for a Gentoo desktop.</q>" James <a href="https://bugs.gentoo.org/982204#c36">said</a> that he did not think
+that was possible. He had already explained that Chromium was being maintained by
+volunteers, and that explanation had not been accepted.</p>
+
+<p>People were free to maintain the ebuild in another repository, he said, but
+that meant they would have to do the work themselves or accept someone doing it
+to a lower standard. He pointed out that the ebuilds from the Bentoo overlay had
+been cited in the discussion, but creation of those ebuilds seemed to be
+"<q>heavily automated</q>" and had missed some fixes in the Gentoo
+version. "<q>Copying ebuilds works fine until it doesn't.</q>"</p>
+
+<p>James added that someone could still pick up the Chromium package before the
+end of the last-rites period on October 24, or that the package could be
+restored in the future. He did not want to see that, though, unless there was a
+plan for sustainable maintenance. "<q>Chromium has a history of burning out
+maintainers in Gentoo because of the high rate of churn upstream, though some of
+the contents of this bug don't help motivation at all either.</q>"</p>
+
+<p>Matt Whitlock <a href="https://bugs.gentoo.org/982204#c42">wondered</a> if
+the developer-burnout factor could be reduced by eliminating most of the <code>USE</code>
+flags for Chromium, or if the maintainers stopped unbundling third-party
+libraries.</p>
+
+<blockquote>
+Basically, what I am asking is: can we give up _all_ of the flexibility to which
+we have grown accustomed in www-client/chromium, in exchange for a package that
+is actually maintainable but that is still built from sources by a toolchain
+that is not distributed as opaque binaries?
+</blockquote>
+
+<p>He <a href="https://bugs.gentoo.org/982204#c46">added later</a> that part of
+the problem was that the upstream project developers "<q>do not test
+their builds with any of their allegedly 'optional' features disabled</q>". That
+left the responsibility with the downstream package maintainers. "<q>In the case
+of Chromium, keeping all the toggle switches working (despite chronic neglect
+from upstream) is a monumental, nigh-insurmountable task.</q>"</p>
+
+<h4>Complexity</h4>
+
+<p>That was a good question, James <a href="https://bugs.gentoo.org/982204#c47">said</a>, but part of the recent
+complexity with Chromium was the addition of Rust and Go dependencies. The
+packagers had to do some wrangling to ensure that the Go build did not require
+network access, which is forbidden with Gentoo ebuilds, but that was not the
+only problem. He said that Google developers seem to keep using experimental
+Rust features that break on new releases as well. On top of that, "<q>yet
+another problem is that upstream's CI to produce release tarballs isn't
+reliable</q>". One of the Gentoo Chromium maintainers had sent patches to fix
+that, to little avail. "<q>It took ages to get [the patches] reviewed, and it's
+broken again a few times since. They didn't seem to notice or care that it
+either wasn't producing tarballs or was producing incomplete ones</q>."</p>
+
+<p>Jolly <a href="https://bugs.gentoo.org/982204#c53">added some of his
+observations</a> about problems with maintaining Chromium for Gentoo. He said
+that maintaining Chromium can take more than six hours each week, and that was
+counting only compilation time on a fast PC with "<q>an absurd amount of
+RAM</q>". Compilation time is even longer for 64-bit Arm machines.</p>
+
+<blockquote>
+It's a commitment to volunteer at least a business day's worth of your free time
+each week when you include rebasing patches, cherry-picking fixes, iterating on
+`ebuild ... clean compile`, plus trying to identify and fix any new bugs,
+working out how much you violate Gentoo policy by not unbundling more of the
+browser, spending time on automation to save time and mistakes later,
+etc. There's immense pressure to keep builds up-to-date, especially in the age
+of hundreds of weekly browser CVEs.
+</blockquote>
+
+<p>He included a "<q>pre-emptive FAQ</q>" in his reply about the last rites for
+Chromium, and what it would require to restore the package. He said that there
+were no insurmountable technical issues to maintaining Chromium, but it would
+need multiple maintainers with a broad set of skills—including familiarity
+with C, C++, Go, JavaScript, and Rust. "<q>There are also a huge number of NIH
+[not invented here] Google tools that you'll [have to] develop skills for and never be
+able to use anywhere else - you have been warned</q>."</p>
+
+<p>Using Google's toolchain would be simpler, but it would also restrict the
+ebuild to x86-64, he said. "<q>We'd lose arm64, ppc64, and the RISC-V overlay -
+better to just rip the band-aid off now as it doesn't materially make the
+situation better</q>". He added that he would be willing to review commits and offer
+advice to anyone who wanted to maintain the source ebuild, but he felt that at
+least three people would be needed. "<q>History has shown that one maintainer
+isn't working, and we've had the release cycle shorten twice since I started
+maintaining the package in 2023; it was bad then, and it's worse now.</q>"</p>
+
+<p>The <a href="https://chromiumdash.appspot.com/releases?platform=Linux">release
+cadence</a> for Chromium is aggressive, to say the least. Chromium has multiple
+channels including stable, beta, and development. There is a new major
+branch of the browser roughly every two weeks via the stable channel, and a new
+version is shipped every week.</p>
+
+<h4>Getting Chromium</h4>
+
+<p>For now, it appears that Gentoo users will need to search elsewhere for a
+suitable Chromium ebuild, choose a different browser, or find a different
+distribution method to acquire Chromium. For example, Gentoo users could install
+the <a href="https://flathub.org/en/apps/org.chromium.Chromium">Flatpak from
+Flathub</a>, but it is an unverified package built by a third party—not by
+the Chromium upstream project. The Flatpak is also of no help for users who are
+not on x86-64 or 64-bit Arm systems.</p>
+
+<p>It is technically possible for Chromium users to build and compile the
+browser on their own using the upstream's instructions, but it does not appear
+that the Chromium project cares a great deal about making that easy to do. It does have a 
+<a href="https://www.chromium.org/developers/how-tos/get-the-code/">page on
+getting the code</a> but the links to instructions for Linux (as well as macOS
+and Windows) return a 503 error. Searching for instructions turns up <a href="https://chromium.googlesource.com/chromium/src/+/main/docs/linux/build_instructions.md">this
+page</a>, though it is undated so it is unclear if it is the most
+up-to-date. Assuming the instructions are current and correct, building Chromium
+using those directions is quite an ordeal. Users can <a href="https://www.chromium.org/getting-involved/download-chromium/">download
+pre-built binaries</a> from the project, but only for x86-64 systems.</p>
+
+<p>Other distributions continue to supply Chromium packages, of course, though
+their approach does not provide the same flexibility as Gentoo's. Fedora's
+<a href="https://packages.fedoraproject.org/pkgs/chromium/chromium/">package</a>
+(which is described as "<q>A WebKit (Blink) powered web browser that Google
+doesn't want you to use</q>") is at version 154.0.8037.92—one version
+behind the upstream (154.0.8037.97) release that was published on
+October&nbsp;1. Likewise, the package in Debian's security repository is the
+same version (currently) as Fedora's and the <a href="https://security-tracker.debian.org/tracker/source-package/chromium">information
+page</a> shows that there are at least 11 known CVEs addressed in
+154.0.8037.97. Keeping up with Chromium is not an easy task.</p>
+
+<p>Perhaps Gentoo will find a team that is willing and able to take on the
+burden of maintaining the Chromium ebuild up to the standards that Gentoo users
+expect. Whatever happens, it seems unlikely that Chromium will become any easier
+to maintain in the interim.</p><br clear="all"><hr>
+            
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+</main></div></div>

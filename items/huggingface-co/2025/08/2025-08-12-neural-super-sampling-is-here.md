@@ -5,4 +5,43 @@ source: huggingface-co
 published: 2025-08-12T14:52:08Z
 updated: 2025-08-12T14:52:08Z
 first_seen: 2026-10-04T12:50:30.804479567Z
+content: extracted
+html: 2025-08-12-neural-super-sampling-is-here.html
 ---
+
+[![image/png](https://cdn-uploads.huggingface.co/production/uploads/6682a9252200824e2ddc667f/mKBLpNTALoOAsoj8O3opP.png)](https://cdn-uploads.huggingface.co/production/uploads/6682a9252200824e2ddc667f/mKBLpNTALoOAsoj8O3opP.png)
+
+Neural Super Sampling (NSS), a next-generation AI-powered upscaling solution from Arm is released for graphics and gaming developers to start experimenting today!
+
+## Elevated by machine learning
+
+NSS is designed for real-time performance on future mobile devices with [Arm Neural Technology](https://newsroom.arm.com/news/arm-announces-arm-neural-technology). However, latency depends on implementation factors such as GPU configuration, resolution, and use case. In our Enchanted Castle demo video below, NSS reduced GPU workload by 50 percent. The model rendered at 540p and upscaled to 1080p in just 4ms in sustained performance setup.
+
+Your browser does not support the video tag.
+
+## Learn about our NSS Model
+
+Neural Super Sampling (NSS) is a parameter prediction model for real-time temporal super sampling developed by Arm, optimized for execution on Neural Accelerators (NX) in mobile GPUs. It enables high-resolution rendering at a lower compute cost by reconstructing high-quality output frames from low-resolution temporal inputs. NSS is particularly suited for mobile gaming, XR, and other power-constrained graphics use cases.
+
+Get started with our [NSS model](https://huggingface.co/Arm/neural-super-sampling) today.
+
+If you want to go deeper check out the following resources:
+
+- **💻 Technical Blog**: [How Neural Super Sampling works](https://developer.arm.com/community/arm-community-blogs/b/mobile-graphics-and-gaming-blog/posts/how-arm-neural-super-sampling-works)
+- **📃 White Paper:** [Building for Tomorrow: Try Neural Super Sampling Today with the Unreal Plugin & ML extensions for Vulkan](https://developer.arm.com/documentation/111019)
+- **📲 Technical Blog:** [Experiment with NSS](https://community.arm.com/arm-community-blogs/b/mobile-graphics-and-gaming-blog/posts/how-to-access-arm-neural-super-sampling)
+
+## How we trained the model
+
+Check out the [Neural Graphics Dataset](https://huggingface.co/datasets/Arm/neural-graphics-dataset): A collection of reference images and image sequences along with the corresponding motion, depth and other data required to train, validate and test neural super sampling algorithms. [![](https://huggingface.co/datasets/Arm/neural-graphics-dataset/resolve/main/bistro-output-colour-gamma.jpg)](https://huggingface.co/datasets/Arm/neural-graphics-dataset/resolve/main/bistro-output-colour-gamma.jpg)
+
+The current version of the dataset includes a limited set of data for Neural Super Sampling to demonstrate how the NSS model development flow works. While this flow does not yet provide a comprehensive dataset for complete model (re)training, stay tuned for future releases of the [Neural Graphics Model Gym](https://github.com/arm/neural-graphics-model-gym) where Arm will provide tools to capture and convert content for use in model training and retraining.
+
+## Get started experimenting with NSS today!
+
+NSS has been integrated into Unreal Engine via two plugins, the [NSS Plugin for Unreal® Engine](https://github.com/arm/neural-graphics-for-unreal/) and [Unreal® NNE Plugin for ML extensions for Vulkan](https://github.com/arm/ml-extensions-for-vulkan-unreal-plugin/).
+
+For step-by-step instructions on how to use NSS in Unreal® Engine.See our learning paths:
+
+- **Quickstart with ML extensions for Vulkan®**: [ML extensions for Vulkan® Quickstart Guide](https://learn.arm.com/learning-paths/mobile-graphics-and-gaming/vulkan-ml-sample/)
+- **Quickstart with Unreal**: [Neural Super Sampling Quickstart Guide](https://learn.arm.com/learning-paths/mobile-graphics-and-gaming/nss-unreal/) for NSS integration into Unreal Engine

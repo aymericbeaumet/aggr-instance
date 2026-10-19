@@ -1,1 +1,252 @@
-<p><a href="https://lobste.rs/s/lgdxtw/c_for_rust_programmers">Comments</a></p>
+<div id="readability-page-1" class="page"><div>
+      
+      
+      
+      
+      
+      
+      <article>
+        
+        
+        <div id="post-info">
+          <p><span id="publish">2026-10-07</span></p>
+
+          
+          
+          
+        </div>
+
+        
+        
+
+        
+
+        <p>The very first systems programming language I ever learned was Rust. This is uncommon compared to many other programmers; you're more likely to find someone who learned C or C++ first before coming to Rust. As such, there are plenty of "Rust for C Programmers" articles on the internet, but little to no "C for Rust Programmers" articles out there.</p>
+<p>Well, I'm about to change that! I've been learning C and C++ recently, and <em>holy cow those languages are quirky</em>. This blog post is a collection of eyebrow-raising details I learned while teaching myself C. (No C++ today, I'm not ready to dig into that can of worms.) This is not a substitute for a proper C tutorial, you'll need to Google one of those yourself. Rather, it's a list of things to keep in mind when working in the language.</p>
+<p>With the premise set, let's draw the curtain and see what C has to offer!</p>
+<h2 id="boolean-is-not-built-in">Boolean Is Not* Built-In
+</h2>
+<p>The original version of C did not have a primitive type for booleans, programs instead used the integers 0 and 1. This was changed in <a rel="external" href="https://en.wikipedia.org/wiki/C99">C99</a>, which added booleans in the optional <a rel="external" href="https://en.cppreference.com/c/header/stdbool"><code>&lt;stdbool.h&gt;</code></a> header<sup id="fr-_bool-1"><a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fn-_bool">[1]</a></sup>:</p>
+<pre><code data-language="c">#include &lt;stdbool.h&gt;
+
+int main() {
+    bool yes = true;
+    bool no = false;
+
+    return 0;
+}</code></pre>
+<p>Even still, <code>true</code> and <code>false</code> are not literals or keywords like in other languages. Instead, they are definitions that expand to 1 and 0:</p>
+<pre><code data-language="c">#define true 1
+#define false 0</code></pre>
+<p>This was changed again in <a rel="external" href="https://en.wikipedia.org/wiki/C23_(C_standard_revision)">C23</a><sup id="fr-c23-1"><a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fn-c23">[2]</a></sup>, so now booleans are true language primitives, but if you're compiling for earlier versions you'll need to include <code>&lt;stdbool.h&gt;</code>.</p>
+<h2 id="null-terminated-strings">Null-Terminated Strings
+</h2>
+<p>A Rust <a rel="external" href="https://doc.rust-lang.org/stable/std/primitive.str.html"><code>&amp;str</code></a> is 16 bytes: 8 bytes for the memory address and 8 bytes for the string length. This is because <code>str</code> is a dynamically sized type, and uses <a href="https://bd103.dev/blog/2023-08-06-ptr-metadata/">pointer metadata</a> to track the length of the string.</p>
+<pre><code data-language="rust">// While a normal reference uses only 8 bytes...
+assert_eq!(std::mem::size_of::&lt;&amp;u8&gt;(), 8);
+
+// ...strings use 16 bytes.
+assert_eq!(std::mem::size_of::&lt;&amp;str&gt;(), 16);</code></pre>
+<p>This approach makes fetching the string length extremely efficient, but requires more memory per <code>&amp;str</code> reference. C uses a different approach: it doesn't store the size of its strings separately, but instead terminates every single string with a null byte (<code>\0</code>). This is an intentional trade off that results in a few things:</p>
+<ul>
+<li>C programs don't need to keep track of an extra <code>size</code> variable alongside the string</li>
+<li>Every single string needs room at the end for a null byte
+<ul>
+<li>This means empty strings <code>""</code> still take up one byte of memory!</li>
+</ul>
+</li>
+<li>Null bytes cannot easily be used in the middle of a string without messing up <a rel="external" href="https://cppreference.com/c/header/string"><code>&lt;string.h&gt;</code></a>'s functions</li>
+<li>Forgetting the null terminator can result in out-of-bound reads</li>
+</ul>
+<p>In practice, this requires you to remember to allocate extra space for the null terminator and insert it at the end of strings. For example, here is a program that reverses a string in C:</p>
+<pre><code data-language="c"> 1char* reverse(char* forward) {
+ 2    // Calculate the string's length, excluding the null terminator.
+ 3    unsigned long len = strlen(forward);
+ 4    // Allocate enough room for the string and its null terminator.
+ 5    char* reversed = malloc(len + 1);
+ 6
+ 7    for (int i = 0; i &lt; len; i++) {
+ 8        reversed[i] = forward[len - 1 - i];
+ 9    }
+10
+11    // Add the null terminator at the end.
+12    reversed[len] = '\0';
+13
+14    return reversed;
+15}</code></pre>
+<p>Note lines 5 and 12, which take special measure to account for the null terminator. For reference, the corresponding Rust function<sup id="fr-rust-reverse-string-1"><a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fn-rust-reverse-string">[4]</a></sup> doesn't need to do so:</p>
+<pre><code data-language="rust">fn reverse(forward: &amp;[u8]) -&gt; Box&lt;[u8]&gt; {
+    let len = forward.len();
+    let mut reversed = Box::&lt;[u8]&gt;::new_uninit_slice(len);
+
+    for i in 0..len {
+        reversed[i].write(forward[len - 1 - i]);
+    }
+
+    unsafe { reversed.assume_init() }
+}</code></pre><h2 id="target-dependent-integer-widths">Target-Dependent Integer Widths
+</h2>
+<p>C's integer types are not guaranteed to use an exact number of bits, instead the width varies depending on the target platform.</p>
+<figure>
+<table><thead><tr><th>Type</th><th>C Standard</th><th>64-bit Unix</th><th>64-bit Windows</th></tr></thead><tbody>
+<tr><td><code>char</code></td><td>at least 8 bits</td><td>8 bits</td><td>8 bits</td></tr>
+<tr><td><code>short</code></td><td>at least 16 bits</td><td>16 bits</td><td>16 bits</td></tr>
+<tr><td><code>int</code></td><td>at least 16 bits</td><td>32 bits</td><td>32 bits</td></tr>
+<tr><td><code>long</code></td><td>at least 32 bits</td><td>64 bits</td><td>32 bits</td></tr>
+<tr><td><code>long long</code></td><td>at least 64 bits</td><td>64 bits</td><td>64 bits</td></tr>
+</tbody></table>
+<figcaption>Data sourced <a href="https://cppreference.com/c/language/arithmetic_types">via cppreference.com</a></figcaption>
+</figure>
+<p><code>long</code> being 64 bits on Unix and 32 bits on Windows particularly irks me. I recommend following the advice that <a rel="external" href="https://github.com/magicalbat">a friend of mine</a> gave me a few years ago: if you care about cross-platform compatibility, only use the fixed width integers provided by <a rel="external" href="https://cppreference.com/c/header/stdint"><code>&lt;stdint.h&gt;</code></a>:</p>
+<table><thead><tr><th>Rust</th><th>C</th></tr></thead><tbody>
+<tr><td><code>u8</code></td><td><code>uint8_t</code></td></tr>
+<tr><td><code>u16</code></td><td><code>uint16_t</code></td></tr>
+<tr><td><code>u32</code></td><td><code>uint32_t</code></td></tr>
+<tr><td><code>u64</code></td><td><code>uint64_t</code></td></tr>
+<tr><td><code>usize</code></td><td><code>size_t</code><sup id="fr-size_t-and-ptrdiff_t-1"><a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fn-size_t-and-ptrdiff_t">[5]</a></sup></td></tr>
+<tr><td><code>i8</code></td><td><code>int8_t</code></td></tr>
+<tr><td><code>i16</code></td><td><code>int16_t</code></td></tr>
+<tr><td><code>i32</code></td><td><code>int32_t</code></td></tr>
+<tr><td><code>i64</code></td><td><code>int64_t</code></td></tr>
+<tr><td><code>isize</code></td><td><code>ptrdiff_t</code><sup id="fr-size_t-and-ptrdiff_t-2"><a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fn-size_t-and-ptrdiff_t">[5]</a></sup></td></tr>
+</tbody></table>
+<h2 id="error-handling-sucks">Error Handling Sucks
+</h2>
+<p>I really love Rust's error handling. <a rel="external" href="https://doc.rust-lang.org/stable/std/result/enum.Result.html"><code>Result</code></a> forces you to address errors, and sum types (<code>enum</code>s) and <code>match</code> statements make doing so really easy!</p>
+<p>C's error handling story, in comparison, is straight up tragic. It seems to boil down to functions returning a "magic integer" like -1 or a null pointer to signal there was an error. You can get a little bit more information by reading <a rel="external" href="https://cppreference.com/c/error/errno"><code>errno</code></a>, a thread-local integer that can be used to check for specific kinds of errors, but in terms of getting actual error messages and stack traces it is much harder.</p>
+<p>When writing C, one of the biggest things you'll notice is that the language will never force you to handle errors. It's up to you to remember that functions can fail. For example, here's a snippet of code from <a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#null-terminated-strings">Null-Terminated Strings</a>:</p>
+<pre><code data-language="c">// Allocate enough room for the string and its null terminator.
+char* reversed = malloc(len + 1);
+
+for (int i = 0; i &lt; len; i++) {
+    reversed[i] = forward[len - 1 - i];
+}</code></pre>
+<p>To new programmers, it's not immediately obvious that <a rel="external" href="https://cppreference.com/c/memory/malloc"><code>malloc()</code></a> can fail and return a null pointer. If your machine runs out of memory, <code>reversed[i]</code> will cause a segfault upon being accessed. In order to avoid unhelpful segfaults, the program should check for a null pointer and gracefully exit if one is found:</p>
+<pre><code data-language="c">char* reversed = malloc(len + 1);
+
+if (reversed == NULL) {
+    perror("Error");
+    exit(1);
+}</code></pre>
+<p>Doing so provides a much better experience than a segfault, or worse, other unintentional behavior:</p>
+<pre><code data-language="shellscript">$ ./main
+Error: Cannot allocate memory</code></pre>
+<p>Of course, remembering to check every single allocated pointer isn't an amazing developer experience. An approach I played around with was recreating Rust's <code>Result</code> in C using tagged unions:</p>
+<pre><code data-language="c">struct MallocResult {
+    enum Tag { OK, ERROR } tag;
+    union Value {
+        void* ptr;
+        char* error_message;
+    } value;
+};</code></pre>
+<p>It's a complete mess to use, however, and there's <em>still</em> nothing stopping you from immediately accessing <code>result.value.ptr</code> without handling the error first. The lack of visibility modifiers like <code>private</code> and <code>public</code>, which could be used to prevent this, appear to be an intentional design decision. C places full trust in the programmer to <em>do things right™</em> and gives few facilities for contracts or safe abstractions.</p>
+<p>I personally disagree with this approach. I'm not some mastermind programming wizard who never makes mistakes. I'd much rather encode program requirements into the type system so that the compiler can check them for me!<sup id="fr-fearless-simd-1"><a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fn-fearless-simd">[6]</a></sup> That way, I can be reasonably certain that if the code compiles it was written correctly. But I digress.</p>
+<h2 id="field-access-syntax">Field Access Syntax
+</h2>
+<p>C has two different field access operators: <a rel="external" href="https://cppreference.com/c/language/operator_member_access#Member_access"><code>.</code></a> for values and <a rel="external" href="https://cppreference.com/c/language/operator_member_access#Member_access_through_pointer"><code>-&gt;</code></a> for pointers.</p>
+<pre><code data-language="c">struct Foo {
+    int field;
+};
+
+struct Foo value = { 103 };
+struct Foo* ptr = &amp;value;
+
+// Accessing the field directly.
+printf("%d\n", value.field);
+
+// Accessing the field through a pointer.
+printf("%d\n", ptr-&gt;field);</code></pre>
+<p>This caught me off guard at first, as Rust uses <code>.</code> for everything.</p>
+<figure>
+<img src="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/i-put-that-dot-on-everything.jpg" alt="An old lady holding Frank's Red Hot sauce, except Ferris the crab is photoshopped on top saying 'I put that . on everything'" width="400"></figure>
+<p>If your curious, <a rel="external" href="https://stackoverflow.com/a/13366168">this Stack Overflow write up</a> provides some interesting history on why the <code>-&gt;</code> operator exists.<sup id="fr-cursed-arrow-operator-1"><a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fn-cursed-arrow-operator">[7]</a></sup></p>
+<h2 id="arrays-become-pointers-for-fun">Arrays Become Pointers for Fun
+</h2>
+<p>Arrays have some weird nuance to them. Sometimes they are plain values with their length accessible using <a rel="external" href="https://cppreference.com/c/language/sizeof"><code>sizeof()</code></a>, other times they are pointers with an unknown size. In general, this is determined by whether you are handling the array within the function it was defined or not.</p>
+<p>To showcase what I mean, here's a very simple C program that prints the size of two arrays:</p>
+<pre><code data-language="c">char declared_size[3] = { 1, 2, 3 };
+char inferred_size[] = { 4, 5, 6 };
+
+printf("Declared size (main): %ld bytes\n", sizeof(declared_size));
+printf("Inferred size (main): %ld bytes\n", sizeof(inferred_size));</code></pre>
+<p>When run, this programs tells you that both arrays take 3 bytes of memory. Good!</p>
+<pre><code data-language="shellscript">$ ./main
+Declared size (main): 3 bytes
+Inferred size (main): 3 bytes</code></pre>
+<p>Now, let's make a slight modification. Let's pass <code>declared_size</code> and <code>inferred_size</code> through a function before printing its size:</p>
+<pre><code data-language="c">void function(char declared_size[3], char inferred_size[]) {
+    printf("Declared size (function): %ld bytes\n", sizeof(declared_size));
+    printf("Inferred size (function): %ld bytes\n", sizeof(inferred_size));
+}</code></pre>
+<p>None of the logic changed, the arrays are identical to the previous example, however now the program reports each array takes <strong>8 bytes of memory</strong>:</p>
+<pre><code data-language="shellscript">$ ./main
+Declared size (function): 8 bytes
+Inferred size (function): 8 bytes</code></pre>
+<p>Why? Because any array passed through a function is <em>implicitly converted</em> to a pointer to the first element. From the C compiler's perspective, the above function actually had the following type signature:</p>
+<pre><code data-language="c">void function(char* declared_size, char* inferred_size);</code></pre>
+<p>This is why it confusingly looked like each array was 8 bytes long. The arrays themselves are 3 bytes, but the pointers take up 8 bytes of memory! Handily, Clang raises a warning when you run <code>sizeof()</code> on the pointer form of an array, making it easier to catch this mistake:</p>
+<pre><code data-language="shellscript">$ clang main.c
+06-arrays/main.c:5:59: warning: sizeof on array function parameter will return size of 'char *'
+      instead of 'char[3]' [-Wsizeof-array-argument]
+    5 |     printf("Declared size (function): %ld bytes\n", sizeof(declared_size));
+      |                                                           ^
+06-arrays/main.c:4:20: note: declared here
+    4 | void function(char declared_size[3], char inferred_size[]) {
+      |                    ^
+06-arrays/main.c:6:59: warning: sizeof on array function parameter will return size of 'char *'
+      instead of 'char[]' [-Wsizeof-array-argument]
+    6 |     printf("Inferred size (function): %ld bytes\n", sizeof(inferred_size));
+      |                                                           ^
+06-arrays/main.c:4:43: note: declared here
+    4 | void function(char declared_size[3], char inferred_size[]) {
+      |                                           ^
+2 warnings generated.</code></pre><h2 id="oh-yeah-references-don-t-exist">Oh Yeah References Don't Exist
+</h2>
+<p>I'd be remiss if I didn't mention it once. C has no borrow checking, and no concept of references. It's all <a rel="external" href="https://doc.rust-lang.org/stable/std/primitive.pointer.html">raw pointers</a>. This means you can do fun pointer arithmetic like so:</p>
+<pre><code data-language="c">int array[] = { 0, 1, 2, 3, 4, 5 };
+
+// Woah, iterating over pointers instead of indexes!
+for (int* x = &amp;array[0]; x &lt; &amp;array[6]; x++) {
+    *x = 5 - *x;
+}</code></pre>
+<p>However, I'm not sure how good an idea that is. 😅</p>
+<p>Either way, be careful when you mess with pointers. Making mistakes with memory results in buffer overflows and out-of-bounds writes, which provide significant threats to the security of your code.</p>
+<figure>
+<img src="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/vuln-categories-2021.png" alt="A graph visualizing which vulnerability category had the most CVEs between November 2021 and January 2022. Buffer overflow is the third most common, with 346 CVEs, and out-of-bounds writes are the ninth most common, with 204 CVEs. The two categories more common than buffer overflow are denial-of-service with 488 and cross-site scripting with 683." width="700"><figcaption><p>Vulnerability category distribution for CVEs registered between Nov. 2021 and Jan. 2022, <a rel="external" href="https://unit42.paloaltonetworks.com/network-security-trends-cross-site-scripting/">via</a></p></figcaption></figure>
+<h2 id="conclusion">Conclusion
+</h2>
+<p>I hope you enjoyed this article! I've honestly had a lot of fun learning C. And while I doubt I'll reach for it for personal projects, it's absolutely a crucial language to know as a systems programmer. All the examples in this blog are <a rel="external" href="https://github.com/BD103/C-for-Rust-Programmers">available on Github</a>, if you'd like to mess with them yourself!</p>
+<p>Until next time,</p>
+<p>- BD103 :)</p>
+<section>
+<ol>
+<li id="fn-_bool">
+<p>Technically you can use <a rel="external" href="https://en.cppreference.com/c/keyword/_Bool"><code>_Bool</code></a> without the header, but you still need it for the <code>true</code> and <code>false</code> definitions. <a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fr-_bool-1">↩</a></p>
+</li>
+<li id="fn-c23">
+<p>It looks like <a rel="external" href="https://clang.llvm.org/c_status.html">Clang still has only partial support for C23</a>, so you may need to wait a little while longer before chucking away your <code>#include &lt;stdbool.h&gt;</code> statements. <a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fr-c23-1">↩</a></p>
+</li>
+
+<li id="fn-rust-reverse-string">
+<p>The corresponding Rust function is not idiomatic, and can only correctly handle ASCII text. If I were writing a production version of this function, it would be a single line of code: <code>forward.chars().rev().collect::&lt;String&gt;()</code>. <a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fr-rust-reverse-string-1">↩</a></p>
+</li>
+<li id="fn-size_t-and-ptrdiff_t">
+<p><a rel="external" href="https://doc.rust-lang.org/stable/std/primitive.usize.html"><code>usize</code></a> and <a rel="external" href="https://doc.rust-lang.org/stable/std/primitive.isize.html"><code>isize</code></a> don't perfectly map semantically to <a rel="external" href="https://cppreference.com/c/types/size_t"><code>size_t</code></a> and <a rel="external" href="https://cppreference.com/c/types/ptrdiff_t"><code>ptrdiff_t</code></a>. I don't fully understand the difference, however, so I recommend doing your own research before using these types. <a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fr-size_t-and-ptrdiff_t-1">↩</a> <a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fr-size_t-and-ptrdiff_t-2">↩2</a></p>
+</li>
+<li id="fn-fearless-simd">
+<p><a rel="external" href="https://shnatsel.github.io/safe-simd-in-rust-even-on-the-inside/">This blog post on Fearless SIMD</a> provides a great example of using Rust's type system to guarantee the correctness of code. I highly recommend giving it a read! <a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fr-fearless-simd-1">↩</a></p>
+</li>
+<li id="fn-cursed-arrow-operator">
+<p>My favorite line of code from that post is <code>100-&gt;a = 0;</code>, it's so cursed! <a href="https://bd103.dev/blog/2026-10-07-c-for-rust-programmers/#fr-cursed-arrow-operator-1">↩</a></p>
+</li>
+</ol>
+</section>
+
+      </article>
+
+      
+      
+
+      
+      
+    </div></div>
