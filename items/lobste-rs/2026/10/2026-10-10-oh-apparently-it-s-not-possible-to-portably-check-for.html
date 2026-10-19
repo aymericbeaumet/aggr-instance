@@ -1,1 +1,156 @@
-<p><a href="https://lobste.rs/s/rb2ulg/oh_apparently_it_s_not_possible_portably">Comments</a></p>
+<div id="readability-page-1" class="page"><div>
+        <p>this is kinda a sequel-ish to my <a href="https://sebsite.pw/w/20261004-math_errhandling.html">previous post</a>, in which i go over the <code>math_errhandling</code> macro, and how math error handling is done in glibc and musl (as well as how it's specified in the standard).
+
+        </p><p>to summarize: <code>math_errhandling</code> is a macro which indicates which error-handling mechanisms are supported by <code>math.h</code> functions: <code>errno</code> (<code>MATH_ERRNO</code>) and/or floating-point exceptions (<code>MATH_ERREXCEPT</code>).
+
+        </p><p>there's one thing i didn't mention in my previous post: there's one family of functions which is affected by <code>math_errhandling</code> but which <em>isn't</em> in <code>math.h</code>: the string to float conversion functions <code>strtod</code>, <code>strtof</code>, <code>strtold</code>, <code>strtod32</code>, <code>strtod64</code>, and <code>strtod128</code>:
+
+        </p><figure>
+          <figcaption><cite>7.25.2.6p12</cite>:</figcaption>
+          <blockquote>
+            <p>If the correct value overflows and default rounding is in effect (7.12.2), plus or minus <code>HUGE_VAL</code>, <code>HUGE_VALF</code>, or <code>HUGE_VALL</code> is returned (according to the return type and sign of the value); if the integer expression <code>math_errhandling &amp; MATH_ERRNO</code> is nonzero, the integer expression <code>errno</code> acquires the value of <code>ERANGE</code>; if the integer expression <code>math_errhandling &amp; MATH_ERREXCEPT</code> is nonzero, the "overflow" floating-point exception is raised.
+
+            </p><p>If the result underflows (7.12.2), the functions return a value whose magnitude is no greater than the smallest normalized positive number in the return type; if the integer expression <code>math_errhandling &amp; MATH_ERRNO</code> is nonzero, whether <code>errno</code> acquires the value <code>ERANGE</code> is implementation-defined; if the integer expression <code>math_errhandling &amp; MATH_ERREXCEPT</code> is nonzero, whether the "underflow" floating-point exception is raised is implementation-defined.
+          </p></blockquote>
+        </figure>
+
+        <p>the linux man pages for these functions literally don't mention this <em>at all</em>, and there actually is a reason why which i'll get to in a sec, but what the standard is saying is, if <code>math_errhandling</code> doesn't advertise support for <code>errno</code> (as is the case on musl, for instance), the string to float conversion functions <strong>don't set <code>errno</code> on error</strong>. furthermore, if the result underflows, the function <strong>isn't required to report an error at all</strong>.
+
+        </p><p>keep in mind that the return value alone isn't enough to determine if an error occurred, so to test for overflow, you <em>need</em> to use one of the two error handling mechanisms.
+
+        </p><p>here is my attempt at a standards-blessed way of portably checking for overflow/underflow errors in the string to float functions:
+
+        </p><pre><code>feclearexcept(FE_OVERFLOW | FE_UNDERFLOW);
+errno = 0;
+double x = strtod(s, nullptr);
+bool errored = math_errhandling &amp; MATH_ERRNO
+	? errno == ERANGE
+	: fetestexcept(FE_OVERFLOW | FE_UNDERFLOW);</code></pre>
+
+        <p>note that this still doesn't guarantee that underflow is detected, since reporting underflow is entirely optional for the implementation.
+
+        </p><p>the reason you've never done this ever (and the reason the man pages don't mention this) is that posix specifies the functions differently:
+
+        </p><blockquote>
+          <p>If the correct value is outside the range of representable values, ±HUGE_VAL, ±HUGE_VALF, or ±HUGE_VALL shall be returned (according to the sign of the value), and <code>errno</code> shall be set to <code>[ERANGE]</code>.
+
+          </p><p>If the correct value would cause an underflow, a value whose magnitude is no greater than the smallest normalized positive number in the return type shall be returned and <code>errno</code> set to <code>[ERANGE]</code>.
+        </p></blockquote>
+
+        <p>so posix doesn't give a shit about <code>math_errhandling</code>; it always requires the implementation to set <code>errno</code> if overflow or underflow occurs. while it's not uncommon for posix to specify stricter requirements on functions than standard c, the fact that the man page never makes any note of this being an extension (neither <code>strtod(3)</code> nor the posix specification <code>strtod(3p)</code>) is really notable to me.
+
+        </p><p>whether or not posix's behavior is even compatible with standard c is... unclear. at least for <code>math.h</code> functions, setting <code>errno</code> regardless of the value of <code>math_errhandling</code> is permitted:
+
+        </p><figure>
+          <figcaption><cite>7.12.2p8</cite>:</figcaption>
+          <blockquote>
+            <p>If a domain, pole, or range error occurs and the integer expression <code>math_errhandling &amp; MATH_ERRNO</code> is zero, then <code>errno</code> shall either be set to the value corresponding to the error or left unmodified.
+          </p></blockquote>
+        </figure>
+
+        <p>but earlier on, when specifying <code>errno.h</code>, the standard says this:
+
+        </p><figure>
+          <figcaption><cite>7.5p3</cite>:</figcaption>
+          <blockquote>
+            <p>[...] The value of <code>errno</code> may be set to nonzero by a library function call whether or not there is an error, provided the use of <code>errno</code> is not documented in the description of the function in this document.
+          </p></blockquote>
+        </figure>
+
+        <p><code>errno</code> <em>is documented</em> in the description for these functions, and that description makes no mention of setting <code>errno</code> when <code>math_errhandling &amp; MATH_ERRNO</code> is zero. so that suggests that posix's behavior is non-conformant.
+
+        </p><p>but hang on! everything i've talked about so far is only for overflow and underflow. but if the string is malformed and can't be parsed as a number, then the standard doesn't specify any error at all:
+
+        </p><figure>
+          <figcaption><cite>7.25.2.6p11</cite>:</figcaption>
+          <blockquote>
+            <p>The functions return the converted value, if any. If no conversion could be performed, positive or unsigned zero is returned.
+          </p></blockquote>
+        </figure>
+
+        <p>instead, you're supposed to use the <code>endptr</code> parameter, and check afterward if <code>endptr == nptr</code> (i.e. the end pointer is the same as the start pointer, so no data was parsed):
+
+        </p><figure>
+          <figcaption><cite>7.25.2.6p8</cite>:</figcaption>
+          <blockquote>
+            <p>If the subject sequence is empty or does not have the expected form, no conversion is performed; the value of <code>nptr</code> is stored in the object pointed to by <code>endptr</code>, provided that <code>endptr</code> is not a null pointer.
+          </p></blockquote>
+        </figure>
+
+        <p>the man page <code>strtod(3)</code> says something similar:
+
+        </p><blockquote>
+          <p>If no conversion is performed, zero is returned and (unless <code>endptr</code> is null) the value of <code>nptr</code> is stored in the location referenced by <code>endptr</code>.
+        </p></blockquote>
+
+        <p>but check out what posix says:
+
+        </p><blockquote>
+          <p>Upon successful completion, these functions shall return the converted value. If no conversion could be performed, 0 shall be returned, and <code>errno</code> may be set to <code>[EINVAL]</code>.
+        </p></blockquote>
+
+        <p>the word "may" basically means that it's implementation-defined. but this is a big deal, because it's pretty common to check for errors by doing something like this:
+
+        </p><pre><code>errno = 0;
+double x = strtod(s, nullptr);
+if (errno != 0) {
+	// ...
+}</code></pre>
+
+        <p><code>strtod(3)</code> suggests doing exactly this:
+
+        </p><blockquote>
+          <p>Since 0 can be legitimately returned on both success and failure, the calling program should set <code>errno</code> to 0 before the call, and then determine if an error occurred by checking whether <code>errno</code> has a nonzero value after the call.
+        </p></blockquote>
+
+        <p>but even for posix-compatible libcs, this isn't portable! different conforming libcs may behave differently if no conversion can be performed. in fact...
+
+        </p><pre><code>errno = 0;
+strtod("x", nullptr);
+printf("%d\n", errno);</code></pre>
+
+        <p>on glibc, this prints 0, because glibc's <code>strtod</code> never sets <code>errno</code> to <code>EINVAL</code>. musl, on the other hand, <em>does</em> set <code>errno</code> to <code>EINVAL</code>, so this prints "22". <strong>this is completely undocumented on the linux man page</strong>.
+
+        </p><p>it's also, from my reading of the standard, not conformant to standard c, because it's setting <code>errno</code> to a nonzero value in a function with other documented error conditions (and as far as standard c is concerned, invalid input isn't an error condition). musl <em>could</em> defend itself by saying that, because it doesn't set <code>errno</code> in its <code>math.h</code> functions, the <code>errno</code> condition in <code>strtod</code>'s description no longer applies, therefore there's no documented use for <code>errno</code> (since the use of <code>errno</code> is dependent on the value of <code>math_errhandling</code>). but that's clearly a stretch.
+
+        </p><p>either way, it's clear to me that the standard needs clearer wording here.
+
+        </p><h2>conclusion</h2>
+
+        <p>just for fun, i figured i'd conclude with a list of all the "correct" ways to check for errors in the string to float conversion functions, just to hammer the point home:
+
+        </p><h3>overflow</h3>
+
+        <ul>
+          <li><p>if you're targeting posix, set <code>errno</code> to 0 before the call, and afterward
+            check <code>copysign(result, 1.0) == HUGE_VAL &amp;&amp; errno == ERANGE</code>.</p></li>
+
+          <li><p>otherwise, set <code>errno</code> to 0 <em>and</em> call <code>feclearexcept(FE_OVERFLOW)</code> before the call, and, if <code>copysign(result, 1.0) == HUGE_VAL</code>, either check <code>errno == ERANGE</code> or <code>fetestexcept(FE_OVERFLOW)</code> after the call, depending on the value of <code>math_errhandling</code>.
+
+            </p><p>if you're targeting just one implementation, and you know which error-reporting methods it supports beforehand, you can skip the <code>math_errhandling</code> check and only support one of the two methods.
+
+            </p><p>if you're using <code>feclearexcept</code>/<code>fetestexcept</code>, make sure that the compiler knows you may be accessing the floating point environment: on gcc the relevant flag is <code>-ftrapping-math</code>, which is the default (unless you're using <code>-ffast-math</code>). there's also a standard pragma for this purpose: <code>#pragma STDC FENV_ACCESS ON</code>. this pragma isn't supported by gcc though.</p></li>
+        </ul>
+
+        <h3>underflow</h3>
+
+        <ul>
+          <li><p>if you're targeting posix, set <code>errno</code> to 0 before the call, and afterward check <code>result == 0.0 &amp;&amp; errno == ERANGE</code>.
+
+            </p><p>be sure to check specifically that <code>errno</code> is <code>ERANGE</code>, not just that it's nonzero. otherwise you'll end up with nonportable behavior.</p></li>
+
+          <li><p>otherwise, if you're just targeting one implementation, check if it documents its behavior on underflow in <code>math.h</code> functions. the behavior is implementation-defined, so technically it's required to document it. but in practice, even clang doesn't bother documenting its implementation-defined shit, so don't hold your breath.
+
+            </p><p>but if it is documented, and it reports underflow errors, then, depending on the implementation's value of <code>math_errhandling</code>, either set <code>errno</code> to 0 before the call and check <code>result == 0.0 &amp;&amp; errno == ERANGE</code> after the call, or call <code>feclearexcept(FE_UNDERFLOW)</code> before the call and check <code>fetestexcept(FE_UNDERFLOW)</code> after the call.</p></li>
+
+          <li><p>otherwise you're SOL.
+
+            </p><p>if you <em>reeally</em> need to check for underflow, and you <em>need</em> to use the libc function for some reason, here's the only option i can think of: check if <code>result == 0.0</code>, and if so, check yourself if the input string contains any nonzero digits before the exponent. if so, underflow occurred. this is difficult to get right though; read the description of <code>strtod</code> et al from the standard and make sure you cover all edge-cases.</p></li>
+        </ul>
+
+        <h3>invalid input (no conversion)</h3>
+
+        <ul>
+          <li><p>pass in <code>&amp;endptr</code> as a second argument to the function, and then check if <code>endptr == nptr</code>. <code>errno</code> can't be relied on.</p></li>
+        </ul>
+      </div></div>

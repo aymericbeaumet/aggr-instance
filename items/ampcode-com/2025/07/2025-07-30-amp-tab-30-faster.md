@@ -6,7 +6,7 @@ published: 2025-07-30T00:00:00Z
 updated: 2025-07-30T00:00:00Z
 first_seen: 2026-10-04T12:50:30.804479567Z
 summary: Response times of Amp Tab, our in-editor completion engine, are now 30% faster, with up to 50% improvements during peak usage. We worked together with Baseten to optimize our custom deployment. The new infrastructure delivers roughly 2x performance improvements by switching to TensorRT-LLM as the inference engine and implementing KV caching with speculative decoding. This new infrastructure also includes a modified version of lookahead decoding that uses an improved n-gram candidate selection algorithm and variable-length speculations, which reduces both draft tokens and compute per iteration compared to standard implementations.
-content: feed
+content: extracted
 html: 2025-07-30-amp-tab-30-faster.html
 remote_preview:
   url: https://static.ampcode.com/news/next-cursor-latency-trend-dark.png

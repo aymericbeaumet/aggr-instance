@@ -6,7 +6,7 @@ published: 2025-08-07T00:00:00Z
 updated: 2025-08-07T00:00:00Z
 first_seen: 2026-10-04T12:50:30.804479567Z
 summary: You can now connect the Amp CLI to JetBrains IDEs. This provides Amp with context about your current file and selection. It also allows Amp to edit files directly through the IDE. Update the Amp CLI to the latest version and run amp --jetbrains from the root of your project. Learn more about the new JetBrains integration in the manual.
-content: feed
+content: extracted
 html: 2025-08-07-jetbrains-in-the-cli.html
 ---
 
