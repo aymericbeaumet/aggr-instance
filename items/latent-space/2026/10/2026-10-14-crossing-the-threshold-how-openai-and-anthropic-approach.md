@@ -8,7 +8,7 @@ first_seen: 2026-10-15T00:11:15.830933315Z
 authors:
 - Richard MacManus
 summary: At AI Engineer New York, frontier labs and financial firms explored how to give agents useful autonomy while keeping consequential decisions under control.
-content: feed
+content: extracted
 html: 2026-10-14-crossing-the-threshold-how-openai-and-anthropic-approach.html
 remote_preview:
   url: https://substackcdn.com/image/fetch/$s_!rtS2!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F4aa91ce4-8821-4844-aa0f-56d4bd3c8d7e_1280x720.jpeg
@@ -22,13 +22,9 @@ One of the key themes at the [AI Engineer New York conference](https://ai.engine
 
 The main lesson: safe autonomy depends on **where you put controls and human judgment**, rather than how many restrictions you impose.
 
-* * *
-
 **Sponsor: Build shopping into your agent with shop.dev**
 
 Adding commerce to an agent usually means rebuilding search and checkout from scratch. [shop.dev](https://shop.dev/?utm_source=Paid&utm_medium=Newsletter&utm_campaign=Shop-Launch&utm_content=Latent-Space) gives you a single API for shopping in any agent or app. One connection gives you access to over a billion products with current price and availability, instant sign in with Shop, and one-tap Shop Pay checkout that happens right in the conversation. It’s open to any developer, with no account or key needed to try it. **→ [Try shop.dev today](https://shop.dev/?utm_source=Paid&utm_medium=Newsletter&utm_campaign=Shop-Launch&utm_content=Latent-Space)**
-
-* * *
 
 **Joseph Kim**, Head of ChatGPT for Financial Services at OpenAI, gave a keynote at AIE New York today. (We also did a special podcast with Kim, which will be released shortly.) He talked about reliability and **a “threshold of usefulness,”** which he said is “the point where **a model becomes capable and reliable enough to save you time.”**
 
@@ -52,8 +48,6 @@ As for when a human needs to be in the loop, Kim framed this as a product design
 
 “How would the interface change? What would the user still need to control, review, or approve? Those are product design questions you can start working on now.”
 
-## Balancing AI Safety and Innovation at a Hedge Fund
-
 **John Feminella**, SVP Architecture at the hedge fund **Two Sigma**, is tackling the exact kinds of product design questions Kim referenced. In a keynote, he talked about five of the controls they’ve implemented to keep agents in check without limiting model capabilities.
 
 [![](https://substackcdn.com/image/fetch/$s_!97el!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8a67a872-af73-45e8-8b48-9cfee32b9c34_2048x1280.png)](https://substackcdn.com/image/fetch/$s_!97el!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F8a67a872-af73-45e8-8b48-9cfee32b9c34_2048x1280.png)
@@ -71,8 +65,6 @@ One of the controls is to use **auto-mode classifiers**, which Feminella said �
 Classifiers can be used for ambiguous cases, whereas deterministic rules are better for clear cases.
 
 [![](https://substackcdn.com/image/fetch/$s_!pJdQ!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Ff4cfed70-6f95-4935-b333-3d9e89ff8f32_2048x1280.png)](https://substackcdn.com/image/fetch/$s_!pJdQ!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Ff4cfed70-6f95-4935-b333-3d9e89ff8f32_2048x1280.png)
-
-## Anthropic: Give agents context, then define the boundaries of trust
 
 Anthropic’s presentation outlined a similar framework, in its case with the goal of **building “trust” into financial agentic workflows.**
 
@@ -96,8 +88,6 @@ Shahab illustrated **the boundary between proposing and acting** with a trade br
 
 “By building once with **a foundational layer that you trust**, you can work at speed to deploy many agents at scale,” Shahab concluded.
 
-## Bloomberg: Enforce security outside the model
-
 As Head of Architecture & Emerging Technologies in the Office of the CTO at Bloomberg, **Andrey Rybka** has the responsibility to balance autonomy and scale at the company.
 
 In a presentation today at AIE, Rybka talked about a series of real-life events where agents caused havoc — and **the defenses that can help prevent it**. These include scoped identities and credentials, controls over tool calls, outbound traffic restrictions, audit trails, budgets, and kill switches.
@@ -109,8 +99,6 @@ In one example, an agent treated instructions embedded in a marketplace review a
 [![](https://substackcdn.com/image/fetch/$s_!KzTn!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0ad8f265-d571-4410-ad9e-2d6173775797_2048x1280.png)](https://substackcdn.com/image/fetch/$s_!KzTn!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F0ad8f265-d571-4410-ad9e-2d6173775797_2048x1280.png)
 
 “We want **deterministic controls outside the model,**” Rybka said. “Check every call, log it, and keep a kill switch.”
-
-## Go fast and stop safely
 
 Even though frontier labs like OpenAI and Anthropic are building a ‘trust framework’ for financial agents, ultimately **it’s up to financial firms to put controls around their agents**. Two Sigma’s John Feminella hit the nail on the head: implement controls that enable autonomy to happen, but **don’t put up roadblocks.**
 

@@ -6,11 +6,9 @@ published: 2026-10-06T18:20:58Z
 updated: 2026-10-06T18:20:58Z
 first_seen: 2026-10-06T19:48:54.930461426Z
 summary: 'My comment on Mistral Large 4 — Hacker News. wren6991: The benchmark is saturated. Frontier models are tested with an armadillo in fishnet tights jaywalking on Mars. OK well I couldn''t resist this one: llm -m claude-opus-5.5 ''Generate an SVG of an armadillo in fishnet tights jaywalking on Mars'' llm -m gpt-6.1-sol ''Generate an SVG of an armadillo in fishnet tights jaywalking on Mars'' llm -m gemini-3.8-flash ''Generate an SVG of an armadillo in fishnet tights jaywalking on Mars'' llm -m mistral/mistral-large-4 ''Generate an SVG of an armadillo in fishnet tights jaywalking on Mars'' Default reasoning levels for each: https://tools.simonwillison.net/markdown-svg-renderer?url=ht...'
-content: feed
+content: extracted
 html: 2026-10-06-mistral-large-4.html
 ---
-
-[My comment](https://news.ycombinator.com/item?id=49977979#49982139) on [Mistral Large 4](https://news.ycombinator.com/item?id=49977979) — Hacker News.
 
 > [wren6991](https://news.ycombinator.com/item?id=49977979#49979658): The benchmark is saturated. Frontier models are tested with an armadillo in fishnet tights jaywalking on Mars.
 

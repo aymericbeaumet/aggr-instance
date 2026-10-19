@@ -1,1 +1,162 @@
-<p><a href="https://lobste.rs/s/4bzoft/complement_true_is_true_except_when_it_s">Comments</a></p>
+<div id="readability-page-1" class="page"><div><p>I recently looked at <a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p4313r1.html">P4313R1</a>, a standards proposal paper which adds a set of bitmask operations for enums, using a C++26 annotation to opt-in. The core idea being that, to use an example from the paper, given code like the below:</p><div><pre><code data-language="cpp">enum class [[=std::bitmask_type]] Permission {
+  None    = 0,
+  Read    = 1 &lt;&lt; 0,
+  Write   = 1 &lt;&lt; 1,
+  Execute = 1 &lt;&lt; 2,
+};
+</code></pre></div><p>The <code>[[=std::bitmask_type]]</code> annotation would automatically imbue <code>Permission</code> with an accessible set of bitwise operations so that you as a user needn’t write them out yourself. This got me thinking about the murky underbelly of C++ integer operations. Your C++ compiler will happily compute bitwise operations for any integral type as a builtin operation. This extends to types which we don’t traditionally think of as integers, such as <code>wchar_t</code>, the UTF character types <code>char8_t</code> through <code>char32_t</code>, and <code>bool</code>. But slightly more happens here than meets the eye. Because when you attempt to perform an operation like <code>a | b</code>, and the type of <code>a</code> and <code>b</code> is an integral type smaller than <code>int</code>, the language does not operate on the bit patterns of <code>a</code> and <code>b</code> directly. They undergo <em>integral promotion</em> - they are promoted up to <code>int</code> as an intermediate state, the bit patterns of these two <code>int</code>s are combined, and the result is returned to you, still as an <code>int</code>.<sup id="fnref:1"><a href="#fn:1" role="doc-noteref">1</a></sup> Consider the below:</p><div><pre><code data-language="cpp">//Two shorts
+constexpr short perm_A {1 &lt;&lt; 0};
+constexpr short perm_B {1 &lt;&lt; 1};
+
+//And the result type of running a bitwise operation on them is int
+static_assert(std::same_as&lt;decltype(perm_A | perm_B), int&gt;);
+</code></pre></div><p>Now, for the most part this is harmless - if you cast the above <code>perm_A | perm_B</code> back to <code>short</code> then the unnecessary bytes are truncated away and you’re left with a <code>short</code> which contains exactly the value it would have held if you’d combined <code>perm_A</code> and <code>perm_B</code> as <code>short</code> directly. And if you want to be certain that you are keeping your types consistent, and avoid the pernicious bugs of silent narrowing conversions, you can get into the habit of <code>static_cast</code>-ing the result of your bitwise operation to its original type. The important thing here however is that integral promotion is not optional. Unlike most other areas of C++ the developer doesn’t get a choice - your types will unavoidably be promoted for these operations.</p><p>The second part of what makes this a hazard for <code>bool</code> specifically is <em>boolean conversion</em>, a special case which does <em>not</em> truncate but instead explicitly converts zero to <code>false</code> and non-zero values to <code>true</code>. For these non-zero values, whatever bit pattern was previously stored is discarded and replaced with <code>true</code>, which has an integer value of 1. So if we take code like this:</p><div><pre><code data-language="cpp">int x{10};
+bool b{static_cast&lt;bool&gt;(x)};
+</code></pre></div><p>and look at the generated asm (in this case from unoptimised x86-64 gcc 16.2):</p><div><pre><code data-language="asm">mov     DWORD PTR [rbp-4], 10   ;Store the value of 10
+cmp     DWORD PTR [rbp-4], 0    ;Then compare to 0, set ZF if x is zero
+setne   al                      ;Write 1 to AL if ZF is clear
+mov     BYTE PTR [rbp-5], al    ;Store the result
+</code></pre></div><p>The standard (specifically <a href="https://eel.is/c++draft/conv.bool">[conv.bool]</a>) bases converting to <code>bool</code> on the only possible values which <code>bool</code> can hold - <code>true</code> and <code>false</code>, regardless of whatever bit pattern may have originally been used to create them.</p><h2 id="putting-it-together">Putting it together</h2><p>With all of that covered, let’s talk through what happens when you try to evaluate <code>~true</code> and then cast the result to a <code>bool</code>:</p><ul><li>The value <code>true</code> is promoted to an <code>int</code> with a value of <code>1</code>.</li><li>The complement of <code>1</code> as an <code>int</code> is calculated as <code>-2</code>, as two’s complement behaviour is required as of C++20.</li><li>The value of <code>-2</code> is then cast back down to <code>bool</code>, undergoes boolean conversion, and since <code>-2</code> is non-zero, becomes <code>true</code>.</li></ul><p>There you have it, the complement of <code>true</code> is <code>true</code>, or spelled in C++ <code>static_cast&lt;bool&gt;(~true) == true</code>.</p><p>This brings us back to enums. An enum is permitted to use any integral type as its underlying type, including our good friend <code>bool</code>. So let’s define one:</p><div><pre><code data-language="cpp">enum class [[=std::bitmask_type]] boolean : bool{
+    FALSE,
+    TRUE,
+};
+</code></pre></div><p>Let’s also look at the bitwise complement operator as laid out in P4313R1:</p><div><pre><code data-language="cpp">template&lt;bitmask-like T&gt; constexpr T operator~ (T lhs) noexcept {
+  return static_cast&lt;T&gt;(~to_underlying(lhs));
+}
+</code></pre></div><p>By now the workings of that operator should be a familiar shape - first we convert the enum to its underlying type (in our case <code>bool</code>), then integral promotion is applied if that type is lower ranked than <code>int</code>, then we perform the bitwise operation, then we cast back to the enum type. As we would expect:</p><div><pre><code data-language="cpp">static_assert(~boolean::TRUE == boolean::TRUE);
+</code></pre></div><p>Godbolt <a href="https://godbolt.org/z/PW1EEvMex">here</a>.</p><p>This has all the potential to be a slightly confusing corner case in the language.</p><h2 id="when-its-false">When it’s false</h2><p>There is one exceptional case here which compounds the problem. If we try to run that same example in gcc, we get a different result:</p><div><pre><code data-language="cpp">static_assert(~boolean::TRUE == boolean::FALSE);
+</code></pre></div><p>Godbolt <a href="https://godbolt.org/z/xWzjarEz8">here</a>.</p><p>So what is going on with gcc? If we move the operation to runtime by defining two functions which depend on it as a runtime value:</p><div><pre><code data-language="cpp">enum class boolean : bool{
+    FALSE,
+    TRUE,
+};
+
+void f(int x, bool&amp; out) {
+    out = static_cast&lt;bool&gt;(x);
+}
+
+void g(int x, boolean&amp; out) {
+    out = static_cast&lt;boolean&gt;(x);
+}
+</code></pre></div><p>and look at the asm (again unoptimised x86-64), then we get:</p><div><pre><code data-language="asm">"f(int, bool&amp;)":
+        push    rbp
+        mov     rbp, rsp
+        mov     DWORD PTR [rbp-4], edi
+        mov     QWORD PTR [rbp-16], rsi
+        cmp     DWORD PTR [rbp-4], 0
+        setne   dl                          ;same setne pattern from [conv.bool] earlier
+        mov     rax, QWORD PTR [rbp-16]
+        mov     BYTE PTR [rax], dl
+        nop
+        pop     rbp
+        ret
+"g(int, boolean&amp;)":
+        push    rbp
+        mov     rbp, rsp
+        mov     DWORD PTR [rbp-4], edi
+        mov     QWORD PTR [rbp-16], rsi
+        mov     eax, DWORD PTR [rbp-4]
+        and     eax, 1                      ;store the low bit in eax
+        mov     rdx, QWORD PTR [rbp-16]
+        mov     BYTE PTR [rdx], al          ;and move al to the out-param
+        nop
+        pop     rbp
+        ret
+</code></pre></div><p>What we see is that when the type is not spelled <code>bool</code>, gcc will truncate down to the lowest bit rather than perform a boolean conversion. Any even value, when cast down, will produce <code>boolean::FALSE</code>, and any odd one will produce <code>boolean::TRUE</code>.</p><p>This is unique to enum types specifically, gcc generally performs consistently when handling <code>bool</code> directly:</p><div><pre><code data-language="cpp">constexpr boolean b{boolean::TRUE};
+static_assert(static_cast&lt;bool&gt;(~b) == false);
+
+static_assert(static_cast&lt;bool&gt;(~true) == true);
+
+static_assert(std::to_underlying(~b) == false);
+
+static_assert(static_cast&lt;bool&gt;(~std::to_underlying(b)) == true);
+</code></pre></div><p>In contrast, Clang and MSVC will evaluate the result of all four of these complement-and-cast combinations as <code>true</code>, which is what the standard says they must be. Full godbolt comparison <a href="https://godbolt.org/z/5vK3zM7Y9">here</a>. This seems to be a fairly long-lived conformance bug in gcc.</p><p>But there is one place in the standard where integral promotion rules go further and introduce a new vector for undefined behaviour to enter into your program when doing these bitmask operations. Consider this code:</p><div><pre><code data-language="cpp">enum nums{
+    zero,
+    one,
+    two,
+    three,
+};
+
+//This is implementation defined but holds on gcc and Clang.
+static_assert(std::is_same_v&lt;std::underlying_type_t&lt;nums&gt;, unsigned int&gt;);
+
+//nums uses an unsigned int as its base, therefore the entire domain of representable values is &gt;= 0.
+//So let's test this:
+static_assert(~one &gt;= 0); //FAILS
+</code></pre></div><p>Godbolt <a href="https://godbolt.org/z/csW7GarKc">here</a></p><p>Looking at the diagnostic, gcc gives us:</p><pre><code>&lt;source&gt;:15:20: error: static assertion failed
+   15 | static_assert(~one &gt;= 0); //FAILS
+      |               ~~~~~^~~~
+  • the comparison reduces to '(-2 &gt;= 0)'
+</code></pre><p>So what happened here? Well, the passage in the standard which covers integral promotion, <a href="https://eel.is/c++draft/conv.prom#3">[conv.prom]</a>, carves out a special bullet for unscoped enumeration types with no fixed underlying type to behave differently from integer types when promoting. If the entire range of values can be stored in an <code>int</code>, then that is the type which it promotes to, then it tries <code>unsigned int</code>, and if that fails it repeats this signed-then-unsigned pattern for <code>long</code> and <code>long long</code> until it finds a suitable type. But, where this differs from plain integer types is that it only considers the effective range of representable values; and so an enum backed by <code>unsigned int</code> will promote to <code>int</code> regardless of the normal conversion ranking which would forbid it for integral types. As before, the fact that you are calling the builtin operator via <code>~one</code> will unavoidably promote it to <code>int</code>, its complement is calculated as <code>-2</code>, and then the comparison is performed between two <code>int</code>s, and fails. If instead you convert to the underlying type first then you really see the asymmetry - <code>static_assert(~std::to_underlying(one) &gt;= 0);</code> succeeds, and is so vacuously true that gcc even warns about its redundancy.</p><p>But this is only half the battle, and we need to talk about converting the result of our bitwise operation back to the enum type, and this is where UB creeps in. An unscoped enum with no specified underlying type defines itself in terms of a valid range of values determined by its enumerators independently of the range of whatever actual type is used by the compiler to back it. <a href="https://eel.is/c++draft/dcl.enum">[dcl.enum]</a> tells us the value range of such an enum is the value range of a hypothetical integer type of width M, where M is the minimum bits required to represent all enumerators. To demonstrate, consider a few examples:</p><div><pre><code data-language="cpp">enum small{ //Range of enumerators is 0..1, so value range is that of an unsigned, one-bit integer.
+    a = 0,
+    b = 1,
+};
+
+enum medium{ //Range of enumerators is 0..7, so value range is that of an unsigned, three-bit integer
+    c = 0,
+    d = 4,
+    e = 7
+};
+
+enum large{ //Range of enumerators is -1..100, so value range is that of a signed, eight-bit integer
+    f = -1,
+    g = 10,
+    h = 100,
+};
+</code></pre></div><p>Even though your compiler will quite likely store these enums as <code>unsigned int</code> and <code>int</code>, only a subset of possible representable values is valid to use - that of the M-width integer. <a href="https://eel.is/c++draft/expr.static.cast#8">[expr.static.cast]</a> in the standard makes it clear that it is undefined behaviour to cast a value outside of that range to the enum type. So, using the enumerators of the above example:</p><div><pre><code data-language="cpp">static_cast&lt;small&gt;(1); //Well-defined
+static_cast&lt;small&gt;(2); //UB
+
+static_cast&lt;medium&gt;(3); //Well-defined: while not a value of an enumerator, it is within the range of an unsigned, three-bit integer
+static_cast&lt;medium&gt;(8); //UB
+
+static_cast&lt;large&gt;(-128); //Well-defined
+static_cast&lt;large&gt;(128); //UB
+</code></pre></div><p>This is our danger zone. The bitwise operators, in particular <code>operator~</code>, can produce values which are out of the well-defined value range for an <code>enum</code>, and user-defined operators which attempt to cast this value back down to the enum type can invoke UB.</p><p>But, I hear you cry, what about the example earlier with <code>~one</code>? We saw that give a value of <code>-2</code> which is outside the value range of <code>nums</code>. This is true, but here is where integral promotion actually saves us - <code>one</code> was promoted to <code>int</code> before we calculated its complement, and it was never cast back down again to invoke our UB. We only get into dangerous territory with a user-defined operator which converts the result of the operation back down to the original enum type.</p><p>It is also important to note that this UB risk only applies to unscoped “plain” enums with no fixed underlying type. All scoped enum types have a fixed underlying type, even if they don’t specify it (in that case, <code>int</code>); and all unscoped <code>enum</code> types which do specify a fixed underlying type inherit that type’s value range instead of inventing their own.</p><h2 id="avoiding-this-in-your-own-code">Avoiding this in your own code</h2><p>Let’s say that, like P4313, you are adding bitmask operations to enums for your own code. Now that we have more weirdness in this area of C++, how would you go about making sure that your code is correct and unconfusing? Avoiding the <code>bool</code> case is simple - just constrain away that the underlying type can’t be <code>bool</code>, either for all enums or for the complement operator. But the standard doesn’t come with a handy type trait or reflection metafunction to specifically detect an unscoped enum with no fixed underlying type. Fortunately we can make one:</p><div><pre><code data-language="cpp">template&lt;typename E&gt;
+concept unfixed_enum = std::is_enum_v&lt;E&gt; &amp;&amp; !requires { E{0}; };
+</code></pre></div><p><a href="https://eel.is/c++draft/dcl.init.list#3.8">[dcl.init.list]</a> only permits this initialization from a scalar for enums with a fixed underlying type, and 0 is the only possible value which is representable for all possible enums. To cover the edge cases, the standard defines an enum with no enumerators as having the value range of an unsigned, one-bit integer; and the thing which excludes 1 as a possible value is <code>enum E{ a = -1 };</code>, which has a range <code>[-1, 0]</code>. Be sure not to forget the <code>std::is_enum_v</code>. After all, there are many types for which <code>T{0}</code> is ill-formed, and most of them are not enums.</p><p>This post has mostly been focused on the bitwise complement operator, but the UB trap of an unfixed enum also applies to the bitwise left shift operator. If you take the route of constraining per operation, don’t let it slip your mind.</p><p>This brings us back once again to P4313R1. At time of writing, the concept which constrains these operators only constrains the type to be some enumeration type annotated with <code>[[=std::bitmask_type]]</code>. As such, it will allow confusing behaviour on enum types which are backed by <code>bool</code>, and potential UB on plain enums with no fixed underlying type. If the authors don’t want to standardise the above init-list trick, they could constrain it on <code>std::is_scoped_enum</code> as a conservative approach to prevent users from having easy access to the UB, since all unscoped enums can use the builtin bitwise operators anyway (albeit returning <code>int</code>). They could also constrain the underlying type to not be <code>bool</code> to minimise the confusion; particularly as the diagnostic which would normally get issued for complementing a <code>bool</code> in user code would be suppressed by default if it came from a system header. I do intend to contact the authors of P4313 about this to see if they want to add these constraints to their paper.</p><h2 id="aside-what-about-floating-point">Aside: What about floating point?</h2><p>You might be wondering how the standard defines conversions of floating point numbers to these <code>bool</code>-backed <code>enum</code>s. It is perhaps unsurprising - <a href="https://eel.is/c++draft/expr.static.cast#8">[expr.static.cast]</a> requires that the behaviour is equivalent to first converting the floating point value to the underlying type of the enum, and then converting it to the enum type; pointing the user to <a href="https://eel.is/c++draft/conv.fpint#note-1">[conv.fpint]</a> which has an explicit note directing readers to our old friend [conv.bool]. Per the standard, this should mean that any floating point value other than exactly <code>0.0</code> or <code>-0.0</code> would convert to <code>boolean::TRUE</code>, otherwise we end up back at <code>boolean::FALSE</code>.</p><p>So let’s start small:</p><div><pre><code data-language="cpp">enum class boolean : bool {
+    FALSE,
+    TRUE,
+};
+
+static_assert(static_cast&lt;boolean&gt;(0.0) == boolean::FALSE);
+static_assert(static_cast&lt;boolean&gt;(0.5) == boolean::TRUE);
+static_assert(static_cast&lt;boolean&gt;(2.5) == boolean::TRUE);
+</code></pre></div><p>Godbolt <a href="https://godbolt.org/z/1aK8Kfadv">here</a>.</p><p>Both Clang and gcc reject this code. The errors are that <code>(boolean)2.5e+0</code> is not a constant expression; and <code>static_cast&lt;boolean&gt;(0.5) == boolean::TRUE</code> is wrong, and is instead equal to <code>boolean::FALSE</code>. MSVC accepts the above code.</p><p>But let’s go further and inspect what actually gets stored there. We write a function to examine the bit pattern generated from these casts, then try some values:</p><div><pre><code data-language="cpp">void show(double d) {
+    const boolean e = static_cast&lt;boolean&gt;(d);
+    unsigned char byte {};
+    std::memcpy(&amp;byte, &amp;e, 1);
+    std::println("static_cast&lt;boolean&gt;({:7.1f})  stored byte {:3}   required {}",
+               d, byte, (d != 0.0) ? 1 : 0);
+}
+
+int main() {
+    show(0.0);
+    show(0.5);
+    show(1.0);
+    show(2.5);
+    show(3.0);
+    show(256.0);
+    show(-2.5);
+}
+</code></pre></div><p>Godbolt <a href="https://godbolt.org/z/Phd8jvcjj">here</a>.</p><p>The above code compiles without warning on all three compilers, but while MSVC again does the right thing in all cases, gcc and Clang’s behaviour is much more worrisome. Looking at the output, we see that gcc will always just truncate the value to an integer, then load that bit pattern into the resulting <code>boolean</code>. So <code>2.5</code> truncates to <code>2</code> and gives a <code>boolean</code> whose underlying bit pattern is <code>2</code>. Clang does the same thing on unoptimised builds, but when optimisation is turned on, the truncated value then goes through the [conv.bool] transformation as normal and produces the right answer for all non-zero values outside of the range (-1, 1).</p><p>This is more concerning than some funky bit patterns, however. The valid range of <code>boolean</code> is [0, 1]. It is UB to read objects with bit patterns outside of this range. But, I hear you ask, what happens if we take these <code>boolean</code>s and cast them back to <code>bool</code>, triggering a boolean conversion with no initial floating point state? MSVC again does the right thing; gcc doesn’t modify the bit patterns, leaving us with <code>bool</code> which are out of range of the type (and therefore UB to read); and Clang is where the fun happens again. Running the above code with a cast from <code>e</code> to a <code>bool</code>, and then memcpy-ing that <code>bool</code> into the <code>unsigned char</code>, we get this result for unoptimised builds:</p><table><thead><tr><th></th><th>0.0</th><th>0.5</th><th>1.0</th><th>2.5</th><th>3.0</th><th>256.0</th><th>-2.5</th></tr></thead><tbody><tr><td>required</td><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td></tr><tr><td>gcc 14 / 15 / 16</td><td>0</td><td>0</td><td>1</td><td>2</td><td>3</td><td>0</td><td>254</td></tr><tr><td>clang 19 / 20 / 21</td><td>0</td><td>0</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td></tr><tr><td>clang 23.1.1</td><td>0</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>1</td></tr></tbody></table><p>Versions of Clang before 23 appear to simply perform <code>trunc(d) &amp; 1</code>; meaning that after truncation, odd numbers are <code>true</code> and even numbers are <code>false</code>. Clang 23 performs <code>(trunc(d) % 256) != 0</code>, narrowing to a byte first. So <code>256.0</code> becomes <code>FALSE</code> and <code>257.0</code> becomes <code>TRUE</code>. Optimised builds act as before - truncating then doing the proper boolean conversion.</p><p>Ultimately this all comes to a rather absurd head. Consider the below code:</p><div><pre><code data-language="cpp">#include &lt;print&gt;
+
+enum class boolean : bool {
+    FALSE,
+    TRUE,
+};
+
+//Force this to be runtime
+boolean make(double d) {
+    return static_cast&lt;boolean&gt;(d);
+}
+
+int main() {
+    const boolean e = make(2.5);
+    std::println("e == boolean::TRUE  : {}", e == boolean::TRUE);
+    std::println("e == boolean::FALSE : {}", e == boolean::FALSE);
+
+    const bool b = static_cast&lt;bool&gt;(e);
+    std::println("b == true  : {}", b == true);
+    std::println("b == false : {}", b == false);
+    std::println("b + 0      : {}", b + 0);
+}
+</code></pre></div><p>Godbolt <a href="https://godbolt.org/z/T7zMqGo8j">here</a>.</p><p>MSVC again leads the pack in giving the correct answer. Clang gets it exactly wrong and thinks that <code>e</code> is <code>FALSE</code> and <code>b</code> is <code>false</code>. gcc takes things up a notch, by providing an instance of an <code>enum</code> which compares equal to all of its enumerators, and a <code>bool</code> which is neither <code>true</code> nor <code>false</code>, until you turn on the optimiser and get a <code>bool</code> which is both <code>true</code> and <code>false</code>.</p><p>And to hit all the obligatory targets of any conversation on floating point, infinity and NaN show as <code>0</code> and become <code>FALSE</code> as <code>boolean</code> and so cast to <code>false</code> as <code>bool</code> on gcc and Clang; and give <code>1</code> and therefore <code>TRUE</code> and <code>true</code> on MSVC.</p><p>In lighter news, Clang trunk seems to have fixed the above example to behave correctly, so some of the issues described in this section should be patched out soon.</p><h2 id="conclusion">Conclusion</h2><p>What did we learn from all this? Perhaps that even sensible and uncontentious pure-library-level papers such as P4313 should be on their guard against a footgun from some exotic C++ edge case. Or perhaps, in more practical terms:</p><ul><li>Integral promotion is unavoidable. If you think you are operating on an integer which is smaller than <code>int</code>, there’s a good chance it became an <code>int</code> right under your nose.</li><li>The bitwise complement of a <code>bool</code> is always <code>true</code>, even when wrapped in an enum. However you should not rely on this behaviour as gcc has a longstanding bug which gets this wrong (or right, if you prefer logic to C++).</li><li>Unscoped enumeration types with no fixed underlying type have a range of valid values which may be smaller than that of whatever type actually underlies them.</li></ul><div role="doc-endnotes"><hr><ol><li id="fn:1"><p>To be clear, the ranking order of integral promotion is more complex than just “convert to <code>int</code>”. For an integer type of lower conversion rank (not size) than <code>int</code>, if all values of that type can be represented as <code>int</code> then <code>int</code> is chosen. Otherwise <code>unsigned int</code> is chosen. In practice this will usually come out as <code>int</code>; but on implementations where <code>int</code> and <code>short</code> are the same size, <code>unsigned short</code> will promote directly to <code>unsigned int</code>. And for other types such as the charN_t family, conversion can proceed to longer integer types such as <code>long</code> and <code>long long</code>. <code>bool</code> is singled out as a special case and always promotes to <code>int</code>.&nbsp;<a href="#fnref:1" role="doc-backlink">↩︎</a></p></li></ol></div></div></div>

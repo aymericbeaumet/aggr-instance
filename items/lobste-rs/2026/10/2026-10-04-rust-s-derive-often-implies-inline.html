@@ -1,1 +1,164 @@
-<p><a href="https://lobste.rs/s/dldhpw/rust_s_derive_often_implies_inline">Comments</a></p>
+<div id="readability-page-1" class="page"><div>
+            <p>In Rust, one of the most common ways to implement core traits (like
+<code>Debug</code>, <code>Display</code>, and <code>Clone</code>) is to <code>#[derive(...)]</code> them, e.g.:</p>
+<pre><code data-language="rust">#[derive(Debug)]
+struct Widgets {
+  foo: u32,
+  bar: usize,
+}
+</code></pre>
+<p>What I <em>didn't</em> know until recently is that Rust currently emits
+<code>#[inline]</code> as part of these derivations. This is seemingly
+not guaranteed, but is <a href="https://doc.rust-lang.org/reference/attributes/derive.html">implied by example in the reference</a>
+and can also be seen if one expands the macros.</p>
+<p>Using the example above, this is what you get when you expand
+the <code>#[derive(Debug)]</code> <a href="https://play.rust-lang.org/?version=stable&amp;mode=debug&amp;edition=2024&amp;gist=bf60dea24f7278ad716ebc2a43f99a5e">in the playground</a>:</p>
+<pre><code data-language="rust">struct Widgets {
+    foo: u32,
+    bar: usize,
+}
+#[automatically_derived]
+impl ::core::fmt::Debug for Widgets {
+    #[inline]
+    fn fmt(&amp;self, f: &amp;mut ::core::fmt::Formatter) -&gt; ::core::fmt::Result {
+        ::core::fmt::Formatter::debug_struct_field2_finish(f, "Widgets",
+            "foo", &amp;self.foo, "bar", &amp;&amp;self.bar)
+    }
+}
+</code></pre>
+<p>This is <em>almost</em> always what we want: <code>#[inline]</code> is just a hint,
+and typical derived <code>Debug</code>, <code>Clone</code>, etc. implementations benefit
+from being inlined (since they're often trivial).</p>
+<p>But not always! Imagine an error hierarchy like this<sup><a href="#fn-simple" id="fnref-simple" data-footnote-ref="">1</a></sup>:</p>
+<pre><code data-language="rust">#[derive(Debug)]
+struct ErrorA {
+  lots: String,
+  of: String,
+  chunky: String,
+  fields: String,
+  within: String,
+  this: String,
+  r#type: String,
+}
+
+#[derive(Debug)]
+struct ErrorB {
+  inner: ErrorA,
+}
+
+#[derive(Debug)]
+struct ErrorC {
+  inner: ErrorB,
+}
+
+#[derive(Debug)]
+enum Errors {
+    A(ErrorA),
+    B(ErrorB),
+    C(ErrorC),
+}
+</code></pre>
+<p>produces:</p>
+<pre><code data-language="rust">struct ErrorA {
+    lots: String,
+    of: String,
+    chunky: String,
+    fields: String,
+    within: String,
+    this: String,
+    r#type: String,
+}
+#[automatically_derived]
+impl ::core::fmt::Debug for ErrorA {
+    #[inline]
+    fn fmt(&amp;self, f: &amp;mut ::core::fmt::Formatter) -&gt; ::core::fmt::Result {
+        let names: &amp;'static _ =
+            &amp;["lots", "of", "chunky", "fields", "within", "this", "type"];
+        let values: &amp;[&amp;dyn ::core::fmt::Debug] =
+            &amp;[&amp;self.lots, &amp;self.of, &amp;self.chunky, &amp;self.fields, &amp;self.within,
+                        &amp;self.this, &amp;&amp;self.r#type];
+        ::core::fmt::Formatter::debug_struct_fields_finish(f, "ErrorA", names,
+            values)
+    }
+}
+#[automatically_derived]
+impl ::core::default::Default for ErrorA {
+    #[inline]
+    fn default() -&gt; Self {
+        Self {
+            lots: ::core::default::Default::default(),
+            of: ::core::default::Default::default(),
+            chunky: ::core::default::Default::default(),
+            fields: ::core::default::Default::default(),
+            within: ::core::default::Default::default(),
+            this: ::core::default::Default::default(),
+            r#type: ::core::default::Default::default(),
+        }
+    }
+}
+
+struct ErrorB {
+    inner: ErrorA,
+}
+#[automatically_derived]
+impl ::core::fmt::Debug for ErrorB {
+    #[inline]
+    fn fmt(&amp;self, f: &amp;mut ::core::fmt::Formatter) -&gt; ::core::fmt::Result {
+        ::core::fmt::Formatter::debug_struct_field1_finish(f, "ErrorB",
+            "inner", &amp;&amp;self.inner)
+    }
+}
+
+struct ErrorC {
+    inner: ErrorB,
+}
+#[automatically_derived]
+impl ::core::fmt::Debug for ErrorC {
+    #[inline]
+    fn fmt(&amp;self, f: &amp;mut ::core::fmt::Formatter) -&gt; ::core::fmt::Result {
+        ::core::fmt::Formatter::debug_struct_field1_finish(f, "ErrorC",
+            "inner", &amp;&amp;self.inner)
+    }
+}
+
+enum Errors { A(ErrorA), B(ErrorB), C(ErrorC), }
+#[automatically_derived]
+impl ::core::fmt::Debug for Errors {
+    #[inline]
+    fn fmt(&amp;self, f: &amp;mut ::core::fmt::Formatter) -&gt; ::core::fmt::Result {
+        match self {
+            Self::A(__self_0) =&gt;
+                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "A",
+                    &amp;__self_0),
+            Self::B(__self_0) =&gt;
+                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "B",
+                    &amp;__self_0),
+            Self::C(__self_0) =&gt;
+                ::core::fmt::Formatter::debug_tuple_field1_finish(f, "C",
+                    &amp;__self_0),
+        }
+    }
+}
+</code></pre>
+<p>That's a lot of code that can get inlined for each invocation of the <code>Debug</code>
+implementation of <code>Errors</code>, which can occur repeatedly in e.g. debug or trace logging.</p>
+<p>In fact, it's so much code that it can turn out to be a non-trivial amount of a Rust
+binary's total size: we found that we could shrink uv's binary size by approximately
+160KB by preventing<sup><a href="#fn-how" id="fnref-how" data-footnote-ref="">2</a></sup> <code>rustc</code> from inlining a given <code>Debug</code> implementation.</p>
+<p>This was surprising to me on two levels: the size cost added up fast, and <code>rustc</code>
+(seemingly) did not apply a limit to the size or number of times a <code>Debug</code> implementation
+was inlined. I suspect this is the right decision in many programs, however!</p>
+<section data-footnotes="">
+<ol>
+<li id="fn-simple">
+<p>This hierarchy is <em>drastically</em> simplified: real world Rust applications often have
+deeply nested error enumerations with nontrivial numbers of fields. <a href="#fnref-simple" data-footnote-backref="" data-footnote-backref-idx="1" aria-label="Back to reference 1">↩</a></p>
+</li>
+<li id="fn-how">
+<p>We did this by adding our own-proc macro that behaves like <code>derive(Debug)</code>, but
+with <code>#[inline(never)]</code>. <a href="#fnref-how" data-footnote-backref="" data-footnote-backref-idx="2" aria-label="Back to reference 2">↩</a></p>
+</li>
+</ol>
+</section>
+
+        </div></div>

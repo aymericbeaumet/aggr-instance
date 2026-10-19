@@ -10,14 +10,12 @@ authors:
 labels:
 - ai
 summary: I have to say, Peter Steinberg (aka lobster man) is absolutely brilliant. He was so ahead of his time with OpenClaw. I remember when he first tweeted about it last year, and when it turned into utter lobster madness at the beginning of the year. Heck, I even ran OpenClaw
-content: feed
+content: extracted
 html: 2026-10-16-revisiting-some-of-my-priors-about-openclaw.html
 remote_preview:
   url: https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-representing-a-reassessment-of-prior-beliefs-about-OpenClaw--featuring-complex-ornamental-motifs--retro-flair--luxurious-vibrant-colors--rich-deep-teal--warm-golden-hour-illumination--soft-sunrise-or-su.jpg
   alt: revisiting some of my priors about openclaw
 ---
-
-![revisiting some of my priors about openclaw](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Symbolic-traditional-tattoo-art-print-representing-a-reassessment-of-prior-beliefs-about-OpenClaw--featuring-complex-ornamental-motifs--retro-flair--luxurious-vibrant-colors--rich-deep-teal--warm-golden-hour-illumination--soft-sunrise-or-su.jpg)
 
 I have to say, [Peter Steinberg](https://x.com/steipete?ref=ghuntley.com) (aka lobster man) is absolutely brilliant. He was so ahead of his time with OpenClaw. I remember when he first tweeted about it last year, and when it turned into utter lobster madness at the beginning of the year.
 
@@ -25,27 +23,33 @@ Heck, I even ran OpenClaw for a bit, but I couldn't really see the value because
 
 Categorically, this is a billion-dollar problem, perhaps more.
 
-![revisiting some of my priors about openclaw](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/image-2.png)
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/image-2.png)
 
 So here's the thing. I kind of want openclaw, but I want it managed. For almost a year now, I've been using Interaction Labs Poke, because if there's going to be a problem with the lethal trifecta, I want to make that problem someone else's as much as possible. I want them losing sleep over the lethal trifecta, not me. It's not full protection, but knowing there's a product team paid to think about these issues and resolve them at scale puts me at ease.
 
-That is, until last week, when [Poteto](https://x.com/poteto?ref=ghuntley.com) girl nerd-sniped me on X and, in [full disclosure](https://ghuntley.com/disclosures), hooked me up with enough credits to help me reevaluate my priors.
+That is, until last week, when [Poteto](https://x.com/poteto?ref=ghuntley.com) girl nerd-sniped me on X and, in [full disclosure](https://ghuntley.com/disclosures), hooked me up with enough credits to help me reevaluate. I am now using Grokbot full-time instead of Poke (which sucks), and I've revisited my [priors about the utility of an AI bot and who they are useful for](https://ghuntley.com/toronto).
 
-I am now using Grokbot full-time instead of Poke (which sucks), and I've revisited my priors about the utility of a personal assistance bot. In this post, I'm going to give a high-level overview of how I've automated some aspects of my life.
+I'm writing this blog post of my own free will in the hope that it will help change some other people's perspectives on the utility of these assistants and give people some ideas on how they can be used, but most importantly, to highlight the risks of using these types of tools.
+
+In this post, I'm going to give a high-level overview of how I've automated some aspects of my life. Late to the game, I know, but with some things it's better to be cautious.
 
 ## initial experiences
 
 Okay, Grokbot is really weird, and I guess this applies to, like, even OpenAI's dots, even though I have not used it. One of the hardest things about it is how generic it is. Once you have it installed, it becomes a question of "now what?"
 
-You need to be curious, have lots of imagination, and when you have an idea, you just need to ask for it. From that point forward, it starts to unfold like a pretty flower. If functionality is missing, just ask for it and ask it to turn into a skill.
+You need to be curious, have lots of imagination, and when you have an idea, just ask for it. From that point forward, it starts to unfold like a pretty flower. If functionality is missing, ask for it and turn it into a skill.
 
 ## starter pack
 
-If you're using Grok, install this skill pack first, and use it to create other bots. Every time you need a new bot, which is often, you should ask this bot to create a new bot.
+If you're using Grok, install this skill pack first, and use it to create other bots. Every time you need a new bot, which is often, ask this bot to create one.
 
 [dr eggbot · Grok Bot Marketplace](https://x.ai/bot/marketplace/bots/dr-eggbot-v2?ref=ghuntley.com)
 
 Designs high-quality Grok Bots. Asks a few preference questions, then creates them with CreateAgent.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/icon-991fbc1d-baa8-4b59-a819-3a51b67f9ed7.png)SpaceXSI Lauren Tan
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/introducing-grok-bot-og-2-31caf52c-45db-416f-96aa-980c6471aac8.png)
 
 ## some ideas for bots
 
@@ -69,9 +73,9 @@ Here are the bots I've defined in the last week, which I'm getting a lot of util
 **Life admin**
 
 - **Kitten Vet** tracks the kittens' vaccinations and vet admin and automatically reminds me of what I need to do for them. Connectors: Gmail, Google Calendar.
-- **Desires** keeps my bucket list and "someday" list. Connector: Google Calendar and X. What's really cool here is sometimes I'll have a conversation out in public, and I'll genuinely want to catch up with someone, but I forget to. So I can just prompt my desires bot to like add it to the particular category, either by searching X or dropping the exact link of the conversation.
+- **Desires** keeps my bucket list and "someday" list. Connector: Google Calendar and X. What's really cool is that sometimes I'll have a conversation out in public and genuinely want to catch up with someone, but I forget. So I can just prompt my desires bot to like add it to the particular category, either by searching X or dropping the exact link of the conversation.
 
-![revisiting some of my priors about openclaw](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Screenshot-2026-10-16-at-8.02.11---PM.png)\
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/Screenshot-2026-10-16-at-8.02.11---PM.png)\
 desires bot
 
 **Dev and infrastructure**
@@ -83,6 +87,10 @@ desires bot
 
 Overalls is an open-source, self-hosted platform for persistent Firecracker development machines and the AI agents that work on them.
 
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/favicon-8885c1b6-40cb-4d08-953b-bdd019d43afe.png)Overalls Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/og-53ecf474-d1d4-4006-ae97-41c3f1567524.png)
+
 loom is shipping
 
 ## lessons learned
@@ -93,4 +101,4 @@ You can install software on your Grok bot. For example, I have Tailscale install
 
 ## the future
 
-If the lethal trifecta is ever solved at a fundamental level, I'll move all this stuff into a self-hosted Open Claw, but not before. I get the value of OpenClaw and open source, but fundamentally, I sleep much better at night knowing there's a product team whose arse is on the line, with staff and a funded security organization that loses sleep over these topics so I don't have to.
+If the lethal trifecta is ever solved at a fundamental level, I'll move all this stuff into a self-hosted Open Claw, but not before. I get the value of OpenClaw, and they do a [good job with security](https://openclaw.ai/blog/openclaw-trail-of-bits-engagement-recap?ref=ghuntley.com), but fundamentally, I sleep much better at night knowing there's a product team whose arse is on the line, with staff and a funded security organization with a security VDP program that loses sleep over these topics, so I don't have to.

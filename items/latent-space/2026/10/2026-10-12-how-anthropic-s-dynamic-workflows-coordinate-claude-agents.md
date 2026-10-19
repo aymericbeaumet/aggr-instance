@@ -8,13 +8,13 @@ first_seen: 2026-10-12T22:35:36.108955126Z
 authors:
 - Richard MacManus
 summary: At AI Engineer New York, Anthropic drew on lessons from Unix and Linux to explain how agents can tackle bigger projects without overwhelming developers.
-content: feed
+content: extracted
 html: 2026-10-12-how-anthropic-s-dynamic-workflows-coordinate-claude-agents.html
 remote_preview:
   url: https://substack-post-media.s3.amazonaws.com/public/images/dda42c05-6ce1-4e54-b544-f7d1557f04b2_1280x720.jpeg
 ---
 
-[![](https://substackcdn.com/image/fetch/$s_!wcn_!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fbee9915a-7027-4d1c-90c8-69803c5b44f4_1280x960.jpeg)](https://substackcdn.com/image/fetch/$s_!wcn_!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fbee9915a-7027-4d1c-90c8-69803c5b44f4_1280x960.jpeg)
+[![](https://substackcdn.com/image/fetch/$s_!ldh9!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc6a5d406-018a-41a9-b18e-90a7533ca825_1280x720.jpeg)](https://substackcdn.com/image/fetch/$s_!ldh9!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc6a5d406-018a-41a9-b18e-90a7533ca825_1280x720.jpeg)
 
 CJ Avilla and Harrison Stall, Members of Technical Staff at Anthropic, at AI Engineer NYC today.
 
@@ -24,7 +24,7 @@ Flows are defined as “a new type of multiagent orchestration, built for your m
 
 **[CJ Avilla](https://www.linkedin.com/in/cjavilla/)** and **[Harrison Stall](https://www.linkedin.com/in/harrisonstall/)**, both **Members of Technical Staff at Anthropic**, began by invoking some operating system projects of the past — from Ken Thompson building the original Unix operating system, through to Linux evolving from one person (Linus Torvalds) to **layers of trusted maintainers**. The lesson: agents need **the same level of organization** in order to do the types of big, ambitious projects Anthropic envisions for dynamic workflows.
 
-* * *
+[www.youtube.com](https://www.youtube.com/watch?v=kiClTcJUnhc)
 
 **Sponsored by Union.ai**
 
@@ -38,23 +38,15 @@ Get started directly through AWS Marketplace and **[try Union.ai free for 30 day
 
 To learn more, visit us at AI Engineer New York booth #48.
 
-* * *
-
 “I think a lot of us who are orchestrating and managing lots of agents now might start to feel **this feeling of being the bottleneck and being the breaking point** as we have lots of agents contributing tons and tons of PRs,” Avilla said. “And we’re sitting there in our GitHub trying to approve PRs and make sure that everything works as expected.”
 
 [![](https://substackcdn.com/image/fetch/$s_!_WMP!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F2bbe55bc-0357-4a4c-8903-d5b93ef53a4a_1646x988.png)](https://substackcdn.com/image/fetch/$s_!_WMP!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F2bbe55bc-0357-4a4c-8903-d5b93ef53a4a_1646x988.png)
-
-## From agent rosters to dynamic workflows
 
 The pair noted that dynamic workflows began in Claude Code as the “a harness for every task” concept. But **flows can run longer than a single agent or a roster.** The basic idea is that Claude chooses the organization of agents.
 
 **“Flows are essentially the next version of multi-agent orchestration,”** said Stall, “where you can let Claude fully orchestrate the entirety of its own multi-agent topology.”
 
 The way this works is that the lead agent creates a plan for how it wants to accomplish tasks. Claude then writes an orchestration program, which launches agents, collects results, and manages information flow.
-
-[![](https://substackcdn.com/image/fetch/$s_!ybT5!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fda2eb043-e1ae-4aab-adb2-cac56c13d44e_1548x1174.png)](https://substackcdn.com/image/fetch/$s_!ybT5!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fda2eb043-e1ae-4aab-adb2-cac56c13d44e_1548x1174.png)
-
-Image [via Anthropic](https://x.com/ClaudeDevs/status/2108591331660468538/photo/1)
 
 Previously, Claude Managed Agents required developers to configure a coordinator and a roster of subagents. **With dynamic workflows, Claude itself determines how to divide and orchestrate the work.**
 
@@ -73,8 +65,6 @@ All of this is available in **Claude Console**, the interface used by developers
 *Claude Console, where Managed Agents is located.*
 
 The presenters then showed a relatively simple workflow of a stock watchlist scanner. Although this was far removed from the big, ambitious projects Anthropic is encouraging, it did illustrate **the basic pattern**: a scan phase **distributed individual tickers to agents with isolated contexts**, and a later review phase examined the findings before producing a report.
-
-## Q&A: Budgets and the limits of self-improvement
 
 The audience Q&A surfaced a number of potential problems. One audience member asked **how Claude decides how many agents a task needs**, and could a simple ticker scan trigger hundreds of sub-agents?
 
@@ -111,8 +101,6 @@ Avilla replied that yes, developers can always inspect that through graphing fun
 Another interesting question was **whether the subagents can communicate with each other?**
 
 Stall said the **agents share a filesystem** and can use it to exchange information, but developers cannot directly instruct one workflow subagent to message another through the API.
-
-## Flows cost much more, but are designed for big tasks
 
 In the watchlist-scanner comparison, Avilla said flows cost “much more” than a single-agent approach, but were also **“much more effective at finding all of the details.”**
 

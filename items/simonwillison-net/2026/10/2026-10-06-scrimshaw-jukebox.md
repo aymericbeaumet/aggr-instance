@@ -12,14 +12,14 @@ labels:
 - llms
 - vibe-coding
 summary: 'Tool: Scrimshaw Jukebox I wanted to see if Claude Opus 5.5 could compose music, so I tried this: I want you to write some computer game music for me. First design simple text based format for the music and build an artifact that can play it out loud - include some example tracks in that artifact I am looking for music of the quality of the original secret of Monkey Island It leaned a lot harder into the Monkey Island theme than I had intended, but the results are surprisingly good. I wonder if the ability to compose competent music is similar to the 3D graphics thing - a new capability for text models that emerged in the past few months? Would need some careful experiments with other recent and not-so-recent models to confirm if this is new or if they''ve been able to do this for a while. Tags: ai, generative-ai, llms, claude, vibe-coding'
-content: feed
+content: extracted
 html: 2026-10-06-scrimshaw-jukebox.html
 remote_preview:
   url: https://static.simonwillison.net/static/2026/scrimshaw.webp
   alt: Screenshot of a retro pixel-art web music player. Header in blackletter type reads "Scrimshaw Jukebox", with the text "Six original adventure-game tracks, written as plain text and played by a synthesizer running in your browser. Pick a tune, press Play, then open the score and change it." A large p
 ---
 
-**Tool:** [Scrimshaw Jukebox](https://tools.simonwillison.net/scrimshaw-jukebox)
+[Scrimshaw Jukebox](https://tools.simonwillison.net/scrimshaw-jukebox) — Play synthesized adventure-game music written as plain text scores that you can edit and modify in real time. Six original compositions in the Scrimshaw format showcase various instruments and styles, from a calypso harbour theme to a tavern jig, with a pixel-art scene that reacts to the music and an interactive piano roll display.
 
 I wanted to see if Claude Opus 5.5 could compose music, so [I tried this](https://claude.ai/share/1f721c20-2499-4d23-b368-3ab57146d956):
 
@@ -34,5 +34,3 @@ It leaned a lot harder into the Monkey Island theme than I had intended, but the
 I wonder if the ability to compose competent music is similar to the 3D graphics thing - a new capability for text models that emerged in the past few months?
 
 Would need some careful experiments with other recent and not-so-recent models to confirm if this is new or if they've been able to do this for a while.
-
-Tags: [ai](https://simonwillison.net/tags/ai), [generative-ai](https://simonwillison.net/tags/generative-ai), [llms](https://simonwillison.net/tags/llms), [claude](https://simonwillison.net/tags/claude), [vibe-coding](https://simonwillison.net/tags/vibe-coding)

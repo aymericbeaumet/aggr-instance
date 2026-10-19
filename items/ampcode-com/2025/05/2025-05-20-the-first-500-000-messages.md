@@ -6,7 +6,7 @@ published: 2025-05-20T00:00:00Z
 updated: 2025-05-20T00:00:00Z
 first_seen: 2026-10-04T12:50:30.804479567Z
 summary: Last week we opened up Amp to the world, and now it's about to hit 500,000 messages sent. We've been busy fixing bugs and making the whole experience of using Amp as smooth, solid, and fast as possible. Please keep the feedback coming, on Discord, on X (1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 …), or to amp-devs@ampcode.com. Thank you and happy coding!
-content: feed
+content: extracted
 html: 2025-05-20-the-first-500-000-messages.html
 ---
 

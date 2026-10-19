@@ -1,0 +1,597 @@
+<div id="readability-page-1" class="page"><div>
+<p>GPT OSS is a hugely anticipated open-weights release by OpenAI, designed for powerful reasoning, agentic tasks, and versatile developer use cases. It comprises two models: a big one with 117B parameters (<a href="https://hf.co/openai/gpt-oss-120b" rel="nofollow">gpt-oss-120b</a>), and a smaller one with 21B parameters (<a href="https://hf.co/openai/gpt-oss-20b" rel="nofollow">gpt-oss-20b</a>). Both are mixture-of-experts (MoEs) and use a 4-bit quantization scheme (MXFP4), enabling fast inference (thanks to fewer active parameters, see details below) while keeping resource usage low. The large model fits on a single H100 GPU, while the small one runs within 16GB of memory and is perfect for consumer hardware and on-device applications.</p>
+<p>To make it even better and more impactful for the community, the models are licensed under the <strong>Apache 2.0 license</strong>, along with a minimal usage policy:  </p>
+<blockquote>
+<p>We aim for our tools to be used safely, responsibly, and democratically, while maximizing your control over how you use them. By using gpt-oss, you agree to comply with all applicable law.</p>
+</blockquote>
+<p>According to OpenAI, this release is a meaningful step in their commitment to the open-source ecosystem, in line with their stated mission to make the benefits of AI broadly accessible. Many use cases rely on private and/or local deployments, and we at Hugging Face are super excited to welcome <a href="https://huggingface.co/openai">OpenAI</a> to the community. We believe these will be long-lived, inspiring and impactful models.</p>
+<h2>
+	<a id="contents" href="#contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#welcome-gpt-oss-the-new-open-source-model-family-from-openai" rel="nofollow">Introduction</a></li>
+<li><a href="#overview-of-capabilities-and-architecture" rel="nofollow">Overview</a></li>
+<li><a href="#api-access-through-inference-providers" rel="nofollow">API access through Inference Providers</a></li>
+<li><a href="#local-inference" rel="nofollow">Local Inference</a><ul>
+<li><a href="#using-transformers" rel="nofollow">Using transformers</a><ul>
+<li><a href="#flash-attention-3" rel="nofollow">Flash Attention 3</a></li>
+<li><a href="#other-optimizations" rel="nofollow">Other optimizations</a></li>
+<li><a href="#amd-rocm-support" rel="nofollow">AMD ROCm support</a></li>
+<li><a href="#summary-of-available-optimizations" rel="nofollow">Summary of Optimizations</a></li>
+</ul>
+</li>
+<li><a href="#llamacpp" rel="nofollow">llama.cpp</a></li>
+<li><a href="#vllm" rel="nofollow">vLLM</a></li>
+<li><a href="#transformers-serve" rel="nofollow">transformers serve</a></li>
+</ul>
+</li>
+<li><a href="#fine-tuning" rel="nofollow">Fine Tuning</a></li>
+<li><a href="#deploy-on-hugging-face-partners" rel="nofollow">Deploy on Hugging Face Partners</a><ul>
+<li><a href="#azure" rel="nofollow">Azure</a></li>
+<li><a href="#dell" rel="nofollow">Dell</a></li>
+</ul>
+</li>
+<li><a href="#evaluating-the-model" rel="nofollow">Evaluating the Model</a></li>
+<li><a href="#chats-and-chat-templates" rel="nofollow">Chats and Chat Templates</a><ul>
+<li><a href="#system-and-developer-messages" rel="nofollow">System and Developer Messages</a></li>
+<li><a href="#tool-use-with-transformers" rel="nofollow">Tool use with transformers</a></li>
+</ul>
+</li>
+</ul>
+<h2>
+	<a id="overview-of-capabilities-and-architecture" href="#overview-of-capabilities-and-architecture" rel="nofollow">
+		
+	</a>
+	<span>
+		Overview of Capabilities and Architecture
+	</span>
+</h2>
+<ul>
+<li>21B and 117B total parameters, with 3.6B and 5.1B <em>active</em> parameters, respectively.  </li>
+<li>4-bit quantization scheme using <a href="https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf" rel="nofollow">mxfp4</a> format. Only applied on the MoE weights. As stated, the 120B fits in a single 80 GB GPU and the 20B fits in a single 16GB GPU.  </li>
+<li>Reasoning, text-only models; with chain-of-thought and adjustable reasoning effort levels.  </li>
+<li>Instruction following and tool use support.  </li>
+<li>Inference implementations using transformers, vLLM, llama.cpp, and ollama.  </li>
+<li><a href="https://platform.openai.com/docs/api-reference/responses" rel="nofollow">Responses API</a> is recommended for inference.  </li>
+<li>License: Apache 2.0, with a small complementary use policy.</li>
+</ul>
+<p><strong>Architecture</strong></p>
+<ul>
+<li>Token-choice MoE with SwiGLU activations.  </li>
+<li>When calculating the MoE weights, a softmax is taken over selected experts (softmax-after-topk).  </li>
+<li>Each attention layer uses RoPE with 128K context.  </li>
+<li>Alternate attention layers: full-context, and sliding 128-token window.  </li>
+<li>Attention layers use a <em>learned attention sink</em> per-head, where the denominator of the softmax has an additional additive value.  </li>
+<li>It uses the same tokenizer as GPT-4o and other OpenAI API models.  <ul>
+<li>Some new tokens have been incorporated to enable compatibility with the Responses API.</li>
+</ul>
+</li>
+</ul>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/openai/gpt-oss-evals.png" alt="Some benchmark results of OpenAI GPT OSS models">
+  <figcaption> Benchmark results from OpenAI GPT OSS models, compared with <code>o3</code> and <code>o4-mini</code> (<b><i>Source: <a href="https://openai.com/open-models/" rel="nofollow">OpenAI</a></i></b>).
+ </figcaption>
+</figure>
+
+<h2>
+	<a id="api-access-through-inference-providers" href="#api-access-through-inference-providers" rel="nofollow">
+		
+	</a>
+	<span>
+		API access through Inference Providers
+	</span>
+</h2>
+<p>OpenAI GPT OSS models are accessible through Hugging Face’s <a href="https://huggingface.co/docs/inference-providers/en/index">Inference Providers</a> service, allowing you to send requests to any supported provider using the same JavaScript or Python code. This is the same infrastructure that powers OpenAI’s official demo on <a href="http://gpt-oss.com" rel="nofollow">gpt-oss.com</a>, and you can use it for your own projects.</p>
+<p>Below is an example that uses Python and the super-fast Cerebras provider. For more info and additional snippets, check the <a href="https://huggingface.co/openai/gpt-oss-120b?inference_api=true&amp;inference_provider=auto&amp;language=python&amp;client=openai">inference providers section in the model cards</a> and the <a href="https://huggingface.co/docs/inference-providers/guides/gpt-oss">dedicated guide we crafted for these models</a>. </p>
+<pre><code data-language="py">import os
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://router.huggingface.co/v1",
+    api_key=os.environ["HF_TOKEN"],
+)
+
+completion = client.chat.completions.create(
+    model="openai/gpt-oss-120b:cerebras",
+    messages=[
+        {
+            "role": "user",
+            "content": "How many rs are in the word 'strawberry'?",
+        }
+    ],
+)
+
+print(completion.choices[0].message)
+</code></pre>
+<p>Inference Providers also implements an OpenAI-compatible Responses API, the most advanced OpenAI interface for chat models, designed for more flexible and intuitive interactions.<br>Below is an example using the Responses API with the Fireworks AI provider. For more details, check out the open-source <a href="https://github.com/huggingface/responses.js" rel="nofollow">responses.js</a> project.</p>
+<pre><code data-language="py">import os
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://router.huggingface.co/v1",
+    api_key=os.getenv("HF_TOKEN"),
+)
+
+response = client.responses.create(
+    model="openai/gpt-oss-20b:fireworks-ai",
+    input="How many rs are in the word 'strawberry'?",
+)
+
+print(response)
+</code></pre>
+<h2>
+	<a id="local-inference" href="#local-inference" rel="nofollow">
+		
+	</a>
+	<span>
+		Local Inference
+	</span>
+</h2>
+<h3>
+	<a id="using-transformers" href="#using-transformers" rel="nofollow">
+		
+	</a>
+	<span>
+		Using Transformers
+	</span>
+</h3>
+<p>You need to install the latest <code>transformers</code> release (v4.55.1 or later), as well as <code>accelerate</code> and <code>kernels</code>. We also recommend installing triton 3.4 or better, as it unblocks support for <code>mxfp4</code> quantization on CUDA hardware:</p>
+<pre><code data-language="shell">pip install --upgrade transformers kernels accelerate "triton&gt;=3.4"
+</code></pre>
+<p>The model weights are quantized in <code>mxfp4</code> format, which was originally available on GPUs of the Hopper or Blackwell families, but now works on previous CUDA architectures (including Ada, Ampere, and Tesla). Installing triton 3.4, together with the <code>kernels</code> library, makes it possible to download optimized <code>mxfp4</code> kernels on first use, achieving large memory savings. With these components in place, you can run the 20B model on GPUs with 16 GB of RAM. This includes many consumer cards (3090, 4090, 5080) as well as Colab and Kaggle!</p>
+<p>If the previous libraries are not installed (or you don’t have a compatible GPU), loading the model will fall back to <code>bfloat16</code>, unpacked from the quantized weights.</p>
+<p>The following snippet shows simple inference with the 20B model. As explained, it runs on 16 GB GPUs when using <code>mxfp4</code>, or ~48 GB in <code>bfloat16</code>.</p>
+<pre><code data-language="py">from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model_id = "openai/gpt-oss-20b"
+
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    device_map="auto",
+    torch_dtype="auto",
+)
+
+messages = [
+    {"role": "user", "content": "How many rs are in the word 'strawberry'?"},
+]
+
+inputs = tokenizer.apply_chat_template(
+    messages,
+    add_generation_prompt=True,
+    return_tensors="pt",
+    return_dict=True,
+).to(model.device)
+
+generated = model.generate(**inputs, max_new_tokens=100)
+print(tokenizer.decode(generated[0][inputs["input_ids"].shape[-1]:]))
+</code></pre>
+<h4>
+	<a id="flash-attention-3" href="#flash-attention-3" rel="nofollow">
+		
+	</a>
+	<span>
+		Flash Attention 3
+	</span>
+</h4>
+<p>The models use <em>attention sinks</em>, a technique the vLLM team made compatible with Flash Attention 3. We have packaged and integrated their optimized kernel in <a href="https://huggingface.co/kernels-community/vllm-flash-attn3"><code>kernels-community/vllm-flash-attn3</code></a>. At the time of writing, this super-fast kernel has been tested on Hopper cards with PyTorch 2.7 and 2.8. We expect increased coverage in the coming days. If you run the models on Hopper cards (for example, H100 or H200), you need to <code>pip install --upgrade kernels</code> and add the following line to your snippet:</p>
+<pre><code data-language="diff">from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model_id = "openai/gpt-oss-20b"
+
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    device_map="auto",
+    torch_dtype="auto",
++    # Flash Attention with Sinks
++    attn_implementation="kernels-community/vllm-flash-attn3",
+)
+
+messages = [
+    {"role": "user", "content": "How many rs are in the word 'strawberry'?"},
+]
+
+inputs = tokenizer.apply_chat_template(
+    messages,
+    add_generation_prompt=True,
+    return_tensors="pt",
+    return_dict=True,
+).to(model.device)
+
+generated = model.generate(**inputs, max_new_tokens=100)
+print(tokenizer.decode(generated[0][inputs["input_ids"].shape[-1]:]))
+</code></pre>
+<p>This snippet will download the optimized, pre-compiled kernel code from <code>kernels-community</code>, as explained in our <a href="https://huggingface.co/blog/hello-hf-kernels">previous blog post</a>. The transformers team has built, packaged, and tested the code, so it’s totally safe for you to use.</p>
+<h4>
+	<a id="other-optimizations" href="#other-optimizations" rel="nofollow">
+		
+	</a>
+	<span>
+		Other optimizations
+	</span>
+</h4>
+<p>We recommend you use <code>mxfp4</code> if your GPU supports it. If you can additionally use Flash Attention 3, then by all means do enable it! </p>
+<blockquote>
+<p>If your GPU is not compatible with <code>mxfp4</code>, then we recommend you use MegaBlocks MoE kernels for a nice speed bump. To do so, you just need to adjust your inference code like this:</p>
+</blockquote>
+<pre><code data-language="diff">from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model_id = "openai/gpt-oss-20b"
+
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    device_map="auto",
+    torch_dtype="auto",
++    # Optimize MoE layers with downloadable` MegaBlocksMoeMLP
++    use_kernels=True,
+)
+
+messages = [
+    {"role": "user", "content": "How many rs are in the word 'strawberry'?"},
+]
+
+inputs = tokenizer.apply_chat_template(
+    messages,
+    add_generation_prompt=True,
+    tokenize=True,
+    return_tensors="pt",
+    return_dict=True,
+).to(model.device)
+
+generated = model.generate(**inputs, max_new_tokens=100)
+print(tokenizer.decode(generated[0][inputs["input_ids"].shape[-1]:]))
+</code></pre>
+<blockquote>
+<p>MegaBlocks optimized MoE kernels require the model to run on <code>bfloat16</code>, so memory consumption will be higher than running on <code>mxfp4</code>. We recommend you use <code>mxfp4</code> if you can, otherwise opt in to MegaBlocks via <code>use_kernels=True</code>.</p>
+</blockquote>
+<h4>
+	<a id="amd-rocm-support" href="#amd-rocm-support" rel="nofollow">
+		
+	</a>
+	<span>
+		AMD ROCm support
+	</span>
+</h4>
+<p>OpenAI GPT OSS has been verified on AMD Instinct hardware, and we’re happy to announce initial support for AMD’s ROCm platform in our kernels library, setting the stage for upcoming optimized ROCm kernels in Transformers. MegaBlocks MoE kernel acceleration is already available for OpenAI GPT OSS on AMD Instinct (e.g., MI300-series), enabling better training and inference performance. You can test it with the same inference code shown above.</p>
+<p>AMD also prepared a Hugging Face <a href="https://huggingface.co/spaces/amd/gpt-oss-120b-chatbot">Space</a> for users to try the model on AMD hardware.</p>
+<h4>
+	<a id="summary-of-available-optimizations" href="#summary-of-available-optimizations" rel="nofollow">
+		
+	</a>
+	<span>
+		Summary of Available Optimizations
+	</span>
+</h4>
+<p>At the time of writing, this table summarizes our <em>recommendations</em> based on GPU compatibility and our tests. We expect Flash Attention 3 (with sink attention) to become compatible with additional GPUs.</p>
+<div>
+	<table>
+		<thead><tr>
+<th></th>
+<th>mxfp4</th>
+<th>Flash Attention 3 (w/ sink attention)</th>
+<th>MegaBlocks MoE kernels</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Hopper GPUs (H100, H200)</td>
+<td>✅</td>
+<td>✅</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>CUDA GPUS with 16+ GB of RAM</td>
+<td>✅</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Other CUDA GPUs</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>AMD Instinct (MI3XX)</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><em>How to enable</em></td>
+<td>triton 3.4 + kernels library</td>
+<td>Use vllm-flash-attn3 from kernels-community</td>
+<td><code>use_kernels</code></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Even though the 120B model fits on a single H100 GPU (using <code>mxfp4</code>), you can also run it easily on multiple GPUs using <code>accelerate</code> or <code>torchrun</code>. Transformers provides a default parallelization plan, and you can leverage optimized attention kernels as well. The following snippet can be run with <code>torchrun --nproc_per_node=4 generate.py</code> on a system with 4 GPUs:</p>
+<pre><code data-language="py">from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers.distributed import DistributedConfig
+import torch
+
+model_path = "openai/gpt-oss-120b"
+tokenizer = AutoTokenizer.from_pretrained(model_path, padding_side="left")
+
+device_map = {
+    "tp_plan": "auto",    # Enable Tensor Parallelism
+}
+
+model = AutoModelForCausalLM.from_pretrained(
+    model_path,
+    torch_dtype="auto",
+    attn_implementation="kernels-community/vllm-flash-attn3",
+    **device_map,
+)
+
+messages = [
+     {"role": "user", "content": "Explain how expert parallelism works in large language models."}
+]
+
+inputs = tokenizer.apply_chat_template(
+    messages,
+    add_generation_prompt=True,
+    return_tensors="pt",
+    return_dict=True,
+).to(model.device)
+
+outputs = model.generate(**inputs, max_new_tokens=1000)
+
+# Decode and print
+response = tokenizer.decode(outputs[0])
+print("Model response:", response.split("&lt;|channel|&gt;final&lt;|message|&gt;")[-1].strip())
+</code></pre>
+<p>The OpenAI GPT OSS models have been trained extensively to leverage tool use as part of their reasoning efforts. The chat template we crafted for transformers provides a lot of flexibility, please check our <a href="#tool-use-with-transformers" rel="nofollow">dedicated section later in this post</a>.</p>
+<h3>
+	<a id="llamacpp" href="#llamacpp" rel="nofollow">
+		
+	</a>
+	<span>
+		Llama.cpp
+	</span>
+</h3>
+<p>Llama.cpp offers native MXFP4 support with Flash Attention, delivering optimal performance across various backends such as Metal, CUDA, and Vulkan, right from the day-0 release.</p>
+<p>To install it, follow the guide in <a href="https://github.com/ggml-org/llama.cpp/blob/master/docs/install.md" rel="nofollow">llama.cpp Github’s repository</a>.</p>
+<pre><code># MacOS
+brew install llama.cpp
+
+# Windows
+winget install llama.cpp
+</code></pre>
+<p>The recommended way is to use it via llama-server:</p>
+<pre><code>llama-server -hf ggml-org/gpt-oss-120b-GGUF -c 0 -fa --jinja --reasoning-format none
+
+# Then, access http://localhost:8080
+</code></pre>
+<p>We support both the 120B and 20B models. For more detailed information, visit <a href="https://github.com/ggml-org/llama.cpp/pull/15091" rel="nofollow">this PR</a> or the <a href="https://huggingface.co/collections/ggml-org/gpt-oss-68923b60bee37414546c70bf">GGUF model collection</a>.</p>
+<h3>
+	<a id="vllm" href="#vllm" rel="nofollow">
+		
+	</a>
+	<span>
+		vLLM
+	</span>
+</h3>
+<p>As mentioned, vLLM developed optimized Flash Attention 3 kernels that support sink attention, so you’ll get best results on Hopper cards. Both the Chat Completion and the Responses APIs are supported. You can install and start a server with the following snippet, which assumes 2 H100 GPUs are used:</p>
+<pre><code data-language="shell">vllm serve openai/gpt-oss-120b --tensor-parallel-size 2
+</code></pre>
+<p>Or, use it in Python directly like:</p>
+<pre><code data-language="py">from vllm import LLM
+llm = LLM("openai/gpt-oss-120b", tensor_parallel_size=2)
+output = llm.generate("San Francisco is a")
+</code></pre>
+<h3>
+	<a id="transformers-serve" href="#transformers-serve" rel="nofollow">
+		
+	</a>
+	<span>
+		<code>transformers serve</code>
+	</span>
+</h3>
+<p>You can use <a href="https://huggingface.co/docs/transformers/main/serving"><code>transformers serve</code></a> to experiment locally with the models, without any other dependencies. You can launch the server with just:</p>
+<pre><code data-language="shell">transformers serve
+</code></pre>
+<p>To which you can send requests using the <a href="https://platform.openai.com/docs/api-reference/responses" rel="nofollow">Responses API</a>. </p>
+<pre><code data-language="shell"># responses API
+curl -X POST http://localhost:8000/v1/responses \
+-H "Content-Type: application/json" \
+-d '{"input": [{"role": "system", "content": "hello"}], "temperature": 1.0, "stream": true, "model": "openai/gpt-oss-120b"}'
+</code></pre>
+<p>You can also send requests using the standard Completions API:</p>
+<pre><code data-language="shell"># completions API
+curl -X POST http://localhost:8000/v1/chat/completions \
+-H "Content-Type: application/json" \
+-d '{"messages": [{"role": "system", "content": "hello"}], "temperature": 1.0, "max_tokens": 1000, "stream": true, "model": "openai/gpt-oss-120b"}'
+</code></pre>
+<h2>
+	<a id="fine-tuning" href="#fine-tuning" rel="nofollow">
+		
+	</a>
+	<span>
+		Fine-Tuning
+	</span>
+</h2>
+<p>GPT OSS models are fully integrated with <code>trl</code>. We have developed a couple of fine-tuning examples using <code>SFTTrainer</code> to get you started:</p>
+<ul>
+<li>A LoRA example in the <a href="https://cookbook.openai.com/articles/gpt-oss/fine-tune-transfomers" rel="nofollow">OpenAI cookbook</a>, which shows how the model can be fine-tuned to reason in multiple languages.  </li>
+<li><a href="https://github.com/huggingface/gpt-oss-recipes/blob/main/sft.py" rel="nofollow">A basic fine-tuning script</a> that you can adapt to your needs.</li>
+</ul>
+<h2>
+	<a id="deploy-on-hugging-face-partners" href="#deploy-on-hugging-face-partners" rel="nofollow">
+		
+	</a>
+	<span>
+		Deploy on Hugging Face Partners
+	</span>
+</h2>
+<h3>
+	<a id="azure" href="#azure" rel="nofollow">
+		
+	</a>
+	<span>
+		Azure
+	</span>
+</h3>
+<p>Hugging Face collaborates with Azure on their Azure AI Model Catalog to bring the most popular open-source models —spanning text, vision, speech, and multimodal tasks— directly into customers environments for secured deployments to managed online endpoints, leveraging Azure’s enterprise-grade infrastructure, autoscaling, and monitoring.</p>
+<p>The GPT OSS models are now available on the Azure AI Model Catalog (<a href="https://ai.azure.com/explore/models/openai-gpt-oss-20b/version/1/registry/HuggingFace" rel="nofollow">GPT OSS 20B</a>, <a href="https://ai.azure.com/explore/models/openai-gpt-oss-120b/version/1/registry/HuggingFace" rel="nofollow">GPT OSS 120B</a>), ready to be deployed to an online endpoints for real time inference.</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/gpt-oss/partners/azure-model-card.png" alt="model card in azure ai model catalog"></p><h3>
+	<a id="dell" href="#dell" rel="nofollow">
+		
+	</a>
+	<span>
+		Dell
+	</span>
+</h3>
+<p>The Dell Enterprise Hub is a secure online portal that simplifies training and deploying the latest open AI models on-premise using Dell platforms. Developed in collaboration with Dell, it offers optimized containers, native support for Dell hardware, and enterprise-grade security features. </p>
+<p>The GPT OSS models are now available on <a href="https://dell.huggingface.co/" rel="nofollow">Dell Enterprise Hub</a>, ready to be deployed on-prem using Dell platforms.</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/gpt-oss/partners/deh-model-card.png" alt="model card in dell enterprise hub"></p><h2>
+	<a id="evaluating-the-model" href="#evaluating-the-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluating the Model
+	</span>
+</h2>
+<p>GPT OSS models are reasoning models: they therefore require a very large generation size (maximum number of new tokens) for evaluations, as their generation will first contain reasoning, then the actual answer. Using too small a generation size risks interrupting the prediction in the middle of reasoning, which will cause false negatives. The reasoning trace should then be removed from the model answer before computing metrics, to avoid parsing errors, especially with math or instruct evaluations.</p>
+<p>Here’s an example on how to evaluate the models with lighteval (you need to install from source).</p>
+<pre><code data-language="shell">git clone https://github.com/huggingface/lighteval
+pip install -e .[dev] # make sure you have the correct transformers version installed!
+lighteval accelerate \
+    "model_name=openai/gpt-oss-20b,max_length=16384,skip_special_tokens=False,generation_parameters={temperature:1,top_p:1,top_k:40,min_p:0,max_new_tokens:16384}" \ 
+    "extended|ifeval|0|0,lighteval|aime25|0|0" \
+    --save-details --output-dir "openai_scores" \
+    --remove-reasoning-tags --reasoning-tags="[('&lt;|channel|&gt;analysis&lt;|message|&gt;','&lt;|end|&gt;&lt;|start|&gt;assistant&lt;|channel|&gt;final&lt;|message|&gt;')]" 
+</code></pre>
+<p>For the 20B model, this should give you 69.5 (+/-1.9) for IFEval (strict prompt), and 63.3 (+/-8.9) for AIME25 (in pass@1), scores within expected range for a reasoning model of this size.</p>
+<p>If you want to do your custom evaluation script, note that to filter out the reasoning tags properly, you will need to use <code>skip_special_tokens=False</code> in the tokenizer, in order to get the full trace in the model output (to filter reasoning using the same string pairs as in the example above) - you can discover why below.</p>
+<h2>
+	<a id="chats-and-chat-templates" href="#chats-and-chat-templates" rel="nofollow">
+		
+	</a>
+	<span>
+		Chats and Chat Templates
+	</span>
+</h2>
+<p>OpenAI GPT OSS uses the concept of “channels” in its outputs. Most of the time, you will see an “analysis” channel that contains things that are not intended to be sent to the end-user, like chains of thought, and a “final” channel containing messages that are actually intended to be displayed to the user. </p>
+<p>Assuming no tools are being used, the structure of the model output looks like this:</p>
+<pre><code>&lt;|start|&gt;assistant&lt;|channel|&gt;analysis&lt;|message|&gt;CHAIN_OF_THOUGHT&lt;|end|&gt;&lt;|start|&gt;assistant&lt;|channel|&gt;final&lt;|message|&gt;ACTUAL_MESSAGE
+</code></pre>
+<p>Most of the time, you should ignore everything except the text after <strong>&lt;|channel|&gt;final&lt;|message|&gt;.</strong> Only this text should be appended to the chat as the assistant message, or displayed to the user. There are two exceptions to this rule, though: You may need to include <strong>analysis</strong> messages in the history during <strong>training</strong> or if the model is <strong>calling external tools.</strong></p>
+<p><strong>When training:</strong>
+If you’re formatting examples for training, you generally want to include the chain of thought in the final message. The right place to do this is in the <strong>thinking</strong> key.</p>
+<pre><code data-language="py">chat = [
+    {"role": "user", "content": "Hi there!"},
+    {"role": "assistant", "content": "Hello!"},
+    {"role": "user", "content": "Can you think about this one?"},
+    {"role": "assistant", "thinking": "Thinking real hard...", "content": "Okay!"}
+]
+
+# add_generation_prompt=False is generally only used in training, not inference
+inputs = tokenizer.apply_chat_template(chat, add_generation_prompt=False)
+</code></pre>
+<p>You can feel free to include <strong>thinking</strong> keys in previous turns, or when you’re doing inference rather than training, but they will generally be ignored. The chat template will only ever include the most recent chain of thought, and only in training (when <code>add_generation_prompt=False</code> and the final turn is an assistant turn).</p>
+<p>The reason why we do it this way is subtle: The OpenAI gpt-oss models were trained on multi-turn data where all but the final chain of thought was dropped. This means that when you want to fine-tune an OpenAI <code>gpt-oss</code> model, you should do the same.</p>
+<ul>
+<li>Let the chat template drop all chains of thought except the final one  </li>
+<li>Mask the labels on all turns except the final assistant turn, or else you will be training it on the previous turns without chains of thought, which will teach it to emit responses without CoTs. This means that you cannot train on an entire multi-turn conversation as a single sample; instead, you must break it into one sample per assistant turn with only the final assistant turn unmasked each time, so that the model can learn from each turn while still correctly only seeing a chain of thought on the final message each time.</li>
+</ul>
+<h3>
+	<a id="system-and-developer-messages" href="#system-and-developer-messages" rel="nofollow">
+		
+	</a>
+	<span>
+		System and Developer Messages
+	</span>
+</h3>
+<p>OpenAI GPT OSS is unusual because it distinguishes between a “system” message and a “developer” message at the start of the chat, but most other models only use “system”. In GPT OSS, the system message follows a strict format and contains information like the current date, the model identity and the level of reasoning effort to use, and the “developer” message is more freeform, which makes it (very confusingly) similar to the “system” messages of most other models.</p>
+<p>To make GPT OSS easier to use with the standard API, the chat template will treat a message with “system” or “developer” role as the <strong>developer</strong> message. If you want to modify the actual system message, you can pass the specific arguments <strong>model_identity</strong> or <strong>reasoning_effort</strong> to the chat template:</p>
+<pre><code data-language="py">chat = [
+    {"role": "system", "content": "This will actually become a developer message!"}
+]
+
+tokenizer.apply_chat_template(
+    chat, 
+    model_identity="You are OpenAI GPT OSS.",
+    reasoning_effort="high"  # Defaults to "medium", but also accepts "high" and "low"
+)
+</code></pre>
+<h3>
+	<a id="tool-use-with-transformers" href="#tool-use-with-transformers" rel="nofollow">
+		
+	</a>
+	<span>
+		Tool Use With transformers
+	</span>
+</h3>
+<p>GPT OSS supports two kinds of tools: The “builtin” tools <strong>browser</strong> and <strong>python</strong>, and custom tools supplied by the user. To enable builtin tools, pass their names in a list to the <strong>builtin_tools</strong> argument of the chat template, as shown below. To pass custom tools, you can pass them either as JSON schema or as Python functions with type hints and docstrings using the tools argument. See the <a href="https://huggingface.co/docs/transformers/en/chat_extras">chat template tools documentation</a> for more details, or you can just modify the example below:</p>
+<pre><code data-language="py">def get_current_weather(location: str):
+    """
+    Returns the current weather status at a given location as a string.
+
+    Args:
+        location: The location to get the weather for.
+    """
+    return "Terrestrial."  # We never said this was a good weather tool
+
+chat = [
+    {"role": "user", "content": "What's the weather in Paris right now?"}
+]
+
+inputs = tokenizer.apply_chat_template(
+    chat, 
+    tools=[weather_tool], 
+    builtin_tools=["browser", "python"],
+    add_generation_prompt=True,
+    return_tensors="pt"
+)
+</code></pre>
+<p>If the model chooses to call a tool (indicated by a message ending in <code>&lt;|call|&gt;</code>), then you should add the tool call to the chat, call the tool, then add the tool result to the chat and generate again:</p>
+<pre><code data-language="py">tool_call_message = {
+    "role": "assistant",
+    "tool_calls": [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_current_temperature", 
+                "arguments": {"location": "Paris, France"}
+            }
+        }
+    ]
+}
+chat.append(tool_call_message)
+
+tool_output = get_current_weather("Paris, France")
+
+tool_result_message = {
+    # Because GPT OSS only calls one tool at a time, we don't
+    # need any extra metadata in the tool message! The template can
+    # figure out that this result is from the most recent tool call.
+    "role": "tool",
+    "content": tool_output
+}
+chat.append(tool_result_message)
+
+# You can now apply_chat_template() and generate() again, and the model can use
+# the tool result in conversation.
+</code></pre>
+<h2>
+	<a id="acknowledgements" href="#acknowledgements" rel="nofollow">
+		
+	</a>
+	<span>
+		Acknowledgements
+	</span>
+</h2>
+<p>This is an important release for the community and it took a momentous effort across teams and companies to comprehensively support the new models in the ecosystem.</p>
+<p>The authors of this blog post were selected among the ones who contributed content to the post itself, and does not represent dedication to the project. In addition to the author list, others contributed significant content reviews, including Merve and Sergio. Thank you!</p>
+<p>The integration and enablement work involved dozens of people. In no particular order, we'd like to highlight Cyril, Lysandre, Arthur, Marc, Mohammed, Nouamane, Harry, Benjamin, Matt from the open source team. From the TRL team, Ed, Lewis, and Quentin were all involved. We'd also like to thank Clémentine from Evaluations, and David and Daniel from the Kernels team. On the commercial partnerships side we got significant contributions from Simon, Alvaro, Jeff, Akos, Alvaro, and Ivar. The Hub and Product teams contributed Inference Providers support, llama.cpp support, and many other improvements, all thanks to Simon, Célina, Pierric, Lucain, Xuan-Son, Chunte, and Julien. Magda and Anna were involved from the legal team.</p>
+<p>Hugging Face's role is to enable the community to use these models effectively. We are indebted to companies such as vLLM for advancing the field, and cherish our continued collaboration with inference providers to provide ever simpler ways to build on top of them.</p>
+<p>And of course, we deeply appreciate OpenAI's decision to release these models for the community at large. Here's to many more!</p>
+</div></div>

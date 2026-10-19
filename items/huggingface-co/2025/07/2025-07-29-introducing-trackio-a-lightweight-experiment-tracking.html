@@ -1,0 +1,201 @@
+<div id="readability-page-1" class="page"><div>
+<p>TL;DR: <a href="https://github.com/gradio-app/trackio" rel="nofollow">Trackio</a> is a new, open-source, and free experiment tracking Python library that provides a local dashboard and seamless integration with Hugging Face Spaces for easy sharing and collaboration. Since <code>trackio</code> is a drop-in replacement for <code>wandb</code>, you can get started with the syntax you already know!</p>
+<h2>
+	<a id="background" href="#background" rel="nofollow">
+		
+	</a>
+	<span>
+		Background
+	</span>
+</h2>
+<p>If you have trained your own machine learning model, you know how important it is to be able to track metrics, parameters, and hyperparameters during training and visualize them afterwards to better understand your training run.</p>
+<p>Most machine learning researchers use specific experiment tracking libraries to do this. However, these libraries can be paid, require complex setup, or lack the flexibility needed for rapid experimentation and sharing.</p>
+<h2>
+	<a id="why-we-switched-to-trackio" href="#why-we-switched-to-trackio" rel="nofollow">
+		
+	</a>
+	<span>
+		Why We Switched to Trackio
+	</span>
+</h2>
+<p>At Hugging Face, our science team has started using <a href="https://github.com/gradio-app/trackio" rel="nofollow">Trackio</a> for our research projects, and we've found several key advantages over other tracking solutions:</p>
+<p><strong>Easy Sharing and Embedding</strong>: Trackio makes it incredibly simple to share training progress with colleagues or embed plots directly in blog posts and documentation using iframes. This is especially valuable when you want to showcase specific training curves or metrics without requiring others to set up accounts or navigate complex dashboards.</p>
+<p><strong>Standardization and Transparency</strong>: Metrics like GPU energy usage are important to track and share with the community so we can have a better idea of the energy demands and environmental impacts of model training. Using Trackio, which directly gets information from the <code>nvidia-smi</code> command, makes it easy to quantify and compare energy usage and to add it to <a href="https://huggingface.co/docs/hub/model-cards">model cards</a>.</p>
+<p><strong>Data Accessibility</strong>: Unlike some tracking tools that lock your data behind proprietary APIs, Trackio makes it straightforward to extract and analyze the data being recorded. This is crucial for researchers who need to perform custom analysis or integrate training metrics into their research workflows.</p>
+<p><strong>Flexibility for Experimentation</strong>: Trackio's lightweight design allows us to easily experiment with new tracking features during training runs. For instance, we can decide when to move tensors from GPU to CPU when logging tensors while training, which significantly improves training throughput when you need to track model/intermediate states without impacting performance.</p>
+<h2>
+	<a id="using-trackio" href="#using-trackio" rel="nofollow">
+		
+	</a>
+	<span>
+		Using Trackio
+	</span>
+</h2>
+<p>Ok then, so what is Trackio and how do you use it? Trackio is an <a href="https://github.com/gradio-app/trackio" rel="nofollow">open-source Python library</a> that lets you track any metrics and visualize them using a local <a href="https://gradio.dev/" rel="nofollow">Gradio</a> dashboard. You can also sync this dashboard to Hugging Face Spaces, which means you can then share the dashboard with other users simply by sharing a URL. Since Spaces can be private or public, this means you can share a dashboard publicly or just within members of your Hugging Face organization.</p>
+<h2>
+	<a id="installing" href="#installing" rel="nofollow">
+		
+	</a>
+	<span>
+		Installing
+	</span>
+</h2>
+<p>You can install <code>trackio</code> using pip:</p>
+<pre><code data-language="bash">pip install trackio
+</code></pre>
+<p>Or, if you prefer using <code>uv</code>:</p>
+<pre><code data-language="bash">uv pip install trackio
+</code></pre>
+<h2>
+	<a id="usage" href="#usage" rel="nofollow">
+		
+	</a>
+	<span>
+		Usage
+	</span>
+</h2>
+<p><code>trackio</code> is designed to be a drop-in replacement for experiment tracking libraries like <code>wandb</code>. The API is compatible with <code>wandb.init</code>, <code>wandb.log</code>, and <code>wandb.finish</code>, so you can simply import <code>trackio</code> as <code>wandb</code> in your code.</p>
+<pre><code data-language="diff">- import wandb
++ import trackio as wandb
+</code></pre>
+<p>Here is an example:</p>
+<pre><code data-language="python">import trackio
+import random
+import time
+
+runs = 3
+epochs = 8
+
+def simulate_multiple_runs():
+    for run in range(runs):
+        trackio.init(project="fake-training", config={
+            "epochs": epochs,
+            "learning_rate": 0.001,
+            "batch_size": 64
+        })
+        for epoch in range(epochs):
+            train_loss = random.uniform(0.2, 1.0)
+            train_acc = random.uniform(0.6, 0.95)
+            val_loss = train_loss - random.uniform(0.01, 0.1)
+            val_acc = train_acc + random.uniform(0.01, 0.05)
+            trackio.log({
+                "epoch": epoch,
+                "train_loss": train_loss,
+                "train_accuracy": train_acc,
+                "val_loss": val_loss,
+                "val_accuracy": val_acc
+            })
+            time.sleep(0.2)
+        trackio.finish()
+
+simulate_multiple_runs()
+</code></pre>
+<h3>
+	<a id="visualizing-results" href="#visualizing-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Visualizing Results
+	</span>
+</h3>
+<p>After logging your experiments, you can launch the dashboard to visualize your results. Run the following command in your terminal:</p>
+<pre><code data-language="bash">trackio show
+</code></pre>
+<p>Or, launch it from Python:</p>
+<pre><code data-language="python">import trackio
+trackio.show()
+</code></pre>
+<p>You can also specify a project name:</p>
+<pre><code data-language="bash">trackio show --project "my project"
+</code></pre>
+<p>Or in Python:</p>
+<pre><code data-language="python">trackio.show(project="my project")
+</code></pre>
+<p><a href="https://github.com/user-attachments/assets/c004aa61-a86a-4ece-be13-a01b640f216e" rel="nofollow"><img src="https://github.com/user-attachments/assets/c004aa61-a86a-4ece-be13-a01b640f216e" alt="example trackio dashboard"></a></p>
+<h3>
+	<a id="sharing-with-🤗-spaces" href="#sharing-with-🤗-spaces" rel="nofollow">
+		
+	</a>
+	<span>
+		Sharing with 🤗 Spaces
+	</span>
+</h3>
+<p>To sync your local dashboard to Hugging Face Spaces, simply pass a <code>space_id</code> to <code>init</code>:</p>
+<pre><code data-language="python">trackio.init(project="fake-training", space_id="org_name/space_name")
+</code></pre>
+<p>If you are hosting your dashboard on Spaces, you can simply share the URL or embed it anywhere using an iframe:</p>
+<pre><code data-language="html">&lt;iframe src="https://org_name-space_name.hf.space/?project=fake-training&amp;metrics=train_loss,train_accuracy&amp;sidebar=hidden" width=600 height=600 frameBorder="0"&gt;&lt;/iframe&gt;
+</code></pre>
+
+
+
+<p>Since Spaces can be private or public, this means you can share a dashboard publicly or just within members of your Hugging Face organization — all for free!</p>
+<p>When you sync your Trackio dashboard to Hugging Face Spaces, the data is logged to an ephemeral Sqlite database on Spaces. Because this database is reset if your Space restarts, Trackio also converts the Sqlite database to a Parquet dataset and backs it up to a Hugging Face Dataset every 5 minutes. This means you can visualize your logged metrics in a Hugging Face dataset at any time easily:</p>
+<p><img width="100%" alt="image" src="https://github.com/user-attachments/assets/5d3e9db3-a7f6-4851-a779-bd4f3d9f73e6"></p><p>Tip: you can set the name of this dataset by passing in a <code>dataset_id</code> to <code>trackio.init()</code>.</p>
+<h3>
+	<a id="integrated-with-🤗-transformers-and-🤗-accelerate" href="#integrated-with-🤗-transformers-and-🤗-accelerate" rel="nofollow">
+		
+	</a>
+	<span>
+		Integrated with 🤗 Transformers and 🤗 Accelerate
+	</span>
+</h3>
+<p>Trackio integrates natively with Hugging Face libraries like <code>transformers</code> and <code>accelerate</code>, so you can log metrics with minimal setup.</p>
+<p><strong>With <code>transformers.Trainer</code>:</strong></p>
+<pre><code data-language="python">import numpy as np
+from datasets import Dataset
+from transformers import Trainer, AutoModelForCausalLM, TrainingArguments
+
+# Create a fake dataset
+data = np.random.randint(0, 1000, (8192, 64)).tolist()
+dataset = Dataset.from_dict({"input_ids": data, "labels": data})
+
+# Train a model using the Trainer API
+trainer = Trainer(
+    model=AutoModelForCausalLM.from_pretrained("Qwen/Qwen3-0.6B"),
+    args=TrainingArguments(run_name="fake-training", report_to="trackio"),
+    train_dataset=dataset,
+)
+trainer.train()
+</code></pre>
+<p><strong>With <code>accelerate</code>:</strong></p>
+<pre><code data-language="python">from accelerate import Accelerator
+
+accelerator = Accelerator(log_with="trackio")
+accelerator.init_trackers("fake-training")
+
+...  # Prepare the model, dataloader, etc.
+
+for step, batch in enumerate(dataloader):
+    ...  # Your training logic here
+    accelerator.log({"training_loss": loss}, step=step)
+
+accelerator.end_training()
+</code></pre>
+<p>No extra setup needed—just plug it in and start tracking.</p>
+<h2>
+	<a id="design-principles" href="#design-principles" rel="nofollow">
+		
+	</a>
+	<span>
+		Design Principles
+	</span>
+</h2>
+<ul>
+<li>API compatible with popular experiment tracking libraries, making migration both to and from Trackio seamless.</li>
+<li>Local-first: logs and dashboards run and persist locally by default, with the option to host on Hugging Face Spaces.</li>
+<li>Lightweight and extensible: the core codebase is under 1,000 lines of Python, making it easy to understand and modify.</li>
+<li>Free and open-source: all features, including hosting on Hugging Face, are free.</li>
+<li>Built on top of 🤗 Datasets and Spaces for robust data handling and visualization.</li>
+</ul>
+<h2>
+	<a id="next-steps" href="#next-steps" rel="nofollow">
+		
+	</a>
+	<span>
+		Next Steps
+	</span>
+</h2>
+<p>Trackio is intentionally lightweight and is currently in beta. Some features found in other tracking tools, such as artifact management, or complex visualizations, are not available yet. If you'd like to have these features, please create issues here: <a href="https://github.com/gradio-app/trackio/issues" rel="nofollow">https://github.com/gradio-app/trackio/issues</a></p>
+<p>Given Trackio's lightweight and open-source nature, we'd love to work with the machine learning community to design an experiment tracking product that works for all of us!</p>
+</div></div>

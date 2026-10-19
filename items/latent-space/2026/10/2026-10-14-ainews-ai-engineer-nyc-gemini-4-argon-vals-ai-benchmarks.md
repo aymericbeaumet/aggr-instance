@@ -8,7 +8,7 @@ first_seen: 2026-10-14T07:29:10.775073046Z
 authors:
 - Latent.Space
 summary: Gemini 4 Argon went GA today, but we already gave it title story 2 weeks ago and most benchmarks, like CursorBench, simply independently confirm their claims.
-content: feed
+content: extracted
 html: 2026-10-14-ainews-ai-engineer-nyc-gemini-4-argon-vals-ai-benchmarks.html
 remote_preview:
   url: https://substackcdn.com/image/youtube/w_728,c_limit/akEqiXFo3GM
@@ -26,15 +26,11 @@ All keynotes are transcribed [here](https://aie-nyc-2026-talks.swyxio.workers.de
 
 > AI News for 10/12/2026-10/13/2026. We checked 12 subreddits, [544 Twitters](https://twitter.com/i/lists/1585430245762441216) and no further Discords. [AINews’ website](https://news.smol.ai/) lets you search all past issues. As a reminder, [AINews is now a section of Latent Space](https://www.latent.space/p/2026). You can [opt in/out](https://support.substack.com/hc/en-us/articles/8914938285204-How-do-I-subscribe-to-or-unsubscribe-from-a-section-on-Substack) of email frequencies!
 
-* * *
-
-# **AI Twitter Recap**
-
 **Frontier Model Launches: Gemini 4 Argon and Muse Wonder**
 
 - **Gemini 4 Argon**: Google released Argon globally for coding, knowledge work, enterprise workflows and cyber defense. Access spans the paid Gemini API and Gemini platform; Google AI Pro and Ultra in the Gemini app and AI Mode in Search; and Ultra in Antigravity. The official rollout supersedes an earlier newsletter claim that access was restricted to cybersecurity defenders ([announcement](https://x.com/sundarpichai/status/2110038898009407584)).
 
-  - **Pricing**: Introductory API rates are **$2/$10 per million input/output tokens**, with cached input discounted 95%. Artificial Analysis reports that rates double to **$4/$20 after November 30**—an important qualification for cost comparisons ([Google pricing](https://x.com/Google/status/2110041305925484716), [discount schedule](https://x.com/ArtificialAnlys/status/2110068185793970576)).
+  - **Pricing**: Introductory API rates are **$2/$10 per million input/output tokens**, with cached input discounted 95%. Artificial Analysis reports that rates double to **$4/$20 after November 30** —an important qualification for cost comparisons ([Google pricing](https://x.com/Google/status/2110041305925484716), [discount schedule](https://x.com/ArtificialAnlys/status/2110068185793970576)).
 
   - **Research access**: Google is offering 10,000 scientists Antigravity’s highest usage tier free for six months, through an application program; cybersecurity defenders can apply through Fairwind ([scientist program](https://x.com/s6juncheng/status/2110043537001607351), [access programs](https://x.com/Google/status/2110041308257493356)).
 - **Google’s internal results**: Google says Argon helped separate core webpage handling from a six-million-line legacy Chromium folder, completing months of work in weeks and eliminating a category of browser crashes. It also reports **35% more agentic code submissions**, with rollbacks reduced by nearly one-third. These are internal deployment claims, not controlled productivity measurements ([engineering results](https://x.com/NewsFromGoogle/status/2110043498854355057)).
@@ -136,11 +132,3 @@ All keynotes are transcribed [here](https://aie-nyc-2026-talks.swyxio.workers.de
 - **3,329** — [Cursor adds Argon and reports CursorBench parity with Opus](https://x.com/cursor_ai/status/2110087611763368271)
 
 - **2,343** — [Artificial Analysis evaluates Argon’s capability, cost and hallucination metrics](https://x.com/ArtificialAnlys/status/2110068185793970576)
-
-* * *
-
-# **AI Reddit Recap**
-
-## **/r/LocalLlama + /r/localLLM Recap**
-
-[Read more](https://www.latent.space/p/ainews-ai-engineer-nyc-gemini-4-argon)

@@ -10,14 +10,12 @@ authors:
 labels:
 - ai
 summary: Armin Ronacher and Ben Vinegar had me on State of Agentic Coding to talk about the curiosity test, DHH coming around, durable agents, a Lisp you program by talking to it, and why the labs cannot afford to fail.
-content: feed
+content: extracted
 html: 2026-10-16-state-of-agentic-coding-11-the-curiosity-test-lisp-and-labs.html
 remote_preview:
   url: https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/state-of-agentic-coding-11.jpg
   alt: 'state of agentic coding #11: the curiosity test, lisp, and labs that can''t fail'
 ---
-
-![state of agentic coding #11: the curiosity test, lisp, and labs that can't fail](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/10/state-of-agentic-coding-11.jpg)
 
 people are failing a curiosity test right now. Armin Ronacher and Ben Vinegar had me on State of Agentic Coding to talk about it, along with DHH coming around, durable agents, a Lisp you program by talking to it, and why the labs cannot afford to fail.
 
@@ -39,6 +37,10 @@ That weighed a lot on my shoulders when it first came out.
 
 How Ralph Wiggum went from 'The Simpsons' to the biggest name in AI right now - Venture Beat 😎Here's a cool little field report from a Y Combinator hackathon event where they put Ralph Wiggum to the test. "We Put a Coding Agent in a While Loop and It Shipped
 
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/A-black-and-white--low-angle-digital-illustration-in-a-symbolic-traditional-tattoo-art-style.--A-bald--light-skinned-man-with-a-bushy-beard--prominent-eyebrows--and-a-friendly-expression-wears-denim-overalls--2--237cb3bb-fc6c-4944-b89d-3d3362ea55e2.jpg)Geoffrey Huntley Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/3ea367ed-cae3-454a-840f-134531dea1fd-11e18dce-3ce9-4b06-8136-9a29731360c9.jpg)
+
 I've spent this year traveling the world giving talks, pleading with people to invest in themselves. My shortest take is this: software developers are failing a curiosity test. If you're displaced by AI as a software developer, it's self-inflicted, because you haven't been curious in a time of rapid transformation. As an employee, you trade time and skill for money. Employers' tastes are changing rapidly, but there's no reason you can't keep up with what's going on.
 
 Just harshing everybody's vibe right out of the gate.
@@ -58,6 +60,10 @@ I've been through a few of these cycles, going back to the original dot-com boom
 [Dear Student: Yes, AI is here, you're screwed unless you take action...](https://ghuntley.com/screwed/)
 
 Two weeks ago a student anonymously emailed me asking for advice. This is the reply and if I was in your shoes this is what I'd do. So, I read your blog post "An oh f\*\*\* moment in time" alongside "The future belongs to idea guys that can just
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/A-black-and-white--low-angle-digital-illustration-in-a-symbolic-traditional-tattoo-art-style.--A-bald--light-skinned-man-with-a-bushy-beard--prominent-eyebrows--and-a-friendly-expression-wears-denim-overalls--2--31d76d80-8d5e-4fc6-9b62-745e32943777.jpg)Geoffrey Huntley Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/llmcurve-75b9954f-1a0e-4b42-9523-ada763fb6862.png)
 
 If you really love computers, you should be all in on loving computers right now. Everyone's having the time of their damn life. If you've stayed curious and kept your skills up to date, you can get placed anywhere right now. That means being able to stand at a whiteboard and explain how to build a coding agent as a sequence diagram, how inferencing works, and what a prompt cache is.
 
@@ -83,6 +89,10 @@ Developers mostly speak to other developers. It's like a couple of cows in a fie
 
 When Ralph was published last year, I sat on it. People who have been reading this blog for a while know this. I first came across the idea of loop engineering in early January last year, sat on it for four months, and then started writing a lot, begging people
 
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/A-black-and-white--low-angle-digital-illustration-in-a-symbolic-traditional-tattoo-art-style.--A-bald--light-skinned-man-with-a-bushy-beard--prominent-eyebrows--and-a-friendly-expression-wears-denim-overalls--2--4402f76c-2773-4227-989f-385813844cd4.jpg)Geoffrey Huntley Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/download--2--ac0778bc-b7b2-4034-b0bf-0f610c6be556.jpg)
+
 Armin said the strongest signal for him isn't his own belief; it's that the experienced, vocal holdouts are turning. DHH was dismissive early on. Notch was dismissive and recently turned. Ben noticed that DHH was transparent about having tried AI for design, pulled it back, and now landed firmly on the other side. It felt like an invitation: come join me. Armin's worry is that because DHH is polarising, the message may not land as widely as it should.
 
 On where to find the signal: if you've been on X for the last two years, you're ahead of the game, because that's where all of this has happened. I don't love the platform; the number of AI reply bots is through the roof. But if you want the alpha, you have to push through. Go to the fediverse and talk about AI and you'll get your whole Mastodon instance banned. Bluesky has some high-alpha accounts. Unfortunately, the tech community has fractured along political lines, which means a lot of this isn't getting out.
@@ -91,11 +101,19 @@ On where to find the signal: if you've been on X for the last two years, you're 
 
 Been doing heaps of thinking about how software is made after https://ghuntley.com/oh-fuck and the current design/UX approach by vendors of software assistants. IDEs, since 1983, have been designed around an experience of a single plane of glass. Restricted by what an engineer can see on
 
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/A-black-and-white--low-angle-digital-illustration-in-a-symbolic-traditional-tattoo-art-style.--A-bald--light-skinned-man-with-a-bushy-beard--prominent-eyebrows--and-a-friendly-expression-wears-denim-overalls--2--b478d2f4-515c-4a80-9d57-639c944aa1c9.jpg)Geoffrey Huntley Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/CleanShot-2025-01-28-at-12.41.09@2x-3e3faa8f-431f-4e8b-8f68-8fa8afde04c5.png)
+
 Back in December 2024 I was writing that IDEs are dead as a product, and everyone called me crazy. I've taken a lot of unpaid time off work this year to give talks. You can't carry all that water yourself. The best you can do is this: if someone gets curious, help them get to their own moment. Find the thing that makes their mind explode, then ask them to show the next person. For me, that moment was seeing how easy it is to build a coding agent and realizing the entire game now is to build product recursively.
 
 [how to build a coding agent: free workshop](https://ghuntley.com/agent/)
 
 It's not that hard to build a coding agent. 300 lines of code running in a loop with LLM tokens. You just keep throwing tokens at the loop, and then you've got yourself an agent.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/A-black-and-white--low-angle-digital-illustration-in-a-symbolic-traditional-tattoo-art-style.--A-bald--light-skinned-man-with-a-bushy-beard--prominent-eyebrows--and-a-friendly-expression-wears-denim-overalls--2--c1294a16-623f-4085-9266-247acaa54438.jpg)Geoffrey Huntley Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/how-to-build-an-agent.001-74643aee-edec-45c9-a237-79b08933c145.jpg)
 
 Ben brought up the Bob Dylan biopic with Chalamet. Dylan is folk royalty, goes electric, and the old caretakers practically call the police to shut it down while the younger audience wants the new stuff. Folk was one of the most popular genres of its time. The reason you know Dylan's name and not most of the folk scene's is that he evolved. Boy, we don't like change.
 
@@ -104,6 +122,8 @@ The one thing I wrote that really landed with juniors was "dear student, you're 
 [Dear Student: Yes, AI is here, you're screwed unless you take action...](https://ghuntley.com/screwed/)
 
 Career advice for students and juniors on what's about to happen, and what to do about it.
+
+Geoffrey Huntley Geoffrey Huntley
 
 ## four months in 2026
 
@@ -116,6 +136,8 @@ The result is [Pi Durable](https://earendil.com/posts/pi-durable/?ref=ghuntley.c
 [Pi Durable | Earendil](https://earendil.com/posts/pi-durable/?ref=ghuntley.com)
 
 Pi Durable is a new experimental package for long-running, durable, and malleable agents that can run anywhere. A tour of what we built and why.
+
+Earendil
 
 Fourteen or fifteen months ago, Armin, Mario, Peter and others had a strong conviction that file systems and bash were the way to go, but nobody really knew how to build a harness around that. So everyone copied what Claude Code was doing, which is a very simple idea of a session: a transcript, a tool call, a tool result, in a loop. That model has stayed at the core of more or less every agent. At its simplest, all it does is automate copying and pasting.
 
@@ -132,6 +154,8 @@ Ben asked what we'd actually thrown out lately, so I showed the thing I'd publis
 [an application in lisp you grow by talking to it](https://ghuntley.com/lisp/)
 
 It's very clear that programming languages will converge toward what agents need, not humans.
+
+Geoffrey Huntley Geoffrey Huntley
 
 The usual mental model of a coding tool goes like this: you prompt it, it runs bash to look at your project, finds the file and uses the edit tool to change it. Then comes compilation, then CI/CD, then code review. What I showed throws all of that out.
 
@@ -211,6 +235,10 @@ People call me the token guzzler, the subscription killer. A year ago I went vir
 
 underclass: an OpenAI-compatible pooling proxy that pins sessions to one account (prompt cache stays warm), cools quota-exhausted subscriptions until their window resets, and fails fast with the ea…
 
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/favicon-d17c2891-6a45-4dd0-8401-80df5b97d756.png)GitHub
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/underclass-3bc7977d-a3b3-4d22-8bec-92ae8be39206.png)
+
 It still makes sense to have ten of them, because they're so heavily subsidised. But you don't need frontier intelligence for everything. Maybe just get a GLM coding plan, which used to be about 300 bucks for the entire year.
 
 They're subsidised for a reason. The labs want to build addictive behaviour at home, so that when you go to work you think: if I can build my wildest dreams at home, why can't that magic happen here? No one can pay the real cost of these tokens. I'd be up past US$200,000 a month at real prices. I hit these slot machines hard for about ten days, watching the inferencing and the behaviours. Then I throw my computer away and don't look at it for a week or two, because you've done six months of work in a week and you need to self-care. I've seen what happens when you don't. One of the first people I showed the Ralph loop to fully cooked himself: he teleported into the future, built everything he'd planned for retirement, didn't sleep, and was unable to work for nine months.
@@ -243,7 +271,13 @@ We'll know the labs are ready to IPO when they've found a cure for cancer. That'
 
 Then again, the average person doesn't really care. TikTok has been very anti-AI lately: people see something is AI and won't like or reshare it. But there's an AI-made song doing the rounds about an Irish girl that I can't describe on a family-friendly podcast. Young women are showing it to their mothers to film the shocked reaction, and for the first time people are saying, "I don't care if this is AI, it slaps."
 
+0:00
+
+/0:27
+
 content warning: not safe for work audio
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/media/2026/10/ssstik.io_@ellenshorlanddxx_1792150621039_thumb.jpg)
 
 We call things slop because we're playing with a new creative medium and don't yet know what isn't slop. We're all just trying to figure out what's changing.
 

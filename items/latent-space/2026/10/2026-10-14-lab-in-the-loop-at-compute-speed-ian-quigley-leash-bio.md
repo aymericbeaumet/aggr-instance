@@ -8,7 +8,7 @@ first_seen: 2026-10-14T21:35:38.678109349Z
 authors:
 - Brandon Anderson
 summary: How Leash Bio tamed DELs, the assay that traumatizes everyone, and used the data to catch cheating models. And why that same data is perfect for AI agents learning to think like chemists.
-content: feed
+content: extracted
 html: 2026-10-14-lab-in-the-loop-at-compute-speed-ian-quigley-leash-bio.html
 extra:
   audio_type: audio/mpeg
@@ -18,7 +18,7 @@ extra:
 
 A few years ago I stumbled upon [Leash Bio’s](https://www.leash.bio/) [Substack](https://leashbio.substack.com/), and was hooked. Be it their [Kaggle competition](https://leashbio.substack.com/p/introducing-belka) that showed that [no, we really haven’t solved protein-ligand binding](https://leashbio.substack.com/p/belka-results-suggest-computers-can), or their crazy discovery that knowing [a molecule’s author is perhaps all you need to know to predict how good it is](https://leashbio.substack.com/p/ai-for-chemistry-in-2025-is-like). Their substack — or at least [Owl Posting](https://www.owlposting.com/)’s [1](https://www.latent.space/p/lab-in-the-loop-at-compute-speed#footnote-1) [deep dive](https://www.owlposting.com/p/an-ml-drug-discovery-startup-trying) on them — should be required reading for any scientist trying to do chemistry with AI.
 
-So I was super excited to finally be able to sit down with [Ian Quigley](https://www.linkedin.com/in/iquigley/) from Leash Bio, and pick his brain. Leash specializes in [DNA Encoded Libraries](https://en.wikipedia.org/wiki/DNA-encoded_chemical_library) (aka “DELs”), a way of collecting ridiculously high-throughput interaction data between proteins and small molecules.[2](https://www.latent.space/p/lab-in-the-loop-at-compute-speed#footnote-2) Before I discovered Leash, I had heard nothing but horror stories from DEL users. And yet, Ian and friends somehow found a way to tame the beast, extracting clean and reproducible data that is just perfect for large scale modeling. Without teasing too much, the answer comes down to epistemic rigor, and an incredible conviction that you just have to Do The Thing.
+So I was super excited to finally be able to sit down with [Ian Quigley](https://www.linkedin.com/in/iquigley/) from Leash Bio, and pick his brain. Leash specializes in [DNA Encoded Libraries](https://en.wikipedia.org/wiki/DNA-encoded_chemical_library) (aka “DELs”), a way of collecting ridiculously high-throughput interaction data between proteins and small molecules. [2](https://www.latent.space/p/lab-in-the-loop-at-compute-speed#footnote-2) Before I discovered Leash, I had heard nothing but horror stories from DEL users. And yet, Ian and friends somehow found a way to tame the beast, extracting clean and reproducible data that is just perfect for large scale modeling. Without teasing too much, the answer comes down to epistemic rigor, and an incredible conviction that you just have to Do The Thing.
 
 It gets even better! Near the end of this episode, Ian teases something his team was just playing with when we recorded: an AI playground for agents to do verifiable scientific reasoning. They discovered the data they had spent the last few years collecting could provide tens of thousands of “lab-in-the-loop” simulations, just what an agent needs for scientific RL. Two months later, it’s matured into Minos, and today they’re releasing a full [preprint](https://github.com/Leash-Labs/minos-paper/blob/trunk/Minos_Leash.pdf), [blog](https://leashbio.substack.com/p/making-reality-replayable), and [open dataset](https://strelka.leash.bio/). We’ll be releasing a lightning podcast in a few days with an update. Stay tuned!
 
@@ -42,7 +42,7 @@ We covered:
 
 - [Breaking the pocket](https://leashbio.substack.com/p/taking-away-the-protein-cheat-sheet): engineering protein mutants at scale after catching Hermes memorizing “nicknames” for proteins instead of binding sites.
 
-- [Lumacaftor](https://en.wikipedia.org/wiki/Lumacaftor)-like hits as an accidental detector for misfolded proteins.
+- [Lumacaftor](https://en.wikipedia.org/wiki/Lumacaftor) -like hits as an accidental detector for misfolded proteins.
 
 - The [agent sandbox](https://github.com/Leash-Labs/minos-paper/blob/trunk/Minos_Leash.pdf): LLMs that reason about SAR in plain English, hunting for the best binders among 6.5M molecules on a budget of 100.
 

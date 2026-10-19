@@ -7,10 +7,15 @@ updated: 2026-10-10T20:31:50Z
 first_seen: 2026-10-11T02:08:53.023536769Z
 authors:
 - JumpCrisscross
-content: feed
+content: extracted
 html: 2026-10-10-a-city-building-game-in-which-the-city-would-prefer-you.html
 extra:
   comments_url: https://news.ycombinator.com/item?id=50036864
+  content:interactive: true
   num_comments: 68
   points: 174
 ---
+
+DISCRETIONARY REVIEW
+
+San Francisco housing simulator
