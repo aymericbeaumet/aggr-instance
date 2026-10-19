@@ -1,0 +1,272 @@
+<div id="readability-page-1" class="page"><div>
+<h2>
+	<a id="the-problem" href="#the-problem" rel="nofollow">
+		
+	</a>
+	<span>
+		The Problem
+	</span>
+</h2>
+<p>People are trying to vibe code games. And it kind of works, at first. However, as the project grows, things begin to fall apart. Why? And what can we do about it?</p>
+<p>I'll talk about the problem, how I fixed it, and where to go from here.</p>
+<h2>
+	<a id="what-is-vibe-coding" href="#what-is-vibe-coding" rel="nofollow">
+		
+	</a>
+	<span>
+		What Is "Vibe Coding"?
+	</span>
+</h2>
+<p>First, what is vibe coding? It's originally coined by Andrej Karpathy in a <a href="https://x.com/karpathy/status/1886192184808149383" rel="nofollow">viral tweet</a> where it's defined as where you "fully give in to the vibes, embrace exponentials and forget the code even exists".</p>
+<p>However, since then, it's used descriptively to mean a lot of different things, anywhere from just "using AI when coding" to "not thinking about the code at all". In this blog post, I'll define it as: using AI as a high-level programming language to build something. Like other programming languages, this benefits from understanding what's going on under the hood, but doesn't necessarily require it.</p>
+<p>With this interpretation, you could make a game without understanding code, though knowing the fundamentals still helps.</p>
+<h2>
+	<a id="context-management" href="#context-management" rel="nofollow">
+		
+	</a>
+	<span>
+		Context Management
+	</span>
+</h2>
+<p>Earlier I mentioned that "as the project grows, things begin to fall apart". This is because there is <a href="https://huggingface.co/blog/helmet">evidence</a> that as the context window fills up, model performance begins to degrade. This is especially true for game development, where the context can grow very large, very quickly.</p>
+<p>To address this issue, there are many personal ad-hoc solutions, such as writing LLM-specific context directly in the project files, or more comprehensive solutions like <a href="https://github.com/peterkrueck/Claude-Code-Development-Kit" rel="nofollow">Claude Code Development Kit</a> for large-scale context management.</p>
+<p>I couldn't find a lightweight, accessible solution, which doesn't rely on significant domain knowledge. So I made one: 🧅 <a href="https://github.com/dylanebert/shallot" rel="nofollow">Shallot</a>, a simple, lightweight, unopinionated context management system for Claude Code. It relies on two basic commands:</p>
+<ol>
+<li><code>/peel [prompt]</code> to load context at the beginning of a conversation</li>
+<li><code>/nourish</code> to update context at the end of a conversation</li>
+</ol>
+<p>Anecdotally, this works well. However, it works best when the project stays lean and well-organized, so all relevant context can easily fit in the model's context window. While Claude Code is used here, the same principles generalize to other models.</p>
+<p>Beyond context management tools, platform choice is critical. The platform should ideally naturally keep projects lean through high-level abstractions, while also being something AI models understand well. So, what existing platforms are best suited for vibe coding?</p>
+<h2>
+	<a id="initial-exploration" href="#initial-exploration" rel="nofollow">
+		
+	</a>
+	<span>
+		Initial Exploration
+	</span>
+</h2>
+<p>I initially tried 3 different approaches to vibe coding games: Roblox MCP, Unity MCP, and web. For each, I tried to build a simple incremental game inspired by <a href="https://roblox-grass-cutting-incremental.fandom.com/wiki/Roblox_Grass_Cutting_Incremental_Wiki" rel="nofollow">Grass Cutting Incremental</a>, using Claude Code for each.</p>
+<p>Here's how it went:</p>
+<h3>
+	<a id="attempt-1-roblox-mcp" href="#attempt-1-roblox-mcp" rel="nofollow">
+		
+	</a>
+	<span>
+		Attempt 1: Roblox MCP
+	</span>
+</h3>
+<p>The <a href="https://github.com/Roblox/studio-rust-mcp-server" rel="nofollow">official MCP server</a> from Roblox. This allows AI to interact with Roblox Studio by sending commands to run code.</p>
+<p>Pros:</p>
+<ul>
+<li>Excellent level of abstraction with built-in game mechanics</li>
+<li>AI could very easily understand the syntax and convert instructions to code</li>
+</ul>
+<p>Cons:</p>
+<ul>
+<li>No files, only using code to read data, which severely limits context management</li>
+<li>Very limited runtime information for AI to work with</li>
+<li>Proprietary walled garden</li>
+</ul>
+<p>Roblox provides an excellent layer of abstraction for keeping the codebase lean and manageable, which is perfect for vibe coding. However, the walled garden and lack of context makes it infeasible for vibe coding, unless it's in-house at Roblox.</p>
+<h3>
+	<a id="attempt-2-unity-mcp" href="#attempt-2-unity-mcp" rel="nofollow">
+		
+	</a>
+	<span>
+		Attempt 2: Unity MCP
+	</span>
+</h3>
+<p>The <a href="https://github.com/CoplayDev/unity-mcp" rel="nofollow">unofficial MCP server</a> for Unity. This allows AI to interact with the Unity Editor: reading the console, managing assets, and validating scripts.</p>
+<p>Pros:</p>
+<ul>
+<li>Full file system access</li>
+</ul>
+<p>Cons:</p>
+<ul>
+<li>There are many ways to do everything in Unity, changing frequently across versions, causing AI to get confused</li>
+<li>Requires significant domain knowledge to tell the AI <em>how</em> to do things, rather than <em>what</em> to do</li>
+<li>AI performance was inconsistent and unreliable</li>
+<li>Proprietary engine (though much more transparent than Roblox)</li>
+</ul>
+<p>Unity is a powerful engine with a lot of capabilities. However, the complexity and variability of the engine makes it difficult for AI to consistently produce good results without significant user domain knowledge.</p>
+<h3>
+	<a id="attempt-3-web-stack" href="#attempt-3-web-stack" rel="nofollow">
+		
+	</a>
+	<span>
+		Attempt 3: Web Stack
+	</span>
+</h3>
+<p>The open web platform, using <a href="https://threejs.org/" rel="nofollow">three.js</a> for 3D rendering, <a href="https://rapier.rs/" rel="nofollow">rapier</a> for physics, and <a href="https://github.com/NateTheGreatt/bitECS" rel="nofollow">bitecs</a> for game logic.</p>
+<p>Pros:</p>
+<ul>
+<li>Far superior AI proficiency compared to game engines, likely due to massive training data</li>
+<li>Full file system access</li>
+<li>Fully open source stack with complete control/transparency</li>
+</ul>
+<p>Cons:</p>
+<ul>
+<li>Relatively low level libraries, requiring essentially building the engine before building the game</li>
+<li>Lack of ecosystem for high-quality 3D games; web tends toward 2D games and simple 3D experiences</li>
+</ul>
+<p>This approach had the best AI performance by far, likely due to the vast amount of web development data available during training. However, the low-level nature of the libraries meant that I had to essentially build a game engine before I could build the game itself. This allows us to work at a much higher level of abstraction, like we did with Roblox.</p>
+<p>Although it required building an engine first, this approach was the only one that produced a fun result without heavy domain knowledge.</p>
+<h3>
+	<a id="comparison-summary" href="#comparison-summary" rel="nofollow">
+		
+	</a>
+	<span>
+		Comparison Summary
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Platform</th>
+<th>AI Performance</th>
+<th>Abstraction Level</th>
+<th>Context Management</th>
+<th>Open Source</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Roblox</td>
+<td>⭐⭐⭐</td>
+<td>⭐⭐⭐⭐⭐</td>
+<td>⭐</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Unity</td>
+<td>⭐</td>
+<td>⭐⭐</td>
+<td>⭐⭐⭐</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>Web</td>
+<td>⭐⭐⭐⭐⭐</td>
+<td>⭐</td>
+<td>⭐⭐⭐⭐⭐</td>
+<td>✅</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="the-solution-vibegame" href="#the-solution-vibegame" rel="nofollow">
+		
+	</a>
+	<span>
+		The Solution: VibeGame
+	</span>
+</h2>
+<p>After these experiments, I had a clear picture: the web stack had excellent AI performance but was too low-level, while Roblox had perfect abstraction but lacked openness and context management.</p>
+<p>So, what about combining the best of both?</p>
+<p>Introducing <a href="https://github.com/dylanebert/vibegame" rel="nofollow">VibeGame</a>, a high-level declarative game engine built on top of three.js, rapier, and bitecs, designed specifically for AI-assisted game development.</p>
+<h3>
+	<a id="design-philosophy" href="#design-philosophy" rel="nofollow">
+		
+	</a>
+	<span>
+		Design Philosophy
+	</span>
+</h3>
+<p>There were three key decisions that went into the design of VibeGame:</p>
+<ol>
+<li><strong>Abstraction:</strong> A high-level abstraction with built-in features like physics, rendering, and common game mechanics, keeping the codebase lean and manageable. This takes inspiration from popular high-level sandbox games/game "engines" like Roblox, Fortnite UEFN, and Minecraft.</li>
+<li><strong>Syntax:</strong> A declarative XML-like syntax for defining game objects and their properties, making it easy for AI to understand and generate code. This is similar to HTML/CSS, which AI models are already proficient in.</li>
+<li><strong>Architecture:</strong> An Entity-Component-System (ECS) architecture for scalability and flexibility. ECS separates data (components) from behavior (systems), encouraging the project to stay modular and organized as it grows, conducive to vibe coding and context management.</li>
+</ol>
+<p>A basic game looks like this:</p>
+<pre><code data-language="html">&lt;world canvas="#game-canvas" sky="#87ceeb"&gt;
+  &lt;!-- Ground --&gt;
+  &lt;static-part pos="0 -0.5 0" shape="box" size="20 1 20" color="#90ee90"&gt;&lt;/static-part&gt;
+
+  &lt;!-- Ball --&gt;
+  &lt;dynamic-part pos="-2 4 -3" shape="sphere" size="1" color="#ff4500"&gt;&lt;/dynamic-part&gt;
+&lt;/world&gt;
+
+&lt;canvas id="game-canvas"&gt;&lt;/canvas&gt;
+
+&lt;script type="module"&gt;
+  import * as GAME from 'vibegame';
+  GAME.run();
+&lt;/script&gt;
+</code></pre>
+<p>See it in action in this <a href="https://jsfiddle.net/keLsxh5t/" rel="nofollow">JSFiddle</a> or the <a href="https://huggingface.co/spaces/dylanebert/VibeGame">Live Demo</a>.</p>
+<p>This will create a simple scene with a ground plane and a falling ball. The player, camera, and lighting are created automatically. All of this is modular and can be replaced. Arbitrary custom components and systems can be added as needed.</p>
+<p>This comes bundled with an <a href="https://raw.githubusercontent.com/dylanebert/VibeGame/refs/heads/main/llms.txt" rel="nofollow">llms.txt</a> file containing documentation about the engine, designed specifically for AI, to be included in its system prompt or initial context.</p>
+<h2>
+	<a id="so-does-it-actually-work" href="#so-does-it-actually-work" rel="nofollow">
+		
+	</a>
+	<span>
+		So Does It Actually Work?
+	</span>
+</h2>
+<p>Yes.</p>
+<p>Well, kind of.</p>
+<p><a href="https://huggingface.co/spaces/dylanebert/grass_cutting_game">Here's the game</a> I built to test building a simple incremental grass collection game using VibeGame and Claude Code. It worked very well, requiring minimal domain knowledge for implementing the core game mechanics.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/vibegame/grass_cutting_game.gif" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/vibegame/grass_cutting_game.gif" alt="Grass Cutting Game"></a></p>
+<p>However, there are still some major caveats:</p>
+<ol>
+<li>It works well for building what the game engine supports, i.e. a simple platformer or game that only relies on basic physics and rendering.</li>
+<li>However, it struggles with anything more complex that isn't yet implemented in the engine, like interaction, inventory, multiplayer, combat, etc.</li>
+</ol>
+<p>So, with a definition of vibe coding that is the one-shot "make me a game" approach, it doesn't work. However, with the definition of treating vibe coding like a high-level programming language, it works very well, but requires users to understand the engine's capabilities and limitations.</p>
+<h2>
+	<a id="try-it-yourself" href="#try-it-yourself" rel="nofollow">
+		
+	</a>
+	<span>
+		Try It Yourself
+	</span>
+</h2>
+<p>To try it immediately, I built a demo where you can develop a game directly in the browser using VibeGame with <a href="https://huggingface.co/Qwen/Qwen3-Next-80B-A3B-Instruct">Qwen3-Next-80B-A3B-Instruct</a>: <a href="https://huggingface.co/spaces/dylanebert/VibeGame">Live Demo on Hugging Face</a>.</p>
+<p>You can also test it locally with a frontier model like Claude Code:</p>
+<pre><code data-language="bash">npm create vibegame@latest my-game
+cd my-game
+npm run dev  # or bun dev
+</code></pre>
+<p>Then, paste all the contents of the included <code>llms.txt</code> to <code>CLAUDE.md</code>, providing full documentation about the engine for the AI to reference (or point your own context management system to it). This works with other models as well.</p>
+<h2>
+	<a id="whats-next" href="#whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		What's Next?
+	</span>
+</h2>
+<p>The engine is currently very barebones and only supports very basic mechanics (unless writing it from scratch). However, initial results are promising.</p>
+<p>Next steps would be:</p>
+<ol>
+<li>Flesh out the engine with more built-in mechanics, getting closer to par with early versions of Roblox or UEFN. This includes:</li>
+</ol>
+<ul>
+<li>Interaction</li>
+<li>Inventory/items</li>
+<li>Multiplayer</li>
+<li>Skinned meshes/animations with curated database</li>
+<li>Audio with curated database</li>
+</ul>
+<ol start="2">
+<li>Improve the AI guidance systems, providing beginners with a better experience. This includes:</li>
+</ol>
+<ul>
+<li>Clear messaging about engine capabilities/limitations</li>
+<li>Guided prompts for common tasks</li>
+<li>Many more examples and templates</li>
+<li>Educational resources</li>
+</ul>
+<p>It's also worth exploring how vibe coding games could harness more proven engines. For example, building a high-level sandbox game editor on top of Unity or Unreal Engine (similar to how Unreal Editor for Fortnite is built on Unreal Engine) could provide a more controlled environment for AI to work with, while leveraging the power of established engines.</p>
+<p>We're also likely to see more in-house solutions from major players. </p>
+<p><a href="https://x.com/dylan_ebert_" rel="nofollow">Follow me</a> to keep up with what's going on in the space!</p>
+<p><strong>Links:</strong></p>
+<ul>
+<li><a href="https://github.com/dylanebert/vibegame" rel="nofollow">VibeGame</a></li>
+<li><a href="https://huggingface.co/spaces/dylanebert/VibeGame">Hugging Face Demo</a></li>
+<li><a href="https://huggingface.co/spaces/dylanebert/grass_cutting_game">Example Game (made with VibeGame)</a></li>
+<li><a href="https://github.com/dylanebert/shallot" rel="nofollow">Shallot Context Manager</a></li>
+</ul>
+</div></div>

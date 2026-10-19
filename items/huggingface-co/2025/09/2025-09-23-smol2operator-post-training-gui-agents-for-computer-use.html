@@ -1,0 +1,535 @@
+<div id="readability-page-1" class="page"><div>
+<p><strong>TL;DR:</strong> This work shows how a lightweight vision–language model can acquire GUI-grounded skills and evolve into an agentic GUI coder. We release all training recipes, data-processing tools, resulting model, demo and datasets to enable full reproducibility and foster further research 🫡. Find the collection <a href="https://huggingface.co/collections/smolagents/smol2operator-release-68d288e87d3fa8f551d2ce2e">here</a>.</p>
+<hr>
+<figure>
+  
+  <figcaption>
+    This video demonstrates the model obtained through the recipe described below, executing a task end-to-end.
+  </figcaption>
+</figure>
+
+<hr>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#introduction" rel="nofollow">Introduction</a></li>
+<li><a href="#1-data-transformation-and-unified-action-space" rel="nofollow">1. Data Transformation and Unified Action Space</a><ul>
+<li><a href="#the-challenge-of-inconsistent-action-spaces" rel="nofollow">The Challenge of Inconsistent Action Spaces</a></li>
+<li><a href="#our-unified-approach" rel="nofollow">Our Unified Approach</a></li>
+<li><a href="#example-data-transformation" rel="nofollow">Example Data Transformation</a></li>
+<li><a href="#bonus-custom-action-space-adaptation-with-action-space-converter" rel="nofollow">Custom Action Space Adaptation with Action Space Converter</a></li>
+<li><a href="#key-features" rel="nofollow">Key Features</a></li>
+<li><a href="#usage-example" rel="nofollow">Usage Example</a></li>
+<li><a href="#transformed-and-released-datasets" rel="nofollow">Transformed and Released Datasets</a></li>
+</ul>
+</li>
+<li><a href="#2-phase-1-from-zero-to-perception" rel="nofollow">2. Phase 1: From Zero to Perception</a><ul>
+<li><a href="#training-data" rel="nofollow">Training Data</a></li>
+<li><a href="#optimization-experiments" rel="nofollow">Optimization Experiments</a></li>
+<li><a href="#image-resolution-and-coordinate-system-analysis" rel="nofollow">Image Resolution and Coordinate System Analysis</a></li>
+<li><a href="#key-findings" rel="nofollow">Key Findings</a></li>
+<li><a href="#phase-1-results" rel="nofollow">Phase 1 Results</a></li>
+</ul>
+</li>
+<li><a href="#3-phase-2-from-perception-to-cognition" rel="nofollow">3. Phase 2: From Perception to Cognition</a><ul>
+<li><a href="#training-data-1" rel="nofollow">Training Data</a></li>
+<li><a href="#phase-2-results" rel="nofollow">Phase 2 Results</a></li>
+</ul>
+</li>
+<li><a href="#4-all-you-need-is-open-source" rel="nofollow">4. All you need is Open Source</a></li>
+<li><a href="#5-conclusion" rel="nofollow">5. Conclusion</a></li>
+<li><a href="#whats-next" rel="nofollow">What's Next?</a></li>
+</ul>
+<br>
+
+
+
+<h2>
+	<a id="introduction" href="#introduction" rel="nofollow">
+		
+	</a>
+	<span>
+		Introduction
+	</span>
+</h2>
+<p>Graphical User Interface (GUI) automation is one of the most challenging frontiers in computer vision. Developing models that see and interact with user interfaces enables AI agents to navigate mobile, desktop, and web platforms. This will reshape the future of digital interaction.</p>
+<p>In this blog post, we present a comprehensive approach to training vision-language models for GUI automation through a multi-phase training strategy. We demonstrate how to transform a model with zero grounding capabilities into an agentic coder capable of understanding and interacting with graphical interfaces.</p>
+<p>Rather than aiming for a SOTA model, our goal is to demonstrate the entire process, from data processing to model training, and, in doing so, show how to unlock GUI-grounding capabilities in VLMs.</p>
+<div>
+
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smol2operator/google.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smol2operator/google.png" alt="GUI capabilities combine understanding of the interface and precise element localization. These abilities enable the model to translate high-level tasks into low-level GUI actions such as clicking, typing, …"></a></p>
+<p><em>GUI capabilities combine understanding of the interface and precise element localization. These abilities enable the model to translate high-level tasks into low-level GUI actions such as clicking, typing, …</em></p>
+
+</div>
+
+
+
+
+<p>Our approach leverages <a href="https://huggingface.co/HuggingFaceTB/SmolVLM2-2.2B-Instruct"><strong>SmolVLM2-2.2B-Instruct</strong></a> as the baseline model, a small powerful vision-language model that initially has no grounding capabilities for GUI tasks. This makes it an ideal candidate to demonstrate the effectiveness of our training methodology. Through our two-phase training process, we first instill grounding capabilities in the model, then enhance it with agentic reasoning abilities using Supervised Fine-Tuning (SFT).</p>
+<p>We evaluate our approach on an established perception benchmark: <a href="https://huggingface.co/datasets/HongxinLi/ScreenSpot_v2"><strong>ScreenSpot-v2</strong></a>, which tests the model’s ability to understand and locate elements within screenshots. Our process is inspired by the <a href="https://huggingface.co/papers/2412.04454">AGUVIS</a> paper, and we leverage their carefully curated datasets to build upon their foundational work.</p>
+<div>
+
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smol2operator/screenspot-v2.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smol2operator/screenspot-v2.png" alt="Evolution of ScreenSpot-v2 performance during the training phase of the base model SmolVLM2-2.2B-Instruct."></a></p>
+<p><em>Evolution of ScreenSpot-v2 performance during the training phase of the base model <strong>SmolVLM2-2.2B-Instruct</strong>.</em></p>
+
+</div>
+
+
+<h2>
+	<a id="1-data-transformation-and-unified-action-space" href="#1-data-transformation-and-unified-action-space" rel="nofollow">
+		
+	</a>
+	<span>
+		1. Data Transformation and Unified Action Space
+	</span>
+</h2>
+<p><em>This section explains how we <strong>convert heterogeneous GUI actions format from multiple datasets into a single unified format</strong>. By standardizing function names, signatures, and parameters, we create consistent, high-quality data that forms the foundation for effective model training.</em></p>
+<h3>
+	<a id="the-challenge-of-inconsistent-action-spaces" href="#the-challenge-of-inconsistent-action-spaces" rel="nofollow">
+		
+	</a>
+	<span>
+		The Challenge of Inconsistent Action Spaces
+	</span>
+</h3>
+<p>One of the primary challenges when working with multiple GUI automation datasets is the lack of standardization in action representations. Different datasets use varying function signatures, parameter naming conventions, and action taxonomies, making it difficult to train a unified model across diverse data sources.</p>
+<h3>
+	<a id="our-unified-approach" href="#our-unified-approach" rel="nofollow">
+		
+	</a>
+	<span>
+		Our Unified Approach
+	</span>
+</h3>
+<p>We took the open-source datasets (<a href="https://huggingface.co/datasets/xlangai/aguvis-stage1">xlangai/aguvis-stage1</a>, <a href="https://huggingface.co/datasets/xlangai/aguvis-stage2">xlangai/aguvis-stage2</a>), originally used by <a href="https://huggingface.co/papers/2412.04454">AGUVIS</a>, and implemented a comprehensive data transformation pipeline to create a unified action space. Our approach involved:</p>
+<ol>
+<li><strong>Function Parsing and Normalization</strong>: We developed a function parser (see <code>utils/function_parser.py</code>) that can extract and parse function calls from various formats across all datasets. This parser supports any function signature format, handles complex parameter structures, and can reconstruct function calls with proper parameter ordering.</li>
+<li><strong>Action Space Unification</strong>: We implemented a comprehensive action conversion system (see <code>preprocessing/action_conversion.py</code>) that transforms all original action representations into a standardized function naming and argument structure. This process highlighted the significant inconsistencies in function signatures across different datasets and allowed us to:<ul>
+<li>Remove undesired or redundant actions</li>
+<li>Standardize parameter naming conventions</li>
+<li>Create a cohesive action vocabulary</li>
+</ul>
+</li>
+<li><strong>(Bonus) Flexible Adaptation Framework</strong>: Our transformation pipeline includes utilities that allow users to:<ul>
+<li>Adapt the entire dataset to their own action space naming conventions using the <code>utils/action_space_converter.py</code> tool</li>
+<li>Extract and analyze the current action space structure</li>
+</ul>
+</li>
+</ol>
+<h3>
+	<a id="example-data-transformation" href="#example-data-transformation" rel="nofollow">
+		
+	</a>
+	<span>
+		Example Data Transformation
+	</span>
+</h3>
+<p>Here are real examples from our action conversion system (<code>preprocessing/action_conversion.py</code>) showing how we transform heterogeneous action representations into our unified format (grounding coordinates normalized to [0,1]):</p>
+<p><strong>Before (Original Action Dataset Formats):</strong></p>
+<pre><code data-language="python"># Mobile Actions
+mobile.home()
+mobile.open_app(app_name='drupe')
+mobile.swipe(from_coord=[0.581, 0.898], to_coord=[0.601, 0.518])
+mobile.long_press(x=0.799, y=0.911)
+mobile.terminate(status='success')
+# Desktop Actions
+pyautogui.click(x=0.8102, y=0.9463)
+pyautogui.doubleClick(x=0.8102, y=0.9463)
+pyautogui.hotkey(keys=['ctrl', 'c'])
+pyautogui.scroll(page=-0.1)
+pyautogui.write(message='bread buns')
+pyautogui.dragTo(from_coord=[0.87, 0.423], to_coord=[0.8102, 0.9463])
+</code></pre>
+<p><strong>After (Unified Action Dataset Formats):</strong></p>
+<pre><code data-language="python"># Unified Mobile Actions
+navigate_home()
+open_app(app_name='drupe')
+swipe(from_coord=[0.581, 0.898], to_coord=[0.601, 0.518])
+long_press(x=0.799, y=0.911)
+final_answer('success')
+# Unified Desktop Actions
+click(x=0.8102, y=0.9463)
+double_click(x=0.8102, y=0.9463)
+press(keys=['ctrl', 'c'])
+scroll(direction='up', amount=10)  # Smart direction detection
+type(text='bread buns')
+drag(from_coord=[0.87, 0.423], to_coord=[0.8102, 0.9463])
+</code></pre>
+<p>This unification process was essential for creating coherent training data that allows the model to learn consistent action patterns across diverse GUI environments.</p>
+
+
+<p><strong>💡 Why Normalized Coordinates?</strong>
+<br>
+Using raw pixel coordinates in text-action datapoint (e.g. <code>click(x=302, y=63)</code>) ties them to a single image size. Vision Language Models (VLMs) often resize images, causing pixel coordinates to break and require adjustment. Normalized coordinates (relative to image size) remain valid at any resolution and keep the dataset consistent.
+</p>
+
+
+<h3>
+	<a id="bonus-custom-action-space-adaptation-with-action-space-converter" href="#bonus-custom-action-space-adaptation-with-action-space-converter" rel="nofollow">
+		
+	</a>
+	<span>
+		(Bonus) Custom Action Space Adaptation with Action Space Converter
+	</span>
+</h3>
+<p>To maximize flexibility for different use cases, we developed the <strong>Action Space Converter</strong> (<code>utils/action_space_converter.py</code>), a tool that allows users to easily adapt from an action space to their own custom action vocabularies and naming conventions. </p>
+<p>You can use this tool to transform one action signature (function names, parameter names, and parameter value changes, ...) into another:</p>
+<p><strong>Before</strong></p>
+<pre><code data-language="python">assistant_message: "Action: click(x=0.5, y=0.3)"
+</code></pre>
+<p><strong>After</strong></p>
+<pre><code data-language="python">assistant_message: "Action: touch(x_coord=200, y_coord=300)"
+</code></pre>
+<h3>
+	<a id="key-features" href="#key-features" rel="nofollow">
+		
+	</a>
+	<span>
+		Key Features
+	</span>
+</h3>
+<p>The Action Space Converter provides:</p>
+<ol>
+<li><strong>Configurable Mappings</strong>: Define custom mappings between unified actions and your preferred action names</li>
+<li><strong>Parameter Transformation</strong>: Rename parameters, apply value transformations, and set default values</li>
+<li><strong>Flexible Architecture</strong>: Support for both simple parameter mappings and complex custom transformation functions</li>
+<li><strong>Validation</strong>: Built-in validation to ensure mapping configurations are valid</li>
+</ol>
+<h3>
+	<a id="usage-example" href="#usage-example" rel="nofollow">
+		
+	</a>
+	<span>
+		Usage Example
+	</span>
+</h3>
+<pre><code data-language="python">from utils.action_space_converter import ActionSpaceConverter, ActionMapping, ParameterMapping
+from utils.function_parser import parse_function_call
+
+# Create custom mappings
+mappings = [
+    ActionMapping(
+        source_function="click",
+        target_function="touch",
+        parameter_mappings=[
+            ParameterMapping(source_name="x", target_name="x_coord"),
+            ParameterMapping(source_name="y", target_name="y_coord")
+        ],
+        description="Touch screen at coordinates"    ),
+    ActionMapping(
+        source_function="type", # source_function is the name of the function in the original function call
+        target_function="write", # target_function is the name of the function in the target function call        
+        parameter_mappings=[
+            ParameterMapping(source_name="text", target_name="content")
+            # source_name is the name of the parameter in the original function call            
+            # target_name is the name of the parameter in the target function call        
+        ],
+        description="Input text"    
+    )
+]
+
+assistant_message = "I'll interact at those coordinates for you. click(x=0.5, y=0.3) Now I'll input the text. type(text='hello world')"
+
+# Parse function calls
+parsed_function_calls = parse_function_call(text)
+
+# Initialize converter
+converter = ActionSpaceConverter(mappings)
+
+# Convert actions
+converted_actions = converter.convert_actions(parsed_function_calls)
+for new_function_call, old_function_call in zip(converted_actions, parsed_function_calls):
+    text = text.replace(old_function_call.to_string(), new_function_call.to_string())
+
+print(text)
+# Output: I'll interact at those coordinates for you. touch(x_coord=0.5, y_coord=0.3) Now I'll input the text. write(content='hello world')
+</code></pre>
+<p>This tool enables researchers and practitioners to:</p>
+<ul>
+<li><strong>Customize Training Data</strong>: Adapt the dataset to match their specific action vocabulary requirements</li>
+<li><strong>Domain Adaptation</strong>: Transform actions for different platforms (mobile vs.&nbsp;desktop vs.&nbsp;web)</li>
+<li><strong>Framework Integration</strong>: Easily align training data with existing automation frameworks</li>
+<li><strong>Rapid Experimentation</strong>: Quickly test different action space configurations</li>
+<li><strong>Release Preparation</strong>: Standardize action spaces for production deployment with consistent naming conventions</li>
+</ul>
+<p>The Action Space Converter is particularly valuable for preparing datasets for training, as it ensures consistent action vocabularies across different deployment environments while maintaining compatibility with existing automation frameworks.</p>
+<h3>
+	<a id="transformed-and-released-datasets" href="#transformed-and-released-datasets" rel="nofollow">
+		
+	</a>
+	<span>
+		Transformed and Released Datasets
+	</span>
+</h3>
+<p>Through this pipeline, we transform the open-source datasets  <a href="https://huggingface.co/datasets/xlangai/aguvis-stage1">xlangai/aguvis-stage1</a>, <a href="https://huggingface.co/datasets/xlangai/aguvis-stage2">xlangai/aguvis-stage2</a> into our unified action space (see <a href="https://www.notion.so/Smol2Operator-Post-Training-GUI-Agents-for-Computer-Use-Draft-Blog-Post-2701384ebcac8035bbaad69b5b32ed99?pvs=21" rel="nofollow">here</a>). The output of this process is released as two new fully formatted datasets: <a href="https://huggingface.co/datasets/smolagents/aguvis-stage-1">smolagents/aguvis-stage-1</a> and <a href="https://huggingface.co/datasets/smolagents/aguvis-stage-2">smolagents/aguvis-stage-2</a>.</p>
+<h2>
+	<a id="2-phase-1-from-zero-to-perception" href="#2-phase-1-from-zero-to-perception" rel="nofollow">
+		
+	</a>
+	<span>
+		2. Phase 1: From Zero to Perception
+	</span>
+</h2>
+<h3>
+	<a id="training-data" href="#training-data" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Data
+	</span>
+</h3>
+<p>Phase 1 leverages the <a href="https://huggingface.co/datasets/smolagents/aguvis-stage-1">smolagents/aguvis-stage-1</a> dataset, which introduces <strong>GUI grounding</strong> by pairing low-level instructions with diverse executable actions (expressed in code form). For example, a user/assistant turn in <a href="https://huggingface.co/datasets/smolagents/aguvis-stage-1">smolagents/aguvis-stage-1</a> follows the structure:</p>
+<pre><code data-language="json">{
+  "user": "click on more button",
+  "assistant": "click(x=0.8875, y=0.2281)",
+}
+</code></pre>
+<p>Each sample links a screenshot with multi-turn user/assistant interactions, enabling the model to learn fine-grained action grounding across dialogue turns. During fine-tuning, the data collator masks everything except the assistant’s answers when computing the loss. </p>
+
+
+<h3>
+	<a id="optimization-experiments" href="#optimization-experiments" rel="nofollow">
+		
+	</a>
+	<span>
+		Optimization Experiments
+	</span>
+</h3>
+<p>Before proceeding with full-scale Phase 1 training, we conducted comprehensive ablation studies to determine optimal training configurations</p>
+<h3>
+	<a id="image-resolution-and-coordinate-system-analysis" href="#image-resolution-and-coordinate-system-analysis" rel="nofollow">
+		
+	</a>
+	<span>
+		Image Resolution and Coordinate System Analysis
+	</span>
+</h3>
+<p>We experimented with different image sizes and coordinate representation systems to identify the optimal configuration for SmolVLM2:</p>
+<ul>
+<li><strong>Image Sizes Tested</strong>: 384px, 768px, 1152px</li>
+<li><strong>Coordinate Systems</strong>: Pixel coordinates vs.&nbsp;normalized coordinates (0-1 range)</li>
+<li><strong>Training Data</strong>: 400K samples from Aguvis datasets</li>
+</ul>
+<blockquote>
+<p>Some SOTA GUI VLMs (e.g., Qwen-VL) appear also to use a different normalized range (0–1000), which was not tested in this experiment.</p>
+</blockquote>
+<div>
+<table>
+<thead>
+<tr>
+<th>Configuration (coords / image size)</th>
+<th>Screenspot-v2 (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>Normalized coordinates</em></td>
+<td></td>
+</tr>
+<tr>
+<td>Base / –</td>
+<td>0.47</td>
+</tr>
+<tr>
+<td>384</td>
+<td>31.28</td>
+</tr>
+<tr>
+<td>764</td>
+<td>32.32</td>
+</tr>
+<tr>
+<td>1152</td>
+<td><strong>33.72</strong></td>
+</tr>
+<tr>
+<td><em>Pixel coordinates</em></td>
+<td></td>
+</tr>
+<tr>
+<td>Base / –</td>
+<td>0.55</td>
+</tr>
+<tr>
+<td>384</td>
+<td>1.17</td>
+</tr>
+<tr>
+<td>764</td>
+<td>2.67</td>
+</tr>
+<tr>
+<td>1152</td>
+<td>4.32</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Table 1:</strong> <em>Baseline on HuggingFaceTB/SmolVLM2-2.2B-Instruct (400k samples, aguvis-stage-1). Higher is better.</em></p>
+</div>
+
+
+
+<p><em>As demonstrated in our benchmark results, SmolVLM2-2.2B-Instruct base initially achieved 0% performance on perception benchmarks like ScreenSpot-v2. This complete lack of grounding capability provided us with a clean slate to evaluate the effectiveness of our training methodology.</em></p>
+<h3>
+	<a id="key-findings" href="#key-findings" rel="nofollow">
+		
+	</a>
+	<span>
+		Key Findings
+	</span>
+</h3>
+<p>From our experiments, we determined that:</p>
+<ul>
+<li><strong>Image Size</strong>: 1152px</li>
+<li><strong>Coordinate System</strong>: Normalized coordinates (0-1 range) proved most effective for SmolVLM2</li>
+<li>Note: The optimal choice between pixel and normalized coordinates may vary depending on the base model’s pre-training approach</li>
+</ul>
+<h3>
+	<a id="phase-1-results" href="#phase-1-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Phase 1 Results
+	</span>
+</h3>
+<p>Using the optimal configuration (1152px resolution with normalized coordinates), we trained for 2 epochs on the smolagents/aguvis-stage-1 dataset. The results were remarkable, <strong>+41% improvement over baseline on ScreenSpot-v2</strong></p>
+<p>This dramatic improvement demonstrates that our Phase 1 training successfully instilled fundamental grounding capabilities in the model, enabling it to understand and locate visual elements within screenshots.</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>Configuration (coords / image size)</th>
+<th>Screenspot-v2 (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Normalized coordinates / 1152</td>
+<td>41.27</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Table 2:</strong> <em>Baseline on HuggingFaceTB/SmolVLM2-2.2B-Instruct (2 epochs, aguvis-stage-1).</em></p>
+</div>
+
+
+
+<h2>
+	<a id="3-phase-2-from-perception-to-cognition" href="#3-phase-2-from-perception-to-cognition" rel="nofollow">
+		
+	</a>
+	<span>
+		3. Phase 2: From Perception to Cognition
+	</span>
+</h2>
+<p>Whereas Phase 1 provided grounding capabilities, Phase 2 targets <strong>agentic reasoning,</strong> the ability to deliberate and plan before acting. This stage transforms the model from a reactive system identifying GUI elements into a proactive agent capable of executing complex, multi-step interactions.</p>
+<h3>
+	<a id="training-data-1" href="#training-data-1" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Data
+	</span>
+</h3>
+<p>Phase 2 uses the <a href="https://huggingface.co/datasets/smolagents/aguvis-stage-2">smolagents/aguvis-stage-2</a> dataset, which introduces agentic scenarios:</p>
+<ul>
+<li><p><strong>Explicit reasoning</strong> about upcoming actions</p>
+</li>
+<li><p><strong>Context consistency</strong> across multiple interaction steps</p>
+</li>
+<li><p><strong>High-level instructions</strong> require multi-step, low-level actions.</p>
+</li>
+</ul>
+<p>For example, the <a href="https://huggingface.co/datasets/smolagents/aguvis-stage-2">smolagents/aguvis-stage-2</a> chat message is like this:</p>
+<pre><code data-language="json">{
+  "system": "You are a helpful GUI agent. ...",
+  "user": "Please generate the next move according to the UI screenshot, instruction and previous actions.\n\nInstruction: What information does the site provide about Judith Lauand's career, works and exhibitions?\n\nPrevious actions:\nNone",
+  "assistant": "&lt;think&gt;\nClick on the link labeled 'Judith Lauand: Brazilian 1922-2022' to explore more about her career and exhibitions.\n&lt;/think&gt;\n&lt;code&gt;\nclick(x=0.41, y=0.178)\n&lt;/code&gt;",
+}
+</code></pre>
+<p>Each sample links a screenshot with a system/user/assistant turn. During fine-tuning, the data collator masks everything except the assistant’s answers when computing the loss. </p>
+
+
+<h3>
+	<a id="phase-2-results" href="#phase-2-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Phase 2 Results
+	</span>
+</h3>
+<p>Starting from the Phase 1 checkpoint (1152 px resolution, normalized coordinates), we fine-tuned the model for two epochs on <a href="https://huggingface.co/datasets/smolagents/aguvis-stage-2">smolagents/aguvis-stage-2</a>. The accuracy on <strong>ScreenSpot-v2 increased from 41% to 61%</strong>, indicating that explicit reasoning improves GUI grounding performance.</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>Configuration (coords / image size)</th>
+<th>Screenspot-v2 (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Normalized coordinates / 1152</td>
+<td>61.71</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Table 2:</strong> <em>Baseline on HuggingFaceTB/SmolVLM2-2.2B-Instruct after Phase 1 finetuning (2 epochs, aguvis-stage-1).</em></p>
+</div>
+
+
+
+<p>
+💡  <em>We also reproduced the two-phase training on a much smaller VLM (nanoVLM-460M). Despite its reduced capacity, the model achieved <strong>~58% on ScreenSpot-v2</strong>, demonstrating that the training strategy scales down effectively, <strong>making it SOTA on ScreenSpot-v2 for this model size (460M parameters)</strong>. In addition, aguvis-stage-1 is already included in <a href="https://huggingface.co/datasets/HuggingFaceM4/FineVision">FineVision Dataset</a>!</em></p>
+
+
+<h2>
+	<a id="4-all-you-need-is-open-source" href="#4-all-you-need-is-open-source" rel="nofollow">
+		
+	</a>
+	<span>
+		4. All you need is Open Source
+	</span>
+</h2>
+<p>All training code, data processing pipelines, datasets and model are open-source!</p>
+<ol>
+<li><strong>Training Recipe</strong> (<a href="https://github.com/huggingface/smol2operator/blob/main/recipe.ipynb" rel="nofollow"><code>recipe.ipynb</code></a>): Complete training pipeline for both Phase 1 and Phase 2, including dataset mixture configurations and training orchestration. We leverage the <a href="https://huggingface.co/docs/trl/en/index">TRL</a> library to train our models.</li>
+<li><strong>Datasets</strong> (<a href="https://huggingface.co/datasets/smolagents/aguvis-stage-1"><code>smolagents/aguvis-stage-1</code></a>, <a href="https://huggingface.co/datasets/smolagents/aguvis-stage-2"><code>smolagents/aguvis-stage-2</code></a>): all datasets used are open-source.</li>
+<li><strong>Model</strong> (<a href="https://huggingface.co/smolagents/SmolVLM2-2.2B-Instruct-Agentic-GUI"><code>smolagents/SmolVLM2-2.2B-Instruct-Agentic-GUI</code></a>): the model produced by applying the training recipe described above.</li>
+<li><strong>Preprocessing Tools:</strong><ul>
+<li><strong>Function Parser</strong> (<a href="https://github.com/huggingface/smol2operator/blob/main/utils/function_parser.py" rel="nofollow"><code>utils/function_parser.py</code></a>): Utilities for parsing, normalizing, and reconstructing function calls from diverse dataset formats. Supports complex parameter structures, positional arguments, and multiple function call extraction.</li>
+<li><strong>Action Conversion System</strong> (<a href="https://github.com/huggingface/smol2operator/blob/main/preprocessing/action_conversion.py" rel="nofollow"><code>preprocessing/action_conversion.py</code></a>): Core unification engine transforming mobile and PyAutoGUI desktop actions into a standardized API format. Features smart coordinate handling, direction detection for scroll actions, and comprehensive parameter normalization.</li>
+<li><strong>Action Space Converter</strong> (<a href="https://github.com/huggingface/smol2operator/blob/main/utils/action_space_converter.py" rel="nofollow"><code>utils/action_space_converter.py</code></a>): Flexible tool for adapting the unified action space to custom vocabularies and naming conventions. Enables domain-specific customization through configurable parameter mappings.</li>
+</ul>
+</li>
+</ol>
+<p>
+💡 We’ve also released a Space to try the model’s agentic grounding capabilities: <a href="https://huggingface.co/spaces/A-Mahla/Smol2Operator">A-Mahla/Smol2Operator</a></p>
+
+<h2>
+	<a id="5-conclusion" href="#5-conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		5. Conclusion
+	</span>
+</h2>
+<p>Our experiments demonstrate that high-quality, reasoning-oriented data can substantially improve GUI grounding, even for small VLMs, using only supervised fine-tuning (SFT). Beyond raw performance gains, these results show that the GUI grounding capabilities are largely determined by the quality of the data. Carefully curated datasets teach models the structure and semantics of user interfaces, providing the grounding needed for accurate action prediction.</p>
+<p>To support the development of GUI agents, we’re open-sourcing everything: our complete pipeline, datasets, and trained model. You can reproduce our results, experiment with different models and architectures, or adapt our approach to new domains. The future of agentic AI depends on researchers like you pushing these boundaries further!</p>
+<h2>
+	<a id="whats-next" href="#whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		What's Next?
+	</span>
+</h2>
+<p>While SFT excels at supervised tasks, emerging methods such as Reinforcement Learning (RL) or Direct Preference Optimization (DPO) help develop stronger reasoning capabilities and enable real-time adaptation. These advances point toward a new generation of GUI agents that learn and improve through interaction rather than relying solely on static datasets.</p>
+<p>Let’s build the future of GUI agents together 🤗</p>
+</div></div>

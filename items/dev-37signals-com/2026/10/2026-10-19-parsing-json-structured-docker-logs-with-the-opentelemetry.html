@@ -1,0 +1,154 @@
+<p>How we use the filelog receiver’s operator chain to parse, recombine, and route JSON-structured log lines from Docker containers.</p><div id="readability-page-1" class="page"><div>
+
+<p>We deploy our Rails apps with <a href="https://dev.37signals.com/kamal-2/">Kamal</a>, which runs them as Docker containers. Alongside the <a href="https://dev.37signals.com/kamal-prometheus/">Prometheus metrics collection</a> we set up earlier, we run the <a href="https://opentelemetry.io/docs/collector/">OpenTelemetry Collector</a> on each host to ship logs to <a href="https://grafana.com/oss/loki/">Loki</a>. Our Rails apps emit one JSON object per request to stdout: controller, status code, duration and the full Rails log output, all in a single line. Docker’s <code>json-file</code> logging driver then wraps each of those lines in <em>another</em> layer of JSON. Here’s how we use the collector’s <code>filelog</code> receiver to unwrap and parse them.</p>
+
+<hr>
+
+<h2 id="no-built-in-docker-log-receiver">No built-in Docker log receiver</h2>
+
+<p>The OpenTelemetry Collector doesn’t have a dedicated Docker log receiver. There’s a <a href="https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/dockerstatsreceiver">dockerstats receiver</a> for container metrics, but nothing equivalent for logs. The <code>filelog</code> receiver’s <code>container</code> operator <em>can</em> parse Docker’s <code>json-file</code> format, but it only unwraps the outer JSON envelope. It recombines split lines for the CRI format used by containerd and CRI-O, but not for Docker’s format, and it doesn’t handle non-JSON content mixed into your log stream. Most Rails apps write some plain text to stdout too.</p>
+
+<p>So collecting Docker container logs with the OTel Collector means putting together a chain of operators yourself. It’s not hard once you know the pieces, but it’s not obvious either.</p>
+
+<hr>
+
+<h2 id="the-problem-json-inside-json">The problem: JSON inside JSON</h2>
+
+<p>Docker’s <code>json-file</code> driver wraps every line your app emits in a JSON envelope:</p>
+
+<div><pre><code data-language="json">{"log":"{\"@timestamp\":\"2026-03-14T12:00:00Z\",\"rails\":{\"controller\":\"PostsController\"},\"http\":{\"response\":{\"status_code\":200}},\"original\":\"Started GET /posts...\"}\n","stream":"stdout","time":"2026-03-14T12:00:00.123Z"}
+</code></pre></div>
+
+<p>The <code>log</code> field contains your app’s JSON as an escaped string. And if your app’s line is longer than 16KB, Docker splits it across multiple records, each one a separate JSON object with part of the <code>log</code> value. Only the last part ends with a newline. That newline is the only way to tell a partial record from a complete one.</p>
+
+<hr>
+
+<h2 id="the-operator-chain">The operator chain</h2>
+
+<p>The filelog receiver lets you define a chain of operators that process log entries in sequence. Here’s our setup:</p>
+
+<div><pre><code data-language="yaml">receivers:
+  filelog:
+    include: [/var/lib/docker/containers/*/*-json.log]
+    start_at: end
+    operators:
+      - type: container
+        add_metadata_from_filepath: false
+
+      - type: filter
+        expr: 'body matches "^[^{]" and body matches "[^}]\\n$"'
+
+      - type: recombine
+        combine_field: body
+        source_identifier: attributes["log.file.name"]
+        combine_with: ""
+        is_last_entry: body matches "\n$"
+        max_unmatched_batch_size: 0
+
+      - type: json_parser
+        if: body matches "^\\{"
+        parse_from: body
+        parse_to: attributes
+        on_error: send
+</code></pre></div>
+
+<p>Let’s walk through each step.</p>
+
+<h3 id="1-container-unwrap-the-docker-envelope">1. <code>container</code>: unwrap the Docker envelope</h3>
+
+<p>The <code>container</code> operator parses Docker’s <code>json-file</code> format (and CRI format too). It extracts the <code>log</code> field as the body, <code>stream</code> as an attribute, and <code>time</code> as the timestamp. After this step, the body is your app’s raw log line, or part of it, but still a string, not yet parsed.</p>
+
+<p><code>add_metadata_from_filepath: false</code> turns off the Kubernetes metadata the operator reads from a pod’s log file path. Docker’s log paths don’t contain that metadata, and with the option on, the operator logs an error for every record unless the receiver also adds the file path (<code>include_file_path: true</code>).</p>
+
+<h3 id="2-filter-drop-non-json-lines">2. <code>filter</code>: drop non-JSON lines</h3>
+
+<p>Not everything your app writes to stdout is JSON. Puma access logs, Ruby warnings, and middleware timing lines (like <code>Rack handled in 18.27ms. 0 GCs.</code>) are plain text. We don’t want these in Loki, and some of our pipelines pick up lines by container name alone, so we drop them here.</p>
+
+<p>We need to be careful because of how Docker splits long lines. The first chunk of a split line starts with <code>{</code> but the middle chunks won’t, and only the final chunk ends with a newline. We can’t just drop everything that doesn’t look like JSON, or we’d lose pieces of split log lines.</p>
+
+<p>The filter drops lines that start with a non-<code>{</code> character <strong>and</strong> don’t end with <code>}\n</code>:</p>
+
+<div><pre><code data-language="plaintext">body matches "^[^{]" and body matches "[^}]\\n$"
+</code></pre></div>
+
+<p>A complete JSON line starts with <code>{</code>, so the first condition is false and it passes through. A middle chunk of a split JSON line has no newline at the end, so the second condition is false and it also passes through. Only standalone plain-text lines match both conditions and get dropped.</p>
+
+<h3 id="3-recombine-reassemble-split-json">3. <code>recombine</code>: reassemble split JSON</h3>
+
+<p>Docker’s <code>json-file</code> driver splits log lines at 16KB boundaries. A single JSON log from your app might become two or three Docker log entries. The <code>container</code> operator handles this for CRI format but not for Docker’s <code>json-file</code> format, so we do it ourselves.</p>
+
+<p>The recombine operator concatenates consecutive entries until it sees one whose body ends with a newline, which is how Docker marks the end of a line:</p>
+
+<div><pre><code data-language="yaml">- type: recombine
+  combine_field: body
+  source_identifier: attributes["log.file.name"]
+  combine_with: ""
+  is_last_entry: body matches "\n$"
+  max_unmatched_batch_size: 0
+</code></pre></div>
+
+<p><code>source_identifier</code> ensures we only recombine entries from the same log file, so logs from different containers don’t get mixed up. That’s important when Kamal runs multiple containers on the same host during deploys. <code>combine_with: ""</code> concatenates without adding any separator, since Docker’s splits are at arbitrary byte boundaries.</p>
+
+<p><code>max_unmatched_batch_size: 0</code> turns off a default limit of 100 entries. Without it, recombine sends on what it has after 100 partial records, so any line over 1.6MB gets cut in two.</p>
+
+<h3 id="4-json_parser-parse-the-app-json">4. <code>json_parser</code>: parse the app JSON</h3>
+
+<p>Now the body contains the complete, reassembled JSON string from your app. The <code>json_parser</code> operator parses it and writes the resulting fields into the log record’s attributes:</p>
+
+<div><pre><code data-language="yaml">- type: json_parser
+  if: body matches "^\\{"
+  parse_from: body
+  parse_to: attributes
+  on_error: send
+</code></pre></div>
+
+<p>After this, <code>attributes["rails"]["controller"]</code> is <code>"PostsController"</code>, <code>attributes["http"]["response"]["status_code"]</code> is <code>200</code>, and so on. The log record is now fully structured and ready for routing, transformation, and export.</p>
+
+<p>The <code>if</code> skips anything that doesn’t start with <code>{</code>, so the parser doesn’t log an error for every piece of plain text that reaches it. <code>on_error: send</code> passes a record that fails to parse on with its raw body, and the collector logs the error. We count those errors in the collector’s own logs, and that’s how we found the two problems below.</p>
+
+<hr>
+
+<h2 id="two-things-we-got-wrong">Two things we got wrong</h2>
+
+<p>Our first version of this chain ended a line on <code>}\n</code> rather than <code>\n</code>, and left <code>max_unmatched_batch_size</code> at its default. Both lost log lines.</p>
+
+<p>When a line is an exact multiple of 16KB before its newline, Docker’s split falls between the closing <code>}</code> and the <code>\n</code>. The last record is then just <code>"\n"</code>. Neither record matched <code>}\n$</code>, so recombine kept going and joined the next log line on as well. That gave us two JSON objects in one body, <code>invalid character '{' after top-level value</code> from the parser, and two lost lines. It only happens to about 1 in 16,384 long lines, but on Basecamp that was around 320 times an hour.</p>
+
+<p>The 100-record limit cut lines over 1.6MB in two. The first part failed to parse with <code>unexpected end of JSON input</code> and the rest was dropped. That was about 110 lines every 6 hours on Basecamp.</p>
+
+<p>We now test the receiver config by running the collector against sample Docker log files, including a line split just before its newline and a line in more than 100 records, and checking which records come out.</p>
+
+<hr>
+
+<h2 id="what-comes-next">What comes next</h2>
+
+<p>With structured attributes on each record, you can use the <a href="https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/routingconnector">routing connector</a> to send different log formats to different pipelines, and the <a href="https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/transformprocessor">transform processor</a> to normalize fields, set severity levels, and enrich logs before exporting them.</p>
+
+<p>The operator chain runs <em>inside</em> the receiver, before logs enter the pipeline. Getting the unwrap → filter → recombine → parse sequence right here means your processors only ever see clean, fully-parsed log records.</p>
+
+
+
+
+              <hr>
+
+              <div>
+                <ul>
+
+  
+
+    
+
+                  <li><a href="https://dev.37signals.com/series/on-prem-observability/">Other posts in the “On-prem observability” series</a></li>
+
+  
+
+  
+
+  
+
+                </ul>
+              </div>
+
+
+
+            </div></div>

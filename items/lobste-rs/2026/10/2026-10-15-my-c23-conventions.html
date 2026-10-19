@@ -1,1 +1,108 @@
-<p><a href="https://lobste.rs/s/umdbht/my_c23_conventions">Comments</a></p>
+<div id="readability-page-1" class="page"><section><p>This is one of a three-part mini series about how I’m using modern C as of late 2026.</p>
+<p>Before C23, I was <a href="https://www.youtube.com/watch?v=443UNeGrFoM">taken in</a> by <em>How I Program C</em> for years and years, and would even feel guilty for choosing C99 instead of <code>-ansi -pedantic</code>. But holy crap man I’m done being a doomsday prepper! These days I maintain a large-enough project with enough users where I could stand less foot-shooting. (I’ve also got bills to pay.)</p>
+<p>So here’s three modern C conventions which started to rise naturally from adding <code>-std=c23</code> to my zig build:</p>
+<h2 id="1-unused-maybe-yes">1. Unused? Maybe. (Yes)</h2>
+<p>Our first convention is centered around <code>[[nodiscard]]</code>. If I draw an app window or panel I require the caller to interrogate the rect of the thing that was just rendered:</p>
+<div><pre><code data-language="c">[[nodiscard]] rect_t draw_screen(/* ... */) {
+    rect_t screen_r = { };
+    // Draw stuff
+    // ...
+    return screen_r;
+}
+</code></pre></div><p>It’s a genuine business logic bug if the caller doesn’t capture the rectangle for later processing. Therefore <code>[[nodiscard]]</code> has been such a godsend for fixing bugs… Except there’s a choice few instances where I will draw something with <em>no real use</em> for the resulting rect. I’d rather ignore the return value:</p>
+<div><pre><code data-language="c">enum screen_opt popup_options = /* ... */ ;
+draw_screen(popup_options, /* ... */); // ERROR: damn you [[nodiscard]]
+</code></pre></div><p>Clang will error out here. I could maybe capture the var and never use it but…</p>
+<div><pre><code data-language="c">rect_t rect = draw_screen(/* ... */); // ERROR: unused variable (I have `-Werror` enabled)
+</code></pre></div><p>Pre-C23 one might solve this through an <code>UNUSED()</code> macro:</p>
+<div><pre><code data-language="c">#ifndef UNUSED
+#define UNUSED(x) (void)(x)
+#endif
+
+rect_t rect = draw_screen(/* ... */);
+UNUSED(rect); // Silences the compiler, but now I'm sad.
+</code></pre></div><p>But now with C23 we can delete the macro in favor of the native <code>[[maybe_unused]]</code>:</p>
+<div><pre><code data-language="c">[[maybe_unused]] rect_t rect = draw_screen(...); // OK
+</code></pre></div><p>Phew I feel better. I’ve also noticed this is happening all over the place: lots of different routines returning different types that are marked with <code>[[nodiscard]]</code>. So for all the unused cases why not just go for:</p>
+<div><pre><code data-language="c">[[maybe_unused]] auto _ = foo(); // A new pattern emerges
+</code></pre></div><p>Bonus: For any macro fans out there a fellow indie dev (Zardium) offered an additional improvement. From our chat server:</p>
+<blockquote>
+<p>Zardium: #define _ [[maybe_unused]] auto CONCAT_MACRO(zz,<strong>COUNTER</strong>)</p>
+</blockquote>
+<blockquote>
+<p>Abner: ahh, unique varname. nice one</p>
+</blockquote>
+<blockquote>
+<p>Zardium: you could take the auto out if you don’t want it to look so weird. then it acts exactly like the _ in other languages, where it can be redefined</p>
+</blockquote>
+<blockquote>
+<p>Abner: Yep totally. Although here I was celebrating my removal of a macro… XD</p>
+</blockquote>
+<h2 id="2-more-perfect-unions">2. More Perfect Unions</h2>
+<p>I’ve been cheated and lied to: designated initializers DO NOT clear my struct to zero and I can’t even trust <code>{0}</code> anymore. (Talk about a betrayal.) The problem is I’ll often have data types like this contrived timestamp:</p>
+<div><pre><code data-language="c">typedef struct {
+    Type type;
+    char buf[MAX];
+    union {
+        time_t time;
+        float dt;
+        date_t date;
+    };
+} stamp_t;
+</code></pre></div><p>And if I partially initialize one:</p>
+<div><pre><code data-language="c">stamp_t stamp = { .type = STAMP_TYPE_BLA_BLA };
+</code></pre></div><p>While it does mean we successfully zeroed out <code>buf</code> (thanks to <a href="https://en.cppreference.com/c/language/initialization#Empty_initialization">empty initialization</a>), those union members are just a different beast. It also doesn’t matter if we go with <code>stamp_t stamp = {0}</code> instead. My dear reader: I’ve made the costly mistake of assuming <code>date</code> would clear to zero!</p>
+<p>As I Spongebob-panicked in public, Lobsters member <a href="https://lobste.rs/~accelbread">accelbread</a> offered a sage revelation:</p>
+<blockquote>
+<p>accelbread: It used to be that GCC would fully zero the union anyways, and clang would only zero the time_t, though around a year ago they swapped behaviors iirc. Either way, standard only requires the time_t be zeroed and not whole union. GCC has a flag to always zero whole union. Also C23 initialization always inits whole union</p>
+</blockquote>
+<p>Wait WHAT? clang and gcc SWAPPED what now? I won’t investigate further. Everything about this is <em>dangerous af</em> unless we hug C23 tightly and never let go:</p>
+<div><pre><code data-language="c">stamp_t stamp = { }; // Fully clears to zero (C23)
+stamp.type = STAMP_TYPE_BLA_BLA;
+</code></pre></div><p>Accelbread went on to say two more things:</p>
+<ol>
+<li><em>“Note the C23 zero init whole thing is nothing in the brackets, not 0 in brackets; { 0 } does same thing as before C23”</em></li>
+<li><em>“Also if you control union layout, putting largest member first is safest”</em></li>
+</ol>
+<p>Yessir.</p>
+<h2 id="3-enums-in-c-were-magic-and-i-dont-like-it">3. Enums In C Were Magic (And I Don’t Like It)</h2>
+<p>If I want to customize some dialog box I’ll use bit flags:</p>
+<div><pre><code data-language="c">enum {
+    OPT_AUTOSCROLL = (1 &lt;&lt; 0),
+    OPT_NOCURSOR   = (1 &lt;&lt; 1),
+    OPT_CENTERED   = (1 &lt;&lt; 2),
+    OPT_NOCLOSE    = (1 &lt;&lt; 3),
+    // ...
+};
+
+[[nodiscard]] bool draw_warning(const char* msg, int opt);
+</code></pre></div><p>Even if we disagree with this approach lots of relevant libraries or projects do it:</p>
+<div><pre><code data-language="c">_ = draw_warning("you done messed up A-A-RON", OPT_CENTERED | OPT_NOCLOSE);
+</code></pre></div><p>Of course, erroneous bit shifting will land anyone into trouble and yield comical numbers. Thankfully C enums are a plain <code>int</code> underneath so the compiler will warn us if we defined a bad constant inside the enum that won’t fit.</p>
+<p>:)</p>
+<p>I’m kidding. Sigh. Well, I’m growing fearful of sage revelations but this one comes from <a href="https://gustedt.gitlabpages.inria.fr/modern-c/">Modern C</a> by Jens Gustedt:</p>
+<blockquote>
+<p>Jens: If enumeration constants do not fit into signed int, if possible, the enumeration type is adjusted such that it can store all enumeration constants.</p>
+</blockquote>
+<p>Noooooo!</p>
+<blockquote>
+<p>Jens: The property that an an enumeration type is adjusted such that it fits all its constants could have surprising effects</p>
+</blockquote>
+<p><em>sobs</em></p>
+<blockquote>
+<p>Jens: So, it is preferable to specify the underlying integer type explicitly</p>
+</blockquote>
+<p>THERE IS HOPE?</p>
+<div><pre><code data-language="c">enum options : int {
+    OPT_AUTOSCROLL = (1 &lt;&lt; 0),
+    OPT_NOCURSOR   = (1 &lt;&lt; 1),
+    OPT_CENTERED   = (1 &lt;&lt; 2),
+    OPT_NOCLOSE    = (1 &lt;&lt; 3),
+    // ...
+};
+</code></pre></div><p>It compiles! We shoot. We score. We stick with C23.</p>
+<h2 id="epilogue">Epilogue</h2>
+<p>In part two of our mini series I’ll discuss three more conventions that I’ve fleshed out thanks to modern C: starting with safer macro usage (forgive me Zig folks.)</p>
+<p><em>P.S. If you want to shape this discussion <a href="https://handmadecities.com/chat">maybe join</a> the Handmade Cities server!</em></p>
+<p>-Abner</p>
+</section></div>

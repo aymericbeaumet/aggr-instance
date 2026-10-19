@@ -1,38 +1,35 @@
-<p>The Amp CLI has two new flags: <code>--stream-json</code> and <code>--stream-json-input</code>.</p>
+<div id="readability-page-1" class="page"><div> <p>The Amp CLI has two new flags: <code>--stream-json</code> and <code>--stream-json-input</code>.</p>
 <p>They can be used together with the <code>--execute</code> flag to turn on structured JSON
 output and input, respectively.</p>
 <p>Here is an example:</p>
-<pre><code class="language-shell-session">$ amp --execute &quot;what is 2+2?&quot; --stream-json
-</code></pre>
-<p>This would print something like the following on stdout:</p>
-<pre><code>{&quot;type&quot;:&quot;system&quot;,&quot;subtype&quot;:&quot;init&quot;,&quot;cwd&quot;:&quot;/Users/mrnugget/work/amp&quot;,&quot;session_id&quot;:&quot;T-2775dc92-90ed-4f85-8b73-8f9766029e83&quot;,&quot;tools&quot;:[&quot;oracle&quot;,&quot;...&quot;],&quot;mcp_servers&quot;:[]}
-{&quot;type&quot;:&quot;user&quot;,&quot;message&quot;:{&quot;role&quot;:&quot;user&quot;,&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;what is 2+2?&quot;}]},&quot;parent_tool_use_id&quot;:null,&quot;session_id&quot;:&quot;T-2775dc92-90ed-4f85-8b73-8f9766029e83&quot;}
-{&quot;type&quot;:&quot;assistant&quot;,&quot;message&quot;:{&quot;type&quot;:&quot;message&quot;,&quot;role&quot;:&quot;assistant&quot;,&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;2 + 2 equals 4.&quot;}],&quot;stop_reason&quot;:&quot;end_turn&quot;,&quot;usage&quot;:{&quot;input_tokens&quot;:12783,&quot;cache_creation_input_tokens&quot;:367,&quot;cache_read_input_tokens&quot;:12416,&quot;output_tokens&quot;:8,&quot;max_tokens&quot;:224000,&quot;service_tier&quot;:&quot;standard&quot;}},&quot;parent_tool_use_id&quot;:null,&quot;session_id&quot;:&quot;T-2775dc92-90ed-4f85-8b73-8f9766029e83&quot;}
-{&quot;type&quot;:&quot;result&quot;,&quot;subtype&quot;:&quot;success&quot;,&quot;duration_ms&quot;:2906,&quot;is_error&quot;:false,&quot;num_turns&quot;:1,&quot;result&quot;:&quot;2 + 2 equals 4.&quot;,&quot;session_id&quot;:&quot;T-2775dc92-90ed-4f85-8b73-8f9766029e83&quot;}
-</code></pre>
-<p>Structured input can be provided on stdin with the <code>--stream-json-input</code> flag:</p>
-<pre><code class="language-shell-session">$ echo &#39;{
-  &quot;type&quot;: &quot;user&quot;,
-  &quot;message&quot;: {
-    &quot;role&quot;: &quot;user&quot;,
-    &quot;content&quot;: [
+<pre><code data-language="shell-session">$ amp --execute "what is 2+2?" --stream-json
+</code></pre><p>This would print something like the following on stdout:</p>
+<pre><code>{"type":"system","subtype":"init","cwd":"/Users/mrnugget/work/amp","session_id":"T-2775dc92-90ed-4f85-8b73-8f9766029e83","tools":["oracle","..."],"mcp_servers":[]}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"what is 2+2?"}]},"parent_tool_use_id":null,"session_id":"T-2775dc92-90ed-4f85-8b73-8f9766029e83"}
+{"type":"assistant","message":{"type":"message","role":"assistant","content":[{"type":"text","text":"2 + 2 equals 4."}],"stop_reason":"end_turn","usage":{"input_tokens":12783,"cache_creation_input_tokens":367,"cache_read_input_tokens":12416,"output_tokens":8,"max_tokens":224000,"service_tier":"standard"}},"parent_tool_use_id":null,"session_id":"T-2775dc92-90ed-4f85-8b73-8f9766029e83"}
+{"type":"result","subtype":"success","duration_ms":2906,"is_error":false,"num_turns":1,"result":"2 + 2 equals 4.","session_id":"T-2775dc92-90ed-4f85-8b73-8f9766029e83"}
+</code></pre><p>Structured input can be provided on stdin with the <code>--stream-json-input</code> flag:</p>
+<pre><code data-language="shell-session">$ echo '{
+  "type": "user",
+  "message": {
+    "role": "user",
+    "content": [
       {
-        &quot;type&quot;: &quot;text&quot;,
-        &quot;text&quot;: &quot;what is 2+2?&quot;
+        "type": "text",
+        "text": "what is 2+2?"
       }
     ]
   }
-}&#39; | amp -x --stream-json --stream-json-input
-</code></pre>
-<p>If <code>--stream-json-input</code> is set, the Amp CLI will process user messages as soon
+}' | amp -x --stream-json --stream-json-input
+</code></pre><p>If <code>--stream-json-input</code> is set, the Amp CLI will process user messages as soon
 as they are received on stdin and exit as soon as stdin is closed and the agent
 has ended its turns.</p>
 <p>Combined with <code>amp threads continue [thread]</code>, multi-turn conversations can
 even happen across multiple invocations of the CLI:</p>
-<pre><code class="language-shell-session">$ amp -x &quot;what is 2+2?&quot; --stream-json
+<pre><code data-language="shell-session">$ amp -x "what is 2+2?" --stream-json
 ...
-$ amp threads continue -x &quot;and now add 7 to that&quot; --stream-json
+$ amp threads continue -x "and now add 7 to that" --stream-json
 ...
-{&quot;type&quot;:&quot;result&quot;,&quot;result&quot;:&quot;11.&quot;, &quot;subtype&quot;:&quot;success&quot;,&quot;duration_ms&quot;:2906,&quot;is_error&quot;:false,&quot;num_turns&quot;:2,&quot;session_id&quot;:&quot;T-2775dc92-90ed-4f85-8b73-8f9766029e83&quot;}
-</code></pre>
-<p>See the <a href="https://ampcode.com/manual#cli-streaming-json">Manual</a> for more details and the <a href="/manual/appendix#stream-json-output">Appendix</a> for the full schema.</p>
+{"type":"result","result":"11.", "subtype":"success","duration_ms":2906,"is_error":false,"num_turns":2,"session_id":"T-2775dc92-90ed-4f85-8b73-8f9766029e83"}
+</code></pre><p>See the <a href="https://ampcode.com/manual#cli-streaming-json">Manual</a> for more details and the <a href="https://ampcode.com/manual/appendix#stream-json-output">Appendix</a> for the full schema.</p>
+</div></div>
