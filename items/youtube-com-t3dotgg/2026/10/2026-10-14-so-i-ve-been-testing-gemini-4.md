@@ -12,21 +12,10 @@ labels:
 - google
 - programming
 summary: "Argon might be Google'ss Best Model Yet with Gemini 4, but is it 8 months to late? \n\nThank you to WorkOS for Sponsoring! Check them out here:\nhttps://soydev.link/workos\n\nWant to sponsor a video? Learn more here: https://soydev.link/sponsor-me\n\nCheck out my Twitch, Twitter, Discord more at https://t3.gg\n\nS/O @Ph4seon3 for the awesome edit 🙏\n\n#google #ai #programming"
-content: feed
+content: extracted
 html: 2026-10-14-so-i-ve-been-testing-gemini-4.html
 remote_preview:
   url: https://i3.ytimg.com/vi/NE006pkiAnk/hqdefault.jpg
 extra:
   thumbnail: https://i3.ytimg.com/vi/NE006pkiAnk/hqdefault.jpg
 ---
-
-Argon might be Google'ss Best Model Yet with Gemini 4, but is it 8 months to late?
-
-Thank you to WorkOS for Sponsoring! Check them out here:\
-https://soydev.link/workos
-
-Want to sponsor a video? Learn more here: https://soydev.link/sponsor-me
-
-Check out my Twitch, Twitter, Discord more at https://t3.gg
-
-S/O @Ph4seon3 for the awesome edit 🙏
