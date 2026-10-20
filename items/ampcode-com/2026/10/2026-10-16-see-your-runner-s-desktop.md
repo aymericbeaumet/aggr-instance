@@ -6,7 +6,7 @@ published: 2026-10-16T00:00:00Z
 updated: 2026-10-16T00:00:00Z
 first_seen: 2026-10-16T22:01:23.127136231Z
 summary: 'You can now see and control your macOS or Linux runner''s desktop. This is nice for trying native apps that Amp builds for you, such as iOS apps: Turn on Share This Mac''s Display under Settings › Runner in the macOS app, or start your runner with amp --no-tui --desktop. Your Amp client connects directly to the runner, so it''s nearly instant when the runner is on your local network or nearby. Read See and Control the Runner''s Desktop for more details.'
-content: feed
+content: extracted
 html: 2026-10-16-see-your-runner-s-desktop.html
 remote_preview:
   url: https://static.ampcode.com/news/runner-desktop-ios-light-poster.avif

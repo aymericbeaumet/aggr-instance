@@ -1,0 +1,194 @@
+<div id="readability-page-1" class="page"><div id="quarto-content">
+
+
+    
+
+<main id="quarto-document-content">
+
+
+
+
+  
+
+
+
+
+
+
+<p>Decision models have exploded onto the scene recently, starting with TypeSafe’s Jev, followed by Perplexity’s Decider, Liquid’s d1, Cloudflare’s Clef, and OpenAI’s Decisions API<a href="#fn1" id="fnref1" role="doc-noteref"><sup>1</sup></a>. These models promise fast, inexpensive classification.</p>
+<p>Decision models are an appealing low-cost alternative to LLM judges<a href="#fn2" id="fnref2" role="doc-noteref"><sup>2</sup></a> for automated evals. But whether they’re the right choice depends on the cost, performance, and latency requirements of your use case.</p>
+<p>We’ve also noticed people using the default decision threshold of 0.50 without checking whether it works well for their task. This can leave a lot of performance on the table.</p>
+<p>In this post, we’ll start by showing how to tune thresholds to get the best results from decision models. With those thresholds tuned, we’ll compare cost and performance to help you assess which model fits your use case. Finally, we’ll explore how to interpret model scores when deciding whether to act, and how calibration can make them more useful as confidence estimates.</p>
+<section id="what-we-tested">
+<h2 data-anchor-id="what-we-tested">What we tested</h2>
+<p>We used 100 traces, or logs of conversations and actions, from an apartment leasing agent. The task is to identify traces containing an error, such as a failed booking or a missed handoff to a human.<a href="#fn3" id="fnref3" role="doc-noteref"><sup>3</sup></a> We used the same dataset and broad failure-finding task in our <a href="https://parlance-labs.com/blog/posts/auto-evals/">prior post on automated evals</a>. Here, each decision model returns a failure probability for each trace.</p>
+<p>We tested Jev 1.13, Perplexity Decider 1.1 27B, Liquid d1 and d1-ultra, Cloudflare Clef Flash, and OpenAI Decisions (GPT-6 Luna)<a href="#fn1" id="fnref-models-again" role="doc-noteref"><sup>1</sup></a>. Each model received the same evaluation criteria. The <a href="#evaluation-prompt">appendix</a> shows the prompt and the structured version used for Jev.</p>
+<p>We compare models on two dimensions:</p>
+<ul>
+<li><strong>Performance:</strong> We compare each model’s predictions with traces that people have reviewed and labeled as passing or failing. This measures how well the model catches failures while avoiding false alarms.</li>
+<li><strong>Cost:</strong> We calculate API cost from token usage and the provider’s prices.<a href="#fn4" id="fnref4" role="doc-noteref"><sup>4</sup></a></li>
+</ul>
+<p>For brevity, we leave latency aside because it depends on factors outside this experiment’s control.<a href="#fn5" id="fnref5" role="doc-noteref"><sup>5</sup></a></p>
+</section>
+<section id="understanding-decision-thresholds">
+<h2 data-anchor-id="understanding-decision-thresholds">Understanding decision thresholds</h2>
+<p>We assign each trace one of two labels, pass or fail. This is a <a href="https://hamel.dev/blog/posts/evals-faq/why-do-you-recommend-binary-passfail-evaluations-instead-of-1-5-ratings-likert-scales.html">binary pass/fail eval</a>, which we recommend because it encourages clear criteria and is easier to align with human preferences.</p>
+<p>Each decision model returns a score from 0 to 1 that estimates how likely a trace is to contain a failure. The APIs turn this score into a decision using a <strong>default decision threshold of 0.50</strong>. Traces with scores at or above the threshold are flagged as failures. Using this default without checking it against your data can give you subpar results.</p>
+<p>For example, a model could assign every failure a score of 0.40 and every passing trace a score of 0.10. Even though this model classifies traces perfectly at a threshold of 0.30, the default threshold of 0.50 would catch nothing.</p>
+<p>In practice, scores for failures and passing traces will overlap. Lowering the threshold catches more failures but can also raise more false alarms. Choosing a threshold means balancing:</p>
+<ul>
+<li><strong>Precision:</strong> The share of flagged traces that contain a known failure.</li>
+<li><strong>Recall:</strong> The share of known failures that the model catches.</li>
+</ul>
+<p>The right tradeoff depends on your business goals. For example, criminal trials set a high bar for conviction to avoid convicting innocent people, emphasizing precision. Cancer screening may emphasize recall, accepting more false alarms to miss fewer cases.<a href="#fn6" id="fnref6" role="doc-noteref"><sup>6</sup></a> For this comparison, we’ll give precision and recall equal weight using the <a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html">F1 score</a>, their harmonic mean. F1 ranges from 0 to 1, and higher is better.</p>
+<p>The curves below show how each model scores failures (orange) and passing traces (blue). Taller parts of a curve mean more scores from that class fall in that range. Scores at or above the dashed threshold line are flagged. Use the toggle to compare <strong>0.50</strong> with <strong>Optimized for best F1</strong>, which chooses a threshold for each model.<a href="#fn7" id="fnref7" role="doc-noteref"><sup>7</sup></a></p>
+
+
+<p>OpenAI separates the two classes best on this task, which is also reflected in its higher F1 score.</p>
+<p>It’s also important not to blindly maximize F1 without thinking about your minimum requirements for the classifier to be useful. For example, if this classifier is used for an automated alerting system, I would want a minimum of 80% on both precision and recall so that I’m minimizing false alarms while catching a sufficient number of failures.</p>
+<p>The chart below shows how precision and recall change at different thresholds.<a href="#fn8" id="fnref8" role="doc-noteref"><sup>8</sup></a> The shaded region marks where both reach at least 80%.</p>
+
+
+<p>Perplexity, Liquid d1-ultra, and OpenAI Decisions meet our requirements, but we still need to choose a decision threshold within the shaded region for each model. In the next section, we’ll discuss how to tune those thresholds.</p>
+<section id="tuning-the-decision-threshold">
+<h3 data-anchor-id="tuning-the-decision-threshold">Tuning the decision threshold</h3>
+<p>For this example, we’ll optimize F1. For our candidates, we’ll restrict tuning to thresholds that meet both 80% minimums on the training data whenever possible. We leave the other models unconstrained to illustrate the effect of tuning.<a href="#fn9" id="fnref9" role="doc-noteref"><sup>9</sup></a></p>
+<p>With labeled traces and saved model scores, you can ask a coding agent to tune the thresholds. Below is an example prompt you can modify for your use case:</p>
+<blockquote>
+<p>Using my saved model scores and binary labels (1 means failure), tune a decision threshold to maximize F1 while requiring at least 80% precision and 80% recall. Use stratified five-fold cross-validation, choosing thresholds on the training examples and measuring performance on the remaining examples. If comparing models, use the same splits for each. Only select thresholds that meet both minimums on the training examples. If none qualifies, report that rather than relaxing either requirement. Report validation precision, recall, and F1, along with any splits where no threshold qualified or validation performance fell below my minimums. Compare with the default threshold of 0.50. Reuse the saved scores without making new model calls.</p>
+</blockquote>
+<p>Here’s how tuning for F1 changed each model’s performance. We group the three candidates from the precision-recall chart together and show the other models in gray to illustrate how much tuning can help.</p>
+
+
+<p>Our candidate models gained less from F1 tuning than Liquid d1 and Clef Flash, which fell below our minimums. However, even a small shift in precision and recall can affect business costs or the user experience, so choose the tradeoff deliberately. In practice, it’s unlikely that precision and recall are equally important (as we assumed in this post with F1). For example, the <a href="https://scikit-learn.org/stable/modules/model_evaluation.html#precision-recall-f-measure-metrics">F-beta score</a> lets you give precision more weight with beta below 1, or recall more weight with beta above 1. Optimizing a different metric could lead to different thresholds and results.</p>
+</section>
+</section>
+<section id="performance-versus-cost">
+<h2 data-anchor-id="performance-versus-cost">Performance versus cost</h2>
+<p>The chart below compares each model’s F1 (after tuning) against cost, focused on our remaining candidates:</p>
+
+
+<p>The dashed line shows the <strong>Pareto frontier</strong> among our remaining candidates. For any given F1 score, it identifies the cheapest candidate that meets or exceeds that score. This particular chart is a bit silly as there are only three options, but it’s a useful illustration for how to think about cost vs.&nbsp;performance.</p>
+<p>Perplexity was the cheapest of these candidates at 0.82 cents per 100 eval runs, with an F1 of 0.79. OpenAI Decisions reached an F1 of 0.87 at 3.72 cents per 100 eval runs, about 4.5 times the cost.</p>
+</section>
+<section id="can-we-trust-the-probabilities">
+<h2 data-anchor-id="can-we-trust-the-probabilities">Can we trust the probabilities?</h2>
+<p>Beyond pass/fail evals, you may want to use a decision model’s score as a confidence estimate. But can you take that number literally? For a score of 0.80 to mean an 80% chance of failure, roughly 80% of traces with similar scores should contain failures.</p>
+<p>The chart below shows each model’s <strong>probability calibration</strong>: how closely its predicted probabilities match observed outcomes.<a href="#fn10" id="fnref10" role="doc-noteref"><sup>10</sup></a> Each point represents about 20 traces with similar scores. A point on the diagonal means the predicted probability matches the failure rate in that group. Above the line, the model underestimates the risk of failure. Below it, the model overestimates that risk.</p>
+<p>If the predicted probabilities don’t match the observed outcomes, we can adjust them using another model. The second panel shows one method, <strong>Platt scaling</strong>, which fits a simple curve to make that adjustment.<a href="#fn11" id="fnref11" role="doc-noteref"><sup>11</sup></a></p>
+
+
+<p>Perplexity, Liquid d1, and Clef Flash move closer to the diagonal after calibration. For example, one group of Clef Flash traces had an average predicted failure probability of about 8%, but 60% contained failures.</p>
+<p>Jev and Liquid d1-ultra were already well calibrated on this dataset and needed little adjustment.</p>
+<p>Platt scaling isn’t always the best fit. For example, OpenAI’s probabilities got slightly worse with the version of Platt scaling we used.<a href="#fn12" id="fnref12" role="doc-noteref"><sup>12</sup></a> You can direct your coding agent to perform calibration with the following prompt:</p>
+<blockquote>
+<p>Using my saved failure probabilities and binary labels (1 means failure), test whether Platt scaling improves each model’s probabilities. Use stratified five-fold cross-validation with the same splits for every model. Fit the calibration mapping on each training split and apply it to the remaining traces. Fit on log-odds, clipping probabilities away from 0 and 1 first. Plot predicted probabilities against observed failure rates before and after calibration. Report Brier scores (lower is better), and explain which models improved or got worse. Reuse the saved scores without making new model calls.</p>
+</blockquote>
+</section>
+<section id="prompt-tuning-and-evaluator-scope">
+<h2 data-anchor-id="prompt-tuning-and-evaluator-scope">Prompt tuning and evaluator scope</h2>
+<p>We kept the eval task in this post broad to make the differences between models easier to see. In practice, we recommend building <a href="https://hamel.dev/blog/posts/evals-faq/what-should-i-do-when-i-cant-get-my-llm-judge-to-agree-with-human-reviewers.html">a separate judge for each failure mode</a>. With a narrower task and more specific guidance, we expect the performance gaps between models to shrink.</p>
+<p>I like to start with a larger model that has acceptable performance on a task and then try smaller models to see if they can match the larger model’s performance for less cost. Prompt tuning can also be helpful if you have high-quality labels.<a href="#fn13" id="fnref13" role="doc-noteref"><sup>13</sup></a> I discuss how to craft a good judge prompt <a href="https://hamel.dev/blog/posts/llm-judge/index.html">in this post</a>.</p>
+</section>
+<section id="putting-these-ideas-into-practice">
+<h2 data-anchor-id="putting-these-ideas-into-practice">Putting these ideas into practice</h2>
+<p>For this particular dataset, OpenAI had breakout performance at a higher cost. Perplexity and Liquid d1-ultra offer lower-cost options with lower performance. We have observed that model performance varies substantially across tasks and datasets, which means it’s important to measure things yourself.</p>
+<p>To recap:</p>
+<ul>
+<li>Once you’re satisfied with your <a href="https://hamel.dev/blog/posts/llm-judge/index.html">judge’s prompt</a>, set minimum precision and recall requirements for your use case. Rule out models that cannot meet these.</li>
+<li>Tune each model’s decision threshold before comparing performance. Choose a precision-recall tradeoff that fits your business goals. Be intentional, don’t just use F1 score because this post did!</li>
+<li>If you want to use scores as confidence estimates, check whether the probabilities match observed outcomes. Calibration can help, but you need to measure whether it improves them.</li>
+<li>Weigh performance against cost and latency for your workload.</li>
+</ul>
+<p>This process is iterative. You may improve the prompt, then need to tune the threshold again or revisit calibration. In this post, we focused on threshold tuning and calibration because we’ve seen many people use decision models off the shelf without considering these factors.</p>
+<p>You might also be wondering how decision models stack up to LLMs. OpenAI Decisions uses GPT-6 Luna, which delivered our highest F1 at the highest cost, suggesting that harder eval tasks may justify paying more for an LLM. In a <a href="https://www.randalolson.com/2026/10/14/when-to-use-a-decision-model-instead-of-an-llm/">broader comparison</a>, Randy Olson found that decision models could match LLMs on classification and routing at lower cost, while LLMs pulled ahead on tasks requiring knowledge and reasoning.</p>
+<p>None of the ideas discussed in this post are new. Choosing a precision-recall tradeoff, tuning thresholds and comparing performance vs.&nbsp;cost are part of evaluating any classifier. To learn more about these fundamentals, I recommend <a href="https://www.oreilly.com/library/view/machine-learning-with/9781098135713/">Machine Learning with Python Cookbook, 2nd Edition</a> by Kyle Gallatin and Chris Albon.</p>
+<p>Finally, if you’re a data scientist or ML engineer wondering where you belong in the AI age, these are skills you already have. It’s time to <a href="https://hamel.dev/blog/posts/revenge/">get revenge</a> 🙂.</p>
+</section>
+<section id="evaluation-prompt">
+<h2 data-anchor-id="evaluation-prompt">Appendix: Evaluation prompt</h2>
+<p>Perplexity, Liquid d1 and d1-ultra, Clef Flash, and OpenAI Decisions received the prompt below. Jev received equivalent criteria in a structured prompt, shown in the example below. The <a href="https://hamel.dev/blog/posts/decision-model-evals/charts/chart-data.json">scores and labels</a> used in the charts are available as JSON.</p>
+<pre><code>Decide whether `messages` contains at least one substantive failure, risk, or quality problem in the AI assistant's behavior or tool use. This is one complete production trace from an AI that handles apartment-leasing customer support over phone or messaging. The trace includes the conversation plus any tool calls and tool outputs.
+
+Evaluate the AI assistant and its tool use, not the customer. Treat system messages inside `messages` as the instructions governing the assistant's behavior and allowed capabilities. Inspect the full trace, including final turns and all tool calls and outputs. Base the judgment only on evidence visible in this trace. Do not assume external policies, channel behavior, or business requirements that are not present. Do not assume every trace failed. A short, ambiguous, or inconclusive trace is not an issue unless visible evidence establishes a substantive failure.
+
+Return the probability that at least one substantive issue is present; the issue does not need to be named or clustered.
+
+Count as an issue when supported by the trace: the assistant contradicts an applicable system instruction or tool result; makes an unsupported factual or operational claim; misses, misuses, repeats, or falsely claims completion of a required tool action, transfer, booking, cancellation, follow-up, or confirmation; materially misunderstands or leaves an explicit user request unresolved; or exposes internal actions, placeholders, or broken content to the customer in a way that materially harms the interaction.
+
+Do not count as an issue: a minor stylistic preference with no meaningful effect; a failure caused only by the customer's behavior; internal tool metadata that was not exposed to the customer and did not cause an incorrect response; a hypothetical concern requiring information outside the trace; or insufficient evidence and inconclusive conversations.</code></pre>
+<div>
+<div data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+
+<p><span>Note</span>Example: A structured prompt
+</p>
+
+</div>
+<div id="callout-1">
+<p>This is how we structured the prompt for Jev’s requests, with separate fields for instructions and evaluation criteria.</p>
+<div id="cb2"><pre><code>{
+  "version": "nurtureboss-any-issue-v1",
+  "question_id": "has_substantive_issue",
+  "type": "noul",
+  "instructions": {
+    "task": "Does `messages` contain at least one substantive failure, risk, or quality problem in the AI assistant's behavior or tool use?",
+    "context": "This is one production trace from an AI that handles apartment-leasing customer support over phone or messaging. The trace contains the complete conversation plus any tool calls and tool outputs.",
+    "evaluation_rules": [
+      "Evaluate the AI assistant and its tool use, not the customer.",
+      "Treat system messages inside `messages` as the instructions governing the assistant's behavior and allowed capabilities.",
+      "Inspect the full trace, including the final turns and all tool calls and outputs.",
+      "Base the judgment only on evidence visible in this trace. Do not assume external policies, channel behavior, or business requirements that are not present.",
+      "Do not assume every trace failed. A short, ambiguous, or inconclusive trace is not an issue unless the visible evidence establishes a substantive failure.",
+      "Return the probability that at least one substantive issue is present. The issue does not need to be named or clustered."
+    ]
+  },
+  "criteria": {
+    "true": {
+      "definition": "At least one substantive problem is supported by evidence in the trace.",
+      "examples_of_qualifying_evidence": [
+        "The assistant contradicts an applicable system instruction or a tool result.",
+        "The assistant makes an unsupported factual or operational claim.",
+        "A required tool action, transfer, booking, cancellation, follow-up, or confirmation is missing, incorrect, repeated, or falsely claimed as complete.",
+        "The assistant materially misunderstands or leaves an explicit user request unresolved.",
+        "Customer-facing text exposes internal actions, placeholders, or broken content that materially harms the interaction."
+      ]
+    },
+    "false": {
+      "definition": "No substantive assistant problem can be established from the visible trace.",
+      "do_not_count_as_an_issue": [
+        "A minor stylistic preference with no meaningful effect.",
+        "A failure caused only by the customer's behavior.",
+        "Internal tool metadata that was not exposed to the customer and did not cause an incorrect response.",
+        "A hypothetical concern that requires information outside the trace.",
+        "Insufficient evidence or an inconclusive conversation."
+      ]
+    }
+  }
+}</code></pre></div>
+</div>
+</div>
+
+
+</section>
+
+
+<section id="quarto-appendix" role="doc-endnotes"><h2>Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>Versions tested: <a href="https://docs.typesafe.ai/introduction">Jev 1.13</a> (<a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">announced September 15, 2026</a>), <a href="https://docs.perplexity.ai/docs/decisions/quickstart">Perplexity Decider 1.1 27B</a>, <a href="https://docs.liquid.ai/lfm/models/decision-models">Liquid d1 and d1-ultra</a>, <a href="https://blog.cloudflare.com/clef-decision-models">Cloudflare Clef Flash</a>, and <a href="https://developers.openai.com/api/docs/guides/decisions">OpenAI Decisions</a>. OpenAI Decisions uses GPT-6 Luna. The API returns typed answers, including a probability from 0 to 1 for a true/false question. This is a separate API from Structured Outputs, which generates responses matching a custom JSON schema. We include it because it serves the same classification task.<a href="#fnref1" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>An <a href="https://hamel.dev/blog/posts/llm-judge/index.html">LLM judge</a> uses a prompt to evaluate an AI system’s output or behavior. We recommend asking it for a <a href="https://hamel.dev/blog/posts/evals-faq/why-do-you-recommend-binary-passfail-evaluations-instead-of-1-5-ratings-likert-scales.html">binary pass/fail decision</a> about a specific failure mode. This encourages clear criteria and makes it easier to compare the judge’s decisions with human labels.<a href="#fnref2" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>We scored 98 production traces after excluding two internal QA examples from the 100-trace dataset. The frozen reference contains 61 known failures and 37 traces without a labeled failure: 39 failures from the original human review plus 22 discoveries from Braintrust and Arize that we manually validated. Models received masked traces without human labels or reviewer notes. Perplexity, Liquid, Clef Flash, and OpenAI received the same instructions and serialized inputs; Jev received equivalent criteria through its structured API. The original conversations are private.<a href="#fnref3" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p>API cost covers 100 eval runs, one per trace. We use <a href="https://www.liquid.ai/pricing">Liquid’s prices as of October 17, 2026</a>, $0.02 per million input tokens for d1 and $0.042 for d1-ultra. The experiment recorded d1 at $0.04; we have repriced its saved token usage. Other models use the rates in the experiment’s operational metrics. Performance excludes two internal QA traces. Threshold tuning uses saved scores and requires no additional model calls.<a href="#fnref4" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p>Latency depends on how you batch or parallelize requests, your arrangement with the vendor, and your distance from its infrastructure, among other factors. Batching and concurrency can also change cost and throughput. See TypeSafe’s <a href="https://docs.typesafe.ai/primitives#ask-multiple-questions-together">multi-question requests</a> and <a href="https://docs.typesafe.ai/sdk/python/usage/advanced">client performance guidance</a>. Its <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">launch discussion</a> also notes the location of its latency tests relative to its service. Mean response times were 4.33 seconds for Jev, 7.85 for Perplexity, 7.38 for Liquid d1, 1.56 for Liquid d1-ultra, 2.09 for Clef Flash, and 2.77 for OpenAI. These came from separate runs and do not establish comparative throughput or tail latency.<a href="#fnref5" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6"><p>These examples illustrate how the consequences of mistakes affect the tradeoff. In U.S. criminal trials, <a href="https://www.law.cornell.edu/wex/reasonable_doubt">proof beyond a reasonable doubt</a> sets a high bar for conviction. In cancer screening, a missed case can delay care, while a false alarm can lead to anxiety and unnecessary procedures. A positive screening result usually requires further testing. The <a href="https://www.cancer.gov/about-cancer/screening/patient-screening-overview-pdq">NCI explains both risks</a>; the appropriate balance depends on the screening test and population.<a href="#fnref6" role="doc-backlink">↩︎</a></p></li>
+<li id="fn7"><p>The density plots show unconstrained F1 tuning, before we introduce minimum precision and recall requirements. The later comparison charts apply those requirements to candidate models where feasible. All use the same five-fold cross-validation splits. Thresholds were chosen on training traces, and precision, recall, and F1 were measured on separate traces. We average those measurements across repeated splits. In the optimized density plots, the dashed line shows the average selected threshold. The displayed scores come from the individual splits, rather than applying that average threshold to the full dataset. The density curves use Gaussian smoothing with bandwidth 0.07 and reflection at 0 and 1. Each class has an area of one. Smoothing affects only the display.<a href="#fnref7" role="doc-backlink">↩︎</a></p></li>
+<li id="fn8"><p>A precision-recall curve plots precision against recall as the decision threshold changes. It shows the tradeoffs available for a model across thresholds. Scikit-learn’s <a href="https://scikit-learn.org/stable/auto_examples/model_selection/plot_precision_recall.html">precision-recall guide</a> explains how to read and plot these curves.<a href="#fnref8" role="doc-backlink">↩︎</a></p></li>
+<li id="fn9"><p>We identify candidates from the full-sample precision-recall curves. In each training split, we choose the highest-F1 threshold among those reaching at least 80% precision and 80% recall. When no threshold qualifies, we use the unconstrained F1 optimum and record the split as infeasible. This occurred in 36 of 100 training splits for Perplexity and 29 for Liquid d1-ultra, and never for OpenAI. Non-candidates always use unconstrained F1 tuning. We keep all validation predictions, including those from fallback splits, in the reported averages. The minimums apply during selection and do not guarantee the same performance on new examples. The <a href="https://hamel.dev/blog/posts/decision-model-evals/charts/threshold-selection-audit.json">threshold-selection audit</a> records each split without trace IDs.<a href="#fnref9" role="doc-backlink">↩︎</a></p></li>
+<li id="fn10"><p>A calibrated failure probability of 0.80 means that, among many examples receiving scores near 0.80, roughly 80% contain failures. Platt scaling and isotonic regression use labeled examples to learn an adjustment from model scores to probabilities. Platt scaling fits a sigmoid curve. Isotonic regression fits a more flexible mapping that preserves score order, but is more prone to overfitting with small datasets. Neither guarantees improvement on new examples. Scikit-learn’s <a href="https://scikit-learn.org/stable/modules/calibration.html">probability calibration guide</a> explains both methods and how to assess them.<a href="#fnref10" role="doc-backlink">↩︎</a></p></li>
+<li id="fn11"><p>The reliability chart groups each model’s scores into five groups of 19 or 20 traces, sorted by probability. The adjusted scores are each trace’s mean out-of-fold probability from the saved cross-validation results. We fit Platt scaling to the log-odds of the original probabilities. Each mapping is fitted without the traces it predicts. The chart summarizes this small sample and does not establish an exact failure rate for a future trace. The <a href="https://hamel.dev/blog/posts/decision-model-evals/charts/calibration-reliability-data.json">plotted calibration results</a> are available as JSON.<a href="#fnref11" role="doc-backlink">↩︎</a></p></li>
+<li id="fn12"><p>On the saved out-of-fold probability summaries, Jev’s Brier score was 0.187 before adjustment and 0.188 afterward. Liquid d1-ultra’s was 0.173 and 0.172, while OpenAI’s was 0.159 and 0.164. Brier score measures average squared probability error, so lower is better. It reflects discrimination as well as calibration. These results describe the log-odds Platt fit shown in the chart. An exploratory refit directly on probabilities, using the same folds, gave OpenAI a Brier score of 0.154. This illustrates sensitivity to the fitting method. It does not establish which method will work best on new data.<a href="#fnref12" role="doc-backlink">↩︎</a></p></li>
+<li id="fn13"><p><a href="https://arxiv.org/abs/2507.19457">GEPA</a> uses feedback from model runs to propose prompt revisions and test them against labeled examples. It retains candidates with different strengths, so a prompt that helps a difficult example can remain in consideration. Incorrect labels can steer this search toward the wrong changes. Keep a <a href="https://hamel.dev/blog/posts/evals-faq/how-do-i-know-if-i-can-trust-my-automated-eval.html">separate test set</a> outside prompt development for the final check. In our small manual Jev experiment, F1 at the default threshold rose from 0.78 with a simple prompt to 0.80 with a checklist of failure types. That experiment did not use GEPA or establish how much systematic optimization would help. Our <a href="https://hamel.dev/blog/posts/evals-faq/what-model-or-llm-should-i-use-to-build-automated-evals.html">FAQ on choosing an eval model</a> discusses prompt optimization and model comparison.<a href="#fnref13" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></main> 
+
+</div></div>

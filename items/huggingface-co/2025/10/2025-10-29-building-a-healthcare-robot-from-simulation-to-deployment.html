@@ -1,0 +1,269 @@
+<div id="readability-page-1" class="page"><div>
+<h2>
+	<a id="tldr" href="#tldr" rel="nofollow">
+		
+	</a>
+	<span>
+		TL;DR
+	</span>
+</h2>
+<p>A hands-on guide to collecting data, training policies, and deploying autonomous medical robotics workflows on real hardware</p>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table-of-Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#building-a-healthcare-robot-from-simulation-to-deployment-with-nvidia-isaac" rel="nofollow">Building a Healthcare Robot from Simulation to Deployment with NVIDIA Isaac</a><ul>
+<li><a href="#tldr" rel="nofollow">TL;DR</a></li>
+<li><a href="#table-of-contents" rel="nofollow">Table-of-Contents</a></li>
+<li><a href="#introduction" rel="nofollow">Introduction</a></li>
+<li><a href="#so-arm-starter-workflow-building-an-embodied-surgical-assistant" rel="nofollow">SO-ARM Starter Workflow; Building an Embodied Surgical Assistant</a><ul>
+<li><a href="#technical-implementation" rel="nofollow">Technical Implementation</a></li>
+<li><a href="#sim2real-mixed-training-approach" rel="nofollow">Sim2Real Mixed Training Approach</a></li>
+<li><a href="#hardware-requirements" rel="nofollow">Hardware Requirements</a></li>
+<li><a href="#data-collection-implementation" rel="nofollow">Data Collection Implementation</a></li>
+<li><a href="#simulation-teleoperation-controls" rel="nofollow">Simulation Teleoperation Controls</a></li>
+<li><a href="#model-training-pipeline" rel="nofollow">Model Training Pipeline</a></li>
+</ul>
+</li>
+<li><a href="#end-to-end-sim-collecttraineval-pipelines" rel="nofollow">End-to-End Sim Collect–Train–Eval Pipelines</a><ul>
+<li><a href="#generate-synthetic-data-in-simulation" rel="nofollow">Generate Synthetic Data in Simulation</a></li>
+<li><a href="#train-and-evaluate-policies" rel="nofollow">Train and Evaluate Policies</a></li>
+<li><a href="#convert-models-to-tensorrt" rel="nofollow">Convert Models to TensorRT</a></li>
+</ul>
+</li>
+<li><a href="#getting-started" rel="nofollow">Getting Started</a><ul>
+<li><a href="#resources" rel="nofollow">Resources</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2>
+	<a id="introduction" href="#introduction" rel="nofollow">
+		
+	</a>
+	<span>
+		Introduction
+	</span>
+</h2>
+<p>Simulation has been a cornerstone in medical imaging to address the data gap. However, in healthcare robotics until now, it's often been too slow, siloed, or difficult to translate into real-world systems.</p>
+<p>NVIDIA Isaac for Healthcare, a developer framework for AI healthcare robotics, enables healthcare robotics developers in solving these challenges via offering integrated data collection, training, and evaluation pipelines that work across both simulation and hardware. Specifically, the Isaac for Healthcare v0.4 release provides healthcare developers with an end-to-end <a href="https://github.com/isaac-for-healthcare/i4h-workflows/blob/main/workflows/so_arm_starter/README.md" rel="nofollow">SO - ARM based starter workflow</a> and <a href="https://github.com/isaac-for-healthcare/i4h-workflows/blob/main/tutorials/assets/bring_your_own_or/README.md" rel="nofollow">the bring your own operating room tutorial</a>. The SO-ARM starter workflow lowers the barrier for MedTech developers to experience the full workflow from simulation to train to deployment and start building and validating autonomous on real hardware right away.</p>
+<p>In this post, we'll walk through the starter workflow and its technical implementation details to help you build a surgical assistant robot in less time than ever imaginable before.</p>
+<h2>
+	<a id="so-arm-starter-workflow-building-an-embodied-surgical-assistant" href="#so-arm-starter-workflow-building-an-embodied-surgical-assistant" rel="nofollow">
+		
+	</a>
+	<span>
+		SO-ARM Starter Workflow; Building an Embodied Surgical Assistant
+	</span>
+</h2>
+<p>The SO-ARM starter workflow introduces a new way to explore surgical assistance tasks, and providing developers with a complete end-to-end pipeline for autonomous surgical assistance:</p>
+<ul>
+<li>Collect real-world and synthetic data with SO-ARM using the LeRobot</li>
+<li>Fine-tune GR00t N1.5, evaluate in IsaacLab, then deploy to hardware</li>
+</ul>
+<p>This workflow gives developers a safe, repeatable environment to train and refine assistive skills before moving into the Operating Room.</p>
+<h3>
+	<a id="technical-implementation" href="#technical-implementation" rel="nofollow">
+		
+	</a>
+	<span>
+		Technical Implementation
+	</span>
+</h3>
+<p>The workflow implements a three-stage pipeline that integrates simulation and real hardware:</p>
+<ol>
+<li>Data Collection: Mixed simulation and real-world teleoperation demonstrations using using SO101 and LeRobot</li>
+<li>Model Training: Fine-tuning GR00T N1.5 on combined datasets with dual-camera vision</li>
+<li>Policy Deployment: Real-time inference on physical hardware with RTI DDS communication</li>
+</ol>
+<p>Notably, over 93% of the data used for policy training was generated synthetically in simulation, underscoring the strength of simulation in bridging the robotic data gap.</p>
+<h3>
+	<a id="sim2real-mixed-training-approach" href="#sim2real-mixed-training-approach" rel="nofollow">
+		
+	</a>
+	<span>
+		Sim2Real Mixed Training Approach
+	</span>
+</h3>
+<p>The workflow combines simulation and real-world data to address the fundamental challenge that training robots in the real world is expensive and limited, while pure simulation often fails to capture real-world complexities. The approach uses approximately 70 simulation episodes for diverse scenarios and environmental variations, combined with 10-20 real-world episodes for authenticity and grounding. This mixed training creates policies that generalize beyond either domain alone.</p>
+<h3>
+	<a id="hardware-requirements" href="#hardware-requirements" rel="nofollow">
+		
+	</a>
+	<span>
+		Hardware Requirements
+	</span>
+</h3>
+<p>The workflow requires:</p>
+<ul>
+<li>GPU: RT Core-enabled architecture (Ampere or later) with ≥30GB VRAM for GR00TN1.5 inference</li>
+<li>SO-ARM101 Follower: 6-DOF precision manipulator with dual-camera vision (wrist and room). The SO-ARM101 features WOWROBO vision components, including a wrist-mounted camera with a 3D-printed adapter</li>
+<li>SO-ARM101 Leader: 6-DOF Teleoperation interface for expert demonstration collection</li>
+</ul>
+<p>Notably, developers could run all the simulation, training and deployment (3 computers needed for physical AI) on one <a href="https://www.nvidia.com/en-us/products/workstations/dgx-spark/" rel="nofollow">DGX Spark</a>.</p>
+<h3>
+	<a id="data-collection-implementation" href="#data-collection-implementation" rel="nofollow">
+		
+	</a>
+	<span>
+		Data Collection Implementation
+	</span>
+</h3>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/lerobot-blog/nvidia-healthcare/lerobotxnvidia-healthcare-real-demo.gif" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/lerobot-blog/nvidia-healthcare/lerobotxnvidia-healthcare-real-demo.gif" alt="so100-healthcare-real-demo"></a></p>
+<p>For real-world data collection with SO-ARM101 hardware or any other version supported in LeRobot:</p>
+<pre><code data-language="bash">python lerobot-record \ 
+  --robot.type=so101_follower \ 
+  --robot.port=&lt;follower_port_id&gt; \ 
+  --robot.cameras="{wrist: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30}, room: {type: opencv, index_or_path: 2, width: 640, height: 480, fps: 30}}" \ 
+  --robot.id=so101_follower_arm \ 
+  --teleop.type=so101_leader \ 
+  --teleop.port=&lt;leader_port_id&gt; \ 
+  --teleop.id=so101_leader_arm \ 
+  --dataset.repo_id=&lt;user&gt;/surgical_assistance/surgical_assistance \ 
+  --dataset.num_episodes=15 \ 
+  --dataset.single_task="Prepare and hand surgical instruments to surgeon" 
+</code></pre>
+<p>For simulation-based data collection:</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/lerobot-blog/nvidia-healthcare/lerobotxnvidia-healthcare-sim-demo.gif" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/lerobot-blog/nvidia-healthcare/lerobotxnvidia-healthcare-sim-demo.gif" alt="so100-healthcare-sim-demo"></a></p>
+<pre><code data-language="bash"># With keyboard teleoperation
+python -m simulation.environments.teleoperation_record \ 
+  --enable_cameras \ 
+  --record \ 
+  --dataset_path=/path/to/save/dataset.hdf5 \ 
+  --teleop_device=keyboard
+
+# With SO-ARM101 leader arm 
+python -m simulation.environments.teleoperation_record \ 
+  --port=&lt;your_leader_arm_port_id&gt; \ 
+  --enable_cameras \ 
+  --record \ 
+  --dataset_path=/path/to/save/dataset.hdf5 
+</code></pre>
+<h3>
+	<a id="simulation-teleoperation-controls" href="#simulation-teleoperation-controls" rel="nofollow">
+		
+	</a>
+	<span>
+		Simulation Teleoperation Controls
+	</span>
+</h3>
+<p>For users without physical SO-ARM101 hardware, the workflow provides keyboard-based teleoperation with the following joint controls:</p>
+<ul>
+<li>Joint 1 (shoulder_pan): Q (+) / U (-)</li>
+<li>Joint 2 (shoulder_lift): W (+) / I (-)</li>
+<li>Joint 3 (elbow_flex): E (+) / O (-)</li>
+<li>Joint 4 (wrist_flex): A (+) / J (-)</li>
+<li>Joint 5 (wrist_roll): S (+) / K (-)</li>
+<li>Joint 6 (gripper): D (+) / L (-)</li>
+<li>R Key: Reset recording environment</li>
+<li>N Key: Mark episode as successful</li>
+</ul>
+<h3>
+	<a id="model-training-pipeline" href="#model-training-pipeline" rel="nofollow">
+		
+	</a>
+	<span>
+		Model Training Pipeline
+	</span>
+</h3>
+<p>After collecting both simulation and real-world data, convert and combine datasets for training:</p>
+<pre><code data-language="bash"># Convert simulation data to LeRobot format
+python -m training.hdf5_to_lerobot \ 
+  --repo_id=surgical_assistance_dataset \ 
+  --hdf5_path=/path/to/your/sim_dataset.hdf5 \ 
+  --task_description="Autonomous surgical instrument handling and preparation" 
+
+# Fine-tune GR00T N1.5 on mixed dataset 
+python -m training.gr00t_n1_5.train \ 
+  --dataset_path /path/to/your/surgical_assistance_dataset \ 
+  --output_dir /path/to/surgical_checkpoints \ 
+  --data_config so100_dualcam 
+</code></pre>
+<p>The trained model processes natural language instructions such as "Prepare the scalpel for the surgeon" or "Hand me the forceps" and executes the corresponding robotic actions. With LeRobot latest release (0.4.0) you will be able to fine-tune Gr00t N1.5 natively in LeRobot!</p>
+<h2>
+	<a id="end-to-end-sim-collecttraineval-pipelines" href="#end-to-end-sim-collecttraineval-pipelines" rel="nofollow">
+		
+	</a>
+	<span>
+		End-to-End Sim Collect–Train–Eval Pipelines
+	</span>
+</h2>
+<p>Simulation is most powerful when it's part of a loop: collect → train → evaluate → deploy.</p>
+<p>With v0.3, IsaacLab supports this full pipeline:</p>
+<h3>
+	<a id="generate-synthetic-data-in-simulation" href="#generate-synthetic-data-in-simulation" rel="nofollow">
+		
+	</a>
+	<span>
+		Generate Synthetic Data in Simulation
+	</span>
+</h3>
+<ul>
+<li>Teleoperate robots using keyboard or hardware controllers</li>
+<li>Capture multi-camera observations, robot states, and actions</li>
+<li>Create diverse datasets with edge cases impossible to collect safely in real environments</li>
+</ul>
+<h3>
+	<a id="train-and-evaluate-policies" href="#train-and-evaluate-policies" rel="nofollow">
+		
+	</a>
+	<span>
+		Train and Evaluate Policies
+	</span>
+</h3>
+<ul>
+<li>Deep integration with Isaac Lab's RL framework for PPO training</li>
+<li>Parallel environments (thousands of simulations simultaneously)</li>
+<li>Built-in trajectory analysis and success metrics</li>
+<li>Statistical validation across varied scenarios</li>
+</ul>
+<h3>
+	<a id="convert-models-to-tensorrt" href="#convert-models-to-tensorrt" rel="nofollow">
+		
+	</a>
+	<span>
+		Convert Models to TensorRT
+	</span>
+</h3>
+<ul>
+<li>Automatic optimization for production deployment</li>
+<li>Support for dynamic shapes and multi-camera inference</li>
+<li>Benchmarking tools to verify real-time performance</li>
+</ul>
+<p>This reduces time from experiment to deployment and makes sim2real a practical part of daily development.</p>
+<h2>
+	<a id="getting-started" href="#getting-started" rel="nofollow">
+		
+	</a>
+	<span>
+		Getting Started
+	</span>
+</h2>
+<p>Isaac for Healthcare SO-ARM Starter Workflow is available now. To get started:</p>
+<ol>
+<li>Clone the repository: <code>git clone https://github.com/isaac-for-healthcare/i4h-workflows.git</code></li>
+<li>Choose a workflow: Start with the SO-ARM Starter Workflow for surgical assistance or explore other workflows</li>
+<li>Run the setup: Each workflow includes an automated setup script (e.g., <code>tools/env_setup_so_arm_starter.sh</code>)</li>
+</ol>
+<h3>
+	<a id="resources" href="#resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Resources
+	</span>
+</h3>
+<ul>
+<li><a href="https://github.com/isaac-for-healthcare/i4h-workflows" rel="nofollow">GitHub Repository</a>: Complete workflow implementations</li>
+<li><a href="https://isaac-for-healthcare.github.io/i4h-docs/" rel="nofollow">Documentation</a>: Setup and usage guides</li>
+<li><a href="https://huggingface.co/nvidia/GR00T-N1.5-3B">GR00T Models</a>: Pre-trained foundation models</li>
+<li><a href="https://huggingface.co/docs/lerobot/so101">Hardware Guides</a>: SO-ARM101 setup instructions</li>
+<li><a href="https://github.com/huggingface/lerobot" rel="nofollow">LeRobot Repository</a>: End-to-end robotics learning</li>
+</ul>
+</div></div>

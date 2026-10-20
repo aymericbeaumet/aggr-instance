@@ -5,4 +5,35 @@ source: huggingface-co
 published: 2025-11-13T21:37:26Z
 updated: 2025-11-13T21:37:26Z
 first_seen: 2026-10-04T12:50:30.804479567Z
+content: extracted
+html: 2025-11-13-join-the-amd-open-robotics-hackathon.html
 ---
+
+[![Blog Banner](https://cdn-uploads.huggingface.co/production/uploads/691298370610df3fe9c26e5c/jSiboT21OFgdtBs5ZJeKI.jpeg)](https://cdn-uploads.huggingface.co/production/uploads/691298370610df3fe9c26e5c/jSiboT21OFgdtBs5ZJeKI.jpeg)
+
+Looking to show off your robotics aptitude? The AMD Open Robotics Hackathon hosted by AMD, Hugging Face, and Data Monsters is the place to do it. Whether you’re a student, hobbyist, startup founder, or seasoned engineer, this event brings together makers, coders, and roboticists for a fast-paced, hands-on competition that turns bold ideas into functioning demos.
+
+The first of two in-person hackathons will take place from December 5-7, 2025 in Tokyo Japan. Our next stop will be in Paris France from December 12-14, 2025.
+
+**Preparing for the Hackathon:**\
+ Form a team of up to four roboticists (ages 18+) to take on two missions over the course of 3 days.
+
+Mission 1 — An instructor-led exploration and preparation session. Learn how to set up the LeRobot development environment using AMD AI solutions\
+ Mission 2 — Build your own creative solution to a real-world problem. Your team has two days to develop an innovative freestyle project using [LeRobot](https://huggingface.co/lerobot)
+
+**Recommended technical proficiency:**\
+ • Strong Linux development skills and experience with Python and related tooling and containerization\
+ • Machine learning skills, familiarity with PyTorch, and hands-on experience with model training and inference\
+ • Bonus if your team has experience with ROCm, LeRobot, and embedded development.
+
+Hardware will be provided to contestants in the form of SO-101 robotics kits, AMD Ryzen™ AI processor equipped laptops, and access to AMD Instinct™ MI300X GPUs on the AMD Developer Cloud. User guides and related information will be provided at the start of the contest.
+
+Prizes will be awarded to the top 7 teams in each city, with the first-place team receiving $10,000! To qualify, teams must complete both Missions, with judges assessing the creativity, difficulty, ease-of-use, and practicality of Mission 2 projects on a 100-point scale.
+
+If you care about robotics and edge AI and want to see how your ideas behave in the wild, the AMD Open Robotics Hackathon is a can’t-miss opportunity.
+
+**[Register Now](https://amdroboticshackathon.datamonsters.com/?utm_source=hf&utm_medium=refferal&utm_campaign=robotics-contest&utm_id=robotics+contest&utm_term=blog)**
+
+Tokyo T&Cs: NO PURCHASE NECESSARY. Sponsor: Advanced Micro Devices, Inc. Contest is open to participants 18 years or older. Contest registration begins on 11/12/2025 at 12:00PM JST and ends on 12/4/2025 at 10:00PM JST. The Contest concludes on 12/7/2025 at 8:00PM JST. To enter and for Official Rules and Terms, including prize descriptions and judging criteria, see [https://amdroboticshackathon.datamonsters.com/](https://amdroboticshackathon.datamonsters.com/). Void where prohibited.
+
+Paris T&Cs: NO PURCHASE NECESSARY. Sponsor: Advanced Micro Devices, Inc. Contest is open to participants 18 years or older. Contest registration begins on 11/12/2025 at 12:00PM CET and ends on 12/11/2025 at 10:00PM CET. The Contest concludes on 12/14/2025 at 8:00PM CET. To enter and for Official Rules and Terms, including prize descriptions and judging criteria, see [https://amdroboticshackathon.datamonsters.com/](https://amdroboticshackathon.datamonsters.com/). Void where prohibited.
