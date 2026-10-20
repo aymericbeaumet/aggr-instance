@@ -1,0 +1,401 @@
+<div id="readability-page-1" class="page"><div>
+<p><a href="https://huggingface.co/blog/assets/hf-skills-training/thumbnail-codex.png" rel="nofollow"><img src="https://huggingface.co/blog/assets/hf-skills-training/thumbnail-codex.png" alt="banner"></a></p>
+<p>Building on our work to get <a href="https://huggingface.co/blog/hf-skills-training">Claude Code</a> to train open source models, we are now getting <a href="https://developers.openai.com/codex/" rel="nofollow">Codex</a> to go further. We gave Codex access to the <a href="https://github.com/huggingface/skills" rel="nofollow">Hugging Face Skills</a> repository, which contains skills for Machine Learning and AI tasks such as training or evaluating models. With HF skills, a coding agent can:</p>
+<ul>
+<li>Fine-tune and apply RL alignment on language models</li>
+<li>Review, explain, and act on live training metrics from Trackio</li>
+<li>Evaluate checkpoints and act on evaluation results</li>
+<li>Create reports from experiments</li>
+<li>Export to and quantize models with GGUF for local deployment</li>
+<li>Publish models to the Hub</li>
+</ul>
+<p>This tutorial dives even deeper and shows you how it works and how to use it yourself. So let's get started. </p>
+<blockquote>
+<p>Codex uses <code>AGENTS.md</code> files to accomplish specialized tasks, whilst Claude Code uses 'Skills'. Fortunately, 'HF-skills' is compatible with both approaches and works with major coding agents like Claude Code, Codex, or Gemini CLI.</p>
+</blockquote>
+<p>With <code>HF-skills</code>, you can tell Codex something like:</p>
+<pre><code>Fine-tune Qwen3-0.6B on the dataset open-r1/codeforces-cots
+</code></pre>
+<p>And Codex will:</p>
+<ol>
+<li>Validate your dataset format</li>
+<li>Select appropriate hardware (t4-small for a 0.6B model)</li>
+<li>Use and update a training script with Trackio monitoring</li>
+<li>Submit the job to Hugging Face Jobs</li>
+<li>Report the job ID and estimated cost</li>
+<li>Check on progress when you ask</li>
+<li>Help you debug if something goes wrong</li>
+</ol>
+<p>The model trains on Hugging Face GPUs while you do other things. When it's done, your fine-tuned model appears on the Hub, ready to use.</p>
+<p>This isn't a toy demo. The extension supports the same training methods used in production: supervised fine-tuning, direct preference optimization, and reinforcement learning with verifiable rewards. You can train models from 0.5B to 7B parameters, convert them to GGUF for local deployment, and run multi-stage pipelines that combine different techniques.</p>
+<h2>
+	<a id="goal-end-to-end-machine-learning-experiments" href="#goal-end-to-end-machine-learning-experiments" rel="nofollow">
+		
+	</a>
+	<span>
+		GOAL: End-to-end Machine Learning experiments
+	</span>
+</h2>
+<p>We explored this single prompt approach in the Claude Code tutorial. However, we can now go further and get OpenAI Codex to do end-to-end Machine Learning experiments. For example, Codex should be able to monitor progress, evaluate the models, and maintain an up to date training report. This will allow engineers to delegate experiments to Codex and review reports in a more hands-off way. It will also allow Codex to make more decisions on its own based on the training report and evaluation results.</p>
+<p>So let's get started!</p>
+<h2>
+	<a id="setup-and-install" href="#setup-and-install" rel="nofollow">
+		
+	</a>
+	<span>
+		Setup and Install
+	</span>
+</h2>
+<p>Before starting, you'll need:</p>
+<ul>
+<li>A Hugging Face account with a <a href="https://hf.co/pro" rel="nofollow">Pro</a> or <a href="https://hf.co/enterprise" rel="nofollow">Team / Enterprise</a> plan (Jobs require a paid plan)</li>
+<li>A write-access token from <a href="https://huggingface.co/settings/tokens">huggingface.co/settings/tokens</a></li>
+<li><a href="https://developers.openai.com/codex/" rel="nofollow">Codex</a> installed and configured</li>
+</ul>
+<h3>
+	<a id="install-codex" href="#install-codex" rel="nofollow">
+		
+	</a>
+	<span>
+		Install Codex
+	</span>
+</h3>
+<p>Codex is OpenAI's AI coding agent included in ChatGPT Plus, Pro, Business, Edu, and Enterprise plans. Codex brings AI assistance directly into your development workflow.</p>
+<p>See the <a href="https://developers.openai.com/codex/" rel="nofollow">Codex documentation</a> for installation and setup instructions.</p>
+<h3>
+	<a id="install-the-hugging-face-skills" href="#install-the-hugging-face-skills" rel="nofollow">
+		
+	</a>
+	<span>
+		Install the Hugging Face Skills
+	</span>
+</h3>
+<p>The Hugging Face Skills repository includes an <code>AGENTS.md</code> file that Codex automatically detects and uses.</p>
+<p>Clone the repository:</p>
+<pre><code data-language="bash">git clone https://github.com/huggingface/skills.git
+cd skills
+</code></pre>
+<p>Codex will automatically detect the <code>AGENTS.md</code> file in the repository and load the skills. You can verify the instructions are loaded with:</p>
+<pre><code data-language="bash">codex --ask-for-approval never "Summarize the current instructions."
+</code></pre>
+<p>See the <a href="https://developers.openai.com/codex/" rel="nofollow">Codex AGENTS guide</a> for more details.</p>
+<h3>
+	<a id="connect-to-hugging-face" href="#connect-to-hugging-face" rel="nofollow">
+		
+	</a>
+	<span>
+		Connect to Hugging Face
+	</span>
+</h3>
+<p>Authenticate with Hugging Face using the <code>hf auth login</code> command and a write-access token from <a href="https://huggingface.co/settings/tokens">hf.co/settings/tokens</a>:</p>
+<pre><code data-language="bash">hf auth login
+</code></pre>
+<p>Codex supports <a href="https://developers.openai.com/codex/" rel="nofollow">MCP (Model Context Protocol)</a> servers. You can configure the Hugging Face MCP server for additional Hub integration capabilities. You can add the Hugging Face MCP server to your Codex configuration by adding the following to your <code>~/.codex/config.toml</code> file:</p>
+<pre><code data-language="toml">[mcp_servers.huggingface]
+command = "npx"
+args = ["-y", "mcp-remote", "https://huggingface.co/mcp?login"]
+</code></pre>
+<p>Configure Hugging Face MCP Server to use relevant MCP servers like Jobs in the <a href="https://huggingface.co/settings/mcp">Settings</a> page.</p>
+<p>Then start Codex and you'll be directed to the Hugging Face MCP authentication page.</p>
+<h2>
+	<a id="your-first-ai-experiment" href="#your-first-ai-experiment" rel="nofollow">
+		
+	</a>
+	<span>
+		Your first AI Experiment
+	</span>
+</h2>
+<p>Let's walk through a complete example. We'll fine-tune a small model to improve code solving abilities, using the <a href="https://huggingface.co/datasets/open-r1/codeforces-cots">open-r1/codeforces-cots</a> dataset and the <a href="https://huggingface.co/datasets/openai/openai_humaneval">openai_humaneval</a> benchmark.</p>
+<blockquote>
+<p>The <code>open-r1/codeforces-cots</code> dataset is a dataset of codeforces problems and solutions. It is a good dataset for instruction tuning a model to solve hard coding problems.</p>
+</blockquote>
+<h3>
+	<a id="instruct-codex-to-do-an-end-to-end-fine-tuning-experiment" href="#instruct-codex-to-do-an-end-to-end-fine-tuning-experiment" rel="nofollow">
+		
+	</a>
+	<span>
+		Instruct Codex to do an end-to-end fine-tuning experiment
+	</span>
+</h3>
+<p>Start Codex in your project directory. Then give it a simple and clear instruction:</p>
+<pre><code>Start a new fine-tuning experiment to improve code solving abilities on using SFT. 
+- Maintain a report for the experiment. 
+- Evaluate models with the openai_humaneval benchmark
+- Use the open-r1/codeforces-cots dataset
+</code></pre>
+<blockquote>
+<p>You'll notice that we've gone a bit further than the single prompt approach in the Claude Code tutorial. We've added more details to the instruction but also added more steps to the experiment. </p>
+<p>Why not try iterating on this experiment yourself with more open ended questions like "What is the best model for code solving abilities?" or "What is the best dataset for code solving abilities?"</p>
+</blockquote>
+<p>Codex analyzes your request and prepares a training configuration. For a 0.6B model on a demo dataset, it selects <code>t4-small</code>—enough GPU for this model size and the cheapest option available. Codex will start a new report at <code>training_reports/&lt;model&gt;-&lt;dataset&gt;-&lt;method&gt;.md</code> which looks like the example below. As the experiment progresses, Codex will update the report with the latest information and each run report.</p>
+<details>
+<summary>Example Training Report</summary>
+
+<pre><code data-language="md"># Base Model &amp; Dataset
+[Base Model](https://huggingface.co/Qwen/Qwen3-0.6B)  
+[Dataset](https://huggingface.co/datasets/open-r1/codeforces-cots)
+
+---
+
+# `sft-a10g` - `TBD` - `In Progress`
+
+## Training Parameters
+| Parameter | Value |
+|-----------|-------|
+| Method | SFT (TRL) |
+| Model | `Qwen/Qwen3-0.6B` |
+| Dataset | `open-r1/codeforces-cots` (train, 5% eval split) |
+| Max Length | 2048 |
+| Epochs | 1 (extend to 3 after first check) |
+| Per-Device Batch Size | 1 |
+| Grad Accum Steps | 8 |
+| Effective Batch | 8 |
+| Learning Rate | 5e-5 |
+| Weight Decay | 0.01 |
+| Warmup Ratio | 0.03 |
+| Eval Strategy | steps (500) |
+| Save Strategy | steps (500), `hub_strategy=every_save`, limit=2 |
+| Precision | bf16 |
+| Gradient Checkpointing | true |
+| Packing | false |
+| Hub Model | `burtenshaw/qwen3-codeforces-cots-sft` |
+| Hardware | a10g-small |
+| Timeout | 2h |
+| Trackio | project `qwen3-codeforces-cots`, run `sft-a10g` |
+
+## Run Status
+In Progress (queued to submit)
+
+## Run Logs
+Pending submission (job link will be added)
+
+## Trackio Logs
+Pending (will link after job starts)
+
+## Run Evaluations
+Pending (lighteval `openai_humaneval` for base + checkpoints)
+
+---
+
+# Experiment Evaluations
+| Run Title | Benchmark | Score | Evaluation Job Link | Model Link |
+|-----------|-----------|-------|---------------------|------------|
+| `sft-a10g` - `TBD` - `In Progress` | HumanEval pass@1 | TBD | TBD | [burtenshaw/qwen3-codeforces-cots-sft](https://huggingface.co/burtenshaw/qwen3-codeforces-cots-sft)
+</code></pre>
+</details>
+
+<h3>
+	<a id="updating-the-training-report" href="#updating-the-training-report" rel="nofollow">
+		
+	</a>
+	<span>
+		Updating the Training Report
+	</span>
+</h3>
+<p>As the experiment progresses, Codex will update the report with the latest information and each run report. You can view the report in <code>training_reports/&lt;model&gt;-&lt;dataset&gt;-&lt;method&gt;.md</code> file.</p>
+<p>For example, codex will update the title of the report to <code>sft-a10g</code> - <code>TBD</code> - <code>In Progress</code> when the experiment is in progress.</p>
+<pre><code data-language="md"># `base-humaneval-a10g` - `2025-12-09 13:47:47 UTC` - `In Progress`
+</code></pre>
+<p>It can link to the run logs and trackio logs.</p>
+<pre><code data-language="md">## Run Logs
+
+[Run Logs](https://huggingface.co/jobs/burtenshaw/6938272ec67c9f186cfe1ae3)
+
+## Trackio Logs
+
+[Trackio Logs](https://burtenshaw-trackio.hf.space/?project=qwen3-codeforces-sft&amp;metrics=train/loss&amp;runs=sft-qwen3-codeforces-20251209-175806&amp;sidebar=hidden&amp;navbar=hidden)
+</code></pre>
+<p>And it will update the evaluation results in a combined table.</p>
+<pre><code data-language="md"># Experiment Evaluations
+
+| Run Title | Benchmark | Score | Evaluation Job Link | Model Link |
+|-----------|-----------|-------|---------------------|------------|
+| `base-humaneval-a10g` - `2025-12-09 13:47:47 UTC` - `Completed` | HumanEval pass@1 | 0.304 | [Logs](https://huggingface.co/jobs/burtenshaw/69382863c67c9f186cfe1ae7) | [Qwen/Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3-0.6B) |
+| `qwen3-0.6b-lora-v1` - `2025-12-09 13:47:47 UTC` - `In Progress` | HumanEval pass@1 | TBD | TBD | [burtenshaw/qwen3-codeforces-cots-sft](https://huggingface.co/burtenshaw/qwen3-codeforces-cots-sft)
+</code></pre>
+<h3>
+	<a id="dataset-validation" href="#dataset-validation" rel="nofollow">
+		
+	</a>
+	<span>
+		Dataset Validation
+	</span>
+</h3>
+<p>Dataset format and processing is the most common source of training failures and usually a significant amount of work is done in the training script. Codex can validate datasets before the job starts and either define a configuration for TRL or process the dataset separately.</p>
+<p>In most cases, Codex will validate the dataset before training, but you can always check the dataset validation before submitting the job.</p>
+<pre><code>Check if open-r1/codeforces-cots works for SFT training.
+</code></pre>
+<p>Codex runs a quick inspection on CPU (fractions of a penny) and reports:</p>
+<pre><code>Dataset validation for my-org/conversation-data:
+
+SFT: ✓ READY
+  Found 'messages' column with conversation format
+
+DPO: ✗ INCOMPATIBLE
+  Missing 'chosen' and 'rejected' columns
+</code></pre>
+<p>If your dataset needs transformation, Codex can preprocess the dataset before training.</p>
+<pre><code>Preprocess the dataset open-r1/codeforces-cots to use 'good_response' and 'bad_response' instead of 'chosen' and 'rejected'.
+</code></pre>
+<p>Codex will preprocess the dataset and update the training script with the new configuration.</p>
+<h3>
+	<a id="review-before-submitting" href="#review-before-submitting" rel="nofollow">
+		
+	</a>
+	<span>
+		Review Before Submitting
+	</span>
+</h3>
+<p>Before Codex submits anything, you'll see the configuration:</p>
+<pre><code>I'll fine-tune Qwen/Qwen3-0.6B on open-r1/codeforces-cots using SFT.
+
+Configuration:
+- Hardware: t4-small (~$0.75/hour)
+- Estimated time: ~20 minutes
+- Estimated cost: ~$0.30
+- Output: username/qwen-codeforces-cots-sft
+
+The model will be pushed to Hub automatically. Should I submit?
+</code></pre>
+<p>This is your chance to adjust anything. Change the output repo name, pick different hardware, or ask Codex to modify training parameters. Once you approve, the job is submitted.</p>
+<p>For example, you can ask Codex to try a test run:</p>
+<pre><code>Do a quick test run on 100 examples.
+</code></pre>
+<h3>
+	<a id="track-progress-using-the-training-report" href="#track-progress-using-the-training-report" rel="nofollow">
+		
+	</a>
+	<span>
+		Track Progress using the Training Report
+	</span>
+</h3>
+<p>After submission, you can track progress using the training report and get links to the run logs and trackio logs. You can also tell Codex to fetch the logs, summarize progress, and update the training report. As codex runs the jobs, it will update the training report with the latest information.</p>
+<details>
+<summary>Example Codex Response</summary>
+
+<pre><code>─ Worked for 10m 38s ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• Training and eval jobs are live. Key details:
+
+  - SFT launched on open-r1/codeforces-cots (solutions_py_decontaminated, 98/2 split) with LoRA on Qwen/Qwen3-0.6B, a10g-
+    large, bf16, max_steps=1000, batch=1, grad_accum=8, lr=2e-5, save/eval every 200 steps, hub push burtenshaw/qwen3-
+    codeforces-cots-sft. Job: https://huggingface.co/jobs/burtenshaw/6938272ec67c9f186cfe1ae3 (Trackio project codeforces-
+    cots-sft, run qwen3-0.6b-lora-v1).
+  - Baseline lighteval (HumanEval) on the base model queued on a10g-large. Job: https://huggingface.co/jobs/
+  - Experiment report updated with current runs and links: training_reports/qwen3-codeforces-cots-sft.md.
+
+  To evaluate the fine-tuned checkpoints once the SFT job pushes to the hub, reuse the same lighteval script:
+  hf jobs uv run --flavor a10g-large --timeout 1h --secrets HF_TOKEN -e MODEL_ID=burtenshaw/qwen3-codeforces-cots-sft -e
+  RESULTS_ORG=burtenshaw -d /tmp/lighteval_humaneval.py
+  (or swap MODEL_ID for a specific checkpoint path). This will log to the same results directory on the hub.
+
+  1. Monitor the two running jobs; I can fetch logs or metrics on request.
+  2. After a checkpoint lands, trigger the lighteval run above to compare against the baseline; then we can fill in pass@1 in the report.
+</code></pre>
+</details>
+
+<p>Trackio will monitor the training and evaluation scores for you by running evaluation jobs and selecting the best checkpoint. If you want to know the status of the training job, you can ask Codex to fetch the logs and summarize progress in a table.</p>
+<pre><code data-language="sh">Are models outperforming the base model?
+</code></pre>
+<pre><code data-language="sh">| Model | Benchmark | Score | Evaluation Job Link | Model Link |
+|-----------|-----------|-------|---------------------|------------|
+| `qwen3-0.6b-lora-v1` - `2025-12-09 13:47:47 UTC` - `Completed` | HumanEval pass@1 | 0.342 | [Logs](&lt;link to training job&gt;) | [burtenshaw/qwen3-codeforces-cots-sft](https://huggingface.co/burtenshaw/qwen3-codeforces-cots-sft)
+| `base-humaneval-a10g` - `2025-12-09 13:47:47 UTC` - `Completed` | HumanEval pass@1 | 0.306 | [Logs](&lt;link to evaluation job&gt;) | [Qwen/Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3-0.6B)
+</code></pre>
+<p>You can also monitor the training loss in real-time.</p>
+<p><a href="https://huggingface.co/datasets/hf-skills/images/resolve/main/codex-sft-codeforces.png" rel="nofollow"><img src="https://huggingface.co/datasets/hf-skills/images/resolve/main/codex-sft-codeforces.png" alt="Example Trackio dashboard of a Sweep test"></a></p>
+<p>Codex fetches the logs and summarizes progress.</p>
+<p>Click <a href="https://burtenshaw-trackio.hf.space/?project=qwen3-codeforces-sft&amp;metrics=train/loss&amp;runs=sft-qwen3-codeforces-20251209-175806&amp;sidebar=hidden&amp;navbar=hidden" rel="nofollow">here</a> for an example Trackio dashboard with some completed runs.</p>
+<h3>
+	<a id="use-your-model" href="#use-your-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Use Your Model
+	</span>
+</h3>
+<p>When training completes, your model is on the Hub:</p>
+<pre><code data-language="python">from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model = AutoModelForCausalLM.from_pretrained("burtenshaw/qwen3-codeforces-cots-sft")
+tokenizer = AutoTokenizer.from_pretrained("burtenshaw/qwen3-codeforces-cots-sft")
+</code></pre>
+<p>Transformers is great as a standard, and we can easily convert the trained model to GGUF for local deployment. This is because the training skill contains instructions and support scripts to convert models to GGUF.</p>
+<pre><code>Convert my fine-tuned model to GGUF with Q4_K_M quantization.
+Push to username/my-model-gguf.
+</code></pre>
+<p>Codex then converts to GGUF, applies quantization, and pushes to the Hub. If we trained a LoRA adapter, it will merge the LoRA adapters into the base model.</p>
+<p>Then use it locally:</p>
+<pre><code data-language="bash">llama-server -hf &lt;username&gt;/&lt;model-name&gt;:&lt;quantization&gt;
+
+# For example, to run the Qwen3-1.7B-GGUF model on your local machine:
+llama-server -hf unsloth/Qwen3-1.7B-GGUF:Q4_K_M
+</code></pre>
+<h3>
+	<a id="hardware-and-cost" href="#hardware-and-cost" rel="nofollow">
+		
+	</a>
+	<span>
+		Hardware and Cost
+	</span>
+</h3>
+<p>Codex selects hardware based on your model size, but understanding the tradeoffs helps you make better decisions. You can use the <a href="https://github.com/huggingface/skills/blob/main/hf-llm-trainer/skills/model-trainer/references/hardware_guide.md" rel="nofollow">Hardware Guide</a> to see the hardware options and costs, but codex will do it for you and select the best option.</p>
+<p>For <strong>tiny models under 1B parameters</strong>, <code>t4-small</code> works well. These models train quickly—expect $1-2 for a full run. This is perfect for educational or experimental runs.</p>
+<p>For <strong>small models (1-3B)</strong>, step up to <code>t4-medium</code> or <code>a10g-small</code>. Training takes a few hours and costs $5-15.</p>
+<p>For <strong>medium models (3-7B)</strong>, you need <code>a10g-large</code> or <code>a100-large</code> with LoRA. Full fine-tuning doesn't fit, but LoRA makes these very trainable. Budget $15-40 for production.</p>
+<p>For <strong>large models (7B+)</strong>, this HF skills job is not suitable for this scale yet. But stay tuned because we are working on it!</p>
+<h2>
+	<a id="whats-next" href="#whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		What's Next
+	</span>
+</h2>
+<p>We've shown that Codex can handle the full lifecycle of model fine-tuning: validating data, selecting hardware, generating scripts, submitting jobs, monitoring progress, and converting outputs.</p>
+<p>Some things to try:</p>
+<ul>
+<li>Fine-tune a model on your own dataset</li>
+<li>Try bigger experiments with more models and datasets and let the agent create a report for you.</li>
+<li>Train a reasoning model with GRPO on math or code and let the agent create a report for you.</li>
+</ul>
+<p>The <a href="https://hf-learn.short.gy/gh-hf-skills" rel="nofollow">extension is open source</a>. You can extend it, customize it for your workflows, or use it as a starting point for other training scenarios.</p>
+<hr>
+<h2>
+	<a id="resources" href="#resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Resources
+	</span>
+</h2>
+<h3>
+	<a id="codex" href="#codex" rel="nofollow">
+		
+	</a>
+	<span>
+		Codex
+	</span>
+</h3>
+<ul>
+<li><a href="https://developers.openai.com/codex/" rel="nofollow">Codex Documentation</a> — OpenAI's AI coding agent</li>
+<li><a href="https://developers.openai.com/codex/" rel="nofollow">Codex Quickstart</a> — Get started with Codex</li>
+<li><a href="https://developers.openai.com/codex/" rel="nofollow">Codex AGENTS Guide</a> — Using AGENTS.md files</li>
+</ul>
+<h3>
+	<a id="hugging-face-skills" href="#hugging-face-skills" rel="nofollow">
+		
+	</a>
+	<span>
+		Hugging Face Skills
+	</span>
+</h3>
+<ul>
+<li><a href="https://github.com/huggingface/skills/blob/main/hf-llm-trainer/skills/model-trainer/SKILL.md" rel="nofollow">SKILL.md</a> — Full skill documentation</li>
+<li><a href="https://github.com/huggingface/skills/blob/main/hf-llm-trainer/skills/model-trainer/references/training_methods.md" rel="nofollow">Training Methods</a> — SFT, DPO, GRPO explained</li>
+<li><a href="https://github.com/huggingface/skills/blob/main/hf-llm-trainer/skills/model-trainer/references/hardware_guide.md" rel="nofollow">Hardware Guide</a> — GPU selection and costs</li>
+<li><a href="https://huggingface.co/docs/trl">TRL Documentation</a> — The underlying training library</li>
+<li><a href="https://huggingface.co/docs/huggingface_hub/guides/jobs">Hugging Face Jobs</a> — Cloud training infrastructure</li>
+<li><a href="https://huggingface.co/docs/trackio">Trackio</a> — Real-time training monitoring</li>
+</ul>
+</div></div>

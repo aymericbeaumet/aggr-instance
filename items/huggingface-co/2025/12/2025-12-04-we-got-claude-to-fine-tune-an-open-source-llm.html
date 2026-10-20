@@ -1,0 +1,403 @@
+<div id="readability-page-1" class="page"><div>
+<p><a href="https://raw.githubusercontent.com/huggingface/blog/refs/heads/main/assets/hf-skills-training/thumbnail.png" rel="nofollow"><img src="https://raw.githubusercontent.com/huggingface/blog/refs/heads/main/assets/hf-skills-training/thumbnail.png" alt="banner"></a></p>
+<p>We gave Claude the ability to fine-tune language models using a new tool called <a href="https://hf-learn.short.gy/gh-hf-skills" rel="nofollow">Hugging Face Skills</a>. Not just write training scripts, but to actually submit jobs to cloud GPUs, monitor progress, and push finished models to the Hugging Face Hub. This tutorial shows you how it works and how to use it yourself.</p>
+<blockquote>
+<p>Claude Code can use "skills"—packaged instructions, scripts, and domain knowledge—to accomplish specialized tasks. The <code>hf-llm-trainer</code> skill teaches Claude everything it needs to know about training: which GPU to pick for your model size, how to configure Hub authentication, when to use LoRA versus full fine-tuning, and how to handle the dozens of other decisions that go into a successful training run.</p>
+</blockquote>
+<p>With this skill, you can tell Claude things like:</p>
+<pre><code>Fine-tune Qwen3-0.6B on the dataset open-r1/codeforces-cots
+</code></pre>
+<p>And Claude will:</p>
+<ol>
+<li>Validate your dataset format</li>
+<li>Select appropriate hardware (t4-small for a 0.6B model)</li>
+<li>Use and update a training script with Trackio monitoring</li>
+<li>Submit the job to Hugging Face Jobs</li>
+<li>Report the job ID and estimated cost</li>
+<li>Check on progress when you ask</li>
+<li>Help you debug if something goes wrong</li>
+</ol>
+<p>The model trains on Hugging Face GPUs while you do other things. When it's done, your fine-tuned model appears on the Hub, ready to use.</p>
+<p>This isn't a toy demo. The skill supports the same training methods used in production: supervised fine-tuning, direct preference optimization, and reinforcement learning with verifiable rewards. You can train models from 0.5B to 70B parameters, convert them to GGUF for local deployment, and run multi-stage pipelines that combine different techniques.</p>
+<h2>
+	<a id="setup-and-install" href="#setup-and-install" rel="nofollow">
+		
+	</a>
+	<span>
+		Setup and Install
+	</span>
+</h2>
+<p>Before starting, you'll need:</p>
+<ul>
+<li>A Hugging Face account with a <a href="https://hf.co/pro" rel="nofollow">Pro</a> or <a href="https://hf.co/enterprise" rel="nofollow">Team / Enterprise</a> plan (Jobs require a paid plan)</li>
+<li>A write-access token from <a href="https://huggingface.co/settings/tokens">huggingface.co/settings/tokens</a></li>
+<li>A coding agent like Claude Code, OpenAI Codex, or Google's Gemini CLI</li>
+</ul>
+<p>Hugging Face skills are compatible with Claude Code, Codex, and Gemini CLI. With integrations on the way for Cursor, Windsurf, and Continue.</p>
+<h3>
+	<a id="claude-code" href="#claude-code" rel="nofollow">
+		
+	</a>
+	<span>
+		Claude Code
+	</span>
+</h3>
+<ol>
+<li>Register the repository as a marketplace plugin:</li>
+</ol>
+<pre><code>/plugin marketplace add huggingface/skills
+</code></pre>
+<ol start="2">
+<li>To install a skill, run:</li>
+</ol>
+<pre><code>/plugin install &lt;skill-folder&gt;@huggingface-skills
+</code></pre>
+<p>For example:  </p>
+<pre><code>/plugin install hf-llm-trainer@huggingface-skills
+</code></pre>
+<h3>
+	<a id="codex" href="#codex" rel="nofollow">
+		
+	</a>
+	<span>
+		Codex
+	</span>
+</h3>
+<ol>
+<li>Codex will identify the skills via the <code>AGENTS.md</code> file. You can verify the instructions are loaded with:</li>
+</ol>
+<pre><code>codex --ask-for-approval never "Summarize the current instructions."
+</code></pre>
+<ol start="2">
+<li>For more details, see the <a href="https://developers.openai.com/codex/guides/agents-md" rel="nofollow">Codex AGENTS guide</a>.</li>
+</ol>
+<h3>
+	<a id="gemini-cli" href="#gemini-cli" rel="nofollow">
+		
+	</a>
+	<span>
+		Gemini CLI
+	</span>
+</h3>
+<ol>
+<li><p>This repo includes <code>gemini-extension.json</code> to integrate with the Gemini CLI.</p>
+</li>
+<li><p>Install locally:</p>
+</li>
+</ol>
+<pre><code>gemini extensions install . --consent
+</code></pre>
+<p>or use the GitHub URL:</p>
+<pre><code>gemini extensions install https://github.com/huggingface/skills.git --consent
+</code></pre>
+<ol start="4">
+<li>See <a href="https://geminicli.com/docs/extensions/#installing-an-extension" rel="nofollow">Gemini CLI extensions docs</a> for more help.</li>
+</ol>
+<h3>
+	<a id="connect-to-hugging-face" href="#connect-to-hugging-face" rel="nofollow">
+		
+	</a>
+	<span>
+		Connect to Hugging Face
+	</span>
+</h3>
+<p>You have to authenticate to your Hugging Face account with a <a href="https://huggingface.co/settings/tokens">write-access token</a> so that the job can create a model repo. </p>
+<p>Set up your token:</p>
+<pre><code data-language="bash">hf auth login
+# or 
+export HF_TOKEN=hf_your_write_access_token_here
+</code></pre>
+<blockquote>
+<p>Configure Hugging Face MCP Server to use your write token by sending it in either the <code>HF_TOKEN</code> or <code>Authorization: Bearer</code> HTTP Headers.</p>
+<p>For Claude Code: <code>claude mcp add --transport http hf-skills https://huggingface.co/mcp?bouquet=skills --header "Authorization: Bearer $HF_TOKEN"</code></p>
+</blockquote>
+<h2>
+	<a id="your-first-training-run" href="#your-first-training-run" rel="nofollow">
+		
+	</a>
+	<span>
+		Your First Training Run
+	</span>
+</h2>
+<p>Let's walk through a complete example. We'll fine-tune a small model to see the full workflow, then explore more advanced capabilities.</p>
+<h3>
+	<a id="instruct-the-coding-agent-to-fine-tune" href="#instruct-the-coding-agent-to-fine-tune" rel="nofollow">
+		
+	</a>
+	<span>
+		Instruct the coding agent to fine tune
+	</span>
+</h3>
+<p>Start with a simple and clear instruction to fine tune a specific model</p>
+<pre><code>Fine-tune Qwen3-0.6B on the open-r1/codeforces-cots dataset for instruction following. 
+</code></pre>
+<p>The coding agent analyzes your request and prepares a training configuration. For a 0.6B model on a demo dataset, it selects <code>t4-small</code>—enough GPU for this model size and the cheapest option available.</p>
+<blockquote>
+<p>The <code>open-r1/codeforces-cots</code> dataset is a dataset of codeforces problems and solutions. It is a good dataset for instruction tuning a model to solve hard coding problems.</p>
+</blockquote>
+<blockquote>
+<p>This works for vision language models too! You can simply run "Fine-tune Qwen/Qwen3-VL-2B-Instruct on llava-instruct-mix"</p>
+</blockquote>
+<h3>
+	<a id="review-before-submitting" href="#review-before-submitting" rel="nofollow">
+		
+	</a>
+	<span>
+		Review Before Submitting
+	</span>
+</h3>
+<p>Before your coding agent submits anything, you'll see the configuration:</p>
+<pre><code>I'll fine-tune Qwen/Qwen3-0.6B on open-r1/codeforces-cots using SFT.
+
+Configuration:
+- Hardware: t4-small (~$0.75/hour)
+- Estimated time: ~20 minutes
+- Estimated cost: ~$0.30
+- Output: username/qwen-codeforces-cots-sft
+
+The model will be pushed to Hub automatically. Should I submit?
+</code></pre>
+<p>This is your chance to adjust anything. Change the output repo name, pick different hardware, or ask Claude to modify training parameters. Once you approve, the agent submits the job.</p>
+<p>For example, you can ask the agent to try a test run:</p>
+<pre><code>Do a quick test run on 100 examples.
+</code></pre>
+<h3>
+	<a id="track-progress" href="#track-progress" rel="nofollow">
+		
+	</a>
+	<span>
+		Track Progress
+	</span>
+</h3>
+<p>After submission, you get job details:</p>
+<pre><code>✅ Job submitted successfully!
+
+Job ID: abc123xyz
+Monitor: https://huggingface.co/jobs/username/abc123xyz
+
+Expected time: ~20 minutes
+Estimated cost: ~$0.30
+
+View real-time metrics at: https://huggingface.co/spaces/username/trackio
+</code></pre>
+<p><a href="https://raw.githubusercontent.com/huggingface/skills/c1452671ff251c138b1f6adc974ed8f54beb21e7/apps/tutorials/sweep_example.png" rel="nofollow"><img src="https://raw.githubusercontent.com/huggingface/skills/c1452671ff251c138b1f6adc974ed8f54beb21e7/apps/tutorials/sweep_example.png" alt="Example Trackio dashboard of a Sweep test"></a></p>
+<p>The skill includes Trackio integration, so you can watch training loss decrease in real-time. Jobs run asynchronously so you can close your terminal and come back later. When you want an update:</p>
+<pre><code>How's my training job doing?
+</code></pre>
+<p>Then the agent fetches the logs and summarizes progress.</p>
+
+
+<h3>
+	<a id="use-your-model" href="#use-your-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Use Your Model
+	</span>
+</h3>
+<p>When training completes, your model is on the Hub:</p>
+<pre><code data-language="python">from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model = AutoModelForCausalLM.from_pretrained("username/qwen-codeforces-cots-sft")
+tokenizer = AutoTokenizer.from_pretrained("username/qwen-codeforces-cots-sft")
+</code></pre>
+<p>That's the full loop. You described what you wanted in plain English, and the agent handled GPU selection, script generation, job submission, authentication, and persistence. The whole thing cost about thirty cents.</p>
+<h2>
+	<a id="training-methods" href="#training-methods" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Methods
+	</span>
+</h2>
+<p>The skill supports three training approaches. Understanding when to use each one helps you get better results.</p>
+<h3>
+	<a id="supervised-fine-tuning-sft" href="#supervised-fine-tuning-sft" rel="nofollow">
+		
+	</a>
+	<span>
+		Supervised Fine-Tuning (SFT)
+	</span>
+</h3>
+<p>SFT is where most projects start. You provide demonstration data—examples of inputs and desired outputs—and training adjusts the model to match those patterns.</p>
+<p>Use SFT when you have high-quality examples of the behavior you want. Customer support conversations, code generation pairs, domain-specific Q&amp;A—anything where you can show the model what good looks like.</p>
+<pre><code>Fine-tune Qwen3-0.6B on my-org/support-conversations for 3 epochs.
+</code></pre>
+<p>The agent validates the dataset, selects hardware (a10g-large with LoRA for a 7B model), and configures training with checkpoints and monitoring.</p>
+<blockquote>
+<p>For models larger than 3B parameters, the agent automatically uses LoRA (Low-Rank Adaptation) to reduce memory requirements. This makes training 7B or 13B models feasible on single GPUs while preserving most of the quality of full fine-tuning.</p>
+</blockquote>
+<h3>
+	<a id="direct-preference-optimization-dpo" href="#direct-preference-optimization-dpo" rel="nofollow">
+		
+	</a>
+	<span>
+		Direct Preference Optimization (DPO)
+	</span>
+</h3>
+<p>DPO trains on preference pairs—responses where one is "chosen" and another is "rejected." This aligns model outputs with human preferences, typically after an initial SFT stage.</p>
+<p>Use DPO when you have preference annotations from human labelers or automated comparisons. DPO optimizes directly for the preferred response without needing a separate reward model.</p>
+<pre><code>Run DPO on my-org/preference-data to align the SFT model I just trained.
+The dataset has 'chosen' and 'rejected' columns.
+</code></pre>
+<blockquote>
+<p>DPO is sensitive to dataset format. It requires columns named exactly <code>chosen</code> and <code>rejected</code>, or a <code>prompt</code> column with the input. The agent validates this first and shows you how to map columns if your dataset uses different names.</p>
+</blockquote>
+<blockquote>
+<p>You can run DPO using Skills on vision language models too! Try it out with <a href="http://hf.co/datasets/openbmb/RLAIF-V-Dataset" rel="nofollow">openbmb/RLAIF-V-Dataset</a>. Claude will apply minor modifications but will succeed in training.</p>
+</blockquote>
+<h3>
+	<a id="group-relative-policy-optimization-grpo" href="#group-relative-policy-optimization-grpo" rel="nofollow">
+		
+	</a>
+	<span>
+		Group Relative Policy Optimization (GRPO)
+	</span>
+</h3>
+<p>GRPO is a reinforcement learning task that is proven to be effective on verifiable tasks like solving math problems, writing code, or any task with a programmatic success criterion.</p>
+<pre><code>Train a math reasoning model using GRPO on the openai/gsm8k dataset based on Qwen3-0.6B.
+</code></pre>
+<p>The model generates responses, receives rewards based on correctness, and learns from the outcomes. This is more complex than SFT or DPO, but the configuration is similar.</p>
+<h2>
+	<a id="hardware-and-cost" href="#hardware-and-cost" rel="nofollow">
+		
+	</a>
+	<span>
+		Hardware and Cost
+	</span>
+</h2>
+<p>The agent selects hardware based on your model size, but understanding the tradeoffs helps you make better decisions.</p>
+<h3>
+	<a id="model-size-to-gpu-mapping" href="#model-size-to-gpu-mapping" rel="nofollow">
+		
+	</a>
+	<span>
+		Model Size to GPU Mapping
+	</span>
+</h3>
+<p>For <strong>tiny models under 1B parameters</strong>, <code>t4-small</code> works well. These models train quickly—expect $1-2 for a full run. This is perfect for educational or experimental runs.</p>
+<p>For <strong>small models (1-3B)</strong>, step up to <code>t4-medium</code> or <code>a10g-small</code>. Training takes a few hours and costs $5-15.</p>
+<p>For <strong>medium models (3-7B)</strong>, you need <code>a10g-large</code> or <code>a100-large</code> with LoRA. Full fine-tuning doesn't fit, but LoRA makes these very trainable. Budget $15-40 for production.</p>
+<p>For <strong>large models (7B+)</strong>, this HF skills job is not suitable. </p>
+<h3>
+	<a id="demo-vs-production" href="#demo-vs-production" rel="nofollow">
+		
+	</a>
+	<span>
+		Demo vs Production
+	</span>
+</h3>
+<p>When testing a workflow, start small:</p>
+<pre><code>Do a quick test run to SFT Qwen-0.6B with 100 examples of my-org/support-conversations.
+</code></pre>
+<p>The coding agent configures minimal training—enough to verify your pipeline works without real cost.</p>
+<p>For production, be explicit:</p>
+<pre><code>SFT Qwen-0.6B for production on the full my-org/support-conversations.
+Checkpoints every 500 steps, 3 epochs, cosine learning rate.
+</code></pre>
+<blockquote>
+<p>Always run a demo before committing to a multi-hour production job. A $0.50 demo that catches a format error saves a $30 failed run.</p>
+</blockquote>
+<h2>
+	<a id="dataset-validation" href="#dataset-validation" rel="nofollow">
+		
+	</a>
+	<span>
+		Dataset Validation
+	</span>
+</h2>
+<p>Dataset format is the most common source of training failures. The agent can validate datasets before you spend GPU time.</p>
+<pre><code>Check if my-org/conversation-data works for SFT training.
+</code></pre>
+<p>The agent runs a quick inspection on CPU (fractions of a penny) and reports:</p>
+<pre><code>Dataset validation for my-org/conversation-data:
+
+SFT: ✓ READY
+  Found 'messages' column with conversation format
+
+DPO: ✗ INCOMPATIBLE
+  Missing 'chosen' and 'rejected' columns
+</code></pre>
+<p>If your dataset needs transformation, the agent can show you how:</p>
+<pre><code>My DPO dataset uses 'good_response' and 'bad_response' instead
+of 'chosen' and 'rejected'. How do I fix this?
+</code></pre>
+<p>The agent provides mapping code and can incorporate it directly into your training script.</p>
+<h2>
+	<a id="monitoring-training" href="#monitoring-training" rel="nofollow">
+		
+	</a>
+	<span>
+		Monitoring Training
+	</span>
+</h2>
+<p>Real-time monitoring helps you catch problems early. The skill configures Trackio by default—after submitting a job, you can watch metrics at:</p>
+<pre><code>https://huggingface.co/spaces/username/trackio
+</code></pre>
+<p>This shows training loss, learning rate, and validation metrics. A healthy run shows steadily decreasing loss.</p>
+<p>Ask the agent about status anytime:</p>
+<pre><code>What's the status of my training job?
+</code></pre>
+<pre><code>Job abc123xyz is running (45 minutes elapsed)
+
+Current step: 850/1200
+Training loss: 1.23 (↓ from 2.41 at start)
+Learning rate: 1.2e-5
+
+Estimated completion: ~20 minutes
+</code></pre>
+<p>If something goes wrong, the agent helps diagnose. Out of memory? the agent suggests reducing batch size or upgrading hardware. Dataset error? The agent identifies the mismatch. Timeout? The agent recommends longer duration or faster training settings.</p>
+<h2>
+	<a id="converting-to-gguf" href="#converting-to-gguf" rel="nofollow">
+		
+	</a>
+	<span>
+		Converting to GGUF
+	</span>
+</h2>
+<p>After training, you might want to run your model locally. The GGUF format works with llama.cpp and dependent tools like LM Studio, Ollama, etc.</p>
+<pre><code>Convert my fine-tuned model to GGUF with Q4_K_M quantization.
+Push to username/my-model-gguf.
+</code></pre>
+<p>The agent submits a conversion job that merges LoRA adapters, converts to GGUF, applies quantization, and pushes to Hub.</p>
+<p>Then use it locally:</p>
+<pre><code data-language="bash">llama-server -hf &lt;username&gt;/&lt;model-name&gt;:&lt;quantization&gt;
+
+# For example, to run the Qwen3-1.7B-GGUF model on your local machine:
+llama-server -hf unsloth/Qwen3-1.7B-GGUF:Q4_K_M
+</code></pre>
+<h2>
+	<a id="whats-next" href="#whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		What's Next
+	</span>
+</h2>
+<p>We've shown that coding agents like Claude Code, Codex, or Gemini CLI can handle the full lifecycle of model fine-tuning: validating data, selecting hardware, generating scripts, submitting jobs, monitoring progress, and converting outputs. This turns what used to be a specialized skill into something you can do through conversation.</p>
+<p>Some things to try:</p>
+<ul>
+<li>Fine-tune a model on your own dataset</li>
+<li>Build a preference-aligned model with SFT → DPO</li>
+<li>Train a reasoning model with GRPO on math or code</li>
+<li>Convert a model to GGUF and run it with Ollama</li>
+</ul>
+<p>The <a href="https://hf-learn.short.gy/gh-hf-skills" rel="nofollow">skill is open source</a>. You can extend it, customize it for your workflows, or use it as a starting point for other training scenarios.</p>
+<hr>
+<h2>
+	<a id="resources" href="#resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Resources
+	</span>
+</h2>
+<ul>
+<li><a href="https://github.com/huggingface/skills/blob/main/hf-llm-trainer/skills/model-trainer/SKILL.md" rel="nofollow">SKILL.md</a> — Full skill documentation</li>
+<li><a href="https://github.com/huggingface/skills/blob/main/hf-llm-trainer/skills/model-trainer/references/training_methods.md" rel="nofollow">Training Methods</a> — SFT, DPO, GRPO explained</li>
+<li><a href="https://github.com/huggingface/skills/blob/main/hf-llm-trainer/skills/model-trainer/references/hardware_guide.md" rel="nofollow">Hardware Guide</a> — GPU selection and costs</li>
+<li><a href="https://huggingface.co/docs/trl">TRL Documentation</a> — The underlying training library</li>
+<li><a href="https://huggingface.co/docs/huggingface_hub/guides/jobs">Hugging Face Jobs</a> — Cloud training infrastructure</li>
+<li><a href="https://huggingface.co/docs/trackio">Trackio</a> — Real-time training monitoring</li>
+</ul>
+</div></div>

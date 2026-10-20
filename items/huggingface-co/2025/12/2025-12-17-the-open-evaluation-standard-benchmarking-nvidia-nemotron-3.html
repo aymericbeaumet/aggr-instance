@@ -1,0 +1,516 @@
+<div id="readability-page-1" class="page"><div>
+<p>It has become increasingly challenging to assess whether a model’s
+reported improvements reflect genuine advances or variations in
+evaluation conditions, dataset composition, or training data that
+mirrors benchmark tasks. The NVIDIA Nemotron approach to openness
+addresses this by publishing transparent and reproducible evaluation
+recipes that make results independently verifiable.</p>
+<p>NVIDIA released <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"><u>Nemotron 3 Nano 30B
+A3B</u></a>
+with an explicitly open evaluation approach to make that distinction
+clear. Alongside the model card, we are publishing the complete
+evaluation recipe used to generate the results, built with the
+<a href="https://github.com/NVIDIA-NeMo/Evaluator/" rel="nofollow"><u>NVIDIA NeMo
+Evaluator</u></a> library, so
+anyone can rerun the evaluation pipeline, inspect the artifacts, and
+analyze the outcomes independently.</p>
+<p>We believe that open innovation is the foundation of AI progress. This
+level of transparency matters because most model evaluations omit
+critical details. Configs, prompts, harness versions, runtime settings,
+and logs are often missing or underspecified, and even small differences
+in these parameters can materially change results. Without a complete
+recipe, it’s nearly impossible to tell whether a model is genuinely
+more intelligent or simply optimized for a benchmark.</p>
+<p>This blog shows developers exactly how to reproduce the evaluation
+behind <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"><u>Nemotron 3 Nano 30B
+A3B</u></a>
+using fully open tools, configurations, and artifacts. You’ll learn how
+the evaluation was run, why the methodology matters, and how to execute
+the same end-to-end workflow using the NeMo Evaluator library so you can
+verify results, compare models consistently, and build transparent
+evaluation pipelines of your own.</p>
+<h2>
+	<a id="building-a-consistent-and-transparent-evaluation-workflow-with-nemo-evaluator" href="#building-a-consistent-and-transparent-evaluation-workflow-with-nemo-evaluator" rel="nofollow">
+		
+	</a>
+	<span>
+		Building a consistent and transparent evaluation workflow with NeMo Evaluator
+	</span>
+</h2>
+<h3>
+	<a id="a-single-consistent-evaluation-system" href="#a-single-consistent-evaluation-system" rel="nofollow">
+		
+	</a>
+	<span>
+		A single, consistent evaluation system
+	</span>
+</h3>
+<p>Developers and researchers need evaluation workflows they can rely on,
+not one-off scripts that behave differently from model to model. NeMo
+Evaluator provides a unified way to define benchmarks, prompts,
+configuration, and runtime behavior once, then reuse that methodology
+across models and releases. This avoids the common scenario where the
+evaluation setup quietly changes between runs, making comparisons over
+time difficult or misleading.</p>
+<h3>
+	<a id="methodology-independent-of-inference-setup" href="#methodology-independent-of-inference-setup" rel="nofollow">
+		
+	</a>
+	<span>
+		Methodology independent of inference setup
+	</span>
+</h3>
+<p>Model outputs can vary by inference backend and configuration, so
+evaluation tools should never be tied to a single inference solution.
+Locking an evaluation tool to one inference solution would limit its
+usefulness. NeMo Evaluator avoids this by separating the evaluation
+pipeline from the inference backend, allowing the same configuration to
+run against hosted endpoints, local deployments, or third-party
+providers. This separation enables meaningful comparisons even when you
+change infrastructure or inference engines.</p>
+<h3>
+	<a id="built-to-scale-beyond-one-off-experiments" href="#built-to-scale-beyond-one-off-experiments" rel="nofollow">
+		
+	</a>
+	<span>
+		Built to scale beyond one-off experiments
+	</span>
+</h3>
+<p>Many evaluation pipelines work once and then break down as the scope
+expands. NeMo Evaluator is designed to scale from quick,
+single-benchmark validation to full model card suites and repeated
+evaluations across multiple models. The launcher, artifact layout, and
+configuration model support ongoing workflows, not just isolated
+experiments, so teams can maintain consistent evaluation practices over
+time.</p>
+<h3>
+	<a id="auditability-with-structured-artifacts-and-logs" href="#auditability-with-structured-artifacts-and-logs" rel="nofollow">
+		
+	</a>
+	<span>
+		Auditability with structured artifacts and logs
+	</span>
+</h3>
+<p>Transparent evaluation requires more than final scores. Each evaluation
+run produces structured results and logs by default, making it easy to
+inspect how scores were computed, understand score calculations, debug
+unexpected behavior, and conduct deeper analysis. Each component of the
+evaluation is captured and reproducible.</p>
+<h3>
+	<a id="a-shared-evaluation-standard" href="#a-shared-evaluation-standard" rel="nofollow">
+		
+	</a>
+	<span>
+		A shared evaluation standard
+	</span>
+</h3>
+<p>By releasing <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"><u>Nemotron 3 Nano 30B
+A3B</u></a>
+with its <a href="https://github.com/NVIDIA-NeMo/Evaluator/blob/main/packages/nemo-evaluator-launcher/examples/nemotron/nano-v3-reproducibility.md" rel="nofollow"><u>full evaluation
+recipe</u></a>,
+NVIDIA is providing a reference methodology that the community can run,
+inspect, and build upon. Using the same configuration and tools brings
+consistency to how benchmarks are selected, executed, and interpreted,
+enabling more reliable comparisons across models, providers, and
+releases.</p>
+<h2>
+	<a id="open-evaluation-for-nemotron-3-nano" href="#open-evaluation-for-nemotron-3-nano" rel="nofollow">
+		
+	</a>
+	<span>
+		Open evaluation for Nemotron 3 Nano
+	</span>
+</h2>
+<p>Open evaluation means publishing not just the final results, but the
+full methodology behind them, so benchmarks are run consistently, and
+results can be compared meaningfully over time. For <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"><u>Nemotron 3 Nano
+30B
+A3B</u></a>,
+this includes open‑source tooling, transparent configurations, and
+reproducible artifacts that anyone can run end‑to‑end.</p>
+<h3>
+	<a id="open-source-model-evaluation-tooling" href="#open-source-model-evaluation-tooling" rel="nofollow">
+		
+	</a>
+	<span>
+		Open-source model evaluation tooling
+	</span>
+</h3>
+<p><a href="https://github.com/NVIDIA-NeMo/Evaluator/tree/main" rel="nofollow"><u>NeMo
+Evaluator</u></a> is an
+open-source library designed for robust, reproducible, and scalable
+evaluation of generative models. Instead of introducing yet another
+standalone benchmark runner, it acts as a unifying orchestration layer
+that brings multiple evaluation harnesses under a single, consistent
+interface.</p>
+<p>Under this architecture, NeMo Evaluator integrates and coordinates
+hundreds of benchmarks from many widely used evaluation harnesses,
+including <a href="https://catalog.ngc.nvidia.com/orgs/nvidia/teams/eval-factory/containers/nemo_skills?version=25.11" rel="nofollow"><u>NeMo
+Skills</u></a>
+for Nemotron instruction-following, tool use, and agentic evaluations,
+as well as the <a href="https://catalog.ngc.nvidia.com/orgs/nvidia/teams/eval-factory/containers/lm-evaluation-harness?version=latest" rel="nofollow"><u>LM Evaluation
+Harness</u></a>
+for base model and pre-training benchmarks, and many more (<a href="https://docs.nvidia.com/nemo/evaluator/latest/evaluation/benchmarks.html" rel="nofollow"><u>full
+benchmark
+catalog</u></a>).
+Each harness retains its native logic, datasets, and scoring semantics,
+while NeMo Evaluator standardizes how they are configured, executed, and
+logged.</p>
+<p>This provides two practical advantages: teams can run diverse benchmark
+categories using a single configuration without rewriting custom
+evaluation scripts, and results from different harnesses are stored and
+inspected in a consistent, predictable way, even when the underlying
+tasks differ. The same orchestration framework used internally by
+NVIDIA’s Nemotron research and model‑evaluation teams is now available
+to the community, enabling developers to run heterogeneous,
+multi‑harness evaluations through a shared, auditable workflow.</p>
+<h3>
+	<a id="open-configurations" href="#open-configurations" rel="nofollow">
+		
+	</a>
+	<span>
+		Open configurations
+	</span>
+</h3>
+<p>We published the exact YAML configuration used for the <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"><u>Nemotron 3
+Nano 30B A3B model
+card</u></a>
+evaluation with NeMo Evaluator. This includes:</p>
+<ul>
+<li>model inference and deployment settings</li>
+<li>benchmark and task selection</li>
+<li>benchmark-specific parameters such as sampling, repeats, and prompt
+templates</li>
+<li>runtime controls including parallelism, timeouts, and retries</li>
+<li>output paths and artifact layout</li>
+</ul>
+<p>Using the same configuration means running the same evaluation
+methodology.</p>
+<h3>
+	<a id="open-logs-and-artifacts" href="#open-logs-and-artifacts" rel="nofollow">
+		
+	</a>
+	<span>
+		Open logs and artifacts
+	</span>
+</h3>
+<p>Each evaluation run produces structured, inspectable outputs, including
+per‑task <code>results.json</code> files, execution logs for debugging and
+auditability, and artifacts organized by task for easy comparison. This
+structure makes it possible to understand not only the final scores, but
+also how those scores were produced and to perform deeper analysis of
+model behavior.</p>
+<h2>
+	<a id="the-reproducibility-workflow" href="#the-reproducibility-workflow" rel="nofollow">
+		
+	</a>
+	<span>
+		The reproducibility workflow
+	</span>
+</h2>
+<p>Reproducing <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"><u>Nemotron 3 Nano 30B A3B model
+card</u></a>
+results follows a simple loop:</p>
+<ol>
+<li>Start from the released model checkpoint or hosted endpoint</li>
+<li>Use the <a href="https://github.com/NVIDIA-NeMo/Evaluator/blob/main/packages/nemo-evaluator-launcher/examples/nemotron/nano-v3-reproducibility.md" rel="nofollow"><u>published NeMo Evaluator
+config</u></a></li>
+<li>Execute the evaluation with a single CLI command</li>
+<li>Inspect logs and artifacts, and compare results to the model card</li>
+</ol>
+<p>The same workflow applies to any model you evaluate using NeMo
+Evaluator. You can point the evaluation at a hosted endpoint or a local
+deployment, including common inference providers such as
+<a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"><u>HuggingFace</u></a>,
+<a href="https://build.nvidia.com/nvidia/nemotron-3-nano-30b-a3b" rel="nofollow"><u>build.nvidia.com</u></a>,
+and
+<a href="https://openrouter.ai/chat?room=orc-1765809021-Ky770f22xVCIJI6lqlJJ" rel="nofollow"><u>OpenRouter</u></a>.
+The key requirement is access to the model, either as weights you can
+serve or as an endpoint you can call. For this tutorial, we use the
+hosted endpoint on
+<a href="https://build.nvidia.com/nvidia/nemotron-3-nano-30b-a3b" rel="nofollow"><u>build.nvidia.com</u></a>.</p>
+<h2>
+	<a id="reproducing-nemotron-3-nano-benchmark-results" href="#reproducing-nemotron-3-nano-benchmark-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Reproducing Nemotron 3 Nano benchmark results
+	</span>
+</h2>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/688cf7e6026af0cf8ac969dd/k_VBb7Duq1_96Y8mxWOdT.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/688cf7e6026af0cf8ac969dd/k_VBb7Duq1_96Y8mxWOdT.png" alt="nano-3-nemotron"></a></p>
+<p>This tutorial reproduces the evaluation results for <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"><u>NVIDIA Nemotron
+3 Nano 30B
+A3B</u></a>
+using NeMo Evaluator. The step-by-step tutorial, including the
+<a href="https://github.com/NVIDIA-NeMo/Evaluator/blob/fc304a0782c2a6ef4e2b94f27f51402352f86a98/packages/nemo-evaluator-launcher/examples/nemotron/nano-v3-reproducibility.md" rel="nofollow"><u>published configs used for the model card
+evaluation</u></a>,
+is available on GitHub. Although we have focused this tutorial on the
+Nemotron 3 Nano 30B A3B, we also published <a href="https://github.com/NVIDIA-NeMo/Evaluator/blob/main/packages/nemo-evaluator-launcher/examples/nemotron/local_nvidia-nemotron-3-nano-30b-a3b-base.yaml" rel="nofollow"><u>recipes for the base
+model
+evaluation</u></a>.</p>
+<p>This walkthrough runs a comprehensive evaluation suite of the <a href="https://github.com/NVIDIA-NeMo/Evaluator/blob/fc304a0782c2a6ef4e2b94f27f51402352f86a98/packages/nemo-evaluator-launcher/examples/nemotron/nano-v3-reproducibility.md" rel="nofollow"><u>published configs used for the model card
+evaluation</u></a> for <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"><u>NVIDIA Nemotron
+3 Nano 30B A3B</u></a> using the following benchmarks:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Benchmark</th>
+<th>Accuracy</th>
+<th>Category</th>
+<th>Description</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>BFCL v4</td>
+<td>53.8</td>
+<td>Function Calling</td>
+<td>Berkeley Function Calling Leaderboard v4</td>
+</tr>
+<tr>
+<td>LiveCodeBench (v6 2025-08–2025-05)</td>
+<td>68.3</td>
+<td>Coding</td>
+<td>Real-world coding problems evaluation</td>
+</tr>
+<tr>
+<td>MMLU-Pro</td>
+<td>78.3</td>
+<td>Knowledge</td>
+<td>Multi-task language understanding (10-choice)</td>
+</tr>
+<tr>
+<td>GPQA</td>
+<td>73.0</td>
+<td>Science</td>
+<td>Graduate-level science questions</td>
+</tr>
+<tr>
+<td>AIME 2025</td>
+<td>89.1</td>
+<td>Mathematics</td>
+<td>American Invitational Mathematics Exam</td>
+</tr>
+<tr>
+<td>SciCode</td>
+<td>33.3</td>
+<td>Scientific Coding</td>
+<td>Scientific programming challenges</td>
+</tr>
+<tr>
+<td>IFBench</td>
+<td>71.5</td>
+<td>Instruction Following</td>
+<td>Instruction following benchmark</td>
+</tr>
+<tr>
+<td>HLE</td>
+<td>10.6</td>
+<td>Humanity's Last Exam</td>
+<td>Expert-level questions across domains</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><em>For Model Card details, see the <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"><u>NVIDIA Nemotron
+3 Nano 30B A3B Model Card</u></a>. For a deep dive into the architecture, datasets, and benchmarks, read the full <a href="https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf" rel="nofollow"><u>Nemotron 3 Nano Technical Report</u></a>.</em></p>
+<h3>
+	<a id="1-install-nemo-evaluator-launcher" href="#1-install-nemo-evaluator-launcher" rel="nofollow">
+		
+	</a>
+	<span>
+		1. Install NeMo Evaluator Launcher
+	</span>
+</h3>
+<p><code>pip install nemo-evaluator-launcher</code></p>
+<h3>
+	<a id="2-set-required-environment-variables" href="#2-set-required-environment-variables" rel="nofollow">
+		
+	</a>
+	<span>
+		2. Set required environment variables
+	</span>
+</h3>
+<pre><code># NVIDIA endpoint access
+export NGC_API_KEY="your-ngc-api-key"
+
+# Hugging Face access
+export HF_TOKEN="your-huggingface-token"
+
+# Required only for judge-based benchmarks such as HLE
+export JUDGE_API_KEY="your-judge-api-key"
+</code></pre>
+<p><em>Optional but recommended for faster reruns:</em>
+<code>export HF_HOME="/path/to/your/huggingface/cache"</code></p>
+<h3>
+	<a id="3-model-endpoint" href="#3-model-endpoint" rel="nofollow">
+		
+	</a>
+	<span>
+		3. Model endpoint
+	</span>
+</h3>
+<p>The evaluation uses the NVIDIA API endpoint hosted on
+<a href="https://build.nvidia.com/nvidia/nemotron-3-nano-30b-a3b" rel="nofollow"><u>build.nvidia.com</u></a>:</p>
+<pre><code>target:
+  api_endpoint:
+    model_id: nvidia/nemotron-nano-3-30b-a3b
+    url: https://integrate.api.nvidia.com/v1/chat/completions
+    api_key_name: NGC_API_KEY
+</code></pre>
+<p>Evaluations can be run against common inference providers such as
+<a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16"><u>HuggingFace</u></a>,
+<a href="https://build.nvidia.com/nvidia/nemotron-3-nano-30b-a3b" rel="nofollow"><u>build.nvidia.com</u></a>,
+or
+<a href="https://openrouter.ai/chat?room=orc-1765809021-Ky770f22xVCIJI6lqlJJ" rel="nofollow"><u>OpenRouter</u></a>,
+or anywhere that the model has an available endpoint.
+<span></span></p>
+<p>If you're hosting the model locally or using a
+different endpoint:</p>
+<pre><code>nemo-evaluator-launcher run \
+  --config local_nvidia_nemotron_3_nano_30b_a3b.yaml \
+  -o target.api_endpoint.url=http://localhost:8000/v1/chat/completions
+</code></pre>
+<h3>
+	<a id="4-run-the-full-evaluation-suite" href="#4-run-the-full-evaluation-suite" rel="nofollow">
+		
+	</a>
+	<span>
+		4. Run the full evaluation suite
+	</span>
+</h3>
+<p>Preview the run without executing using <code>--dry-run</code>:</p>
+<pre><code>nemo-evaluator-launcher run \
+  --config local_nvidia_nemotron_3_nano_30b_a3b.yaml \
+  --dry-run
+</code></pre>
+<p>From the examples directory, run the evaluation using the YAML
+configuration provided:</p>
+<pre><code>nemo-evaluator-launcher run \
+  --config /path/to/examples/nemotron/local_nvidia_nemotron_3_nano_30b_a3b.yaml
+</code></pre>
+<p><span>Note that for quick testing, you can limit the number
+of samples by setting</span> <code>limit_samples</code>:</p>
+<pre><code>nemo-evaluator-launcher run \
+  --config local_nvidia_nemotron_3_nano_30b_a3b.yaml \
+  -o evaluation.nemo_evaluator_config.config.params.limit_samples=10
+</code></pre>
+<h3>
+	<a id="5-running-an-individual-benchmark" href="#5-running-an-individual-benchmark" rel="nofollow">
+		
+	</a>
+	<span>
+		5. Running an individual benchmark
+	</span>
+</h3>
+<p><span>You can run specific benchmarks using the</span> <code>-t</code>
+<span>flag (from the</span> examples/nemotron
+<span>directory):</span></p>
+<pre><code># Run only MMLU-Pro
+nemo-evaluator-launcher run --config local_nvidia_nemotron_3_nano_30b_a3b.yaml -t ns_mmlu_pro
+
+# Run only coding benchmarks
+nemo-evaluator-launcher run --config local_nvidia_nemotron_3_nano_30b_a3b.yaml -t ns_livecodebench
+
+# Run multiple specific benchmarks
+nemo-evaluator-launcher run --config local_nvidia_nemotron_3_nano_30b_a3b.yaml -t ns_gpqa -t ns_aime2025
+</code></pre>
+<h3>
+	<a id="6-monitor-execution-and-inspect-results" href="#6-monitor-execution-and-inspect-results" rel="nofollow">
+		
+	</a>
+	<span>
+		6. Monitor execution and inspect results
+	</span>
+</h3>
+<pre><code># Check status of a specific job
+nemo-evaluator-launcher status
+</code></pre>
+<pre><code># Stream logs for a specific job
+nemo-evaluator-launcher logs &lt;job-id&gt;
+</code></pre>
+<p>Results are written to the defined output directory:</p>
+<pre><code data-language="tree">results_nvidia_nemotron_3_nano_30b_a3b/
+├── artifacts/
+│   └── &lt;task_name&gt;/
+│       └── results.json
+└── logs/
+    └── stdout.log
+</code></pre>
+<h2>
+	<a id="interpreting-results" href="#interpreting-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Interpreting results
+	</span>
+</h2>
+<p>When reproducing evaluations, you may observe small differences in final
+scores across runs. This variance reflects the probabilistic nature of
+LLMs rather than an issue with the evaluation pipeline. Modern
+evaluation introduces several sources of non‑determinism: decoding
+settings, repeated trials, judge‑based scoring, parallel execution, and
+differences in serving infrastructure. All of which can lead to slight
+fluctuations.</p>
+<p>The purpose of open evaluation is not to force bit-wise identical
+outputs, but to deliver <strong>methodological consistency</strong> with clear
+provenance of evaluation results. To ensure your evaluation aligns with
+the reference standard, verify the following:</p>
+<ul>
+<li><strong>Configuration</strong>: use the published NeMo Evaluator YAML without
+modification, or document any changes explicitly</li>
+<li><strong>Benchmark selection</strong>: run the intended tasks, task versions, and
+prompt templates</li>
+<li><strong>Inference target</strong>: verify you are evaluating the intended model and
+endpoint, including chat template behavior and reasoning settings when
+relevant</li>
+<li><strong>Execution settings</strong>: keep runtime parameters consistent, including
+repeats, parallelism, timeouts, and retry behavior</li>
+<li><strong>Outputs</strong>: confirm artifacts and logs are complete and follow the
+expected structure for each task</li>
+</ul>
+<p>When these elements are consistent, your results represent a valid
+reproduction of the methodology, even if individual runs differ
+slightly. NeMo Evaluator simplifies this process, tying benchmark
+definitions, prompts, runtime settings, and inference configuration into
+a single auditable workflow to minimize inconsistencies.</p>
+<h2>
+	<a id="conclusion-a-more-transparent-standard-for-open-models" href="#conclusion-a-more-transparent-standard-for-open-models" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion: A more transparent standard for open models
+	</span>
+</h2>
+<p>The evaluation recipe released alongside Nemotron 3 Nano represents a
+meaningful step toward a more transparent and reliable approach to
+open-model evaluation. We are moving away from evaluation as a
+collection of bespoke, "black box" scripts, and towards a defined system
+where benchmark selection, prompts, and execution semantics are encoded
+into a transparent workflow.</p>
+<p>For developers and researchers, this transparency changes what it means
+to share results. A score is only as trustworthy as the methodology
+behind it and making that methodology public is what enables the
+community to verify claims, compare models fairly, and continue building
+on shared foundations. With open evaluation configurations, open
+artifacts, and open tooling, Nemotron 3 Nano demonstrates what that
+commitment to openness looks like in practice.</p>
+<p>NeMo Evaluator supports this shift by providing a consistent
+benchmarking methodology across models, releases, and inference
+environments. The objective isn’t identical numbers on every run; it’s
+confidence in an evaluation methodology that is explicit, inspectable,
+and repeatable. And for organizations that need automated or large‑scale
+evaluation pipelines, a separate microservice offering provides an
+enterprise‑ready <a href="https://developer.nvidia.com/nemo-evaluator" rel="nofollow"><u>NeMo Evaluator
+microservice</u></a> built on
+the same evaluation principles.</p>
+<p> Use the published <a href="https://github.com/NVIDIA-NeMo/Evaluator/blob/main/packages/nemo-evaluator-launcher/examples/nemotron/nano-v3-reproducibility.md" rel="nofollow"><u>NeMo Evaluator
+    evaluation configuration</u></a> for an end-to-end walkthrough of the evaluation recipe. </p>
+<p><strong>Join the Community!</strong> </p>
+<p><a href="https://github.com/NVIDIA-NeMo/Evaluator/" rel="nofollow"><u>NeMo
+Evaluator</u></a> is fully open
+source, and community input is essential to shaping the future of open
+evaluation. If there’s a benchmark you’d like us to support or an
+improvement you want to propose, open an issue, or contribute directly
+on GitHub. Your contributions help strengthen the ecosystem and advance
+a shared, transparent standard for evaluating generative models.</p>
+</div></div>

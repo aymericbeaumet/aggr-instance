@@ -1,0 +1,369 @@
+<div id="readability-page-1" class="page"><div><p>Today, we're announcing <a href="https://github.com/huggingface/swift-huggingface" rel="nofollow">swift-huggingface</a>,
+a new Swift package that provides a complete client for the Hugging Face Hub.</p>
+<p>You can start using it today as a standalone package,
+and it will soon integrate into swift-transformers as a replacement for its current <code>HubApi</code> implementation.</p>
+<h2>
+	<a id="the-problem" href="#the-problem" rel="nofollow">
+		
+	</a>
+	<span>
+		The Problem
+	</span>
+</h2>
+<p>When we released <a href="https://huggingface.co/blog/swift-transformers">swift-transformers 1.0</a> earlier this year,
+we heard loud and clear from the community:</p>
+<ul>
+<li><strong>Downloads were slow and unreliable.</strong>
+Large model files (often several gigabytes)
+would fail partway through with no way to resume.
+Developers resorted to manually downloading models and bundling them with their apps —
+defeating the purpose of dynamic model loading.</li>
+<li><strong>No shared cache with the Python ecosystem.</strong>
+The Python <code>transformers</code> library stores models in <code>~/.cache/huggingface/hub</code>.
+Swift apps downloaded to a different location with a different structure.
+If you'd already downloaded a model using the Python CLI,
+you'd download it again for your Swift app.</li>
+<li><strong>Authentication is confusing.</strong>
+Where should tokens come from?
+Environment variables? Files? Keychain?
+The answer is, <em>"It depends"</em>,
+and the existing implementation didn't make the options clear.</li>
+</ul>
+<h2>
+	<a id="introducing-swift-huggingface" href="#introducing-swift-huggingface" rel="nofollow">
+		
+	</a>
+	<span>
+		Introducing swift-huggingface
+	</span>
+</h2>
+<p>swift-huggingface is a ground-up rewrite focused on reliability and developer experience.
+It provides:</p>
+<ul>
+<li><strong>Complete Hub API coverage</strong> — models, datasets, spaces, collections, discussions, and more</li>
+<li><strong>Robust file operations</strong> — progress tracking, resume support, and proper error handling</li>
+<li><strong>Python-compatible cache</strong> — share downloaded models between Swift and Python clients</li>
+<li><strong>Flexible authentication</strong> — a <code>TokenProvider</code> pattern that makes credential sources explicit</li>
+<li><strong>OAuth support</strong> — first-class support for user-facing apps that need to authenticate users</li>
+<li><strong>Xet storage backend support</strong> <em>(Coming soon!)</em> — chunk-based deduplication for significantly faster downloads</li>
+</ul>
+<p>Let's look at some examples.</p>
+<hr>
+<h2>
+	<a id="flexible-authentication-with-tokenprovider" href="#flexible-authentication-with-tokenprovider" rel="nofollow">
+		
+	</a>
+	<span>
+		Flexible Authentication with TokenProvider
+	</span>
+</h2>
+<p>One of the biggest improvements is how authentication works. The <code>TokenProvider</code> pattern makes it explicit where credentials come from:</p>
+<pre><code data-language="swift">import HuggingFace
+
+// For development: auto-detect from environment and standard locations
+// Checks HF_TOKEN, HUGGING_FACE_HUB_TOKEN, ~/.cache/huggingface/token, etc.
+let client = HubClient.default
+
+// For CI/CD: explicit token
+let client = HubClient(tokenProvider: .static("hf_xxx"))
+
+// For production apps: read from Keychain
+let client = HubClient(tokenProvider: .keychain(service: "com.myapp", account: "hf_token"))
+</code></pre>
+<p>The auto-detection follows the same conventions as the Python <code>huggingface_hub</code> library:</p>
+<ol>
+<li><code>HF_TOKEN</code> environment variable</li>
+<li><code>HUGGING_FACE_HUB_TOKEN</code> environment variable</li>
+<li><code>HF_TOKEN_PATH</code> environment variable (path to token file)</li>
+<li><code>$HF_HOME/token</code> file</li>
+<li><code>~/.cache/huggingface/token</code> (standard HF CLI location)</li>
+<li><code>~/.huggingface/token</code> (fallback location)</li>
+</ol>
+<p>This means if you've already logged in with <code>hf auth login</code>,
+swift-huggingface will automatically find and use that token.</p>
+<h2>
+	<a id="oauth-for-user-facing-apps" href="#oauth-for-user-facing-apps" rel="nofollow">
+		
+	</a>
+	<span>
+		OAuth for User-Facing Apps
+	</span>
+</h2>
+<p>Building an app where users sign in with their Hugging Face account?
+swift-huggingface includes a complete OAuth 2.0 implementation:</p>
+<pre><code data-language="swift">import HuggingFace
+
+// Create authentication manager
+let authManager = try HuggingFaceAuthenticationManager(
+    clientID: "your_client_id",
+    redirectURL: URL(string: "yourapp://oauth/callback")!,
+    scope: [.openid, .profile, .email],
+    keychainService: "com.yourapp.huggingface",
+    keychainAccount: "user_token"
+)
+
+// Sign in user (presents system browser)
+try await authManager.signIn()
+
+// Use with Hub client
+let client = HubClient(tokenProvider: .oauth(manager: authManager))
+
+// Tokens are automatically refreshed when needed
+let userInfo = try await client.whoami()
+print("Signed in as: \(userInfo.name)")
+</code></pre>
+<p>The OAuth manager handles token storage in Keychain,
+automatic refresh, and secure sign-out.
+No more manual token management.</p>
+<h2>
+	<a id="reliable-downloads" href="#reliable-downloads" rel="nofollow">
+		
+	</a>
+	<span>
+		Reliable Downloads
+	</span>
+</h2>
+<p>Downloading large models is now straightforward with proper progress tracking and resume support:</p>
+<pre><code data-language="swift">// Download with progress tracking
+let progress = Progress(totalUnitCount: 0)
+
+Task {
+    for await _ in progress.publisher(for: \.fractionCompleted).values {
+        print("Download: \(Int(progress.fractionCompleted * 100))%")
+    }
+}
+
+let fileURL = try await client.downloadFile(
+    at: "model.safetensors",
+    from: "microsoft/phi-2",
+    to: destinationURL,
+    progress: progress
+)
+</code></pre>
+<p>If a download is interrupted,
+you can resume it:</p>
+<pre><code data-language="swift">// Resume from where you left off
+let fileURL = try await client.resumeDownloadFile(
+    resumeData: savedResumeData,
+    to: destinationURL,
+    progress: progress
+)
+</code></pre>
+<p>For downloading entire model repositories,
+<code>downloadSnapshot</code> handles everything:</p>
+<pre><code data-language="swift">let modelDir = try await client.downloadSnapshot(
+    of: "mlx-community/Llama-3.2-1B-Instruct-4bit",
+    to: cacheDirectory,
+    matching: ["*.safetensors", "*.json"],  // Only download what you need
+    progressHandler: { progress in
+        print("Downloaded \(progress.completedUnitCount) of \(progress.totalUnitCount) files")
+    }
+)
+</code></pre>
+<p>The snapshot function tracks metadata for each file,
+so subsequent calls only download files that have changed.</p>
+<h2>
+	<a id="shared-cache-with-python" href="#shared-cache-with-python" rel="nofollow">
+		
+	</a>
+	<span>
+		Shared Cache with Python
+	</span>
+</h2>
+<p>Remember the second problem we mentioned?
+<em>"No shared cache with the Python ecosystem."</em>
+That's now solved.</p>
+<p>swift-huggingface implements a Python-compatible cache structure
+that allows seamless sharing between Swift and Python clients:</p>
+<pre><code>~/.cache/huggingface/hub/
+├── models--deepseek-ai--DeepSeek-V3.2/
+│   ├── blobs/
+│   │   └── &lt;etag&gt;           # actual file content
+│   ├── refs/
+│   │   └── main             # contains commit hash
+│   └── snapshots/
+│       └── &lt;commit_hash&gt;/
+│           └── config.json  # symlink → ../../blobs/&lt;etag&gt;
+</code></pre>
+<p>This means:</p>
+<ul>
+<li><strong>Download once, use everywhere.</strong>
+If you've already downloaded a model with the <code>hf</code> CLI or the Python library,
+swift-huggingface will find it automatically.</li>
+<li><strong>Content-addressed storage.</strong>
+Files are stored by their ETag in the <code>blobs/</code> directory.
+If two revisions share the same file, it's only stored once.</li>
+<li><strong>Symlinks for efficiency.</strong>
+Snapshot directories contain symlinks to blobs,
+minimizing disk usage while maintaining a clean file structure.</li>
+</ul>
+<p>The cache location follows the same environment variable conventions as Python:</p>
+<ol>
+<li><code>HF_HUB_CACHE</code> environment variable</li>
+<li><code>HF_HOME</code> environment variable + <code>/hub</code></li>
+<li><code>~/.cache/huggingface/hub</code> (default)</li>
+</ol>
+<p>You can also use the cache directly:</p>
+<pre><code data-language="swift">let cache = HubCache.default
+
+// Check if a file is already cached
+if let cachedPath = cache.cachedFilePath(
+    repo: "deepseek-ai/DeepSeek-V3.2",
+    kind: .model,
+    revision: "main",
+    filename: "config.json"
+) {
+    let data = try Data(contentsOf: cachedPath)
+    // Use cached file without any network request
+}
+</code></pre>
+<p>To prevent race conditions when multiple processes access the same cache,
+swift-huggingface uses file locking
+(<a href="https://man7.org/linux/man-pages/man2/flock.2.html" rel="nofollow"><code>flock(2)</code></a>).</p>
+<h2>
+	<a id="before-and-after" href="#before-and-after" rel="nofollow">
+		
+	</a>
+	<span>
+		Before and After
+	</span>
+</h2>
+<p>Here's what downloading a model snapshot looked like with the old <code>HubApi</code>:</p>
+<pre><code data-language="swift">// Before: HubApi in swift-transformers
+let hub = HubApi()
+let repo = Hub.Repo(id: "mlx-community/Llama-3.2-1B-Instruct-4bit")
+
+// No progress tracking, no resume, errors swallowed
+let modelDir = try await hub.snapshot(
+    from: repo,
+    matching: ["*.safetensors", "*.json"]
+) { progress in
+    // Progress object exists but wasn't always accurate
+    print(progress.fractionCompleted)
+}
+</code></pre>
+<p>And here's the same operation with swift-huggingface:</p>
+<pre><code data-language="swift">// After: swift-huggingface
+let client = HubClient.default
+
+let modelDir = try await client.downloadSnapshot(
+    of: "mlx-community/Llama-3.2-1B-Instruct-4bit",
+    to: cacheDirectory,
+    matching: ["*.safetensors", "*.json"],
+    progressHandler: { progress in
+        // Accurate progress per file
+        print("\(progress.completedUnitCount)/\(progress.totalUnitCount) files")
+    }
+)
+</code></pre>
+<p>The API is similar, but the implementation is completely different —
+built on <code>URLSession</code> download tasks with proper
+delegate handling, resume data support, and metadata tracking.</p>
+<h2>
+	<a id="beyond-downloads" href="#beyond-downloads" rel="nofollow">
+		
+	</a>
+	<span>
+		Beyond Downloads
+	</span>
+</h2>
+<p>But wait, there's more!
+swift-huggingface contains a complete Hub client:</p>
+<pre><code data-language="swift">// List trending models
+let models = try await client.listModels(
+    filter: "library:mlx",
+    sort: "trending",
+    limit: 10
+)
+
+// Get model details
+let model = try await client.getModel("mlx-community/Llama-3.2-1B-Instruct-4bit")
+print("Downloads: \(model.downloads ?? 0)")
+print("Likes: \(model.likes ?? 0)")
+
+// Work with collections
+let collections = try await client.listCollections(owner: "huggingface", sort: "trending")
+
+// Manage discussions
+let discussions = try await client.listDiscussions(kind: .model, "username/my-model")
+</code></pre>
+<p>And that's not all!
+swift-huggingface has everything you need to interact with
+<a href="https://huggingface.co/docs/inference-providers/index">Hugging Face Inference Providers</a>,
+giving your app instant access to hundreds of machine learning models,
+powered by world-class inference providers:</p>
+<pre><code data-language="swift">import HuggingFace
+
+// Create a client (uses auto-detected credentials from environment)
+let client = InferenceClient.default
+
+// Generate images from a text prompt
+let response = try await client.textToImage(
+    model: "black-forest-labs/FLUX.1-schnell",
+    prompt: "A serene Japanese garden with cherry blossoms",
+    provider: .hfInference,
+    width: 1024,
+    height: 1024,
+    numImages: 1,
+    guidanceScale: 7.5,
+    numInferenceSteps: 50,
+    seed: 42
+)
+
+// Save the generated image
+try response.image.write(to: URL(fileURLWithPath: "generated.png"))
+</code></pre>
+<p>Check the <a href="https://github.com/huggingface/swift-huggingface" rel="nofollow">README</a> for a full list of everything that's supported.</p>
+<h2>
+	<a id="whats-next" href="#whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		What's Next
+	</span>
+</h2>
+<p>We're actively working on two fronts:</p>
+<p><strong>Integration with swift-transformers.</strong>
+We have a <a href="https://github.com/huggingface/swift-transformers/pull/297" rel="nofollow">pull request in progress</a> to replace <code>HubApi</code> with swift-huggingface.
+This will bring reliable downloads to everyone using swift-transformers,
+<a href="https://github.com/ml-explore/mlx-swift-lm" rel="nofollow">mlx-swift-lm</a>,
+and the broader ecosystem.
+If you maintain a Swift-based library or app and want help adopting swift-huggingface, reach out — we're happy to help.</p>
+<p><strong>Faster downloads with Xet.</strong>
+We're adding support for the <a href="https://huggingface.co/docs/hub/storage-backends">Xet storage backend</a>,
+which enables chunk-based deduplication and significantly faster downloads for large models.
+More on this soon.</p>
+<h2>
+	<a id="try-it-out" href="#try-it-out" rel="nofollow">
+		
+	</a>
+	<span>
+		Try It Out
+	</span>
+</h2>
+<p>Add swift-huggingface to your project:</p>
+<pre><code data-language="swift">dependencies: [
+    .package(url: "https://github.com/huggingface/swift-huggingface.git", from: "0.4.0")
+]
+</code></pre>
+<p>We'd love your feedback.
+If you've been frustrated with model downloads in Swift, give this a try and
+<a href="https://github.com/huggingface/swift-huggingface/issues" rel="nofollow">let us know how it goes</a>.
+Your experience reports will help us prioritize what to improve next.</p>
+<h2>
+	<a id="resources" href="#resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Resources
+	</span>
+</h2>
+<ul>
+<li><a href="https://github.com/huggingface/swift-huggingface" rel="nofollow">swift-huggingface on GitHub</a></li>
+<li><a href="https://github.com/huggingface/swift-transformers" rel="nofollow">swift-transformers</a></li>
+<li><a href="https://github.com/ml-explore/mlx-swift-examples" rel="nofollow">mlx-swift-examples</a></li>
+<li><a href="https://github.com/mattt/AnyLanguageModel" rel="nofollow">AnyLanguageModel</a></li>
+</ul>
+<hr>
+<p><em>Thanks to the swift-transformers community for the feedback that shaped this project, and to everyone who filed issues and shared their experiences. This is for you.</em> ❤️</p>
+</div></div>

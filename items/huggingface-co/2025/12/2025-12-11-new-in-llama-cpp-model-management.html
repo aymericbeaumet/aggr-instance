@@ -1,0 +1,155 @@
+<div id="readability-page-1" class="page"><div>
+<p><a href="https://github.com/ggml-org/llama.cpp/tree/master/tools/server" rel="nofollow">llama.cpp server</a> now ships with <strong>router mode</strong>, which lets you dynamically load, unload, and switch between multiple models without restarting.</p>
+<blockquote>
+<p>Reminder: llama.cpp server is a lightweight, OpenAI-compatible HTTP server for running LLMs locally.</p>
+</blockquote>
+<p>This feature was a popular request to bring Ollama-style model management to llama.cpp. It uses a multi-process architecture where each model runs in its own process, so if one model crashes, others remain unaffected.</p>
+<h2>
+	<a id="quick-start" href="#quick-start" rel="nofollow">
+		
+	</a>
+	<span>
+		Quick Start
+	</span>
+</h2>
+<p>Start the server in router mode by <strong>not specifying a model</strong>:</p>
+<pre><code data-language="bash">llama-server
+</code></pre>
+<p>This auto-discovers models from your llama.cpp cache (<code>LLAMA_CACHE</code> or <code>~/.cache/llama.cpp</code>). If you've previously downloaded models via <code>llama-server -hf user/model</code>, they'll be available automatically.</p>
+<p>You can also point to a local directory of GGUF files:</p>
+<pre><code data-language="bash">llama-server --models-dir ./my-models
+</code></pre>
+<h2>
+	<a id="features" href="#features" rel="nofollow">
+		
+	</a>
+	<span>
+		Features
+	</span>
+</h2>
+<ol>
+<li><strong>Auto-discovery</strong>: Scans your llama.cpp cache (default) or a custom <code>--models-dir</code> folder for GGUF files</li>
+<li><strong>On-demand loading</strong>: Models load automatically when first requested</li>
+<li><strong>LRU eviction</strong>: When you hit <code>--models-max</code> (default: 4), the least-recently-used model unloads</li>
+<li><strong>Request routing</strong>: The <code>model</code> field in your request determines which model handles it</li>
+</ol>
+<h2>
+	<a id="examples" href="#examples" rel="nofollow">
+		
+	</a>
+	<span>
+		Examples
+	</span>
+</h2>
+<h3>
+	<a id="chat-with-a-specific-model" href="#chat-with-a-specific-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Chat with a specific model
+	</span>
+</h3>
+<pre><code data-language="bash">curl http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "ggml-org/gemma-3-4b-it-GGUF:Q4_K_M",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+</code></pre>
+<p>On the first request, the server automatically loads the model into memory (loading time depends on model size). Subsequent requests to the same model are instant since it's already loaded.</p>
+<h3>
+	<a id="list-available-models" href="#list-available-models" rel="nofollow">
+		
+	</a>
+	<span>
+		List available models
+	</span>
+</h3>
+<pre><code data-language="bash">curl http://localhost:8080/models
+</code></pre>
+<p>Returns all discovered models with their status (<code>loaded</code>, <code>loading</code>, or <code>unloaded</code>).</p>
+<h3>
+	<a id="manually-load-a-model" href="#manually-load-a-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Manually load a model
+	</span>
+</h3>
+<pre><code data-language="bash">curl -X POST http://localhost:8080/models/load \
+  -H "Content-Type: application/json" \
+  -d '{"model": "my-model.gguf"}'
+</code></pre>
+<h3>
+	<a id="unload-a-model-to-free-vram" href="#unload-a-model-to-free-vram" rel="nofollow">
+		
+	</a>
+	<span>
+		Unload a model to free VRAM
+	</span>
+</h3>
+<pre><code data-language="bash">curl -X POST http://localhost:8080/models/unload \
+  -H "Content-Type: application/json" \
+  -d '{"model": "my-model.gguf"}'
+</code></pre>
+<h2>
+	<a id="key-options" href="#key-options" rel="nofollow">
+		
+	</a>
+	<span>
+		Key Options
+	</span>
+</h2>
+<div>
+	<table>
+		<thead><tr>
+<th>Flag</th>
+<th>Description</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>--models-dir PATH</code></td>
+<td>Directory containing your GGUF files</td>
+</tr>
+<tr>
+<td><code>--models-max N</code></td>
+<td>Max models loaded simultaneously (default: 4)</td>
+</tr>
+<tr>
+<td><code>--no-models-autoload</code></td>
+<td>Disable auto-loading; require explicit <code>/models/load</code> calls</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>All model instances inherit settings from the router:</p>
+<pre><code data-language="bash">llama-server --models-dir ./models -c 8192 -ngl 99
+</code></pre>
+<p>All loaded models will use 8192 context and full GPU offload. You can also define per-model settings using <a href="https://github.com/ggml-org/llama.cpp/pull/17859" rel="nofollow">presets</a>:</p>
+<pre><code data-language="bash">llama-server --models-preset config.ini
+</code></pre>
+<pre><code data-language="ini">[my-model]
+model = /path/to/model.gguf
+ctx-size = 65536
+temp = 0.7
+</code></pre>
+<h2>
+	<a id="also-available-in-the-web-ui" href="#also-available-in-the-web-ui" rel="nofollow">
+		
+	</a>
+	<span>
+		Also available in the Web UI
+	</span>
+</h2>
+<p>The <a href="https://github.com/ggml-org/llama.cpp/tree/master/tools/server/webui" rel="nofollow">built-in web UI</a> also supports model switching. Just select a model from the dropdown and it loads automatically.</p>
+<h2>
+	<a id="join-the-conversation" href="#join-the-conversation" rel="nofollow">
+		
+	</a>
+	<span>
+		Join the Conversation
+	</span>
+</h2>
+<p>We hope this feature makes it easier to A/B test different model versions, run multi-tenant deployments, or simply switch models during development without restarting the server.</p>
+<p>Have questions or feedback? Drop a comment below or open an issue on <a href="https://github.com/ggml-org/llama.cpp/issues" rel="nofollow">GitHub</a>.</p>
+</div></div>
