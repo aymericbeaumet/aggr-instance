@@ -1,0 +1,146 @@
+---
+title: 2026 is an exciting year for the Rust compiler (and me)
+link: https://yoyo-code.com/2026-is-exciting-year-for-rust-compiler-and-me/
+source: hnrss-org
+published: 2026-10-20T13:53:48Z
+updated: 2026-10-20T13:53:48Z
+first_seen: 2026-10-20T21:31:53.761078291Z
+authors:
+- panstromek
+content: extracted
+html: 2026-10-20-2026-is-an-exciting-year-for-the-rust-compiler-and-me.html
+---
+
+You might have already noticed that 2026 seems to be a bit special year for Rust compiler. It seems like there's just a lot of stuff going on. Some things were already announced since I started writing this, but there's still a bunch more that's not as visible. I'll share some things that I personally find interesting.
+
+To explain a bit of context, what happened this year is that multiple different initiatives are reaching final steps at the same time. In other words, 2026 is not that special with the amount of work being done, but it's a year when we see several long-term investments starting to pay dividends.
+
+## Next solver
+
+Probably the biggest thing is the [next generation trait solver](https://goals.rust-lang.org/2026/next-solver.html). This is a reimplementation of a big part of the type system, and it has been in the works for a very long time - Almost 10 years in various forms. It fixes a bunch of soundness bugs and unblocks a lot of features and fixes for long-standing issues.
+
+It's easy to understate how big of a deal this is for the compiler. This work resolves a major piece of technical debt that a lot of compiler developers dreamed about for years. It also frees up a bunch of people with a fresh and deep understanding of the type system to work on new things. The queue of things that get unblocked includes many common pain points of the language, even things that might seem benign or unrelated. It contains solutions to big problems in `async` Rust, or various limitations of `impl Trait`.
+
+## Polonius
+
+Another big thing is [Polonius, a new borrow checker implementation](https://goals.rust-lang.org/2026/polonius.html), long time in the making as well. It enables more code to compile and unblocks several related features - including (hopefully one day) internal references. The compiler impact of this is not as big as with the new solver, but it's still a pretty big deal.
+
+## Perf
+
+My main area of interest is compiler performance, and here we have quite a few things going on. After 1-2 years of a sort of stagnation (at least in terms of results), we suddenly have a lot of things going on at once. So much so that I have a hard time remembering everything, but from the top of my head:
+
+## Parallel frontend is close to stabilization
+
+Very old initiative that was put a few years on hiatus with many unclear blockers. The development restarted again a few years ago with a new contributor `@SparrowLi`, and over time a number of other people contributed to the effort.
+
+Over the years, this turned out to be a massive can of worms. I get the feeling that almost nobody is really happy with the design. However, there doesn't seem to be a better alternative for the foreseeable future, and parallel frontend is highly desirable, so the solution ended up being just grinding through a number of annoying and hairy problems until there's nothing left.
+
+The [current project goal](https://goals.rust-lang.org/2026/parallel-front-end.html) is driven by `@petrochenkov` and is getting close to stabilization.
+
+## LLVM is getting faster
+
+LLVM 23 was unambiguous and unexpectedly large positive change in performance. For a long time, LLVM upgrades were not particularly great for rustc performance. This changed after LLVM 10 upgrade, which introduced a massive 10% regression, and `@nikic`, current lead developer of LLVM, called it out in his blog post, [Make LLVM fast again](https://www.npopov.com/2020/05/10/Make-LLVM-fast-again.html). In the post he also introduced a system for tracking LLVM performance over time, inspired by [the one we use for rustc](https://perf.rust-lang.org).
+
+Since then, LLVM started catching performance regressions earlier, and results for upgrades in rustc went from "less bad", to "somewhat mixed", to "mostly positive with caveats." The last one of those was LLVM 22, which was green on `icount` benchmarks, but almost universally red on wall time.
+
+LLVM 23 is pretty much entirely positive. I don't follow LLVM development that much, but my understanding is that this is because there's now more work on actually optimizing it, as opposed to working on features without trying to regress performance. These days the improvements come both from new optimizations (those help optimize the compiler during bootstrap) and from LLVM itself getting faster.
+
+## Lot perf improvements landing (micro-optimizations)
+
+Compiler performance has been on a steady streak of improvements in the past few months. There's probably no single explanation for it, just a combination of new contributors coming in, old contributors getting to do more perf work, and tooling improvements combined with architectural cleanups unlocking new opportunities.
+
+With more people working in this area, I've noticed a lot of cross-pollination, where a certain idea would circle around a few people's minds, as people get inspired by each other's PRs and try related things.
+
+I also feel like we got a lot better at managing regressions - triaging and addressing them. This is partially a tooling investment, but also a lot about processes and social structures. A major development here is the connection between tree ops and perf triage, represented notably by `@JonathanBrouwer`.
+
+This means that people who manage merges often directly triage their performance impact. This is important because it shrinks the response time, but the connection is useful for other reasons as well. The perf impact informs how you group PRs into [rollups](https://forge.rust-lang.org/release/rollups.html), for example. Turns out that [Conway's law](https://en.wikipedia.org/wiki/Conway%27s_law) is still a law.
+
+I also greatly enjoy helping people interpreting the measurement results and diagnose regressions. I often find that even just a few sentences from somebody who's been looking at the results every day for many years go a long way towards getting the regression addressed.
+
+All in all, I feel like the compile time concerns are integrated into the development better than they have ever been.
+
+## Move elimination
+
+This seemingly came out of nowhere earlier this year, and it's quite interesting. `@Amanieu` [proposed](https://goals.rust-lang.org/2026/mir-move-elimination.html) a MIR optimization pass that allows the compiler to eliminate copies that LLVM has trouble optimizing. It speeds up both compile time and runtime.
+
+This is one of those passes that makes sense to implement in MIR instead of LLVM, because the Rust part of the compiler has better information about whether it's valid to apply specifically for Rust. Even more so because it actually requires changing the MIR semantics a bit.
+
+It matters for Rust in particular because Rust typically generates more moves than C(++), which is the primary LLVM target.
+
+## Polymorphization
+
+This one is particularly close to my heart because I've been following the efforts for a very long time. Polymorphization is one of the most impactful compiler performance optimizations we could ever do, but it's unfortunately really tricky to implement.
+
+This would be the third experiment I'm aware of. This time it's slightly different from the previous ones, and it's inspired by a similar mechanism in Swift.
+
+The difference is that the original polymorphization intends to only avoid duplicate or redundant monomorphizations, so it's purely a compile time optimization with no runtime impact, while the Swift-style one intends to polymorphize everything and pass around layouts of generic parameters as arguments. This will have a runtime cost, so it'll be something you can tweak with compiler flags.
+
+If my understanding is still up to date, next-solver will also enable polymorphization in the previously intended way. Either way, both options run into the same problems, so the work is useful for both. It's also possible that both options come out of this same effort. Either way, this is still just an experiment with a bunch of problems to solve, so we'll have to wait to see how it turns out. [The project goal](https://goals.rust-lang.org/2026/polymorphization.html) has been proposed and driven by `@camelid`.
+
+## `cargo check` and `cargo build` sharing cache
+
+`@blyxyas` is working on a [project goal](https://goals.rust-lang.org/2026/incremental-system-rethought.html), which will enable cargo to share artifacts between `cargo check` and `cargo build`. The goal is actually more general, but this is probably its most recognizable outcome. This is something we wanted for ages, so it's really cool to see progress on this front.
+
+[This was already announced](https://blog.rust-lang.org/inside-rust/2026/08/18/reducing-target-dir-size-on-nightly/), and it will shrink the target directory size by 5-30%, depending on the workload.
+
+## New cargo build-dir layout
+
+[Already announced as well](https://blog.rust-lang.org/2026/03/13/call-for-testing-build-dir-layout-v2/), this is another project that has been in the works for quite some time. As with the other things above, this is major internal restructuring that unlocks other things - namely granular locking of the target directory and cross-workspace caching.
+
+## `no-link`/`link-only`
+
+`@bjorn3` has been working on fixing support for these two flags, which enable pipelining of build scripts and proc macros. As you can see in the [proposal](https://github.com/rust-lang/compiler-team/issues/908), this is yet another line of work that boils down to fixing a laundry list of internal issues and architectural problems until suddenly a big thing is unlocked.
+
+## Architecture
+
+There have been a number of initiatives in the compiler architecture. I'll mention a few, just to (once again) underscore the point that big things don't happen in big-bang projects coming out of nowhere, but rather as consequences of sustained long-term investments into a healthy system.
+
+Two years ago, `@jdonszelmann` [started the effort](https://github.com/rust-lang/rust/issues/131229) to unify and cleanup how attributes are represented and checked in the compiler. Just a few days ago, the last remaining attribute was ported to the new system. This significantly improves how attributes are checked and unblocks improvements to diagnostics and other things.
+
+Earlier this year, `@Zalathar` and `@nnethercote` cleaned up the implementation of rustc's query system. This improved performance but more importantly, made the system easier to understand, which was often a blocker for making improvements to it. The system is still a pretty scary part of the codebase, but this is a big step forward.
+
+There's actually more architectural work in this area, `@oli-obk` has been working on [architectural groundwork for expansion-time evaluation](https://goals.rust-lang.org/2026/expansion-time-evaluation.html), and there's been a lot of work by `@cjgilot`, `@petrochenkov` and other people I'm forgetting (sorry) on queries and incremental in general. Similarly, a lot of work happened to enable const generics to progress further. A common theme of these efforts is that they enable the compiler to use its capabilities in more contexts where it was previously limited, often because of strict ordering of some compilation phases.
+
+## Project goals and funding
+
+There's quite a bit of meta stuff as well. Rust project has been experimenting with a new organizational framework called "project goals."
+
+It went through multiple iterations with various changes and experiments, but it seems that the system has finally reached some optimal steady state, and we see the benefits play out. I think you can clearly see that from the list above.
+
+We now have [a Fast Builds](https://goals.rust-lang.org/2026/roadmap-fast-builds.html) roadmap and multiple perf related project goals. That's pretty exciting.
+
+There are also multiple new developments in funding. One is explicitly attached to project goals, we also have a new ["Maintainers in Residence"](https://blog.rust-lang.org/2026/08/26/announcing-our-first-maintainers-in-residence/) program, and a new funding team was established as well.
+
+One also can't help but notice how many results came out of [Hexcat](https://https://hexcat.nl) employing a bunch of people in the past year.
+
+## ...and me
+
+And lastly, 2026 is also an exciting year for me. After a few years of watching from the sidelines and eventually joining the perf triage, I decided to start working on the Rust project more seriously.
+
+Earlier this year, it became clear that I need to decide what to work on next. My current work is slowly winding down and turning into maintenance, and I also started to feel a bit burnt out on web-based work. For quite some time, I've been feeling the desire to return to something more technical and challenging.
+
+I was considering a few options, but somewhat unable to decide between them. To use the term from Marie Kondo, nothing really felt like it "sparks joy." After some exhausting events and feeling a bit down from all of this on one evening, I received an invitation to Rust All Hands. This was a pleasant surprise. I signed up for it earlier that year, but I didn't really expect much because I didn't know the likelihood of being invited. I took this as a sort of sign from the universe or something and booked the trip.
+
+The experience was overwhelmingly positive. I have to say that this was one of the most exciting events I attended in a long time. It reminded me that there's this big part of my life that I don't get to share with anybody almost ever, especially in real life. It seems so easy to forget that until you actually experience it again.
+
+Yes, sure, I can talk about some curious aspects of the Rust compiler with my friends, but it's a whole another level to talk about it with people who actually work on it and understand what you talk about on a deep level. It was really nice to meet people I know from their work and join the discussions about the development of the language.
+
+Long story short, it became clear that this is it, this is what I want to do. I was thinking about it before, but I guess I needed some strong "spark of joy" moment to stop doubting my feelings and force me to make a decision.
+
+## How to get a job on Rust?
+
+Now, of course, the question is how to actually do it. As you may know (and I somewhat hinted above), it's not exactly straightforward to find a job on the project. There's no "Rust inc." company you can send a CV to. There's a fractured and diverse space of possibilities where everybody finds their own way somehow.
+
+It's getting more approachable with those new programs, but I still expect this to take some time. Part of it depends on connections and trust, and those are built over time. I don't have to rush this, so I'll keep working until I figure something out.
+
+I've agreed to work on the [target directory size reduction project goal](https://github.com/rust-lang/goals/pull/805) if there is enough funding for that. I've also applied for MiR program, but I don't think that'll be available soon because the funds are limited and there are more important areas that need this specific funding.
+
+btw. I also opened [GitHub sponsors](https://github.com/sponsors/panstromek), so feel free to join if you want to support some compiler performance work ;)
+
+## Conclusion
+
+There's so much happening in the project that I feel like it's really challenging to do it justice. I already feel like I left out a ton of interesting work, but I have to stop somewhere. I hope that even this incomplete overview has been interesting.
+
+I think I should also say that not everything has been positive. The beginning of the year was overshadowed by a bunch of people losing funding and heated discussions around AI policy. Just a few days before All Hands, somebody posted the policy draft to social media, and our small moderation team and other people spent a stressful weekend trying to limit the damage.
+
+In light of that, I have a feeling that All Hands was a turning point where everybody could recharge, refocus, and take the positive energy back to the project. I certainly feel that, and I hope I'm not alone.

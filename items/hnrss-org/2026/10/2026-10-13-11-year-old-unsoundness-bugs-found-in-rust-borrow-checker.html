@@ -1,4 +1,45 @@
-<p>Article URL: <a href="https://github.com/rust-lang/rust/issues/164250">https://github.com/rust-lang/rust/issues/164250</a></p>
-<p>Comments URL: <a href="https://news.ycombinator.com/item?id=50069499">https://news.ycombinator.com/item?id=50069499</a></p>
-<p>Points: 558</p>
-<p># Comments: 323</p>
+<div id="readability-page-1" class="page"><div data-testid="issue-body-viewer" data-team-hovercards-enabled="true" data-turbolinks="false" id="issue-body-viewer"><div dir="auto"><p dir="auto">Note</p><p dir="auto">Given that this issue has been shared online and is currently getting quite a few visitors, here's some additional context.</p>
+<p dir="auto">Rust's type system is intended to prevent memory unsafety. Upholding this promise is something we take very seriously, which is why we've been working on things like <a href="https://goals.rust-lang.org/2026/next-solver.html" rel="nofollow">the next-generation trait solver</a>, <a href="https://goals.rust-lang.org/2026/next-gen-region-constraints.html" rel="nofollow">the region constraint rework</a>, and more generally <a href="https://goals.rust-lang.org/2026/roadmap-project-zero.html" rel="nofollow">Project Zero</a>. It is a large priority of the Types Team to fix all type system unsoundnesses and to work towards there being a solid foundation to minimize the risk of unknown ones.</p>
+<p dir="auto">This bug is a <code>P-high</code> issue and would have been <code>P-critical</code> regardless of whether people encountered it in the wild. The reason that it is "only <code>P-high</code>" is that it's 11 years old. A bug like this which has not been found during the last 11 years cannot actually be that easy to hit.</p>
+<p dir="auto">Looking at the bug itself, it is also very likely that this unsoundness has not caused memory unsafety by accident. While it looks easy to trigger, to exploit this you need an intentionally malicious <code>Drop</code> implementation.</p>
+<p dir="auto">~ <a data-hovercard-type="user" data-hovercard-url="/users/lcnr/hovercard" data-octo-click="hovercard-link-click" data-octo-dimensions="link_type:self" href="https://github.com/lcnr">@lcnr</a></p>
+</div>
+<hr>
+<p dir="auto">In the following code:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="use std::sync::Mutex;
+static KEPT: Mutex&lt;Vec&lt;Box&lt;dyn std::any::Any + Send&gt;&gt;&gt; = Mutex::new(Vec::new());
+struct Q&lt;T: 'static + Send&gt;(Option&lt;T&gt;);
+impl&lt;T: 'static + Send&gt; Drop for Q&lt;T&gt; {
+    fn drop(&amp;mut self) { if let Some(t) = self.0.take() { KEPT.lock().unwrap().push(Box::new(t)); } }
+}
+fn main() {
+    {
+        let l = String::from(&quot;hello world, this is long enough&quot;);
+        let mut q = Q(None);
+        q.0 = Some(&amp;l);
+    }
+    let _z = String::from(&quot;XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX&quot;);
+    let k = KEPT.lock().unwrap();
+    println!(&quot;{}&quot;, k[0].downcast_ref::&lt;&amp;'static String&gt;().unwrap());
+}"><pre><code data-language="rust">use std::sync::Mutex;
+static KEPT: Mutex&lt;Vec&lt;Box&lt;dyn std::any::Any + Send&gt;&gt;&gt; = Mutex::new(Vec::new());
+struct Q&lt;T: 'static + Send&gt;(Option&lt;T&gt;);
+impl&lt;T: 'static + Send&gt; Drop for Q&lt;T&gt; {
+    fn drop(&amp;mut self) { if let Some(t) = self.0.take() { KEPT.lock().unwrap().push(Box::new(t)); } }
+}
+fn main() {
+    {
+        let l = String::from("hello world, this is long enough");
+        let mut q = Q(None);
+        q.0 = Some(&amp;l);
+    }
+    let _z = String::from("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+    let k = KEPT.lock().unwrap();
+    println!("{}", k[0].downcast_ref::&lt;&amp;'static String&gt;().unwrap());
+}</code></pre></div>
+<p dir="auto">I expected to see this happen: program is not accepted</p>
+<p dir="auto">Instead, this happened: program compiles and prints <code>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</code>. With asan, the program will crash with a <code>AddressSanitizer: stack-use-after-scope</code></p>
+<h3 dir="auto">Meta</h3>
+<p dir="auto">Issue on current nightly, and stables at least down to 1.85.0</p>
+<p dir="auto">Godbolt with asan: <a href="https://rust.godbolt.org/z/83MvfbKde" rel="nofollow">https://rust.godbolt.org/z/83MvfbKde</a><br>
+Godbolt without asan: <a href="https://rust.godbolt.org/z/GsGdqqMWe" rel="nofollow">https://rust.godbolt.org/z/GsGdqqMWe</a></p></div></div>

@@ -1,0 +1,672 @@
+<div id="readability-page-1" class="page"><div>
+<p>Large Language Models (LLMs) have rapidly evolved from text-only assistants into complex <em>agentic</em> systems capable of performing multi-step reasoning, calling external tools, retrieving memory, and executing code. With this evolution comes an increasingly sophisticated threat landscape: not only traditional content safety risks, but also multi-turn jailbreaks, prompt injections, memory hijacking, and tool manipulation.</p>
+<p>In this work, we introduce <strong>AprielGuard</strong>, an 8B parameter safety–security safeguard model designed to detect:</p>
+<ul>
+<li><strong>16 categories of safety risks</strong>, spanning toxicity, hate, sexual content, misinformation, self-harm, illegal activities, and more.</li>
+<li><strong>Wide range of adversarial attacks</strong>, including prompt injection, jailbreaks, chain-of-thought corruption, context hijacking, memory poisoning, and multi-agent exploit sequences.</li>
+<li><strong>Safety violations and adversarial attacks in agentic workflows</strong>, including tool calls and model reasoning traces.</li>
+</ul>
+<p>AprielGuard is available in both <strong>reasoning</strong> and <strong>non-reasoning</strong> modes, enabling explainable classification when needed and low-latency classification for production pipelines.</p>
+<ul>
+<li>Model: <a href="https://huggingface.co/ServiceNow-AI/AprielGuard">https://huggingface.co/ServiceNow-AI/AprielGuard</a></li>
+<li>Technical Paper: <a href="https://arxiv.org/abs/2512.20293" rel="nofollow">https://arxiv.org/abs/2512.20293</a></li>
+</ul>
+<hr>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of Contents
+	</span>
+</h2>
+<ol>
+<li><a href="#motivation" rel="nofollow">Motivation</a></li>
+<li><a href="#overview" rel="nofollow">AprielGuard Overview</a></li>
+<li><a href="#taxonomy" rel="nofollow">Taxonomy</a></li>
+<li><a href="#training_dataset" rel="nofollow">Training Dataset</a></li>
+<li><a href="#architecture" rel="nofollow">Model Architecture</a></li>
+<li><a href="#training" rel="nofollow">Training Setup</a></li>
+<li><a href="#evaluation" rel="nofollow">Evaluation</a></li>
+<li><a href="#conclusion" rel="nofollow">Conclusion</a></li>
+<li><a href="#limitations" rel="nofollow">Limitations</a></li>
+</ol>
+<hr>
+
+<h2>
+	<a id="motivation" href="#motivation" rel="nofollow">
+		
+	</a>
+	<span>
+		Motivation
+	</span>
+</h2>
+<p>Traditional safety classifiers primarily focus on a limited classification spectrum (e.g., toxicity or self-harm), assume short inputs, and evaluate single user messages. Modern deployments, however, feature:</p>
+<ul>
+<li><strong>Multi-turn conversations</strong></li>
+<li><strong>Long contexts</strong></li>
+<li><strong>Structured reasoning steps producing chains of thought</strong></li>
+<li><strong>Tool-assisted multi-step workflows (agents)</strong></li>
+<li><strong>A growing class of adversarial attacks exploiting reasoning, tools, or memory</strong></li>
+</ul>
+<p>As a result, production teams increasingly rely on workarounds: multiple guard models for different stages, regex filters, static rules, or hand-crafted heuristics. These approaches are brittle and do not scale.</p>
+<p>AprielGuard addresses these issues with a <strong>unified model</strong> and a <strong>unified safety + adversarial taxonomy</strong>, built specifically for modern LLM agent ecosystems.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/667521b4585f2bf570950584/LvvPFaE9vzjtLENFarL4g.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/667521b4585f2bf570950584/LvvPFaE9vzjtLENFarL4g.png" alt="Performance"></a></p>
+<hr>
+
+<h2>
+	<a id="aprielguard-overview" href="#aprielguard-overview" rel="nofollow">
+		
+	</a>
+	<span>
+		AprielGuard Overview
+	</span>
+</h2>
+<p>AprielGuard operates across three input formats:</p>
+<ol>
+<li><strong>Standalone Prompt</strong>  </li>
+<li><strong>Multi-turn Conversation</strong>  </li>
+<li><strong>Agentic Workflow</strong> (tool calls, reasoning traces, memory, system context)</li>
+</ol>
+<p>It outputs:</p>
+<ul>
+<li>Safety classification and a list of violated categories from the taxonomy</li>
+<li>Adversarial attack classification</li>
+<li>Optional structured <strong>reasoning</strong> explaining the decision</li>
+</ul>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/667521b4585f2bf570950584/UbVdh4oqbDHpR9pGutMEP.jpeg" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/667521b4585f2bf570950584/UbVdh4oqbDHpR9pGutMEP.jpeg" alt="Aprielguard_Prompt_v3"></a>
+<em>AprielGuard overview</em></p>
+<hr>
+
+<h2>
+	<a id="taxonomy" href="#taxonomy" rel="nofollow">
+		
+	</a>
+	<span>
+		Taxonomy
+	</span>
+</h2>
+<h3>
+	<a id="a-safety-taxonomy" href="#a-safety-taxonomy" rel="nofollow">
+		
+	</a>
+	<span>
+		<strong>A. Safety Taxonomy</strong>
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Category</th>
+<th>Description</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>O1</td>
+<td>Toxic Content</td>
+</tr>
+<tr>
+<td>O2</td>
+<td>Unfair Representation</td>
+</tr>
+<tr>
+<td>O3</td>
+<td>Adult Content</td>
+</tr>
+<tr>
+<td>O4</td>
+<td>Erosion of Trust in Public Information</td>
+</tr>
+<tr>
+<td>O5</td>
+<td>Propagating Misconceptions/False Beliefs</td>
+</tr>
+<tr>
+<td>O6</td>
+<td>Risky Financial Practices</td>
+</tr>
+<tr>
+<td>O7</td>
+<td>Trade and Compliance</td>
+</tr>
+<tr>
+<td>O8</td>
+<td>Dissemination of Dangerous Information</td>
+</tr>
+<tr>
+<td>O9</td>
+<td>Privacy Infringement</td>
+</tr>
+<tr>
+<td>O10</td>
+<td>Security Threats</td>
+</tr>
+<tr>
+<td>O11</td>
+<td>Defamation</td>
+</tr>
+<tr>
+<td>O12</td>
+<td>Fraud or Deceptive Action</td>
+</tr>
+<tr>
+<td>O13</td>
+<td>Influence Operations</td>
+</tr>
+<tr>
+<td>O14</td>
+<td>Illegal Activities</td>
+</tr>
+<tr>
+<td>O15</td>
+<td>Persuasion and Manipulation</td>
+</tr>
+<tr>
+<td>O16</td>
+<td>Violation of Personal Property</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><em>(These 16 categories are inspired from <a href="https://arxiv.org/abs/2402.05044" rel="nofollow">SALAD-Bench</a>)</em></p>
+<hr>
+<h3>
+	<a id="b-adversarial-attack-taxonomy" href="#b-adversarial-attack-taxonomy" rel="nofollow">
+		
+	</a>
+	<span>
+		<strong>B. Adversarial Attack Taxonomy</strong>
+	</span>
+</h3>
+<p>The model detects and evaluates a wide range of adversarial prompt patterns designed to manipulate model behavior or evade safety mechanisms. The model outputs a binary classification (e.g., adversarial / non_adversarial) rather than fine-grained attack categories. </p>
+<p>The training data covers diverse adversarial types such as role-playing, world-building, persuasion, and stylization, among many other complex prompt manipulation strategies. These examples represent only a subset of the broader adversarial scenarios incorporated in the training data.</p>
+<hr>
+
+<h2>
+	<a id="training-dataset" href="#training-dataset" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Dataset
+	</span>
+</h2>
+<ul>
+<li><p><strong>Synthetic data</strong>: AprielGuard is trained on a synthetically generated training dataset. The training data points are generated at a sub-topic level of the taxonomy for better coverage. We leverage Mixtral-8x7B and internally developed uncensored models to generate unsafe content for training purposes. Models were prompted with higher temperature to induce output variation. Prompting templates are meticulously tailored to ensure accurate data generation. Adversarial attacks are constructed using a combination of synthetic data points, diverse prompt templates, and rule-based generation techniques. We leveraged <a href="https://github.com/NVIDIA-NeMo/Curator" rel="nofollow">NVIDIA NeMo Curator</a> to generate large-scale, multi-turn conversational datasets featuring complex, realistic scenarios with iterative and evolving attacks through context switches. This approach enabled us to systematically synthesize diverse interaction patterns, improving the robustness of the model to long-horizon reasoning, adversarial turns, and evolving user intent. We also used <a href="https://github.com/ServiceNow/SyGra" rel="nofollow">SyGra</a> framework for synthetic data generation processes for harmful prompts and attacks generation. The training dataset encompasses diverse content formats such as conversational dialogues, forum posts, tweets, instructional prompts, questions, and how-to guides.</p>
+</li>
+<li><p><strong>Data augmentation</strong>: To enhance model robustness, a range of data augmentation techniques were applied to the training data. These augmentations are designed to expose the model to natural variations and perturbations that commonly occur in real-world scenarios. Specifically, the dataset includes transformations such as character-level noise, insertion of typographical errors, leetspeak substitutions, word-level paraphrasing, and syntactic reordering. Such augmentations help the model generalize better by reducing sensitivity to superficial variations in input, thereby improving resilience against adversarial manipulations and non-standard text representations.</p>
+</li>
+<li><p><strong>Agentic workflows</strong>: Agentic workflows represent real-world scenarios where autonomous agents execute multi-step tasks involving planning, reasoning, and interaction with tools, APIs, and other agents. These workflows often include sequences of user prompts, system messages, intermediate reasoning steps, and tool invocations, making them susceptible to diverse attack vectors. To construct these training data points, we synthetically generate a wide range of scenarios across multiple domains, capturing realistic agentic interactions between a user and an agentic system. Each data point is enriched with detailed contextual elements—including tool definitions, tool invocation logs, agent roles and policies, execution traces, conversation history, memory states, and scratch-pad reasoning. For malicious or adversarial examples, we corrupt the relevant segment of the workflow to reflect a specific attack vector. Depending on the scenario, this may involve modifying user prompts, altering intermediate reasoning traces, modifying the tool outputs, injecting false memory states, or disrupting inter-agent communication. By systematically perturbing different components of the agentic workflow, we produce high-fidelity examples that expose a model to a diverse spectrum of realistic and challenging attack patterns. Each data point was simulated to reflect realistic executions, incorporating both benign and adversarial sequences. </p>
+</li>
+<li><p><strong>Long context use cases</strong>: We curated a specialized long context dataset composed of diverse, high-length use cases such as Retrieval-Augmented Generation (RAG) work-flows, multi-turn conversational threads, incident details, and operational reports containing detailed communications. These examples simulate real-world environments where large text contexts are typical.</p>
+</li>
+</ul>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/667521b4585f2bf570950584/-Tc4lVDguddvj3fKMwNe_.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/667521b4585f2bf570950584/-Tc4lVDguddvj3fKMwNe_.png" alt="data_generation_v2"></a></p>
+<p><em>Synthetic data generation flow</em></p>
+<hr>
+
+<h2>
+	<a id="model-architecture" href="#model-architecture" rel="nofollow">
+		
+	</a>
+	<span>
+		Model Architecture
+	</span>
+</h2>
+<p>AprielGuard is built on top of an <strong>Apriel-1.5 Thinker Base variant</strong>, downscaled to an 8B configuration for efficient deployment.</p>
+<ul>
+<li><strong>Causal decoder-only transformer</strong></li>
+<li><strong>Dual-mode operation</strong>:<ul>
+<li><strong>Reasoning Mode</strong> → emits structured explanations  </li>
+<li><strong>Fast Mode</strong> → classification only</li>
+</ul>
+</li>
+</ul>
+<hr>
+
+<h3>
+	<a id="training-setup" href="#training-setup" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Setup
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Base Model</td>
+<td>Apriel 1.5 Thinker Base (downscaled)</td>
+</tr>
+<tr>
+<td>Model Size</td>
+<td>8B parameters</td>
+</tr>
+<tr>
+<td>Precision</td>
+<td>bfloat16</td>
+</tr>
+<tr>
+<td>Batch Size</td>
+<td>1 with grad-accumulation = 8</td>
+</tr>
+<tr>
+<td>LR</td>
+<td>2e-4</td>
+</tr>
+<tr>
+<td>Optimizer</td>
+<td>Adam (β1=0.9, β2=0.999)</td>
+</tr>
+<tr>
+<td>Epochs</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Sequence Length</td>
+<td>Up to 32k</td>
+</tr>
+<tr>
+<td>Reasoning Mode</td>
+<td>Enabled/Disabled via instruction template</td>
+</tr>
+</tbody>
+	</table>
+</div>
+
+<h2>
+	<a id="evaluation-summary" href="#evaluation-summary" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation Summary
+	</span>
+</h2>
+<p>AprielGuard is evaluated across:</p>
+<ul>
+<li>Public safety benchmarks  </li>
+<li>Public adversarial benchmarks  </li>
+<li>Internal Agentic workflow benchmarks  </li>
+<li>internal Long-context use case benchmarks (up to 32k)  </li>
+<li>Multilingual evaluation (8 languages)</li>
+</ul>
+<h2>
+	<a id="safety-benchmark-results" href="#safety-benchmark-results" rel="nofollow">
+		
+	</a>
+	<span>
+		<strong>Safety Benchmark Results</strong>
+	</span>
+</h2>
+<p>AprielGuard performance on the public safety benchmarks.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Source</th>
+<th>Precision</th>
+<th>Recall</th>
+<th>F1-score</th>
+<th>FPR</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/datasets/Bertievidgen/SimpleSafetyTests">SimpleSafetyTests</a></td>
+<td>1.00</td>
+<td>0.97</td>
+<td>0.98</td>
+<td>NA</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/CohereLabs/aya_redteaming">AyaRedteaming</a></td>
+<td>1.00</td>
+<td>0.88</td>
+<td>0.94</td>
+<td>NA</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/PKU-Alignment/BeaverTails">BeaverTails</a></td>
+<td>0.88</td>
+<td>0.80</td>
+<td>0.84</td>
+<td>0.14</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/PKU-Alignment/PKU-SafeRLHF">SafeRLHF</a></td>
+<td>0.87</td>
+<td>0.99</td>
+<td>0.92</td>
+<td>0.17</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/allenai/xstest-response">xstest-response</a></td>
+<td>0.94</td>
+<td>0.96</td>
+<td>0.95</td>
+<td>0.01</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/lmsys/toxic-chat">toxic-chat</a></td>
+<td>0.65</td>
+<td>0.84</td>
+<td>0.73</td>
+<td>0.03</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/mmathys/openai-moderation-api-evaluation">openai-moderation-api-evaluation</a></td>
+<td>0.65</td>
+<td>0.94</td>
+<td>0.77</td>
+<td>0.22</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/nvidia/Aegis-AI-Content-Safety-Dataset-1.0">Aegis-AI-Content-Safety-Dataset-1.0</a></td>
+<td>0.98</td>
+<td>0.74</td>
+<td>0.84</td>
+<td>0.03</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/nvidia/Aegis-AI-Content-Safety-Dataset-2.0">Aegis-AI-Content-Safety-Dataset-2.0</a></td>
+<td>0.84</td>
+<td>0.84</td>
+<td>0.84</td>
+<td>0.16</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/walledai/HarmBench">HarmBench</a></td>
+<td>1.00</td>
+<td>0.99</td>
+<td>1.00</td>
+<td>NA</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/walledai/XSTest">XSTest</a></td>
+<td>0.90</td>
+<td>0.99</td>
+<td>0.94</td>
+<td>0.09</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>
+  
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/667521b4585f2bf570950584/riouhRN6T4XP3JedJ7g4S.png" width="700">
+</p>
+
+<p>
+  <em>A comparative assessment of model performance using aggregated results from safety benchmarks.</em>
+</p>
+
+<hr>
+<h2>
+	<a id="adversarial-detection-results" href="#adversarial-detection-results" rel="nofollow">
+		
+	</a>
+	<span>
+		<strong>Adversarial Detection Results</strong>
+	</span>
+</h2>
+<p>AprielGuard performance on the public adversarial benchmarks.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Source</th>
+<th>Precision</th>
+<th>Recall</th>
+<th>F1-score</th>
+<th>FPR</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/datasets/Lakera/gandalf_ignore_instructions">gandalf_ignore_instructions</a></td>
+<td>1.00</td>
+<td>0.91</td>
+<td>0.95</td>
+<td>NA</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/OpenSafetyLab/Salad-Data">Salad-Data</a></td>
+<td>1.00</td>
+<td>0.96</td>
+<td>0.98</td>
+<td>NA</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/TrustAIRLab/in-the-wild-jailbreak-prompts">in-the-wild-jailbreak-prompts</a></td>
+<td>1.00</td>
+<td>0.87</td>
+<td>0.93</td>
+<td>NA</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/allenai/wildguardmix">wildguardmix</a></td>
+<td>0.66</td>
+<td>0.91</td>
+<td>0.76</td>
+<td>0.12</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/allenai/wildjailbreak">wildjailbreak</a></td>
+<td>0.97</td>
+<td>0.96</td>
+<td>0.96</td>
+<td>0.31</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/deepset/prompt-injections">prompt-injections</a></td>
+<td>1.00</td>
+<td>0.52</td>
+<td>0.68</td>
+<td>0.00</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/jackhhao/jailbreak-classification">jailbreak-classification</a></td>
+<td>0.96</td>
+<td>0.94</td>
+<td>0.95</td>
+<td>0.04</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/qualifire/prompt-injections-benchmark">prompt-injections-benchmark</a></td>
+<td>0.80</td>
+<td>0.94</td>
+<td>0.87</td>
+<td>0.15</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/rubend18/ChatGPT-Jailbreak-Prompts">ChatGPT-Jailbreak-Prompts</a></td>
+<td>1.00</td>
+<td>1.00</td>
+<td>1.00</td>
+<td>NA</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/xTRam1/safe-guard-prompt-injection">safe-guard-prompt-injection</a></td>
+<td>1.00</td>
+<td>0.57</td>
+<td>0.73</td>
+<td>0.00</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>
+  
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/667521b4585f2bf570950584/0oaDH0qx-HHPaB3eHWX9P.png" width="700">
+</p>
+<p>
+  <em>A comparative assessment of model performance using aggregated results from adversarial benchmarks.</em>
+</p>
+
+<hr>
+
+<h2>
+	<a id="agentic-workflow-evaluation" href="#agentic-workflow-evaluation" rel="nofollow">
+		
+	</a>
+	<span>
+		Agentic Workflow Evaluation
+	</span>
+</h2>
+<p>We curated an internal benchmark dataset aimed at evaluating the detection of Safety Risks and Adversarial Attacks within agentic workflows. To construct this benchmark, we systematically designed multiple attack scenarios targeting different components of the workflow—such as prompt inputs, reasoning traces, tool parameters, memory states, and inter-agent communications. Each instance was annotated according to the taxonomy of vulnerabilities. Each workflow was simulated to reflect realistic executions, incorporating both benign and adversarial sequences. The dataset captures granular attack points across various stages such as planning, reasoning, execution, and response generation to provide fine-grained evaluation of model robustness. Overall, the dataset comprises a balanced mixture of safety risks and adversarial attacks. </p>
+
+
+<p>
+  
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/667521b4585f2bf570950584/LGY74NcIzlsGRYvEmLI_f.png" width="700">
+</p>
+<p>
+  <em><b>Safety</b> performance of different models on the agentic benchmark.</em>
+</p>
+
+<p>
+  
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/667521b4585f2bf570950584/W2h7KSaRXZuqUJ_ryEYLZ.png" width="700"> 
+</p>
+<p>
+  <em><b>Adversarial</b> performance of different models on the agentic benchmark..</em>
+</p>
+
+
+<h2>
+	<a id="long-context-robustness-upto-32k-tokens" href="#long-context-robustness-upto-32k-tokens" rel="nofollow">
+		
+	</a>
+	<span>
+		Long-Context Robustness (Upto 32k Tokens)
+	</span>
+</h2>
+<p>Many real world safety or adversarial risks do not manifest in short, isolated text snippets, but rather emerge across use cases such as Retrieval-Augmented Generation (RAG) workflows, multi-turn conversational threads, organizational incident details, and operational reports containing detailed communications. A guardian model must therefore detect subtle or "needle-in-a-haystack" cases, where malicious or manipulative content is sparsely distributed, embedded across multiple references, or intentionally obscured within benign text. </p>
+<p>To evaluate AprielGuard’s long-context reasoning capabilities, we curated a specialized test dataset composed of diverse, high-length use cases. We considered the data upto 32k tokens for this evaluation. The baseline data was initially constructed from benign content representative of these domains. Malicious elements were then systematically injected to simulate adversarial or unsafe scenarios while maintaining the overall coherence of the text. For example, in an incident case summarization, an injection could be embedded within the case description, hidden in a metadata section, or inserted as part of a comment thread. Similarly, in multi-turn dialogue data, adversarial content might appear mid-conversation, near the end or at the beginning to test long range dependency tracking. </p>
+<p><strong>Safety Risks performance</strong></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Reasoning</th>
+<th>Precision ↑</th>
+<th>Recall ↑</th>
+<th>F1 ↑</th>
+<th>FPR ↓</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>AprielGuard-8B</td>
+<td>Without</td>
+<td>0.99</td>
+<td>0.96</td>
+<td>0.97</td>
+<td>0.01</td>
+</tr>
+<tr>
+<td>AprielGuard-8B</td>
+<td>With</td>
+<td>0.92</td>
+<td>0.98</td>
+<td>0.95</td>
+<td>0.11</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Adversarial Attacks performance</strong></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Reasoning</th>
+<th>Precision ↑</th>
+<th>Recall ↑</th>
+<th>F1 ↑</th>
+<th>FPR ↓</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>AprielGuard-8B</td>
+<td>Without</td>
+<td>1.00</td>
+<td>0.78</td>
+<td>0.88</td>
+<td>0.00</td>
+</tr>
+<tr>
+<td>AprielGuard-8B</td>
+<td>With</td>
+<td>0.93</td>
+<td>0.94</td>
+<td>0.94</td>
+<td>0.10</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<hr>
+<h2>
+	<a id="multilingual-evaluation" href="#multilingual-evaluation" rel="nofollow">
+		
+	</a>
+	<span>
+		Multilingual evaluation
+	</span>
+</h2>
+<p>A major limitation in the current landscape of content moderation research is the scarcity of high- quality multilingual benchmarks. To address this gap and comprehensively assess the multilingual capabilities of AprielGuard, we extended the Safety Risks benchmarks and Adversarial Attack benchmarks into multiple non-English languages. The translation process was conducted using the <a href="https://huggingface.co/google/madlad400-3b-mt">MADLAD400-3B-MT</a> model, a multilingual machine translation model based on the T5 architecture. </p>
+<p>For this study, we selected eight of the most widely used non-English languages to ensure broad linguistic and geographical coverage: French, French-Canadian, German, Japanese, Dutch, Spanish, Portuguese-Brazilian, and Italian. Each instance from the English Safety and Adversarial benchmarks was translated into the eight target languages. During translation, we preserved the original English role identifiers, such as <em>User:</em> and <em>Assistant:</em>, while translating only the conversational content. This design choice ensures alignment with AprielGuard’s moderation framework, where the role context plays a crucial part in evaluating safety and adversarial intent. </p>
+<p>
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/667521b4585f2bf570950584/lYVDB2N4kzddkAGOTmVEF.png" width="800">
+</p>
+<p>
+  <em>Multilingual performance of AprielGuard</em>
+</p>
+
+
+
+<h2>
+	<a id="conclusion" href="#conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion
+	</span>
+</h2>
+<ul>
+<li>AprielGuard unifies safety, security, and agentic robustness into a single guardian model capable of handling:<ul>
+<li>Comprehensive safety risk classification</li>
+<li>Adversarial attack detection, including prompt injection and jailbreak attempts</li>
+<li>Various input modalities, such as standalone prompts, multi-turn conversations, and full agentic workflows</li>
+<li>Long-context inputs</li>
+<li>Multilingual inputs</li>
+<li>Explainable reasoning</li>
+</ul>
+</li>
+</ul>
+<p>As LLMs move toward deeply integrated agentic systems, the need for unified pipelines becomes more critical. AprielGuard is a step toward that future — reducing complexity, improving coverage, and offering a scalable foundation for trustworthy AI deployments.</p>
+
+<h2>
+	<a id="limitations" href="#limitations" rel="nofollow">
+		
+	</a>
+	<span>
+		Limitations
+	</span>
+</h2>
+<ul>
+<li><p>Language Coverage: While AprielGuard has been primarily trained on English data, limited testing indicates it performs reasonably well across several languages, including: English, German, Spanish, French, French (Canada), Italian, Dutch, and Portuguese (Brazil).
+However, thorough testing and calibration are strongly recommended before deploying the model for production use in non-English settings.</p>
+</li>
+<li><p>Adversarial Robustness: Despite targeted training on adversarial and manipulative behaviors, the model may still exhibit vulnerability to complex or unseen attack strategies.</p>
+</li>
+<li><p>Domain Sensitivity: AprielGuard may underperform on highly specialized or technical domains (e.g., legal, medical, or scientific contexts) that require nuanced contextual understanding.</p>
+</li>
+<li><p>Latency–Interpretability Trade-off: Enabling reasoning traces enhances explainability but increases latency and compute cost. For low-latency or large-scale use cases, non-reasoning mode is recommended.</p>
+</li>
+<li><p>Reasoning Mode Sensitivity: The model exhibits occasional inconsistencies in classification outcomes between reasoning-enabled and non-reasoning inference modes.</p>
+</li>
+<li><p>Intended use: AprielGuard is intended strictly for use as a safeguard and risk assessment model. It classifies potential safety risks and adversarial threats according to the AprielGuard unified taxonomy. Any deviation from the prescribed inference may lead to unintended, unsafe, or unreliable behavior.</p>
+</li>
+</ul>
+</div></div>

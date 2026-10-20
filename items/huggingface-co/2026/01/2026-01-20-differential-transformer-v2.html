@@ -1,0 +1,266 @@
+<div id="readability-page-1" class="page"><div>
+<p>Tianzhu Ye, Li Dong, Yutao Sun, Furu Wei</p>
+<p><a href="https://github.com/microsoft/unilm/blob/master/Diff-Transformer/Diff-Transformer-V2" rel="nofollow">Github Link</a></p>
+<p><a href="https://spiky-homegrown-4cb.notion.site/Differential-Transformer-V2-2e7baa052def80ecaa93d4d67d125417" rel="nofollow">Notion Link (for better readability)</a></p>
+
+
+<h2>
+	<a id="code" href="#code" rel="nofollow">
+		
+	</a>
+	<span>
+		Code
+	</span>
+</h2>
+<p>We compare DIFF V2 with DIFF V1 below:</p>
+<p>(For simplicity, we omit the batch dimension and assume that both the input and output of the following <code>flash_attn_func</code> are three-dimensional tensors <code>(tokens, heads, head dimension)</code>. Heads belonging to the same GQA group are arranged contiguously in the output)</p>
+<p><strong>Note DIFF V2 subtracts two heads that are in the same GQA group, which means they share the same key and value. This is crucial to performance.</strong> See design ablations section and Github code.</p>
+<pre><code data-language="python">def DiffAttnV1(
+        layer_index, q1, q2, k1, k2, v,
+        lam_q1, lam_k1, lam_q2, lam_k2,
+):
+        """
+      q1, q2: (N, h/2, d)
+      k1, k2: (N, h_kv/2, d)
+      v:      (N, h_kv/2, 2d)
+      lam_*: (d,)
+      """
+      attn1 = flash_attn_func(q1, k1, v)
+        attn2 = flash_attn_func(q2, k2, v)
+        
+        lam_init = 0.8 - 0.6 * \
+            exp(-0.3 * layer_index)
+        lam1 = exp(sum(lam_q1 * lam_k1)
+    lam2 = exp(sum(lam_q2 * lam_k2)
+    lam = lam1 - lam2 + lam_init
+    attn = attn1 - lam * attn2
+    
+    attn = rmsnorm(attn)
+    attn = attn * (1 - lam_init)
+    return attn
+</code></pre>
+<pre><code data-language="python">def DiffAttnV2(
+        q, k, v, lam
+):
+        """
+      q:   (N, 2h, d)
+      k:   (N, h_kv, d)
+      v:   (N, h_kv, d)
+      lam: (N, h, 1)
+      """
+        
+        attn = flash_attn_func(q, k, v)
+        attn1, attn2 = (attn[:, 0::2], 
+                        attn[:, 1::2])
+        
+        lam_val = sigmoid(lam)
+        attn = attn1 - lam_val * attn2
+    return attn
+</code></pre>
+<p>Full code at: <a href="https://github.com/microsoft/unilm/tree/master/Diff-Transformer/Diff-Transformer-V2" rel="nofollow">unilm/Diff-Transformer/Diff-Transformer-V2 at master · microsoft/unilm</a>
+In the script, <code>h</code> represents number of query heads, <code>h_kv</code>  represents number of key-value heads, and <code>d</code> means head dimension. The <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>λ</mi></mrow>\lambda</math></span></span> in DIFF V2 is projected from <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>X</mi></mrow>X</math></span></span> for each token each head.</p>
+<p>DIFF V2 doubles number of query heads while maintaining number of key value heads, and the extra dimension is reduced back to <code>h*d</code> after the differential operation so the <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>W</mi><mi>O</mi></msub></mrow>W_O</math></span></span> projection remains the same as baseline Transformer.</p>
+<h2>
+	<a id="motivation" href="#motivation" rel="nofollow">
+		
+	</a>
+	<span>
+		Motivation
+	</span>
+</h2>
+<h3>
+	<a id="faster-decoding--no-custom-kernels" href="#faster-decoding--no-custom-kernels" rel="nofollow">
+		
+	</a>
+	<span>
+		<strong>Faster Decoding &amp; No Custom Kernels</strong>
+	</span>
+</h3>
+<p>DIFF V2 introduces additional query heads compared to the baseline Transformer, <strong>but does not increase the number of key-value (KV) heads</strong>. Since LLM decoding is typically memory-bound, this design allows DIFF V2 to achieve decoding speeds on par with standard Transformer. <strong>Besides, since head dimension is aligned between query, key and value, there is no need for custom attention kernels for DIFF V2</strong>. In contrast, DIFF V1 can be slower during decoding because the value cache must be loaded twice, and a custom attention kernel is needed. DIFF V2 can also increase the arithmetic intensity of the attention module during decoding.</p>
+<p><strong>During pretraining</strong>, when using cutting-edge FlashAttention kernels on H-series and B-series GPUs, the throughput reduction introduced by DIFF V2 is negligible. <strong>For long-sequence prefilling</strong>, we recommend combining DIFF V2 with techniques such as <a href="https://arxiv.org/abs/2405.05254" rel="nofollow">YOCO</a> (also used in <a href="https://github.com/huggingface/transformers/blob/main/src/transformers/models/gemma3n/modeling_gemma3n.py" rel="nofollow">Gemma 3n</a>), which already reduces prefilling complexity to linear time with respect to sequence length.</p>
+<p><strong>An alternative perspective is to compare DIFF V2 with a Transformer that has the same query dimension</strong> <code>2h*d</code>. Under this comparison, both models exhibit same attention kernel speed, while DIFF V2 has less parameters and flops in output projection.</p>
+<h3>
+	<a id="softmax-magnitude-constraint" href="#softmax-magnitude-constraint" rel="nofollow">
+		
+	</a>
+	<span>
+		<strong>Softmax Magnitude Constraint</strong>
+	</span>
+</h3>
+<p>In the standard Scaled Dot-Product Attention (SDPA), let <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>Q</mi><mo separator="true">,</mo><mi>K</mi><mo separator="true">,</mo><mi>V</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mi>n</mi><mo>×</mo><mi>d</mi></mrow></msup></mrow>Q, K, V \in \mathbb{R}^{n \times d}</math></span></span> be the queries, keys, and values. The context vector <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>C</mi></mrow>C</math></span></span> is defined as:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>C</mi><mo>=</mo><mtext>Softmax</mtext><mrow><mo fence="true">(</mo><mfrac><mrow><mi>Q</mi><msup><mi>K</mi><mi>T</mi></msup></mrow><msqrt><mi>d</mi></msqrt></mfrac><mo fence="true">)</mo></mrow><mi>V</mi><mo>=</mo><mi>A</mi><mi>V</mi></mrow>
+C = \text{Softmax}\left(\frac{QK^T}{\sqrt{d}}\right)V = AV
+</math></span></span></span></p>
+<p>Where <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>A</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mi>n</mi><mo>×</mo><mi>n</mi></mrow></msup></mrow>A \in \mathbb{R}^{n \times n}</math></span></span> is the attention weight matrix. Let's focus on a single row of <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>C</mi></mrow>C</math></span></span>, denoted as <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub></mrow>\mathbf{c}_i</math></span></span>, which is a weighted sum of value vectors <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi mathvariant="bold">v</mi><mi>j</mi></msub></mrow>\mathbf{v}_j</math></span></span>:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msub><mi>a</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><msub><mi mathvariant="bold">v</mi><mi>j</mi></msub></mrow>
+\mathbf{c}_i = \sum_{j=1}^{n} a_{ij} \mathbf{v}_j
+</math></span></span></span></p>
+<p>We define the <strong>Context RMS</strong> (Root Mean Square) to represent the magnitude of this output:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mtext>RMS</mtext><mo stretchy="false">(</mo><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo stretchy="false">)</mo><mo>=</mo><msqrt><mrow><mfrac><mn>1</mn><mi>d</mi></mfrac><mi mathvariant="normal">∥</mi><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><msup><mi mathvariant="normal">∥</mi><mn>2</mn></msup></mrow></msqrt></mrow>
+\text{RMS}(\mathbf{c}_i) = \sqrt{\frac{1}{d} \|\mathbf{c}_i\|^2}
+</math></span></span></span></p>
+<p>The weights <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>a</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow>a_{ij}</math></span></span> are non-negative and sum to 1 ( <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msubsup><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></msubsup><msub><mi>a</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn></mrow>\sum_{j=1}^{n} a_{ij} = 1</math></span></span> ). Assume the value vectors <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi mathvariant="bold">v</mi><mi>j</mi></msub></mrow>\mathbf{v}_j</math></span></span> are uncorrelated and have an RMS of 1, <strong>the Context RMS is strictly bounded in range <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mo stretchy="false">[</mo><mfrac><mn>1</mn><msqrt><mi>n</mi></msqrt></mfrac><mo separator="true">,</mo><mn>1</mn><mo stretchy="false">)</mo></mrow>[\frac{1}{\sqrt{n}},1)</math></span></span> however the attention distribution changes</strong>:</p>
+<ul>
+<li>If the attention is focused entirely on one token, the Context RMS is <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mn>1</mn></mrow>1</math></span></span>.</li>
+<li>If the attention is spread equally across all tokens ( <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>a</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mfrac><mn>1</mn><mi>n</mi></mfrac></mrow>a_{ij} = \frac{1}{n}</math></span></span> ), the Context RMS drops to <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mfrac><mn>1</mn><msqrt><mi>n</mi></msqrt></mfrac></mrow>\frac{1}{\sqrt{n}}</math></span></span>.</li>
+<li>In other situations, the Context RMS is between <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mfrac><mn>1</mn><msqrt><mi>n</mi></msqrt></mfrac></mrow>\frac{1}{\sqrt{n}}</math></span></span> and <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mn>1</mn></mrow>1</math></span></span>.</li>
+</ul>
+<p>In DIFF V1 we add a per-head RMSNorm on context vectors:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mover accent="true"><mi mathvariant="bold">c</mi><mo>^</mo></mover><mi>i</mi></msub><mo>=</mo><mfrac><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mrow><mtext>RMS</mtext><mo stretchy="false">(</mo><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></mfrac></mrow>
+\mathbf{\hat{c}}_i = \frac{\mathbf{c}_i}{\text{RMS}(\mathbf{c}_i)}
+</math></span></span></span></p>
+<p>If the model learns a uniform attention distribution in a head, the Context RMS is approximately <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mn>1</mn><mi mathvariant="normal">/</mi><msqrt><mi>n</mi></msqrt></mrow>1/\sqrt{n}</math></span></span>. To normalize this back to <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mn>1</mn></mrow>1</math></span></span>, RMSNorm must multiply the vector by a scale of <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msqrt><mi>n</mi></msqrt></mrow>\sqrt{n}</math></span></span>. For <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>n</mi><mo>=</mo><mn>8192</mn></mrow>n = 8192</math></span></span>, <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msqrt><mi>n</mi></msqrt><mo>≈</mo><mn>90.5</mn></mrow>\sqrt{n} \approx 90.5</math></span></span>. This means the RMSNorm layer applies a <strong>100x</strong> magnification to the output. In large-scale pretraining, we find this leads to massive gradients and numerical instability.</p>
+<p>A typical phenomenon is that when DIFF V1 is pre-trained at a large learning rate, the gradient norm experiences a larger increase compared to Transformer in the later stages, along with higher variance. <strong>In DIFF V2, after removing the per-head RMSNorm, the gradient norm scale becomes comparable to that of Transformer, and the gradient norm spike is reduced</strong> (will be discussed further below).</p>
+<p>We adopted the per-head RMSNorm design in DIFF V1 primarily because of the doubled value head dimension and the globally shared <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>λ</mi></mrow>\lambda</math></span></span> across all tokens. Given the modifications made to these two aspects in DIFF V2, we found that removing RMSNorm is now safe.</p>
+<h3>
+	<a id="beyond-softmax-constraint--elimination-of-attention-sinks" href="#beyond-softmax-constraint--elimination-of-attention-sinks" rel="nofollow">
+		
+	</a>
+	<span>
+		<strong>Beyond Softmax Constraint &amp; Elimination of Attention Sinks</strong>
+	</span>
+</h3>
+<p>We demonstrate DIFF V2 can overcome the constraint of Softmax mentioned above. It can also help eliminate <a href="https://arxiv.org/abs/2309.17453" rel="nofollow">attention sinks</a>.</p>
+<ul>
+<li>In original Softmax attention:</li>
+</ul>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>a</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mtext>Softmax</mtext><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false">)</mo><mo>=</mo><mfrac><mrow><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false">)</mo></mrow><mrow><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo stretchy="false">)</mo></mrow></mfrac><mspace></mspace><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msub><mi>a</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><msub><mi mathvariant="bold">v</mi><mi>j</mi></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mtext>Softmax</mtext><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false">)</mo><msub><mi mathvariant="bold">v</mi><mi>j</mi></msub><mspace></mspace><mtext>RMS</mtext><mo stretchy="false">(</mo><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo stretchy="false">)</mo><mo>∈</mo><mrow><mo fence="true">[</mo><mfrac><mn>1</mn><msqrt><mi>n</mi></msqrt></mfrac><mo separator="true">,</mo><mn>1</mn><mo fence="true">)</mo></mrow></mrow>
+a_{ij} = \text{Softmax}(z_{ij}) =  \frac{\exp(z_{ij})}{\sum_{k=1}^{n} \exp(z_{ik})} \\
+
+\mathbf{c}_i = \sum_{j=1}^{n} a_{ij} \mathbf{v}_j = \sum_{j=1}^{n} \text{Softmax}(z_{ij}) \mathbf{v}_j \\
+
+\text{RMS}(\mathbf{c}_i) \in \left[\frac{1}{\sqrt{n}},1\right)
+</math></span></span></span></p>
+<ul>
+<li>In DIFF V2 we introduce a projected <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>λ</mi></mrow>\lambda</math></span></span> for each token and each head:</li>
+</ul>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mo fence="true">(</mo><mtext>Softmax</mtext><mo stretchy="false">(</mo><msubsup><mi>z</mi><mrow><mi>i</mi><mi>j</mi></mrow><mtext>1</mtext></msubsup><mo stretchy="false">)</mo><mo>−</mo><mtext>sigmoid</mtext><mo stretchy="false">(</mo><msub><mi>λ</mi><mi>i</mi></msub><mo stretchy="false">)</mo><mo>⋅</mo><mtext>Softmax</mtext><mo stretchy="false">(</mo><msubsup><mi>z</mi><mrow><mi>i</mi><mi>j</mi></mrow><mtext>2</mtext></msubsup><mo stretchy="false">)</mo><mo fence="true">)</mo></mrow><msub><mi mathvariant="bold">v</mi><mi>j</mi></msub><mspace></mspace><mtext>RMS</mtext><mo stretchy="false">(</mo><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo stretchy="false">)</mo><mo>∈</mo><mrow><mo fence="true">(</mo><mn>0</mn><mo separator="true">,</mo><msqrt><mn>2</mn></msqrt><mo fence="true">)</mo></mrow></mrow>
+\mathbf{c}_i = \sum_{j=1}^{n}  \left( \text{Softmax}(z_{ij}^\text{1}) - \text{sigmoid}(\lambda_i) \cdot \text{Softmax}(z_{ij}^\text{2}) \right) \mathbf{v}_j \\
+
+\text{RMS}(\mathbf{c}_i) \in \left(0, \sqrt{2}\right)
+</math></span></span></span></p>
+<p>The projected <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>λ</mi><mi>i</mi></msub></mrow>\lambda_i</math></span></span> helps to control the context RMS. We observe that <strong>lowering the lower bound of the context RMS to zero is particularly important</strong>. <strong>It can help eliminate attention sinks and improve training stability</strong>. The upper bound only needs to remain bounded.</p>
+<p>Note that our analysis here consider RMS before output projection <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>W</mi><mi>O</mi></msub></mrow>W_O</math></span></span>. Although the RMS can be recovered and adjusted after the output projection, the lack of freedom at Softmax still affects the learning performance.</p>
+<p>Other recent works alleviate this constraint as well:</p>
+<ul>
+<li>In <a href="https://www.evanmiller.org/attention-is-off-by-one.html" rel="nofollow">Attention Is Off By One</a>:</li>
+</ul>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msubsup><mi>a</mi><mrow><mi>i</mi><mi>j</mi></mrow><mtext>off</mtext></msubsup><mo>=</mo><mfrac><mrow><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false">)</mo></mrow><mrow><mn>1</mn><mo>+</mo><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo stretchy="false">)</mo></mrow></mfrac><mspace></mspace><mtext>&nbsp;</mtext><mspace></mspace><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msubsup><mi>a</mi><mrow><mi>i</mi><mi>j</mi></mrow><mtext>off</mtext></msubsup><msub><mi mathvariant="bold">v</mi><mi>j</mi></msub><mo>=</mo><mfrac><mrow><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo stretchy="false">)</mo></mrow><mrow><mn>1</mn><mo>+</mo><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo stretchy="false">)</mo></mrow></mfrac><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mtext>Softmax</mtext><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false">)</mo><msub><mi mathvariant="bold">v</mi><mi>j</mi></msub><mspace></mspace><mtext>&nbsp;</mtext><mspace></mspace><mtext>RMS</mtext><mo stretchy="false">(</mo><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo stretchy="false">)</mo><mo>∈</mo><mrow><mo fence="true">(</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo fence="true">)</mo></mrow></mrow>
+a_{ij}^{\text{off}} = \frac{\exp(z_{ij})}{1 + \sum_{k=1}^{n} \exp(z_{ik})} \\
+\ \\
+\mathbf{c}_i = \sum_{j=1}^{n} a_{ij}^{\text{off}} \mathbf{v}_j = \frac{\sum_{k=1}^{n} \exp(z_{ik})}{1 + \sum_{k=1}^{n} \exp(z_{ik})} \sum_{j=1}^{n}  \text{Softmax}(z_{ij}) \mathbf{v}_j \\
+\ \\
+\text{RMS}(\mathbf{c}_i) \in \left(0, 1\right)
+</math></span></span></span></p>
+<ul>
+<li>In <a href="https://openai.com/index/introducing-gpt-oss/" rel="nofollow">gpt-oss</a>, a learnable scalar <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>s</mi></mrow>s</math></span></span> is introduced for each head:</li>
+</ul>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msubsup><mi>a</mi><mrow><mi>i</mi><mi>j</mi></mrow><mtext>oss</mtext></msubsup><mo>=</mo><mfrac><mrow><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false">)</mo></mrow><mrow><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mo>+</mo><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo stretchy="false">)</mo></mrow></mfrac><mspace></mspace><mtext>&nbsp;</mtext><mspace></mspace><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo>=</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msubsup><mi>a</mi><mrow><mi>i</mi><mi>j</mi></mrow><mtext>oss</mtext></msubsup><msub><mi mathvariant="bold">v</mi><mi>j</mi></msub><mo>=</mo><mfrac><mrow><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo stretchy="false">)</mo></mrow><mrow><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mo>+</mo><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo stretchy="false">)</mo></mrow></mfrac><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mtext>Softmax</mtext><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false">)</mo><msub><mi mathvariant="bold">v</mi><mi>j</mi></msub><mspace></mspace><mtext>&nbsp;</mtext><mspace></mspace><mtext>RMS</mtext><mo stretchy="false">(</mo><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo stretchy="false">)</mo><mo>∈</mo><mrow><mo fence="true">(</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo fence="true">)</mo></mrow></mrow>
+a_{ij}^{\text{oss}} = \frac{\exp(z_{ij})}{\exp(s) + \sum_{k=1}^{n} \exp(z_{ik})} \\
+\ \\
+\mathbf{c}_i = \sum_{j=1}^{n} a_{ij}^{\text{oss}} \mathbf{v}_j = \frac{\sum_{k=1}^{n} \exp(z_{ik})}{\exp(s) + \sum_{k=1}^{n} \exp(z_{ik})} \sum_{j=1}^{n}  \text{Softmax}(z_{ij}) \mathbf{v}_j \\
+\ \\
+\text{RMS}(\mathbf{c}_i) \in \left(0, 1\right)
+</math></span></span></span></p>
+<ul>
+<li>In <a href="https://arxiv.org/abs/2505.06708" rel="nofollow">Gated Attention</a>, a projected element-wise sigmoid gate is multiplied:</li>
+</ul>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo>=</mo><mtext>sigmoid</mtext><mo stretchy="false">(</mo><msub><mi mathvariant="bold">g</mi><mi>i</mi></msub><mo stretchy="false">)</mo><mo>⊙</mo><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mtext>Softmax</mtext><mo stretchy="false">(</mo><msub><mi>z</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false">)</mo><msub><mi mathvariant="bold">v</mi><mi>j</mi></msub><mspace></mspace><mtext>RMS</mtext><mo stretchy="false">(</mo><msub><mi mathvariant="bold">c</mi><mi>i</mi></msub><mo stretchy="false">)</mo><mo>∈</mo><mrow><mo fence="true">(</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo fence="true">)</mo></mrow></mrow>
+\mathbf{c}_i = \text{sigmoid} (\mathbf{g}_i) \odot \sum_{j=1}^{n}  \text{Softmax}(z_{ij}) \mathbf{v}_j \\
+
+\text{RMS}(\mathbf{c}_i) \in \left(0, 1\right)
+</math></span></span></span></p>
+<h2>
+	<a id="experimental-observations" href="#experimental-observations" rel="nofollow">
+		
+	</a>
+	<span>
+		Experimental Observations
+	</span>
+</h2>
+<p>We conduct pretraining experiments on production-scale LLMs, including dense models and a 30A3 MoE on trillions of tokens using large learning rate of 6e-4 to 1e-3.</p>
+<p>The experiments are still running. What we have observed now:</p>
+<ul>
+<li><strong>Notably lower language modeling loss</strong> compared to Transformer (a gap of 0.02 to 0.03 at 1T training tokens).</li>
+<li><strong>Reduced loss and gradient spikes during training</strong>, particularly under large learning rate settings where the Transformer baseline becomes unstable.</li>
+<li><strong>Reduced activation outliers magnitude.</strong></li>
+</ul>
+<p>We expect to explore in later stages of training:</p>
+<ul>
+<li>Learning efficiency in mid- and post-training.</li>
+<li>Performance on downstream long-context benchmarks (alleviating context rot).</li>
+</ul>
+<h2>
+	<a id="discussions" href="#discussions" rel="nofollow">
+		
+	</a>
+	<span>
+		Discussions
+	</span>
+</h2>
+<h3>
+	<a id="construction-of-differential-operation" href="#construction-of-differential-operation" rel="nofollow">
+		
+	</a>
+	<span>
+		Construction of Differential Operation
+	</span>
+</h3>
+<p>In theory, a standard Transformer with <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mn>2</mn><mi>h</mi></mrow>2h</math></span></span> attention heads can learn the differential operation by learning <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msubsup><mi>W</mi><mi>O</mi><mrow><mn>2</mn><mi>i</mi></mrow></msubsup><mo>=</mo><mo>−</mo><msubsup><mi>W</mi><mi>O</mi><mrow><mn>2</mn><mi>i</mi><mo>+</mo><mn>1</mn></mrow></msubsup><mo separator="true">,</mo><mi>i</mi><mo>=</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo separator="true">,</mo><mo>…</mo><mo separator="true">,</mo><mi>h</mi><mo>−</mo><mn>1</mn></mrow>W_O^{2i}=-W_O^{2i+1}, i=0,1,\ldots,h-1</math></span></span>, where <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msubsup><mi>W</mi><mi>O</mi><mi>i</mi></msubsup></mrow>W_O^{i}</math></span></span> denotes the output projection of head <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>i</mi></mrow>i</math></span></span>, and head <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mn>2</mn><mi>i</mi></mrow>2i</math></span></span> and <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mn>2</mn><mi>i</mi><mo>+</mo><mn>1</mn></mrow>2i+1</math></span></span> belong to the same GQA group.</p>
+<p><strong>Assumption 1.</strong> In practice, such a solution is difficult to learn through optimization, as it requires two sets of parameters to converge to exact negatives of each other.</p>
+<p><strong>Assumption 2.</strong> The differential operation can be learned by the model and the model chooses to learn it in the training. <strong>Then explicitly constructing it before the output projection as in DIFF V2 can save half of the <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>W</mi><mi>O</mi></msub></mrow>W_O</math></span></span> parameters</strong>. The number of saved parameters is also non-trivial. Under the current GQA setting, the parameters in the attention module are dominated by <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>W</mi><mi>Q</mi></msub></mrow>W_Q</math></span></span> and <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>W</mi><mi>O</mi></msub></mrow>W_O</math></span></span>; Therefore, approximately <strong>25% of the attention-module parameters can be saved.</strong> The saved parameter budget can then be reallocated to other parts of the model.</p>
+<p>Even if DIFF V2, after reallocating parameters, does not achieve a lower loss than the baseline but merely matches it, <strong>the method is still worthwhile if it provides additional benefits</strong> such as improved training stability, better control of outliers, or higher training efficiency. This is analogous to <a href="https://arxiv.org/abs/2305.13245" rel="nofollow">GQA</a>, which matches the loss of MHA while reducing KV-cache as an additional benefit. So the key question becomes empirical performance.</p>
+<h3>
+	<a id="design-ablations" href="#design-ablations" rel="nofollow">
+		
+	</a>
+	<span>
+		Design Ablations
+	</span>
+</h3>
+<ol>
+<li>Subtracting two heads that are <strong>not</strong> in the same GQA group, which means they <strong>do not</strong> share the same key and value.</li>
+</ol>
+<p>(For simplicity, we omit the batch dimension and assume that both the input and output of the following <code>flash_attn_func</code> are three-dimensional tensors <code>(tokens, heads, head dimension)</code>. Heads belonging to the same GQA group are arranged contiguously in the output)</p>
+<pre><code data-language="python"># Ablation 1
+# ❌ Wrong Implementation of DIFF V2!
+...
+attn = flash_attn_func(q, k, v)
+nh = attn.size(1)
+attn1, attn2 = (attn[:, :nh//2], 
+                    attn[:, nh//2:])
+...
+</code></pre>
+<pre><code data-language="python"># DIFF V2
+# ✅ Correct Implementation of DIFF V2
+...
+attn = flash_attn_func(q, k, v)
+
+attn1, attn2 = (attn[:, 0::2], 
+                    attn[:, 1::2])
+...
+</code></pre>
+<p>In our large learning rate setting, the ablation 1 setting exhibits obvious training instability (much more loss and gradient spikes) and higher loss comparing to DIFF V2. The value should be shared in the two subtraction heads to construct differential operation, as discussed in DIFF V1 paper.</p>
+<ol start="2">
+<li>Subtracting two attention maps without <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>λ</mi></mrow>\lambda</math></span></span> scaling factor, i.e., <code>attn1 - attn2</code> instead of <code>attn1 - lam_val * attn2</code>. This results in an excessively small context RMS at initialization.</li>
+<li>Directly using projected <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>λ</mi></mrow>\lambda</math></span></span> without applying <code>sigmoid</code> operation. The context RMS is unbounded from above.</li>
+</ol>
+<p>Both ablation 2 and ablation 3 lead to higher language modeling loss than DIFF V2. Ablation 2 maintains training stability similar to DIFF V2, whereas ablation 3 is less stable (still more stable than ablation 1).</p>
+<ol start="4">
+<li>A Transformer with <code>1.5*h</code> heads which aligns parameter with DIFF V2.</li>
+</ol>
+<p>Ablation 4 also has higher training loss comparing to DIFF V2.</p>
+<h3>
+	<a id="miscellaneous" href="#miscellaneous" rel="nofollow">
+		
+	</a>
+	<span>
+		Miscellaneous
+	</span>
+</h3>
+<ul>
+<li>In DIFF, the outliers in qk logits can be smaller than those in the baseline. This was already analyzed in DIFF V1: DIFF can achieve attention sparsity comparable to the baseline while using smaller qk logits. We further propose that DIFF's differential mechanism, which cancels out small attention values, <strong>may help mitigate the attention rounding error issue discussed in this <a href="https://spaces.ac.cn/archives/11371" rel="nofollow">blog</a> and <a href="https://arxiv.org/abs/2510.04212" rel="nofollow">paper</a></strong>.</li>
+<li><strong>DIFF V2 is compatible with sparse attention</strong>. In many existing sparse attention frameworks, query heads within the same GQA group are required to attend to the same key-value blocks in order to maximize speedup. A common strategy is to select key-value blocks based on the average attention logits across heads.
+For DIFF V2, the problem shifts to designing an effective block-selection strategy for a larger GQA group that contains pairs of differential heads. This may require handling the two types of differential heads separately during selection, or maybe a simple average of attention logits might already be sufficient in practice. Conceptually, this does not introduce any fundamental differences compared to block sparse attention of standard Transformers.</li>
+</ul>
+</div></div>

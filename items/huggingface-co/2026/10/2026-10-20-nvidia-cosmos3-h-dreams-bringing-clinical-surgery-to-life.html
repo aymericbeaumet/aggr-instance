@@ -1,0 +1,124 @@
+<div id="readability-page-1" class="page"><div>
+<p>Picture moving the Cadiere grasper, grasping the gallbladder, and lifting it, all within a generated surgical scene that responds in real time. Today, we take the next step and introduce Cosmos3-H-Dreams, bringing interactive generative simulation to the visual and procedural complexity of clinical surgery with our most convincing in-body imagery to date.</p>
+<p>Our first <a href="https://huggingface.co/blog/nvidia/cosmos-h-dreams">Cosmos-H-Dreams</a> release, built on Cosmos-Predict2.5, brought interactive generative simulation to dVRK tabletop suturing, a foundational proving ground for surgical robotics. As world foundation model (WFM), Cosmos-H-Dreams demonstrated an alternative to numerical simulation: rather than explicitly modeling scene geometry, tissue deformation, and physical interactions, it learned visual dynamics directly from synchronized video and robot kinematics, yielding interactive tabletop task simulation with high realism.</p>
+<p>Today, <a href="https://github.com/isaac-for-healthcare/cosmos3-h-dreams" rel="nofollow">Cosmos3-H-Dreams</a> advances this capability by learning from video and robot kinematics recording during clinical procedures on the CMR Surgical Versius platform. To our knowledge, this is the first real-time generative surgical simulator trained on clinical cholecystectomy recordings to support live kinematic control. Powered by Cosmos 3 and accelerated with FlashDreams, NVIDIA’s accelerated streaming-inference library, Cosmos3-H-Dreams runs interactively on a single NVIDIA RTX PRO 6000 GPU.</p>
+
+
+<hr>
+<h2>
+	<a id="1-from-tabletop-tasks-to-clinical-scenes" href="#1-from-tabletop-tasks-to-clinical-scenes" rel="nofollow">
+		
+	</a>
+	<span>
+		1. From Tabletop Tasks to Clinical Scenes
+	</span>
+</h2>
+<p>In a controlled tabletop environment like that of Cosmos-H-Dreams, instruments operate against a relatively simple background. Inside the human body, however, small instrument movements can affect an entire scene: tissue stretches under traction, reflections shift, structures become occluded, and smoke changes visibility. Given an initial image and supplied tool actions, a generative simulator must capture these responses while preserving the anatomy and instruments as it generates each new block of video. Small errors can accumulate over time, gradually changing instrument geometry or anatomical structure, making temporal consistency essential.</p>
+<p>Visual realism is therefore a starting point for validation, not proof of biomechanical accuracy. The generated scene must also follow the controls: translation, rotation, and gripper commands should produce coherent anatomical consequences. A plausible-looking rollout that ignores those commands cannot serve as an interactive environment.</p>
+<p>Maintaining this fidelity and responsiveness in a live control loop requires low latency generation. Cosmos3-H-Dreams addresses this setting through a model specialized for clinical cholecystectomy and distilled for real-time generation, bringing action-conditioned interaction into scenes with complex anatomy, tissue motion, and occlusion.</p>
+<hr>
+<h2>
+	<a id="2-what-is-new-in-cosmos3-h-dreams" href="#2-what-is-new-in-cosmos3-h-dreams" rel="nofollow">
+		
+	</a>
+	<span>
+		2. What is New in Cosmos3-H-Dreams?
+	</span>
+</h2>
+<h3>
+	<a id="21-a-cosmos-3-foundation-and-richer-surgical-controls" href="#21-a-cosmos-3-foundation-and-richer-surgical-controls" rel="nofollow">
+		
+	</a>
+	<span>
+		2.1 A Cosmos 3 Foundation and Richer Surgical Controls
+	</span>
+</h3>
+<p>Cosmos3-H-Dreams builds on <a href="https://huggingface.co/nvidia/Cosmos3-H-Embodied-Nano">Cosmos3-H-Embodied-Nano</a>, a 16-billion-parameter model pretrained on <a href="https://huggingface.co/datasets/nvidia/PhysicalAI-Robotics-Open-H-Embodiment">Open-H-Embodiment</a>, and specializes a bidirectional teacher on curated cholecystectomy video and kinematics. Sample selection targets two visible, engaged instruments, a left Cadiere grasper and a right monopolar hook, and limits camera commands to emphasize instrument-driven interaction.</p>
+<p>The model uses 28 action dimensions: pose and gripper information for both arms, plus energy controls, thumbstick axes and thumbstick buttons. Training uses 832 x 480 video with actions aligned at 10 Hz; that sampling rate is distinct from runtime generation throughput.</p>
+<h3>
+	<a id="22-from-teacher-to-four-step-and-two-step-students" href="#22-from-teacher-to-four-step-and-two-step-students" rel="nofollow">
+		
+	</a>
+	<span>
+		2.2 From Teacher to Four-Step and Two-Step Students
+	</span>
+</h3>
+<p>Cosmos3-H-Dreams combines a teacher-to-student training pipeline designed for long autoregressive rollouts with accelerated streaming inference through FlashDreams.</p>
+<p>We first adapt the bidirectional teacher on 24 future frames, then extend the horizon to 72 frames, 2.4 and 7.2 seconds at 10 Hz. This gives the teacher longer sequences over which to learn surgical dynamics.</p>
+<p>Next, distillation turns the bidirectional teacher into a causal student that can generate video in short blocks as new actions arrive.  Causal teacher forcing prepares the student for sequential generation using recorded context. Self-Forcing then trains it on its own generated context, guided by the teacher and a learned critic. This helps address the accumulation of errors during interactive rollouts.</p>
+<p>The first released student uses four denoising steps per generated block. We then train that student further with a two-step schedule to produce the second release checkpoint. The two-step model is separately trained, not simply the four-step model run with fewer sampling steps.</p>
+<p>Fewer denoising steps results in faster inference time at the expense of lower visual quality. Both checkpoints let developers explore the balance between visual quality and inference cost. </p>
+<h3>
+	<a id="23-streaming-through-flashdreams" href="#23-streaming-through-flashdreams" rel="nofollow">
+		
+	</a>
+	<span>
+		2.3 Streaming through FlashDreams
+	</span>
+</h3>
+<p><a href="https://github.com/NVIDIA/flashdreams" rel="nofollow">FlashDreams</a> supplies the accelerated streaming runtime. Long rollouts also require managing the model’s attention history. The Cosmos3-H-Dreams integration uses an adapted FadeMem module that consolidates the growing key/value cache during long rollouts. This complements Self-Forcing: distillation addresses how the model learns from its generated history, while cache consolidation addresses how that history is stored during streaming generation.</p>
+<hr>
+<h2>
+	<a id="3-exploring-unseen-trajectories" href="#3-exploring-unseen-trajectories" rel="nofollow">
+		
+	</a>
+	<span>
+		3. Exploring Unseen Trajectories
+	</span>
+</h2>
+<p>During a clinical procedure there may be complications or some room for the surgeon to perform “novel” movements. Therefore, a simulator must be able to generalize beyond the training data, and produce coherent frames with unseen movements. The demonstrations below show Cosmos3-H-Dreams generating different cholecystectomy scenes conditioned on instrument actions recorded with a VR headset.</p>
+
+
+<p>The two videos begin with the same initial frame but follow different action sequences illustrating how instrument control leads to distinct continuations of the same scene with physically accurate tissue deformations. </p>
+
+
+<p>Furthermore, these rollouts allow us to inspect whether instruments follow the controls, whether tissue responds coherently to interaction, and whether anatomical and instrument appearance remain consistent over time.</p>
+<hr>
+<h2>
+	<a id="4-adapting-to-your-own-data-and-controller" href="#4-adapting-to-your-own-data-and-controller" rel="nofollow">
+		
+	</a>
+	<span>
+		4. Adapting to Your Own Data and Controller
+	</span>
+</h2>
+<p>Cosmos3-H-Dreams includes four-step and two-step checkpoints for cholecystectomy. The system can be adapted to other datasets and embodiments with synchronized video and compatible action representations. To train a real-time student model on your own dataset, we provide a complete recipe for teacher fine-tuning and Self-Forcing distillation in our <a href="https://github.com/NVIDIA-Medtech/Cosmos3-H-Embodied-Nano/blob/main/cosmos3_h_embodied/tutorial_teacher_training_and_self_forcing.md" rel="nofollow">step-by-step guide</a>. It describes data preparation, public teacher-training tools, and the distillation stages. Controller integrations must use the same action conventions and normalization as training.</p>
+<hr>
+<h2>
+	<a id="5-what-is-next" href="#5-what-is-next" rel="nofollow">
+		
+	</a>
+	<span>
+		5. What is Next
+	</span>
+</h2>
+<p>The advance in visual realism opens several research directions:</p>
+<ul>
+<li><strong>Model the full procedure.</strong> Expand coverage and temporal consistency so all phases of cholecystectomy can be explored systematically, with clear task boundaries and success criteria.</li>
+<li><strong>Connect generative and numerical simulation.</strong> Combine learned visual realism with explicit geometry, contact and tissue mechanics. Numerical models and measured data could help constrain and validate deformation, making simulation behavior inspectable as well as convincing.</li>
+<li><strong>Evaluate with surgeons.</strong> Assess anatomical accuracy, instrument behavior and tissue response, turning expert feedback into reproducible benchmarks.</li>
+<li><strong>Support more instruments.</strong> Move beyond two controlled tools to richer coordination, occlusion and interaction.</li>
+<li><strong>Develop autonomous surgical policies.</strong> Couple world action models to Cosmos3-H-Dreams in a closed loop, so policies can learn defined cholecystectomy subtasks.</li>
+</ul>
+<p>These are research directions, not established clinical capabilities. Cosmos3-H-Dreams is a research simulator, not a validated system for patient care. It offers a foundation for studying surgical interaction in an increasingly realistic environment.</p>
+<hr>
+<h2>
+	<a id="6-get-started-today" href="#6-get-started-today" rel="nofollow">
+		
+	</a>
+	<span>
+		6. Get Started Today
+	</span>
+</h2>
+<p>Explore the models, data, and runtime behind Cosmos3-H-Dreams:</p>
+<ul>
+<li>Cosmos3-H-Dreams code and examples: <a href="https://github.com/isaac-for-healthcare/cosmos3-h-dreams" rel="nofollow">GitHub repository</a></li>
+<li>Cosmos3-H-Dreams model: <a href="https://huggingface.co/nvidia/Cosmos3-H-Dreams">Hugging Face checkpoint</a></li>
+<li>Cosmos3-H-Embodied-Nano: <a href="https://huggingface.co/nvidia/Cosmos3-H-Embodied-Nano">Hugging Face model</a> and <a href="https://github.com/NVIDIA-Medtech/Cosmos3-H-Embodied-Nano" rel="nofollow">GitHub repository</a></li>
+<li>Adapt to your own data: <a href="https://github.com/NVIDIA-Medtech/Cosmos3-H-Embodied-Nano/blob/main/cosmos3_h_embodied/tutorial_teacher_training_and_self_forcing.md" rel="nofollow">Step-by-step recipe for teacher fine-tuning and self-forcing distillation</a></li>
+<li>Open-H-Embodiment: <a href="https://huggingface.co/datasets/nvidia/PhysicalAI-Robotics-Open-H-Embodiment">Hugging Face dataset</a></li>
+<li>FlashDreams: <a href="https://github.com/NVIDIA/flashdreams" rel="nofollow">GitHub repository</a></li>
+<li>NVIDIA Cosmos 3: <a href="https://github.com/nvidia/cosmos" rel="nofollow">GitHub repository</a></li>
+</ul>
+<p>Bring your controllers, your trajectories, and your research questions. We look forward to seeing what the community builds inside these new surgical worlds.</p>
+</div></div>

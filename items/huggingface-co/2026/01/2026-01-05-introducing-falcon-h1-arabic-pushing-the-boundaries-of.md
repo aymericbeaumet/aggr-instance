@@ -5,4 +5,105 @@ source: huggingface-co
 published: 2026-01-05T09:16:51Z
 updated: 2026-01-05T09:16:51Z
 first_seen: 2026-10-04T12:50:30.804479567Z
+content: extracted
+html: 2026-01-05-introducing-falcon-h1-arabic-pushing-the-boundaries-of.html
 ---
+
+[![image](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/2RCOpXpJ-guqSSBJV5IJh.png)](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/2RCOpXpJ-guqSSBJV5IJh.png)
+
+> Discover more in [our official blogpost](https://falcon-lm.github.io/blog/falcon-h1-arabic), featuring an interactive experience
+
+The journey of building world-class Arabic language models has been one of continuous learning and iteration. Today, we're excited to announce **Falcon-H1-Arabic**, our most advanced Arabic language model family to date, representing a significant leap forward in both architecture and capabilities. This release embodies months of research, community feedback, and technical innovation, culminating in **three** powerful models that set new standards for Arabic natural language processing.
+
+## Building on Success: The Evolution from Falcon-Arabic
+
+When we launched [Falcon-Arabic](https://huggingface.co/blog/tiiuae/falcon-arabic) a few months ago, the response from the community was both humbling and enlightening. Developers, researchers and students across the Arab world used the model for real use cases, pushing them to its limits and providing invaluable feedback. We learned where the model excelled and, more importantly, where it struggled. Long-context understanding, dialectal variations, mathematical reasoning, and domain-specific knowledge emerged as key areas requiring deeper attention.
+
+We didn't just want to make incremental improvements, we wanted to fundamentally rethink our approach. The result is Falcon-H1-Arabic, a model family that addresses every piece of feedback we received while introducing architectural innovations that were previously unexplored in Arabic language modeling.
+
+![](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/9e6qVGEM4-1mdK3dCJEjs.png)\
+ *Falcon-H1-Arabic 3B, 7B, 34B models outperforming all SOTA models of similar sizes and sometimes bigger.*
+
+## A First for Arabic NLP: Hybrid Mamba-Transformer Architecture
+
+Falcon-H1-Arabic is built on the [**Falcon-H1**](https://huggingface.co/blog/tiiuae/falcon-h1) hybrid architecture, which integrates State Space Models (Mamba) and Transformer attention within every block. Both components run in parallel and their representations are fused before the block’s output projection. This design provides the linear-time scalability of Mamba for extremely long sequences while preserving the precise long-range modeling capabilities of attention. For Arabic, with its rich morphology and flexible sentence structures, this approach significantly improves coherence and reasoning across extended text. We've deployed this architecture across three scales (3B, 7B, 34B parameters), each balancing capacity, efficiency, and deployability for different use cases from edge devices to enterprise applications.
+
+![](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/y1PdfPUZABgyA4q6J4-6r.png)\
+ *Falcon-H1 architecture. Attention and SSM run in parallel within each block; their outputs are concatenated before the block’s output projection. The number of SSM/Attention heads depends on the model size. More details on the [Falcon-H1 technical report](https://arxiv.org/pdf/2507.22448).*
+
+## Breaking Context Boundaries
+
+We've dramatically increased context capabilities from Falcon-Arabic's 32K limit to 128K tokens for the 3B model and 256K tokens for both the 7B and 34B models. At 256K tokens (~200,000 words), these models can process several novels or hundreds of pages of technical documentation enabling applications in legal analysis, medical records, academic research, and extended conversations that were previously impractical. Our post-training specifically addresses "lost in the middle" challenges to ensure models effectively utilize their full context range, not just accept long inputs.
+
+| Parameters | Context Window | Architecture | Ideal Uses                                           |
+| ---------- | -------------- | ------------ | ---------------------------------------------------- |
+| 3B         | 128K           | Hybrid       | Fast agents, high-QPS systems, lightweight analytics |
+| 7B         | 256K           | Hybrid       | Production assistants, reasoning, enterprise chat    |
+| 34B        | 256K           | Hybrid       | Long-document analysis, research, high-stakes tasks  |
+
+## Data Quality and Diversity: The Foundation of Excellence
+
+We rebuilt our pre-training data pipeline from the ground up to better reflect the complexity of Arabic. This began with a multi-stage quality filtering process tailored to Arabic orthography, morphology, diacritics, and syntactic patterns. Instead of heuristic filtering, we used deep linguistic analysis to isolate coherent, well-structured text and remove noise commonly found in open-web corpora. The result is a significantly cleaner, more stylistically consistent Arabic dataset.
+
+Dialect coverage was another key priority. Arabic is not monolithic; Modern Standard Arabic coexists with dialects such as Egyptian, Levantine, Gulf, and Maghrebi, each with distinct vocabularies and grammatical constructions. We expanded dialectal sources substantially so the models would understand and generate the full spectrum of real-world Arabic rather than leaning disproportionately toward formal MSA. To maintain global reasoning and domain diversity, we also preserved the multilingual capabilities of Falcon-H1 by training the Arabic models on an almost equal mix of Arabic, English, and multilingual content totalling around 300 Billion Tokens. This ensures strong performance in code, STEM, and cross-lingual reasoning. The following figure illustrates the distribution of the pre-training data across languages and categories. All values are expressed in billions of tokens.
+
+![](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/NrIio6sopNNC6wX1mWKzA.png)
+
+## Post-Training: Refining Capabilities Without Compromising Competence
+
+After pre-training, Falcon-H1-Arabic undergoes a focused post-training pipeline consisting of supervised fine-tuning (SFT) followed by direct preference optimization (DPO). During SFT, we expose the models to high-quality Arabic instructions, curated long-context examples, and structured reasoning tasks that teach them to follow directives, maintain coherence over extended sequences, and ground their responses in relevant information. This stage is crucial for ensuring that the models can actually use their large context windows which does not emerge automatically from architecture alone.
+
+We follow SFT with a targeted DPO phase to refine alignment, conversational quality, and preference consistency. DPO helps the models balance long-context reasoning with general linguistic competence, improving helpfulness and reducing common failure modes such as drifting, overuse of context, or neglecting earlier information. Throughout both stages, we carefully monitor for catastrophic forgetting and maintain a controlled curriculum so gains in long-context behavior do not come at the expense of core reasoning or factual accuracy. The result is a family of models that handles extended documents and dialogue with ease while preserving strong performance on everyday language tasks.
+
+Beyond benchmark-oriented optimization, our post-training process deliberately strengthens areas that traditional evaluations do not fully capture, including conversational faithfulness, rhetorical organization, structured follow-ups, and discourse coherence. These enhancements significantly boost the model’s practical usefulness, making Falcon-H1-Arabic more dependable in real multi-turn dialogue, instruction execution, and long-context conversational flows.
+
+## Benchmark Performance: Setting New Standards
+
+Numbers tell an important part of the story. On the [Open Arabic LLM Leaderboard (OALL)](https://huggingface.co/spaces/OALL/Open-Arabic-LLM-Leaderboard), a comprehensive benchmark evaluating Arabic language understanding across diverse tasks, Falcon-H1-Arabic achieves state-of-the-art results at every scale we tested. Note that our scores may vary slightly from those reported on the leaderboard, as we used vLLM as the backend instead of the leaderboard’s Accelerate-based implementation. These differences are typically under one point while offering significantly faster runtime.
+
+Beyond OALL, we also report results on the [3LM benchmark](https://aclanthology.org/2025.arabicnlp-main.4.pdf) for STEM-related tasks on both synthetic and native splits; [Arabculture](https://aclanthology.org/2025.loreslm-1.29.pdf) for Arabic culture assessment; and [AraDice](https://aclanthology.org/2025.coling-main.283.pdf) for Arabic dialect coverage across Levantine, and Egyptian varieties as well as Arabic culture across 6 countries. The reported AraDice score is the average of all the 3 scores.
+
+[![image](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/asF0IrbLZmK9NXqtMzWuS.png)](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/asF0IrbLZmK9NXqtMzWuS.png) [![image](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/rhCbKcSsOuorDnjj9j9CA.png)](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/rhCbKcSsOuorDnjj9j9CA.png)
+
+Starting with the 3B model, the performance is exceptional. It reaches approximately 62% on OALL, outperforming all small-scale models, including Gemma-4B, Qwen3-4B, and Phi-4-mini by roughly ten points. On 3LM, the main Arabic STEM benchmark, it scores around 82% on the native split and 73% on the synthetic split. It also achieves about 62% on the ArabCulture benchmark and around 50% across AraDice dialect evaluation (Egyptian, Gulf, and Levantine). This makes Falcon-H1-Arabic-3B a high-quality, highly efficient model suitable for edge deployments, real-time applications, and agentic systems where latency and cost matter.
+
+[![image](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/uXwwaWeYBFsd059bjIzOq.png)](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/uXwwaWeYBFsd059bjIzOq.png) [![image](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/3FwuLZLg_BIjdLofkTryp.png)](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/3FwuLZLg_BIjdLofkTryp.png)
+
+The 7B model continues this upward trajectory. With a score of 71.7% on OALL, it surpasses all models in the ~10B class, including Fanar-9B, Allam-7B\*, and Qwen3-8B. On 3LM, it reaches about 92% on the native split and 85% on the synthetic one. AraDice scores rise into the mid-50s across all dialects, and ArabCulture results approach 80%. This model strikes an ideal balance between capability and deployability, making it the most practical choice for general-purpose Arabic NLP in production environments.
+
+The 34B model represents our flagship system and establishes a new state of the art for Arabic language modeling. It reaches approximately 75% on OALL, outperforming not only models of similar size but even much larger systems such as Llama-3.3-70B and AceGPT2-32B. Its 3LM scores reach about 96% on the native split and 94% on the synthetic one. On ArabCulture it scores close to 80%, and on AraDice it reaches around 53 across dialects. The fact that a 34B hybrid model surpasses the performance of 70B-scale transformers demonstrates the effectiveness of the Falcon-H1 architecture, the quality of the data, and the strength of the post-training pipeline.
+
+[![image](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/X7nRh62dCHZxbTiTOwNKA.png)](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/X7nRh62dCHZxbTiTOwNKA.png) [![image](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/kEO723PeOMntQoS0cn5Qw.png)](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/kEO723PeOMntQoS0cn5Qw.png)
+
+These benchmark results validate our approach but also highlight an important reality: the frontier of Arabic language modeling is advancing rapidly. Each percentage point on these benchmarks represents countless hours of engineering effort, careful dataset curation, and architectural refinement. The margins by which Falcon-H1-Arabic leads aren't just statistical artifacts, they translate to meaningfully better user experiences in real-world applications.
+
+## Practical Applications: From Edge to Enterprise
+
+Each model in the Falcon-H1-Arabic family is suited to different deployment scenarios. The 3B model is optimized for speed, cost-efficiency, and high-throughput systems, making it ideal for agentic workflows, on-device applications, low-latency chat, and environments with strict resource constraints. The 7B model serves as the general-purpose workhorse for most production applications, powering document understanding systems, chatbots, summarization pipelines, and content generation tools. The 34B model is designed for high-stakes domains where accuracy and long-range reasoning matter most, including legal analysis, medical summarization, academic research, and large-scale enterprise automation. Its extended context window makes it uniquely capable of analyzing hundreds of pages of text in a single pass while maintaining precise coherence.
+
+## Responsible AI and Limitations
+
+Like all language models, Falcon-H1-Arabic may reflect biases from training data and can produce hallucinated information. Model outputs should not be used as sole authorities for medical, legal, or financial decisions without professional verification. Long-context performance may degrade at extreme ranges. We recommend task-specific evaluation and appropriate guardrails before deployment in production or sensitive applications.
+
+## Acknowledgments
+
+This work stands on the shoulders of many. We extend our gratitude to the Arabic NLP research community, whose open sharing of benchmarks, datasets, and methodologies enables progress across the field. Special thanks to our colleagues at TII: Ilyas Chahed, Younes Belkada, Dhia Eddine Rhaiem, Puneesh Khanna, Jingwei Zuo, Mikhail Lubinets, Slim Frikha, Maksim Velikanov, Kacper Piskorski, and Suhail Mohmad for their invaluable support during this project.
+
+## Citation
+
+```bibtex
+@misc{Falcon-H1-Arabic-2026,
+  title={Falcon-H1-Arabic: State-of-the-Art Arabic Language Models with Hybrid Mamba-Transformer Architecture},
+  author={Basma El Amel Boussaha and Mohammed Alyafeai and Ahmed Alzubaidi and Leen AlQadi and Shaikha Alsuwaidi and Omar Alkaabi and Hamza Alobeidli and Hakim Hacid},
+  url={https://huggingface.co/blog/tiiuae/falcon-h1-arabic},
+  month={January},
+  year={2026},
+  note={Available in 3B, 7B, and 34B parameter versions}
+}
+```
+
+- NB: the scores of [ALLaM-7B-Instruct-preview](https://huggingface.co/humain-ai/ALLaM-7B-Instruct-preview) in our evaluation are higher than those reported on the [OALL leaderboard](https://huggingface.co/spaces/OALL/Open-Arabic-LLM-Leaderboard), as we used the newest release (7b-alpha-v2.33.0.30), while the leaderboard currently reflects results from the older version (7b-alpha-v1.27.2.25).
+
+* * *
+
+Falcon-H1-Arabic models are available for use at the links below. For questions, collaborations, or feedback, reach us at **falcon.info@tii.ae** or join our community:

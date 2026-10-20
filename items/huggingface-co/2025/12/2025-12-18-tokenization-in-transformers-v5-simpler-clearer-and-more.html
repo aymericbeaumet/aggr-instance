@@ -1,0 +1,632 @@
+<div id="readability-page-1" class="page"><div>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/tokenizers/thumbnail.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/tokenizers/thumbnail.png" alt="thumbnail"></a></p>
+<p><a href="https://huggingface.co/blog/transformers-v5">Transformers v5</a> redesigns how tokenizers work. The <a href="https://github.com/huggingface/transformers/pull/40936/files" rel="nofollow">big tokenizers reformat</a> separates tokenizer design from trained vocabulary (much like how PyTorch separates neural network architecture from learned weights). The result is tokenizers you can <em>inspect</em>, <em>customize</em>, and <em>train</em> from scratch with far less friction.</p>
+<blockquote>
+<p>TL;DR: This blog explains how tokenization works in Transformers and why v5 is a major redesign, with clearer internals, a clean class hierarchy, and a single fast backend. It’s a practical guide for anyone who wants to understand, customize, or train model-specific tokenizers instead of treating them as black boxes.</p>
+</blockquote>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#what-is-tokenization" rel="nofollow">What is Tokenization?</a></li>
+<li><a href="#the-tokenization-pipeline" rel="nofollow">The Tokenization Pipeline</a></li>
+<li><a href="#tokenization-algorithms" rel="nofollow">Tokenization Algorithms</a></li>
+<li><a href="#accessing-tokenizers-through-transformers" rel="nofollow">Accessing <code>tokenizers</code> through <code>transformers</code></a></li>
+<li><a href="#the-tokenizer-class-hierarchy-in-transformers" rel="nofollow">The Tokenizer Class Hierarchy in <code>transformers</code></a></li>
+<li><a href="#autotokenizer-automatically-selects-the-correct-tokenizer-class" rel="nofollow"><code>AutoTokenizer</code> Automatically Selects the Correct Tokenizer Class</a></li>
+<li><a href="#v5-separates-tokenizer-architecture-from-trained-vocab" rel="nofollow">v5 Separates Tokenizer Architecture from Trained Vocab</a></li>
+<li><a href="#summary" rel="nofollow">Summary</a></li>
+</ul>
+<blockquote>
+<p>For experts: If you're already familiar with the concepts and want to understand the changes in v5, go to <a href="#v5-separates-tokenizer-architecture-from-trained-vocab" rel="nofollow">v5 Separates Tokenizer Architecture from Trained Vocab</a></p>
+</blockquote>
+<p>Before diving into the changes, let's quickly cover what tokenization does and how the pieces fit together.</p>
+<h2>
+	<a id="what-is-tokenization" href="#what-is-tokenization" rel="nofollow">
+		
+	</a>
+	<span>
+		What is tokenization?
+	</span>
+</h2>
+<p>Language models don't read raw text. They consume sequences of integers usually called <strong>token IDs or input IDs</strong>. Tokenization is the process of converting raw text into these token IDs. (Try the tokenization playground <a href="https://huggingface.co/spaces/Xenova/the-tokenizer-playground">here</a> to visualize tokenization.)</p>
+<p>Tokenization is a broad concept used across natural language processing and text processing generally. This post focuses specifically on tokenization for Large Language Models (LLMs) using the <a href="https://github.com/huggingface/transformers" rel="nofollow"><code>transformers</code></a> and <a href="https://github.com/huggingface/tokenizers" rel="nofollow"><code>tokenizers</code></a> libraries.</p>
+<pre><code data-language="python">from transformers import AutoTokenizer
+tokenizer = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM3-3B")
+
+text = "Hello world"
+tokens = tokenizer(text)
+
+print(tokens["input_ids"])
+# [9906, 1917]
+
+print(tokenizer.convert_ids_to_tokens(tokens["input_ids"]))
+# ['Hello', 'Ġworld']
+</code></pre>
+<blockquote>
+<p><code>Ġworld</code> (above) is a single token that represents the character sequence " world" (with the space).</p>
+</blockquote>
+<p>A <strong>token</strong> is the smallest string unit the model sees. It can be a character, word, or subword chunk like "play" or "##ing" ("##" is a pattern, don't worry if you don't completely understand it now 🤗). The <strong>vocabulary</strong> maps each unique token to the token ID.</p>
+<pre><code data-language="python">from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM3-3B")
+print(tokenizer.vocab)
+
+# {'ÎĹÎľ': 106502, 'ĠPeel': 89694, '.languages': 91078, ...}
+</code></pre>
+<p>A good tokenizer <em>compresses</em> text into the smallest amount of tokens. Fewer tokens means more usable context without increasing model size. Training a tokenizer boils down to finding the best compression rules for your datasets. For example, if you work on Chinese corpus you can sometimes find <a href="https://x.com/suchenzang/status/1697862650053660721" rel="nofollow">very nice surprises 😉</a>.</p>
+<h2>
+	<a id="the-tokenization-pipeline" href="#the-tokenization-pipeline" rel="nofollow">
+		
+	</a>
+	<span>
+		The tokenization pipeline
+	</span>
+</h2>
+<p>Tokenization happens in stages. Each stage transforms text before passing it to the next:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Stage</th>
+<th>Purpose</th>
+<th>Example</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Normalizer</strong></td>
+<td>Standardizes text (lowercasing, unicode normalization, whitespace cleanup)</td>
+<td><code>"HELLO World"</code> → <code>"hello world"</code></td>
+</tr>
+<tr>
+<td><strong>Pre-tokenizer</strong></td>
+<td>Splits text into preliminary chunks</td>
+<td><code>"hello world"</code> → <code>["hello", " world"]</code></td>
+</tr>
+<tr>
+<td><strong>Model</strong></td>
+<td>Applies the tokenization algorithm (BPE, Unigram, etc.)</td>
+<td><code>["hello", " world"]</code> → <code>[9906, 1917]</code></td>
+</tr>
+<tr>
+<td><strong>Post-processor</strong></td>
+<td>Adds special tokens (BOS, EOS, padding)</td>
+<td><code>[9906, 1917]</code> → <code>[1, 9906, 1917, 2]</code></td>
+</tr>
+<tr>
+<td><strong>Decoder</strong></td>
+<td>Converts token IDs back to text</td>
+<td><code>[9906, 1917]</code> → <code>"hello world"</code></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Each component is <em>independent</em>. You can swap <a href="https://huggingface.co/docs/tokenizers/en/api/normalizers">normalizers</a> or change the <a href="https://huggingface.co/docs/tokenizers/en/api/models">algorithm</a> without rewriting everything else.</p>
+<blockquote>
+<p>You can access the rust based tokenizer through <code>_tokenizer</code>. We go in more depth about it in <a href="#tokenizersbackend-wraps-the-tokenizers-library" rel="nofollow">this section</a></p>
+</blockquote>
+<pre><code data-language="python">from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("google/gemma-3-270m-it")
+
+print(f"{tokenizer._tokenizer.normalizer=}")
+# Replace(...)
+
+print(f"{tokenizer._tokenizer.pre_tokenizer=}")
+# Split(...)
+
+print(f"{tokenizer._tokenizer.model=}")
+# BPE(...)
+
+print(f"{tokenizer._tokenizer.post_processor=}")
+# TemplateProcessing(...)
+
+print(f"{tokenizer._tokenizer.decoder=}")
+# Sequence(decoders=[Replace(...), ByteFallback(), Fuse()])
+</code></pre>
+<h2>
+	<a id="tokenization-algorithms" href="#tokenization-algorithms" rel="nofollow">
+		
+	</a>
+	<span>
+		Tokenization algorithms
+	</span>
+</h2>
+<p>The following algorithms dominate modern language model tokenizers:</p>
+<ol>
+<li><strong>Byte Pair Encoding (BPE)</strong> iteratively merges the most frequent character pairs. This algorithm is deterministic and widely used. (Read more about <a href="https://huggingface.co/learn/llm-course/en/chapter6/5">BPE</a>)</li>
+</ol>
+<pre><code data-language="python">from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("openai/gpt-oss-20b")
+print(tokenizer._tokenizer.model)
+
+# BPE(...)
+</code></pre>
+<ol start="2">
+<li><strong>Unigram</strong> takes a probabilistic approach, selecting the most likely segmentation from a large initial vocabulary. This is more flexible than the strict BPE. (Read more about <a href="https://huggingface.co/learn/llm-course/en/chapter6/7">Unigram</a>)</li>
+</ol>
+<pre><code data-language="python">from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("google-t5/t5-base")
+print(tokenizer._tokenizer.model)
+
+# Unigram(...)
+</code></pre>
+<ol start="3">
+<li><strong>WordPiece</strong> resembles BPE but uses different merge criteria based on likelihood. (Read more about <a href="https://huggingface.co/learn/llm-course/en/chapter6/6">WordPiece</a>)</li>
+</ol>
+<pre><code data-language="python">from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+print(tokenizer._tokenizer.model)
+
+# WordPiece(...)
+</code></pre>
+<h2>
+	<a id="accessing-tokenizers-through-transformers" href="#accessing-tokenizers-through-transformers" rel="nofollow">
+		
+	</a>
+	<span>
+		Accessing tokenizers through transformers
+	</span>
+</h2>
+<p>The <a href="https://github.com/huggingface/tokenizers" rel="nofollow"><code>tokenizers</code></a> library is a Rust-based tokenization engine. It is fast, efficient, and completely language model agnostic. The library handles the mechanics of converting text into token IDs and back. The <code>tokenizers</code> library is a general-purpose tool that implements the tokenization algorithms, but does not implement the conventions that connect those algorithms to specific language models.</p>
+<p>Consider what happens when you use <code>tokenizers</code> directly with the <a href="http://hf.co/HuggingFaceTB/SmolLM3-3B" rel="nofollow"><code>SmolLM3-3B</code></a> model:</p>
+<pre><code data-language="python">from tokenizers import Tokenizer
+
+tokenizer = Tokenizer.from_pretrained("HuggingFaceTB/SmolLM3-3B")
+text = "Hello world"
+encodings = tokenizer.encode(text)
+
+print(encodings.ids)
+# [9906, 1917]
+print(encodings.tokens)
+# ['Hello', 'Ġworld']
+</code></pre>
+<p>The output is raw tokenization. You get token IDs and the string pieces they correspond to. Nothing more.</p>
+<p>Now consider what's missing. The <code>SmolLM3-3B</code> is a <em>conversational model</em>. When you interact with it, you typically structure your input as a conversation with roles like "user" and "assistant". The language model expects special formatting tokens to indicate these roles. The raw <code>tokenizers</code> library has no concept of any of this.</p>
+<h3>
+	<a id="how-do-you-bridge-the-gap-between-raw-tokenization-and-model-requirements" href="#how-do-you-bridge-the-gap-between-raw-tokenization-and-model-requirements" rel="nofollow">
+		
+	</a>
+	<span>
+		How do you bridge the gap between raw tokenization and model requirements?
+	</span>
+</h3>
+<p>The <code>transformers</code> library bridges this gap. The library is primarily known as a model definition library, but it also provides a tokenizer abstraction layer that wraps the raw <code>tokenizers</code> backend and adds model-aware functionality.</p>
+<p>Here's the same tokenization with the <code>transformers</code> wrapper:</p>
+<pre><code data-language="python">from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM3-3B")
+
+# Format a conversation using the model's chat template
+prompt = "Give me a brief explanation of gravity in simple terms."
+messages = [{"role": "user", "content": prompt}]
+text = tokenizer.apply_chat_template(
+    messages,
+    tokenize=False,
+    add_generation_prompt=True,
+)
+
+print(text)
+
+# &lt;|im_start|&gt;system
+# ...
+# &lt;|im_start|&gt;user
+# Give me a brief explanation of gravity in simple terms.&lt;|im_end|&gt;
+# &lt;|im_start|&gt;assistant
+
+model_inputs = tokenizer([text], add_special_tokens=False, return_tensors="pt")
+</code></pre>
+<p>Notice how the special tokens like <code>&lt;|im_start|&gt;</code> and <code>&lt;|im_end|&gt;</code> are applied to the prompt before tokenizing. This is useful for the model to learn where a new sequence starts and ends.</p>
+<p>The <code>transformers</code> tokenizer adds everything the raw library lacks:</p>
+<ul>
+<li><strong>Chat template application.</strong> The <code>apply_chat_template</code> method formats conversations according to the model's expected format, inserting the correct special tokens and delimiters.  </li>
+<li><strong>Automatic special token insertion.</strong> Beginning-of-sequence and end-of-sequence tokens are added where the model expects them.  </li>
+<li><strong>Truncation to context length.</strong> You can specify <code>truncation=True</code> and the tokenizer will respect the model's maximum sequence length.  </li>
+<li><strong>Batch encoding with padding.</strong> Multiple inputs can be padded to the same length with the correct padding token and direction.  </li>
+<li><strong>Return format options.</strong> You can request PyTorch tensors (<code>return_tensors="pt"</code>), NumPy arrays and others.</li>
+</ul>
+<blockquote>
+<p><code>transformers</code> implements the tokenization API that is most commonly used in the entire ML community (<code>encode</code>, <code>decode</code>, <code>convert_tokens_to_ids</code>, etc.)</p>
+</blockquote>
+<h2>
+	<a id="the-tokenizer-class-hierarchy-in-transformers" href="#the-tokenizer-class-hierarchy-in-transformers" rel="nofollow">
+		
+	</a>
+	<span>
+		The tokenizer class hierarchy in transformers
+	</span>
+</h2>
+<p>The <code>transformers</code> library organizes tokenizers into a class hierarchy. At the top sits a base class that defines the common interface. Below it, backend classes handle the actual tokenization using different engines. At the bottom, model-specific classes configure the backends for particular models.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/tokenizers/hierarchy.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/tokenizers/hierarchy.png" alt="class hierarchy"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>The class hierarchy for tokenizers inside transformers</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="pretrainedtokenizerbase-defines-the-common-interface-for-all-tokenizers" href="#pretrainedtokenizerbase-defines-the-common-interface-for-all-tokenizers" rel="nofollow">
+		
+	</a>
+	<span>
+		<code>PreTrainedTokenizerBase</code> defines the common interface for all tokenizers
+	</span>
+</h3>
+<p><a href="https://github.com/huggingface/transformers/blob/7f52a2a4ea8ab49b7f069df7fac58a5b280d4919/src/transformers/tokenization_utils_base.py#L964C7" rel="nofollow"><code>PreTrainedTokenizerBase</code></a> is the abstract base class for all tokenizers in <code>transformers</code>. It defines the interface that every tokenizer must implement.</p>
+<p>The base class handles functionality that doesn't depend on the tokenization backend:</p>
+<ul>
+<li><strong>Special token properties.</strong> Properties like <code>bos_token</code>, <code>eos_token</code>, <code>pad_token</code>, and <code>unk_token</code> are defined here. These properties provide access to the special tokens that models use to mark sequence boundaries and handle unknown inputs.  </li>
+<li><strong>Encoding interface.</strong> The <code>__call__</code> method, <code>encode</code>, and <code>encode_plus</code> methods are defined here. These methods accept text input and return token IDs along with attention masks and other metadata.  </li>
+<li><strong>Decoding interface.</strong> The <code>decode</code> and <code>batch_decode</code> methods convert token IDs back to text.  </li>
+<li><strong>Serialization.</strong> The <code>save_pretrained</code> and <code>from_pretrained</code> methods handle downloading the correct files, reading information, saving tokenizers to disk etc.  </li>
+<li><strong>Chat template support.</strong> The <code>apply_chat_template</code> method lives here, formatting conversations according to Jinja templates stored in the tokenizer configuration.</li>
+</ul>
+<p>Every tokenizer in <code>transformers</code> ultimately inherits from <code>PreTrainedTokenizerBase</code>. The base class ensures consistent behavior across all tokenizers, regardless of which backend they use for the actual tokenization.</p>
+<h3>
+	<a id="tokenizersbackend-wraps-the-tokenizers-library" href="#tokenizersbackend-wraps-the-tokenizers-library" rel="nofollow">
+		
+	</a>
+	<span>
+		<code>TokenizersBackend</code> wraps the <code>tokenizers</code> library
+	</span>
+</h3>
+<p><a href="https://github.com/huggingface/transformers/blob/7f52a2a4ea8ab49b7f069df7fac58a5b280d4919/src/transformers/tokenization_utils_tokenizers.py#L80C7" rel="nofollow"><code>TokenizersBackend</code></a> is the primary backend class for most modern tokenizers. It inherits from <code>PreTrainedTokenizerBase</code> and wraps the Rust-based <code>tokenizers</code> library.</p>
+<p>The class stores the Rust tokenizer object internally:</p>
+<pre><code data-language="python">class TokenizersBackend(PreTrainedTokenizerBase):
+    def __init__(self, tokenizer_object, ...):
+        self._tokenizer = tokenizer_object  # The Rust tokenizer
+        ...
+</code></pre>
+<p>When you call encoding methods on a <code>TokenizersBackend</code> tokenizer, the class delegates the actual tokenization to the Rust backend:</p>
+<pre><code data-language="python">def _batch_encode_plus(self, batch_text_or_text_pairs, ...):
+    encodings = self._tokenizer.encode_batch(batch_text_or_text_pairs, ...)
+    ...
+</code></pre>
+<p>The Rust backend performs computationally intensive work, while the Python wrapper adds the model-aware features on top.</p>
+<p>Many model-specific tokenizers inherit from <code>TokenizersBackend</code>, examples include:</p>
+<ul>
+<li><code>LlamaTokenizer</code>  </li>
+<li><code>GemmaTokenizer</code></li>
+</ul>
+<p>These model-specific classes configure the backend with the correct vocabulary, merge rules, special tokens, and normalization settings for their respective models.</p>
+<h3>
+	<a id="pythonbackend-provides-a-pure-python-mixin" href="#pythonbackend-provides-a-pure-python-mixin" rel="nofollow">
+		
+	</a>
+	<span>
+		<code>PythonBackend</code> provides a pure-Python mixin
+	</span>
+</h3>
+<p><a href="https://github.com/huggingface/transformers/blob/7f52a2a4ea8ab49b7f069df7fac58a5b280d4919/src/transformers/tokenization_python.py#L400" rel="nofollow"><code>PythonBackend</code></a> inherits from <code>PreTrainedTokenizerBase</code> and implements tokenization in pure Python. The class is aliased as <a href="https://github.com/huggingface/transformers/blob/7f52a2a4ea8ab49b7f069df7fac58a5b280d4919/src/transformers/tokenization_python.py#L1400C1" rel="nofollow"><code>PreTrainedTokenizer</code></a>.</p>
+<p>The pure-Python backend exists for several reasons:</p>
+<ul>
+<li><strong>Custom tokenization logic.</strong> Some models require tokenization behavior that doesn't fit the standard <code>tokenizers</code> pipeline.  </li>
+<li><strong>Legacy compatibility.</strong> Older model implementations may rely on Python-specific behavior.</li>
+</ul>
+<blockquote>
+<p>The Python backend is slower than the Rust backend. For most use cases, the Rust-backed <code>TokenizersBackend</code> is preferred.</p>
+</blockquote>
+<p>Model-specific tokenizers that inherit from <code>PythonBackend</code> (or its alias <code>PreTrainedTokenizer</code>) include some older or specialized models, like:</p>
+<ul>
+<li><code>CTRLTokenizer</code>  </li>
+<li><code>CanineTokenizer</code></li>
+</ul>
+<h3>
+	<a id="sentencepiecebackend-handles-sentencepiece-models" href="#sentencepiecebackend-handles-sentencepiece-models" rel="nofollow">
+		
+	</a>
+	<span>
+		<code>SentencePieceBackend</code> handles SentencePiece models
+	</span>
+</h3>
+<p><a href="https://github.com/huggingface/transformers/blob/7f52a2a4ea8ab49b7f069df7fac58a5b280d4919/src/transformers/tokenization_utils_sentencepiece.py#L46" rel="nofollow"><code>SentencePieceBackend</code></a> inherits from <code>PythonBackend</code> and provides integration with Google's <a href="https://github.com/google/sentencepiece" rel="nofollow">SentencePiece</a> library. SentencePiece is a standalone tokenization library that many models use, particularly those trained by Google.</p>
+<p>The backend wraps a SentencePiece processor:</p>
+<pre><code data-language="python">class SentencePieceBackend(PythonBackend):
+    def __init__(self, vocab_file, ...):
+        self.sp_model = spm.SentencePieceProcessor()
+        self.sp_model.Load(vocab_file)
+        ...
+</code></pre>
+<p>Models that use SentencePiece tokenization inherit from this backend. Examples include:</p>
+<ul>
+<li><code>SiglipTokenizer</code>  </li>
+<li><code>BartphoTokenizer</code></li>
+</ul>
+<p>The SentencePiece backend inherits from <code>PythonBackend</code> rather than directly from <code>PreTrainedTokenizerBase</code> because it shares much of the same interface and padding/truncation logic.</p>
+<h2>
+	<a id="autotokenizer-automatically-selects-the-correct-tokenizer-class" href="#autotokenizer-automatically-selects-the-correct-tokenizer-class" rel="nofollow">
+		
+	</a>
+	<span>
+		AutoTokenizer automatically selects the correct tokenizer class
+	</span>
+</h2>
+<p><a href="https://github.com/huggingface/transformers/blob/7f52a2a4ea8ab49b7f069df7fac58a5b280d4919/src/transformers/models/auto/tokenization_auto.py#L531" rel="nofollow"><code>AutoTokenizer</code></a> is the recommended entry point for loading tokenizers. It automatically determines which tokenizer class to use for a given model and returns an instance of that class.</p>
+<pre><code data-language="python">from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+</code></pre>
+<p>Behind the scenes, <code>AutoTokenizer</code> performs these steps:</p>
+<ol>
+<li><strong>Download the tokenizer configuration.</strong> The <code>from_pretrained</code> method fetches <code>tokenizer_config.json</code> from the Hub (or from a local directory).  </li>
+<li><strong>Identify the model type.</strong> The configuration contains metadata that <a href="https://huggingface.co/openai-community/gpt2/blob/main/config.json#L12">identifies the model type</a> (e.g., "gpt2", "llama", "bert").  </li>
+<li><strong>Look up the tokenizer class.</strong> <code>AutoTokenizer</code> maintains a mapping called <a href="https://github.com/huggingface/transformers/blob/7f52a2a4ea8ab49b7f069df7fac58a5b280d4919/src/transformers/models/auto/tokenization_auto.py#L64" rel="nofollow"><code>TOKENIZER_MAPPING_NAMES</code></a> that maps model types to tokenizer class names:</li>
+</ol>
+<pre><code data-language="python">TOKENIZER_MAPPING_NAMES = {
+    "gpt2": "GPT2Tokenizer",
+    "llama": "LlamaTokenizer",
+    "bert": "BertTokenizer",
+    ...
+}
+</code></pre>
+<ol start="4">
+<li><strong>Instantiate the correct class.</strong> <code>AutoTokenizer</code> imports the appropriate tokenizer class and calls its <code>from_pretrained</code> method.  </li>
+<li><strong>Return the configured tokenizer.</strong> You receive a fully configured, model-specific tokenizer ready for use.</li>
+</ol>
+<blockquote>
+<p>The benefit of <code>AutoTokenizer</code> is that you don't need to know which tokenizer class a model uses. Whether a model uses <code>LlamaTokenizer</code>, <code>GPT2Tokenizer</code>, or <code>BertTokenizer</code>, the same <code>AutoTokenizer.from_pretrained("model-name")</code> call works.</p>
+</blockquote>
+<p>The tokenizer system in <code>transformers</code> forms a layered architecture:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Layer</th>
+<th>Component</th>
+<th>Responsibility</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Entry Point</td>
+<td><code>AutoTokenizer</code></td>
+<td>Automatically selects and instantiates the correct tokenizer class</td>
+</tr>
+<tr>
+<td>Model-Specific</td>
+<td><code>LlamaTokenizer</code>, <code>GPT2Tokenizer</code>, etc.</td>
+<td>Configures the backend with model-specific architecture of normalizer, pre tokenizer, etc, special tokens, and settings</td>
+</tr>
+<tr>
+<td>Backend</td>
+<td><code>TokenizersBackend</code>, <code>PythonBackend</code>, <code>SentencePieceBackend</code></td>
+<td>Implements the actual tokenization using a specific engine</td>
+</tr>
+<tr>
+<td>Base</td>
+<td><code>PreTrainedTokenizerBase</code></td>
+<td>Defines the common interface and shared functionality</td>
+</tr>
+<tr>
+<td>Engine</td>
+<td><code>tokenizers</code> (Rust), SentencePiece, Pure Python</td>
+<td>Performs raw tokenization</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="v5-separates-tokenizer-architecture-from-trained-vocab" href="#v5-separates-tokenizer-architecture-from-trained-vocab" rel="nofollow">
+		
+	</a>
+	<span>
+		v5 Separates Tokenizer Architecture from Trained Vocab
+	</span>
+</h2>
+<p>The most significant change in Transformers v5 is a philosophical shift in how tokenizers are defined. <strong>Tokenizers now work like PyTorch's <code>nn.Module</code></strong>: you define the architecture first, then fill it with learned parameters.</p>
+<h3>
+	<a id="the-problem-with-v4-tokenizers-were-opaque-and-tightly-coupled" href="#the-problem-with-v4-tokenizers-were-opaque-and-tightly-coupled" rel="nofollow">
+		
+	</a>
+	<span>
+		The problem with v4: tokenizers were opaque and tightly coupled
+	</span>
+</h3>
+<p>In v4, tokenizers were black boxes tied to pretrained checkpoint files. If you loaded <code>LlamaTokenizerFast</code>, you couldn't easily answer basic questions about it:</p>
+<ul>
+<li>Is it BPE or Unigram?  </li>
+<li>How does it normalize text?  </li>
+<li>What pre-tokenization strategy does it use?  </li>
+<li>What are the special tokens and their positions?</li>
+</ul>
+<p>The <code>__init__</code> method gave no clues. You had to dig through serialized files or external documentation to understand what the tokenizer actually did.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/tokenizers/v4-llama.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/tokenizers/v4-llama.png" alt="v4 llama"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>LlamaTokenizerFast</code> as seen in v4 <code>transformers</code></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>v4 also maintained two parallel implementations for every model:</p>
+<ol>
+<li>a "slow" Python tokenizer (<code>LlamaTokenizer</code> inheriting from <code>PreTrainedTokenizer</code>) and  </li>
+<li>a "fast" Rust-backed tokenizer (<code>LlamaTokenizerFast</code> inheriting from <code>PreTrainedTokenizerFast</code>).</li>
+</ol>
+<p>This meant:</p>
+<ul>
+<li><strong>Two files per model</strong> (e.g., <code>tokenization_llama.py</code> and <code>tokenization_llama_fast.py</code>)  </li>
+<li><strong>Code duplication</strong> across hundreds of models  </li>
+<li><strong>Behavioral discrepancies</strong> between slow and fast versions, leading to subtle bugs  </li>
+<li><strong>A growing test suite</strong> dedicated to verifying that slow and fast tokenizers produced identical outputs  </li>
+<li><strong>User confusion</strong> about which tokenizer to use and when</li>
+</ul>
+<p>Worst of all, you couldn't create an empty tokenizer architecture. If you wanted to train a LLaMA-style tokenizer on your own data, there was no clean way to instantiate a "blank" LLaMA tokenizer and fill it with your vocabulary and merges. Tokenizers existed only as loaded checkpoints, not as configurable templates.</p>
+<h3>
+	<a id="the-v5-solution-architecture-and-parameters-are-now-separate" href="#the-v5-solution-architecture-and-parameters-are-now-separate" rel="nofollow">
+		
+	</a>
+	<span>
+		The v5 solution: architecture and parameters are now separate
+	</span>
+</h3>
+<p>v5 treats tokenizer architecture (normalizer, pre-tokenizer, model type, post-processor, decoder) as distinct from trained parameters (vocabulary, merges). This mirrors how PyTorch separates model architecture from learned weights.</p>
+<p><strong>With <code>nn.Module</code>, you define layers first:</strong></p>
+<pre><code data-language="python">from torch import nn
+
+model = nn.Sequential(
+    nn.Embedding(vocab_size, embed_dim),
+    nn.Linear(embed_dim, hidden_dim),
+)
+# Architecture defined; weights initialized randomly or loaded later
+</code></pre>
+<p><strong>V5 tokenizers follow the same pattern:</strong></p>
+<pre><code data-language="python">from transformers import LlamaTokenizer
+
+# Instantiate the architecture
+tokenizer = LlamaTokenizer()
+
+# Train on your own data to fill in vocab and merges
+tokenizer.train(files=["my_corpus.txt"])
+</code></pre>
+<p>The tokenizer class now explicitly declares its structure. Looking at <code>LlamaTokenizer</code> in v5, you can immediately see:</p>
+<ul>
+<li><a href="https://github.com/huggingface/transformers/blob/0a8465420eecbac1c6d7dd9f45c08dd96b8c5027/src/transformers/models/llama/tokenization_llama.py#L92" rel="nofollow">It uses <strong>BPE</strong></a> as its tokenization model</li>
+<li>It may add a <strong>prefix space</strong> before text  </li>
+<li>Its special tokens (<code>unk</code>, <code>bos</code>, <code>eos</code>) sit at specific vocabulary positions  </li>
+<li><a href="https://github.com/huggingface/transformers/blob/0a8465420eecbac1c6d7dd9f45c08dd96b8c5027/src/transformers/models/llama/tokenization_llama.py#L121" rel="nofollow">It does <strong>not normalize</strong></a> input text  </li>
+<li><a href="https://github.com/huggingface/transformers/blob/0a8465420eecbac1c6d7dd9f45c08dd96b8c5027/src/transformers/models/llama/tokenization_llama.py#L122" rel="nofollow">Its decoder</a> replaces the metaspace character <code>▁</code> with spaces</li>
+</ul>
+<div>
+	<table>
+		<thead><tr>
+<th><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/tokenizers/v5-llama.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/tokenizers/v5-llama.png" alt="v5 llama"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>LlamaTokenizer</code> as seen in v5 <code>transformers</code></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>This transparency was impossible in v4, where the same information was buried in serialized files.</p>
+<h3>
+	<a id="one-file-one-backend-one-recommended-path" href="#one-file-one-backend-one-recommended-path" rel="nofollow">
+		
+	</a>
+	<span>
+		One file, one backend, one recommended path
+	</span>
+</h3>
+<p>v5 consolidates the two-file system <em>into a single file per model</em>. <code>LlamaTokenizer</code> now inherits from <code>TokenizersBackend</code>, which wraps the Rust-based tokenizer that was previously exposed as the “fast” implementation and is now the default.</p>
+<p>The former “slow” Python implementation lives explicitly behind <code>PythonBackend</code>, and <code>SentencePieceBackend</code> remains for models that require it, but <strong>Rust-backed tokenization is the preferred default</strong>.</p>
+<p>This change eliminates:</p>
+<ul>
+<li>Duplicate code across slow/fast implementations  </li>
+<li>The confusing <code>Tokenizer</code> vs <code>TokenizerFast</code> naming convention  </li>
+<li>Test suites dedicated to checking slow-fast parity</li>
+</ul>
+<p>Users now have one clear entry point. Advanced users who need to customize can still access lower-level components, but the library no longer forces everyone to navigate two parallel implementations.</p>
+<h3>
+	<a id="you-can-now-train-model-specific-tokenizers-from-scratch" href="#you-can-now-train-model-specific-tokenizers-from-scratch" rel="nofollow">
+		
+	</a>
+	<span>
+		You can now train model specific tokenizers from scratch
+	</span>
+</h3>
+<p>Suppose you want a tokenizer that behaves exactly like LLaMA's – same normalization, same pre-tokenization, same BPE model type – but trained on a domain-specific corpus (medical text, legal documents, a new language). In v4, this required manually reconstructing the tokenizer pipeline from low-level <code>tokenizers</code> library primitives. In v5, you can instantiate the architecture directly and call <code>train</code>:</p>
+<pre><code data-language="python">from transformers import LlamaTokenizer
+from datasets import load_dataset
+
+# Initialize blank tokenizer
+tokenizer = LlamaTokenizer()
+
+dataset = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
+
+def get_training_corpus():
+    batch = 1000
+    for i in range(0, len(dataset), batch):
+        yield dataset[i : i + batch]["text"]
+
+trained_tokenizer = tokenizer.train_new_from_iterator(
+    text_iterator=get_training_corpus(),
+    vocab_size=32000,
+    length=len(dataset),
+    show_progress=True,
+)
+
+trained_tokenizer.push_to_hub("my_custom_tokenizer")
+
+tokenizer = LlamaTokenizer.from_pretrained("my_custom_tokenizer")
+</code></pre>
+<p>The resulting tokenizer will have your custom vocabulary and merge rules, but will process text identically to how a standard LLaMA tokenizer would with the same whitespace handling, same special token conventions, same decoding behavior.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Aspect</th>
+<th>V4</th>
+<th>V5</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Files per model</td>
+<td>Two (<code>tokenization_X.py</code>, <code>tokenization_X_fast.py</code>)</td>
+<td>One (<code>tokenization_X.py</code>)</td>
+</tr>
+<tr>
+<td>Default backend</td>
+<td>Split between Python and Rust</td>
+<td>Rust (<code>TokenizersBackend</code>) preferred</td>
+</tr>
+<tr>
+<td>Architecture visibility</td>
+<td>Hidden in serialized files</td>
+<td>Explicit in class definition</td>
+</tr>
+<tr>
+<td>Training from scratch</td>
+<td>Required manual pipeline construction</td>
+<td><code>tokenizer.train(files=[...])</code></td>
+</tr>
+<tr>
+<td>Component inspection</td>
+<td>Difficult, undocumented</td>
+<td>Direct properties (<code>tokenizer.normalizer</code>, etc.)</td>
+</tr>
+<tr>
+<td>Parent classes</td>
+<td><code>PreTrainedTokenizer</code>, <code>PreTrainedTokenizerFast</code></td>
+<td><code>TokenizersBackend</code> (or <code>SentencePieceBackend</code>, <code>PythonBackend</code>)</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The shift from "tokenizers as loaded checkpoints" to "tokenizers as configurable architectures" makes the library more modular, more transparent, and more aligned with how practitioners think about building ML systems.</p>
+<h2>
+	<a id="summary" href="#summary" rel="nofollow">
+		
+	</a>
+	<span>
+		Summary
+	</span>
+</h2>
+<p>Transformers v5 brings three improvements to tokenization:</p>
+<ol>
+<li><strong>One file per model</strong> instead of separate slow/fast implementations  </li>
+<li><strong>Visible architecture</strong> so you can inspect normalizers, pre-tokenizers, and decoders  </li>
+<li><strong>Trainable templates</strong> that let you create custom tokenizers matching any model's design</li>
+</ol>
+<p>The wrapper layer between <code>tokenizers</code> and Transformers remains essential. It adds model awareness, context lengths, chat templates, special tokens, that raw tokenization doesn't provide. V5 just makes that layer clearer and more customizable.</p>
+<p>If you are looking to learn more about tokenization here are some resources:</p>
+<ul>
+<li><a href="https://youtu.be/zduSFxRajkE?si=ZAfCjZjpyPHsnyfF" rel="nofollow">Let's build the GPT Tokenizer</a></li>
+<li><a href="https://huggingface.co/blog/qgallouedec/gotchas-in-tokenizer-behavior">Gotchas in Tokenizer Behavior Every Developer Should Know</a></li>
+<li><a href="https://huggingface.co/blog/chat-templates">Chat Templates</a></li>
+<li><a href="https://x.com/ariG23498/status/1999058214906888237" rel="nofollow">A list of resources we have gathered from the community!</a></li>
+</ul>
+</div></div>
