@@ -1,0 +1,177 @@
+<div id="readability-page-1" class="page"><div>
+<p>Last November, we introduced <a href="https://huggingface.co/blog/anylanguagemodel">AnyLanguageModel</a> on this blog:
+a drop-in replacement for Apple's Foundation Models framework
+that lets you choose the model and provider your app uses.
+We heard from app developers who were curious about local models
+but weren't always sure how to get started.
+They also wanted to avoid the added complexity
+of supporting multiple inference providers.
+AnyLanguageModel grew out of that feedback.</p>
+<p>Local and hosted inference each have their strengths,
+and both have a role in building this new generation of intelligent apps.
+A shared API makes it easier to choose the right model for each task.</p>
+<p>A year and dozens of releases later,
+<a href="https://github.com/huggingface/AnyLanguageModel/releases/tag/1.0.0" rel="nofollow">AnyLanguageModel 1.0</a> is out,
+along with <a href="https://github.com/huggingface/swift-huggingface/releases/tag/1.0.0" rel="nofollow">swift-huggingface 1.0</a>
+and <a href="https://github.com/huggingface/swift-xet/releases/tag/1.0.0" rel="nofollow">swift-xet 1.0</a>.</p>
+<p>Here's what changed, and what's next:</p>
+<h2>
+	<a id="a-drop-in-compatible-api" href="#a-drop-in-compatible-api" rel="nofollow">
+		
+	</a>
+	<span>
+		A drop-in compatible API
+	</span>
+</h2>
+<p>The core idea of AnyLanguageModel remains the same:
+use the Foundation Models API with the model that fits your app.
+To get started, change your <code>import</code> statement:</p>
+<pre><code data-language="diff">- import FoundationModels
++ import AnyLanguageModel
+</code></pre>
+<p>The same session code then works with the system model,
+with open-weight models through llama.cpp, MLX, and Core ML,
+and with the hosted providers below.</p>
+<p>Over the past year, we've added several major features:</p>
+<ul>
+<li><strong>Tool calling</strong> works with every provider.</li>
+<li><strong>Guided generation</strong> works with every provider, too,
+including nested <code>@Generable</code> types and arrays of them.</li>
+<li><strong>Image support</strong> lets you attach images to prompts
+using Foundation Models 27's syntax,
+including when you use the system model on iOS, macOS, and visionOS 27.</li>
+</ul>
+<p>On OS 27, AnyLanguageModel also works with
+any model that conforms to Foundation Models' <code>LanguageModel</code> protocol,
+including <a href="https://github.com/apple/coreai-models" rel="nofollow">Core AI</a> models.</p>
+<p>Alongside AnyLanguageModel, we've built out
+<a href="https://github.com/huggingface/swift-huggingface" rel="nofollow">swift-huggingface</a>
+and <a href="https://github.com/huggingface/swift-xet" rel="nofollow">swift-xet</a>
+to bring accelerated model downloads from the Hub to Swift apps.</p>
+<h2>
+	<a id="hosted-models-too" href="#hosted-models-too" rel="nofollow">
+		
+	</a>
+	<span>
+		Hosted models, too
+	</span>
+</h2>
+<p>Support for hosted models expanded this year, too.
+AnyLanguageModel now supports:</p>
+<ul>
+<li>OpenAI's Chat Completions and Responses APIs</li>
+<li><a href="https://www.openresponses.org" rel="nofollow">Open Responses</a>,
+for any provider with a compatible endpoint</li>
+<li>Anthropic's Messages API, with adaptive thinking and effort options</li>
+<li>Google's Gemini API</li>
+<li>Ollama</li>
+<li>Private Cloud Compute, on OS 27</li>
+<li><a href="https://huggingface.co/docs/inference-providers/index">Hugging Face Inference Providers</a>,
+and other OpenAI-compatible endpoints such as OpenRouter,
+through a custom base URL</li>
+</ul>
+<p>With Inference Providers,
+you can use open-weight models that are too big to run on the device
+with the same session code:</p>
+<pre><code data-language="swift">let model = OpenAILanguageModel(
+    baseURL: URL(string: "https://router.huggingface.co/v1/")!,
+    apiKey: ProcessInfo.processInfo.environment["HF_TOKEN"]!,
+    model: "openai/gpt-oss-120b",
+    apiVariant: .chatCompletions
+)
+</code></pre>
+<p>Hosted providers get the same features as local models:
+guided generation, tool calling with streaming,
+and token usage on responses.</p>
+<p>Reasoning is now part of the transcript too.
+When you switch providers,
+reasoning blocks are automatically omitted from requests if the new provider can't replay them.</p>
+<p>API keys come from a closure instead of a string,
+so your app can fetch short-lived tokens from your own server.
+The <a href="https://github.com/huggingface/AnyLanguageModel#api-credentials-and-security" rel="nofollow">README</a>
+explains when to let people bring their own keys
+and when to route requests through a proxy.</p>
+<p>AnyLanguageModel also runs on Linux,
+so the same code can work on a server.</p>
+<h2>
+	<a id="open-weight-models-got-better" href="#open-weight-models-got-better" rel="nofollow">
+		
+	</a>
+	<span>
+		Open-weight models got better
+	</span>
+</h2>
+<p>While we've made local models easier to use,
+the models themselves have become more capable,
+making the small ones a good place to start.
+Here are some of the most downloaded models on the Hub right now:</p>
+<ul>
+<li><a href="https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf">Gemma 4 E2B</a> from Google,
+in GGUF, about 3.4 GB at <code>Q4_0</code> with quantization-aware training.</li>
+<li><a href="https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF">LFM2.5 2.6B</a> from Liquid AI,
+in GGUF, about 1.7 GB at <code>Q4_K_M</code>.</li>
+<li><a href="https://huggingface.co/mlx-community/Qwen3.8-27B-4bit">Qwen3.8 27B for MLX</a> from Alibaba,
+about 16 GB at 4 bits.</li>
+</ul>
+<p>The first two fit on an iPhone,
+and Qwen3.8 27B runs on a Mac with 32 GB of memory or more.
+Selecting the MLX model takes one line:</p>
+<pre><code data-language="swift">let model = MLXLanguageModel(modelId: "mlx-community/Qwen3.8-27B-4bit")
+</code></pre>
+<p>And if you have four maxed-out Mac Studios handy,
+<a href="https://huggingface.co/zai-org/GLM-5.3">GLM-5.3</a> from Z.ai takes about 1.5 TB in BF16.
+For the rest of us, it's available through Inference Providers.</p>
+<h2>
+	<a id="upgrading-to-10" href="#upgrading-to-10" rel="nofollow">
+		
+	</a>
+	<span>
+		Upgrading to 1.0
+	</span>
+</h2>
+<pre><code data-language="swift">dependencies: [
+    .package(
+        url: "https://github.com/huggingface/AnyLanguageModel",
+        from: "1.0.0",
+        traits: ["MLX"]
+    )
+]
+</code></pre>
+<p>If you're upgrading an existing app, see the migration guidance in the
+<a href="https://github.com/huggingface/AnyLanguageModel/releases/tag/1.0.0" rel="nofollow">AnyLanguageModel</a>,
+<a href="https://github.com/huggingface/swift-huggingface/releases/tag/1.0.0" rel="nofollow">swift-huggingface</a>,
+and <a href="https://github.com/huggingface/swift-xet/releases/tag/1.0.0" rel="nofollow">swift-xet</a> release notes
+for help updating your code.</p>
+<p>Community feedback and contributions have shaped several of our major features.
+Thank you to <a href="https://github.com/huggingface/AnyLanguageModel/graphs/contributors" rel="nofollow">everyone who contributed</a>
+for helping make AnyLanguageModel more useful to app developers.</p>
+<h2>
+	<a id="whats-next" href="#whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		What's next
+	</span>
+</h2>
+<p>Language models have proven to be a powerful tool
+for building intelligence into products.
+They're also one of many kinds of models developers can put to work.
+We're excited to bring the same approach to more capabilities:
+familiar Swift APIs with a choice of models running on the device.
+Coming soon: models that decide, and models that listen.</p>
+<h2>
+	<a href="#links" rel="nofollow">
+		
+	</a>
+	<span>
+		Links
+	</span>
+</h2>
+<ul>
+<li><a href="https://github.com/huggingface/AnyLanguageModel" rel="nofollow">AnyLanguageModel on GitHub</a></li>
+<li><a href="https://github.com/huggingface/swift-huggingface" rel="nofollow">swift-huggingface on GitHub</a></li>
+<li><a href="https://github.com/huggingface/swift-xet" rel="nofollow">swift-xet on GitHub</a></li>
+<li><a href="https://huggingface.co/blog/anylanguagemodel">Introducing AnyLanguageModel</a></li>
+<li><a href="https://huggingface.co/blog/swift-huggingface">Introducing swift-huggingface</a></li>
+</ul>
+</div></div>

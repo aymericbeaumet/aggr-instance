@@ -1,0 +1,404 @@
+<div id="readability-page-1" class="page"><div>
+<p>If you run models on your Mac or use MPS as your primary acceleration tool for computing, there's plenty to look forward to in PyTorch 2.15! FP8 arrives on MPS, language-model decoding gets faster paths through linear layers and softmax and new Metal kernels tackle some surprisingly expensive parts of audio, video and training workloads.</p>
+<p>A quick word about who we are: we're the PyTorch team at Hugging Face. We contribute across PyTorch, and one of our focus areas is the MPS backend, where the goal is to make your Mac a first-class place to run and train PyTorch models. At the start of 2026, running even small models on MPS often meant working around unsupported operations, performance cliffs and unexpected memory growth. So we run real models from the Hugging Face Hub across language, image and video, find where MPS falls short and fix it upstream in PyTorch, more and more often by replacing MPSGraph with dedicated Metal kernels. Much of this post is the result of that work, done together with the PyTorch maintainers and community contributors.</p>
+<h2>
+	<a id="tldr" href="#tldr" rel="nofollow">
+		
+	</a>
+	<span>
+		TL;DR
+	</span>
+</h2>
+<ul>
+<li><strong>FP8 comes to the Mac:</strong> store <code>float8_e4m3fn</code> values in half the space of BF16 and use scaled matrix multiplication and all other ops which are supported on CUDA/CPU!</li>
+<li><strong>MoE models decode 5–6.5× faster than in 2.14:</strong> Qwen3.6-35B-A3B goes from 9.4 to 61.3 tokens/s on an M3 Ultra, thanks to a native grouped matmul with a dedicated decoding path, fewer GPU-CPU syncs and faster top-k routing.</li>
+<li><strong>Less time per token for every LLM:</strong> single-row linear layers use specialized matrix-vector kernels, and softmax over the vocabulary is about 8× faster.</li>
+<li><strong>More linear algebra on the GPU:</strong> complex LU and triangular solves, faster small-matrix inverses, and faster QR decomposition.</li>
+<li><strong>Audio, video, and training get attention too:</strong> faster paths for convolutions, padding, dropout, interpolation backward and reductions. Wan2.2's video VAE decode now peaks at 8 GiB of memory instead of 270 GiB.</li>
+<li><strong>More control from Python:</strong> public MPS streams and more reliable event timing.</li>
+<li><strong>Updated requirements:</strong> MPS now requires <strong>macOS 15 or later</strong>; PyTorch 2.15 requires <strong>Python 3.11 or later</strong>.</li>
+<li><strong>A peek at 2.16:</strong> attention fully on Metal, more MPSGraph-to-Metal migrations and faster LLM decoding.</li>
+</ul>
+<h2>
+	<a id="what-this-means-for-you" href="#what-this-means-for-you" rel="nofollow">
+		
+	</a>
+	<span>
+		What this means for you
+	</span>
+</h2>
+<p>If you run models on a Mac with transformers, diffusers or tools like ComfyUI, here's what 2.15 changes in practice:</p>
+<ul>
+<li><strong>Much faster local LLMs.</strong> Mixture-of-experts models decode 5–6.5× faster than in 2.14: on an M3 Ultra with <code>torch.compile</code>, Qwen3.6-35B-A3B goes from 9.4 to 61.3 tokens/s and LFM2.5-8B-A1B from 23.6 to 123.6 tokens/s. Dense models benefit too, from faster linear layers and an 8× faster softmax for sampling. (<a href="#faster-language-model-decoding" rel="nofollow">More</a>)</li>
+<li><strong>Video generation that fits in memory.</strong> Decoding a video with Wan2.2's tiled VAE used to push driver memory to 270 GiB; it now peaks at about 8 GiB. (<a href="#a-much-smaller-memory-footprint-for-video-decoding" rel="nofollow">More</a>)</li>
+<li><strong>Correct image editing with Qwen-Image-2.1.</strong> On 2.14, the Qwen-Image-2.1 VAE encoder silently corrupted images on MPS, breaking image-edit workflows (<a href="https://github.com/Comfy-Org/ComfyUI/issues/16433" rel="nofollow">reported in ComfyUI</a>). The <a href="https://github.com/pytorch/pytorch/pull/195368" rel="nofollow">same padding change</a> fixes it: an encode-decode round trip now matches CPU at 29.95 dB PSNR, up from 10.06 dB.</li>
+<li><strong>FP8 weights on your Mac.</strong> FP8 tensors take half the memory of BF16, and <code>F.scaled_mm</code> multiplies them directly on the GPU. (<a href="#fp8-comes-to-mps" rel="nofollow">More</a>)</li>
+</ul>
+<h2>
+	<a id="contents" href="#contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#getting-started" rel="nofollow">Getting started</a></li>
+<li><a href="#fp8-comes-to-mps" rel="nofollow">FP8 comes to MPS</a></li>
+<li><a href="#faster-language-model-decoding" rel="nofollow">Faster language-model decoding</a></li>
+<li><a href="#linear-algebra-gets-a-boost" rel="nofollow">Linear algebra gets a boost</a></li>
+<li><a href="#convolutions-padding-and-training" rel="nofollow">Convolutions, padding, and training</a></li>
+<li><a href="#softmax-and-reductions" rel="nofollow">Softmax and reductions</a></li>
+<li><a href="#a-much-smaller-memory-footprint-for-video-decoding" rel="nofollow">A much smaller memory footprint for video decoding</a></li>
+<li><a href="#more-control-with-mps-streams" rel="nofollow">More control with MPS streams</a></li>
+<li><a href="#more-operations-work-on-mps" rel="nofollow">More operations work on MPS</a></li>
+<li><a href="#a-sneak-peek-at-pytorch-216" rel="nofollow">A sneak peek at PyTorch 2.16</a></li>
+<li><a href="#wrapping-up" rel="nofollow">Wrapping up</a></li>
+</ul>
+<h2>
+	<a id="getting-started" href="#getting-started" rel="nofollow">
+		
+	</a>
+	<span>
+		Getting started
+	</span>
+</h2>
+<p>You'll need an Apple silicon Mac with <strong>macOS 15 or later</strong> and <strong>Python 3.11 or later</strong> (see the <a href="https://github.com/pytorch/pytorch/blob/release/2.15/RELEASE.md#release-compatibility-matrix" rel="nofollow">2.15 compatibility matrix</a>). If your OS is too old or no Metal GPU is available, the MPS availability check now tells you why.</p>
+<p>To try the release candidate in a separate environment:</p>
+<pre><code data-language="bash">uv pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/test/cpu
+</code></pre>
+<h2>
+	<a id="fp8-comes-to-mps" href="#fp8-comes-to-mps" rel="nofollow">
+		
+	</a>
+	<span>
+		FP8 comes to MPS
+	</span>
+</h2>
+<p>FP8 gives you another way to save memory on your Mac. PyTorch 2.15 adds <a href="https://github.com/pytorch/pytorch/pull/194074" rel="nofollow"><code>torch.float8_e4m3fn</code></a> tensors on MPS: one byte per value, half the storage of FP16 or BF16.</p>
+<p>You can multiply these tensors with <a href="https://github.com/pytorch/pytorch/pull/196916" rel="nofollow"><code>F.scaled_mm</code></a>, which supports both tensorwise and rowwise scaling. Here's a small example with one scale per tensor:</p>
+<pre><code data-language="python">import torch
+import torch.nn.functional as F
+
+def quantize_fp8(x):
+    limit = torch.finfo(torch.float8_e4m3fn).max
+    scale = x.abs().amax().clamp_min(1e-12) / limit
+    return (x / scale).to(torch.float8_e4m3fn), scale
+
+x = torch.randn(1, 1024, device="mps", dtype=torch.float32)
+weight = torch.randn(1024, 1024, device="mps", dtype=torch.float32)
+x_fp8, x_scale = quantize_fp8(x)
+w_fp8, w_scale = quantize_fp8(weight)
+
+y = F.scaled_mm(
+    x_fp8,
+    w_fp8.t(),
+    scale_a=x_scale,
+    scale_recipe_a=F.ScalingType.TensorWise,
+    scale_b=w_scale,
+    scale_recipe_b=F.ScalingType.TensorWise,
+    output_dtype=torch.bfloat16,
+)
+print(y.shape, y.dtype)
+</code></pre>
+<h2>
+	<a id="faster-language-model-decoding" href="#faster-language-model-decoding" rel="nofollow">
+		
+	</a>
+	<span>
+		Faster language-model decoding
+	</span>
+</h2>
+<p>Every LLM has a prefill phase and a decode phase. During decode, each new token goes through the model as a single row, so the big matrix multiplications turn into matrix-vector products. PyTorch 2.15 speeds up both kinds of layers that dominate this step: dense linear layers and mixture-of-experts layers.</p>
+<h3>
+	<a id="linear-layers" href="#linear-layers" rel="nofollow">
+		
+	</a>
+	<span>
+		Linear layers
+	</span>
+</h3>
+<p>MPS has had GEMV kernels for <code>torch.mm</code> since 2.14, but <code>F.linear</code> still went through MPSGraph. PyTorch 2.15 <a href="https://github.com/pytorch/pytorch/pull/198721" rel="nofollow">connects them to <code>F.linear</code></a>, so the common <code>[1, 1, hidden_size]</code> decoding input uses them directly, with eligible bias additions fused in. Across 96 BF16 layer shapes from real models, that's a <strong>1.23× geometric-mean speedup</strong>. The biggest wins land on small projections, such as the gates in MoE models, where the old path left most of the memory bandwidth unused. Large layers and LM heads were already close to bandwidth-bound, so they stay near 1×.</p>
+<h3>
+	<a id="mixture-of-experts-layers" href="#mixture-of-experts-layers" rel="nofollow">
+		
+	</a>
+	<span>
+		Mixture-of-experts layers
+	</span>
+</h3>
+<p>A mixture-of-experts layer sends different numbers of tokens to each expert. Grouped matmul handles those uneven groups in a single operation, and 2.15 gives MPS a <a href="https://github.com/pytorch/pytorch/pull/194933" rel="nofollow">native implementation</a>.</p>
+<p>In 2.14, grouped matmul copied the group offsets to the CPU and looped over the groups. The new Metal kernels read the offsets directly on the GPU, using Metal Performance Primitives where available and a separate Metal path elsewhere. Small groups, the common case during decoding, get <a href="https://github.com/pytorch/pytorch/pull/198725" rel="nofollow">their own kernel</a> as well.</p>
+<p>For example, 64 tokens can be split into groups of 16, 32, and 16:</p>
+<pre><code data-language="python">import torch
+import torch.nn.functional as F
+
+tokens = torch.randn(64, 64, device="mps", dtype=torch.bfloat16)
+weights = torch.randn(3, 128, 64, device="mps", dtype=torch.bfloat16)
+ends = torch.tensor([16, 48, 64], device="mps", dtype=torch.int32)
+
+out = F.grouped_mm(tokens, weights.transpose(-2, -1), offs=ends)
+print(out.shape)  # torch.Size([64, 128])
+</code></pre>
+<p>The decoding kernel shows up directly in token throughput. On an <strong>M3 Ultra with <code>torch.compile</code></strong>, MoE models generate about <strong>1.3× more tokens per second</strong>:</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/mps-pytorch-2-15/moe-decode-throughput.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/mps-pytorch-2-15/moe-decode-throughput.png" alt="Bar chart of MoE decoding throughput on M3 Ultra with torch.compile. Qwen3.6-35B-A3B goes from 38.7 to 51.7 tokens/s at context 512 and 36.8 to 48.7 at context 2048; LFM2.5-8B-A1B goes from 77.1 to 103.2 and 74.9 to 98.7 tokens/s."></a></p>
+<h2>
+	<a id="linear-algebra-gets-a-boost" href="#linear-algebra-gets-a-boost" rel="nofollow">
+		
+	</a>
+	<span>
+		Linear algebra gets a boost
+	</span>
+</h2>
+<h3>
+	<a id="complex-valued-computations" href="#complex-valued-computations" rel="nofollow">
+		
+	</a>
+	<span>
+		Complex-valued computations
+	</span>
+</h3>
+<p>Working with complex tensors gets easier. <code>complex64</code> <a href="https://github.com/pytorch/pytorch/pull/188473" rel="nofollow">LU factorization</a>, <a href="https://github.com/pytorch/pytorch/pull/195369" rel="nofollow">LU solve</a> and <a href="https://github.com/pytorch/pytorch/pull/195861" rel="nofollow">triangular solve</a> now run on MPS, which also unlocks the operations and gradients built on them, such as complex determinants. Here's a small system solved directly on the GPU:</p>
+<pre><code data-language="python">import torch
+
+a = torch.randn(8, 8, device="mps", dtype=torch.complex64)
+a = a + 8 * torch.eye(8, device="mps", dtype=torch.complex64)
+b = torch.randn(8, 2, device="mps", dtype=torch.complex64)
+
+lu, pivots = torch.linalg.lu_factor(a)
+x = torch.linalg.lu_solve(lu, pivots, b)
+print((a @ x - b).abs().max().item())
+</code></pre>
+<h3>
+	<a id="small-matrices-and-larger-solves" href="#small-matrices-and-larger-solves" rel="nofollow">
+		
+	</a>
+	<span>
+		Small matrices and larger solves
+	</span>
+</h3>
+<p>Small matrices get fast kernels too. For camera geometry and image transformations, batches of FP32 matrices up to <strong>4 × 4</strong> are <a href="https://github.com/pytorch/pytorch/pull/195944" rel="nofollow">inverted in a single Metal kernel</a> that combines factorization and solving. Larger problems get attention as well: <a href="https://github.com/pytorch/pytorch/pull/198732" rel="nofollow">QR uses blocked updates</a>, and <a href="https://github.com/pytorch/pytorch/pull/196241" rel="nofollow">triangular solves</a> turn much of their work into efficient matrix multiplication.</p>
+<p>Gated DeltaNet workloads get a <a href="https://github.com/pytorch/pytorch/pull/196900" rel="nofollow">dedicated fast path</a> for batches of <strong>16 × 16, 32 × 32 and 64 × 64 FP32 triangular systems</strong> with at least eight right-hand sides.</p>
+<p>SVD is also more robust at numerical extremes. It now correctly handles <a href="https://github.com/pytorch/pytorch/pull/200920" rel="nofollow">very small singular values</a>, <a href="https://github.com/pytorch/pytorch/pull/201037" rel="nofollow">very large or very small input magnitudes</a> and <a href="https://github.com/pytorch/pytorch/pull/201198" rel="nofollow">basis completion with <code>full_matrices=True</code></a>, which in turn makes pseudoinverse and least-squares results more reliable.</p>
+<h2>
+	<a id="convolutions-padding-and-training" href="#convolutions-padding-and-training" rel="nofollow">
+		
+	</a>
+	<span>
+		Convolutions, padding, and training
+	</span>
+</h2>
+<p>Audio models, video decoders and training loops have their own expensive operations. This release gives several of them new paths through Metal:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Operation</th>
+<th>What changes in 2.15</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://github.com/pytorch/pytorch/pull/198878" rel="nofollow"><code>conv1d</code> forward</a></td>
+<td>Specialized kernels replace MPSGraph, plus an im2col-plus-matmul path for short outputs. Useful for audio and streaming-model shapes.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/pytorch/pytorch/pull/195368" rel="nofollow">Constant padding</a></td>
+<td>Moves to Metal kernels, fixing runaway driver-memory growth in tiled video VAE decoding (more below).</td>
+</tr>
+<tr>
+<td><a href="https://github.com/pytorch/pytorch/pull/196985" rel="nofollow">Reflection and replication padding</a></td>
+<td>New Metal implementations that are faster and fix backward correctness.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/pytorch/pytorch/pull/195011" rel="nofollow">Out-of-place dropout</a></td>
+<td><code>nn.Dropout</code> and <code>F.dropout</code> now use the existing fused kernel.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/pytorch/pytorch/pull/199687" rel="nofollow">Upsampling backward</a></td>
+<td>A Metal gather kernel replaces the MPSGraph resize-gradient path.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/pytorch/pytorch/pull/193623" rel="nofollow">Channels-last <code>conv2d</code> backward</a></td>
+<td>Stays on an efficient channels-last path instead of an NCHW graph with costly strided access.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="softmax-and-reductions" href="#softmax-and-reductions" rel="nofollow">
+		
+	</a>
+	<span>
+		Softmax and reductions
+	</span>
+</h2>
+<p>Token sampling gets faster in 2.15 as well. <a href="https://github.com/pytorch/pytorch/pull/196071" rel="nofollow"><code>softmax</code></a> and <a href="https://github.com/pytorch/pytorch/pull/195441" rel="nofollow"><code>log_softmax</code></a> now run on dedicated Metal kernels, and large vocabularies benefit the most: an FP32 softmax over a <code>[1, 128256]</code> row of logits drops from <strong>57 µs to 7 µs</strong>, about <strong>8× faster</strong> than the MPSGraph version. The speedup holds across other common vocabulary sizes:</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/mps-pytorch-2-15/softmax-sampling.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/mps-pytorch-2-15/softmax-sampling.png" alt="Bar chart of FP32 softmax time for a single row of logits at five vocabulary sizes from 128,256 to 201,088. MPSGraph takes 50 to 74 microseconds; the Metal kernel takes 7 to 10 microseconds, a 7.1x to 8.0x speedup."></a></p>
+<h2>
+	<a id="a-much-smaller-memory-footprint-for-video-decoding" href="#a-much-smaller-memory-footprint-for-video-decoding" rel="nofollow">
+		
+	</a>
+	<span>
+		A much smaller memory footprint for video decoding
+	</span>
+</h2>
+<p>One of the most striking results in this release comes from the constant-padding change. The VAE decode in <code>Wan-AI/Wan2.2-TI2V-5B-Diffusers</code> makes <strong>8,764 padding calls</strong> over a full 28-tile decode. With padding on Metal, peak driver memory drops from about <strong>270 GiB to 8 GiB</strong>:</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/mps-pytorch-2-15/wan-vae-memory.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/mps-pytorch-2-15/wan-vae-memory.png" alt="Stacked bar chart of peak driver memory during the Wan2.2 tiled VAE decode. With MPSGraph padding, 8.07 GiB of allocator-reserved memory plus 262 GiB outside the allocator gives 270.1 GiB; with Metal padding the total is 8.1 GiB."></a></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Memory metric</th>
+<th>MPSGraph padding</th>
+<th>Metal padding</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Current tensor-allocation peak</td>
+<td>4.422 GiB</td>
+<td>4.095 GiB</td>
+</tr>
+<tr>
+<td>Allocator-reserved peak</td>
+<td>8.070 GiB</td>
+<td>8.070 GiB</td>
+</tr>
+<tr>
+<td>Total driver-memory peak</td>
+<td>270.135 GiB</td>
+<td>8.108 GiB</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="more-control-with-mps-streams" href="#more-control-with-mps-streams" rel="nofollow">
+		
+	</a>
+	<span>
+		More control with MPS streams
+	</span>
+</h2>
+<p>You can now pick which MPS stream runs your work, directly from Python. <a href="https://github.com/pytorch/pytorch/pull/191415" rel="nofollow"><code>torch.mps.Stream</code> and the <code>torch.mps.stream</code> context manager</a> provide the interface, and <a href="https://github.com/pytorch/pytorch/pull/193464" rel="nofollow"><code>Tensor.record_stream</code></a> lets the allocator track a tensor's use on another stream.</p>
+<p>Here's a small example that sends work to a separate stream and synchronizes before reading the result:</p>
+<pre><code data-language="python">import torch
+
+x = torch.randn(1024, device="mps")
+torch.mps.synchronize()
+worker = torch.mps.Stream()
+
+with torch.mps.stream(worker):
+    y = x.square()
+    x.record_stream(worker)
+
+del x
+worker.synchronize()
+print(y.cpu().shape)
+</code></pre>
+<h2>
+	<a id="more-operations-work-on-mps" href="#more-operations-work-on-mps" rel="nofollow">
+		
+	</a>
+	<span>
+		More operations work on MPS
+	</span>
+</h2>
+<p>Several more operations now run on MPS: <a href="https://github.com/pytorch/pytorch/pull/194110" rel="nofollow"><code>torch.frexp</code></a>, <a href="https://github.com/pytorch/pytorch/pull/190495" rel="nofollow"><code>torch.logspace</code></a>, <a href="https://github.com/pytorch/pytorch/pull/192980" rel="nofollow"><code>torch.take</code> and <code>Tensor.put_</code></a>, <a href="https://github.com/pytorch/pytorch/pull/195265" rel="nofollow"><code>torch.heaviside</code></a>, <a href="https://github.com/pytorch/pytorch/pull/195225" rel="nofollow"><code>torch.special.laguerre_polynomial_l</code></a> and <a href="https://github.com/pytorch/pytorch/pull/198860" rel="nofollow">unsigned-integer comparisons</a>. <code>logspace</code> doesn't yet support integer or boolean outputs with more than one element.</p>
+<p>Attention gets a correctness fix too: the MPS math implementation of scaled dot-product attention now <a href="https://github.com/pytorch/pytorch/pull/189631" rel="nofollow">handles batch and head broadcasting correctly</a>.</p>
+<h2>
+	<a id="a-sneak-peek-at-pytorch-216" href="#a-sneak-peek-at-pytorch-216" rel="nofollow">
+		
+	</a>
+	<span>
+		A sneak peek at PyTorch 2.16
+	</span>
+</h2>
+<p>Work on 2.16 is already well underway. Some of the changes below have landed on <code>main</code> and are available in the nightlies; others are still in review, so details may change before the release.</p>
+<h3>
+	<a id="faster-llm-decoding" href="#faster-llm-decoding" rel="nofollow">
+		
+	</a>
+	<span>
+		Faster LLM decoding
+	</span>
+</h3>
+<p>Once a model's decode path no longer contains any MPSGraph ops, the GPU only starts on a token after the CPU has finished encoding all of its kernels. PyTorch 2.16 <a href="https://github.com/pytorch/pytorch/pull/200181" rel="nofollow">commits the command buffer every 16 kernels</a>, so the GPU gets to work while the CPU is still encoding the rest. For compiled BF16 decoding at a 2048-token context:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Before</th>
+<th>After</th>
+<th>Change</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>LFM2.5-8B-A1B</td>
+<td>108.8 tokens/s</td>
+<td>126.0 tokens/s</td>
+<td>+16%</td>
+</tr>
+<tr>
+<td>Qwen3.6-35B-A3B</td>
+<td>52.9 tokens/s</td>
+<td>62.8 tokens/s</td>
+<td>+19%</td>
+</tr>
+<tr>
+<td>Qwen3.8-27B</td>
+<td>12.1 tokens/s</td>
+<td>12.6 tokens/s</td>
+<td>+4%</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="attention-runs-entirely-on-metal" href="#attention-runs-entirely-on-metal" rel="nofollow">
+		
+	</a>
+	<span>
+		Attention runs entirely on Metal
+	</span>
+</h3>
+<p>Scaled dot-product attention is <a href="https://github.com/pytorch/pytorch/pull/201526" rel="nofollow">dropping MPSGraph completely</a>: every shape will run on Metal kernels, with dedicated vector kernels for decoding and Metal Performance Primitives for half-precision prefill on newer macOS versions. The shapes that used to fall back to MPSGraph benefit the most. On an M5 Pro, decoding with grouped-query attention (32 query heads, 8 KV heads, head dim 80, 4K context) drops from 465 µs to 65 µs, and a 4K × 4K prefill with head dim 40 goes from 42 ms to 6 ms.</p>
+<h3>
+	<a id="more-mpsgraph-to-metal-migrations" href="#more-mpsgraph-to-metal-migrations" rel="nofollow">
+		
+	</a>
+	<span>
+		More MPSGraph to Metal migrations
+	</span>
+</h3>
+<p>The move away from MPSGraph continues. Batch norm <a href="https://github.com/pytorch/pytorch/pull/201361" rel="nofollow">forward</a> and <a href="https://github.com/pytorch/pytorch/pull/201411" rel="nofollow">backward</a> are in progress, while <a href="https://github.com/pytorch/pytorch/pull/201351" rel="nofollow">MSE loss</a> (up to 12× faster on small inputs), <a href="https://github.com/pytorch/pytorch/pull/201310" rel="nofollow"><code>std_mean</code> and <code>var_mean</code></a> (up to 4× faster) and <a href="https://github.com/pytorch/pytorch/pull/201045" rel="nofollow"><code>bincount</code></a> have already landed. <code>bincount</code> is the most dramatic: when most values fall into a single bin, counting 4 million integers used to take 6.8 seconds and now takes half a millisecond.</p>
+<h3>
+	<a id="a-smaller-install" href="#a-smaller-install" rel="nofollow">
+		
+	</a>
+	<span>
+		A smaller install
+	</span>
+</h3>
+<p>Bundled shaders will <a href="https://github.com/pytorch/pytorch/pull/197529" rel="nofollow">build for Metal 3.1 by default</a>, with Metal 4 versions compiled only for the kernels that need them. That shrinks <code>libtorch_cpu.dylib</code> by about 25%, from 384 MiB to 287 MiB, and lays the groundwork for Metal 4.1 shaders with faster matmuls and native FP8 matrix multiplication.</p>
+<h2>
+	<a id="wrapping-up" href="#wrapping-up" rel="nofollow">
+		
+	</a>
+	<span>
+		Wrapping up
+	</span>
+</h2>
+<p>PyTorch 2.15 brings FP8 to the Mac, faster LLM decoding for dense and MoE models, more linear algebra on the GPU and a long list of operations moved from MPSGraph to dedicated Metal kernels. Give the release candidate a try!</p>
+<h3>
+	<a id="whats-next-for-us" href="#whats-next-for-us" rel="nofollow">
+		
+	</a>
+	<span>
+		What's next for us
+	</span>
+</h3>
+<ul>
+<li><strong>More MPS:</strong> 2.16 will run attention entirely on Metal, and we'll keep moving operations off MPSGraph.</li>
+<li><strong><code>torch.compile</code>:</strong> we're working on getting rid of graph breaks, so more models compile end to end.</li>
+<li><strong>Your ideas:</strong> what else should we work on in PyTorch? If something is slow, missing or broken, on MPS or anywhere else, <a href="https://github.com/pytorch/pytorch/issues" rel="nofollow">open an issue on GitHub</a> and let us know.</li>
+</ul>
+<p>A big thank you to <a href="https://github.com/malfet" rel="nofollow">Nikita Shulga</a>, <a href="https://github.com/kurtamohler" rel="nofollow">Kurt Mohler</a> and <a href="https://github.com/Skylion007" rel="nofollow">Aaron Gokaslan</a> for reviewing much of this work, and to everyone who contributed to MPS in this release.</p>
+</div></div>
