@@ -5,4 +5,155 @@ source: huggingface-co
 published: 2026-01-27T10:26:42Z
 updated: 2026-01-27T10:26:42Z
 first_seen: 2026-10-04T12:50:30.804479567Z
+content: extracted
+html: 2026-01-27-alyah-toward-robust-evaluation-of-emirati-dialect.html
 ---
+
+[![image](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/kMGBSt8XXrpjWXB5ot7No.png)](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/kMGBSt8XXrpjWXB5ot7No.png)
+
+Arabic is one of the most widely spoken languages in the world, with hundreds of millions of speakers across more than twenty countries. Despite this global reach, Arabic is not a monolithic language. Modern Standard Arabic coexists with a rich landscape of regional dialects that differ significantly in vocabulary, syntax, phonology, and cultural grounding. These dialects are the primary medium of daily communication, oral storytelling, poetry, and social interaction. However, most existing benchmarks for Arabic large language models focus almost exclusively on Modern Standard Arabic, leaving dialectal Arabic largely under-evaluated and under-represented.
+
+This gap is particularly problematic as large language models increasingly interact with users in informal, culturally grounded, and conversational settings. A model that performs well on formal newswire text may still fail to understand a greeting, an idiomatic expression, or a short anecdote expressed in a local dialect. To address this limitation, our team introduces **Alyah** **الياه** (which means North Star ⭐️ in Emirati), an Emirati-centric benchmark designed to assess how well Arabic LLMs capture the linguistic, cultural, and pragmatic aspects of the Emirati dialect.
+
+## Benchmark Motivation and Scope
+
+The Emirati dialect is deeply intertwined with local culture, heritage, and history. It appears in everyday greetings, oral poetry, proverbs, folk narratives, and expressions whose meanings cannot be inferred through literal translation alone. Our benchmark is intentionally designed to probe this depth. Rather than testing surface-level lexical knowledge, it challenges models on their ability to interpret culturally embedded meaning, pragmatic usage, and dialect-specific nuances.
+
+The benchmark covers a wide range of content, including common and uncommon local expressions, culturally grounded greetings, short anecdotes, heritage-related questions, and references to Emirati poetry. The goal is not only to measure correctness, but also to understand where models systematically succeed or fail when confronted with authentic Emirati language use.
+
+## Dataset Structure
+
+Following further development and consolidation, the benchmark has been unified into a single dataset called **Alyah**. The final benchmark contains **1,173 samples**, all collected manually from native Emirati speakers to ensure linguistic authenticity and cultural grounding. This manual curation step was essential to capture expressions, meanings, and usages that are rarely documented in written resources and are difficult to infer from Modern Standard Arabic alone.
+
+Each sample is formulated as a multiple-choice question with **four candidate answers**, exactly one of which is correct. Large language models were used to synthetically generate the distractor choices, after which they were reviewed to ensure plausibility and semantic closeness to the correct answer. To avoid positional bias during evaluation, the index of the correct answer follows a randomized distribution across the dataset. Below is the distribution of word count per query and candidate answers.
+
+[![image](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/aVy4yDGFREmtD09f2dZI7.png)](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/aVy4yDGFREmtD09f2dZI7.png)
+
+Alyah spans a broad spectrum of linguistic and cultural phenomena in the Emirati dialect, ranging from everyday expressions to culturally sensitive and figurative language. The distribution across categories is summarized below.
+
+| Category                        | Number of Samples | Difficulty |
+| ------------------------------- | ----------------- | ---------- |
+| Greetings & Daily Expressions   | 61                | Easy       |
+| Religious & Social Sensitivity  | 78                | Medium     |
+| Imagery & Figurative Meaning    | 121               | Medium     |
+| Etiquette & Values              | 173               | Medium     |
+| Poetry & Creative Expression    | 32                | Difficult  |
+| Historical & Heritage Knowledge | 89                | Difficult  |
+| Language & Dialect              | 619               | Difficult  |
+
+Below are examples of each category:
+
+[![image](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/eR5RiHgJaG070nMHI3RXo.png)](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/eR5RiHgJaG070nMHI3RXo.png)
+
+This composition allows Alyah to jointly evaluate surface-level conversational fluency and deeper cultural, semantic, and pragmatic understanding, with a particular emphasis on dialect-specific language phenomena that remain challenging for current models.
+
+## Model Evaluation Setup
+
+We evaluated a total of **54 language models**, comprising **23 base models** and **31 instruction-tuned models**, spanning several architectural and training paradigms. These include Arabic-native LLMs such as Jais and Allam, multilingual models with strong Arabic support such as Qwen and LLaMA, and adapted or regionally specialized models such as Fanar and AceGPT. For each family, both base and instruction-tuned variants were evaluated in order to understand the impact of alignment and instruction tuning on dialectal performance.
+
+All models were evaluated under a consistent prompting and scoring protocol. Responses were assessed for semantic correctness and appropriateness with respect to Emirati usage, rather than literal overlap with a reference answer. This is particularly important for dialectal evaluation, where multiple valid phrasings may exist.
+
+For each question category, we estimated difficulty empirically based on model performance. Categories where most models struggled were labeled as harder, while those consistently answered correctly across model families were considered easier. This approach allows difficulty to emerge from observed behavior rather than from subjective annotation alone.
+
+## Evaluation Results on Alyah (Emirati Dialect)
+
+We evaluate a broad set of contemporary Arabic and multilingual large language models on **Alyah**, using **accuracy** on multiple-choice questions as the primary metric. The evaluation covers **53 models** in total, including **22 base models** and **31 instruction-tuned models**, spanning Arabic-native, multilingual, and regionally adapted systems. Below is a radar plot showing the performance of top models of different sizes per question category.
+
+[![image](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/iYHygJ2EG5k6Ysi6qx-ln.png)](https://cdn-uploads.huggingface.co/production/uploads/659bc8a7b0f43ed69f0b2300/iYHygJ2EG5k6Ysi6qx-ln.png)
+
+These results are intended as **reference measurements** within the scope of Alyah, rather than absolute rankings across all Arabic benchmarks.
+
+### Base Models
+
+| Model                             | Accuracy |
+| --------------------------------- | -------- |
+| google/gemma-3-27b-pt             | 74.68    |
+| tiiuae/Falcon-H1-34B-Base         | 73.66    |
+| FreedomIntelligence/AceGPT-v2-32B | 67.35    |
+| google/gemma-3-4b-pt              | 63.17    |
+| QCRI/Fanar-1-9B                   | 62.75    |
+| tiiuae/Falcon-H1-7B-Base          | 60.78    |
+| meta-llama/Llama-3.1-8B           | 58.23    |
+| Qwen/Qwen3-14B-Base               | 57.29    |
+| inceptionai/jais-adapted-13b      | 56.01    |
+| Qwen/Qwen2.5-32B                  | 53.03    |
+| FreedomIntelligence/AceGPT-13B    | 50.81    |
+| Qwen/Qwen2.5-72B                  | 47.91    |
+| Qwen/Qwen2.5-14B                  | 46.8     |
+| google/gemma-2-2b                 | 41.86    |
+| tiiuae/Falcon3-7B-Base            | 41.43    |
+| Qwen/Qwen3-8B-Base                | 40.75    |
+| tiiuae/Falcon-H1-3B-Base          | 40.41    |
+| Qwen/Qwen2.5-7B                   | 36.57    |
+| Qwen/Qwen2.5-3B                   | 35.29    |
+| meta-llama/Llama-3.2-3B           | 35.12    |
+| inceptionai/jais-adapted-7b       | 33.5     |
+| Qwen/Qwen3-4B-Base                | 27.45    |
+
+### Instruction-Tuned Models
+
+| Model                                       | Accuracy |
+| ------------------------------------------- | -------- |
+| falcon-h1-arabic-7b-instruct                | 82.18    |
+| humain-ai/ALLaM-7B-Instruct-preview         | 77.24    |
+| google/gemma-3-27b-it                       | 74.68    |
+| falcon-h1-arabic-3b-instruct                | 74.51    |
+| Qwen/Qwen2.5-72B-Instruct                   | 74.6     |
+| CohereForAI/aya-expanse-32b                 | 73.66    |
+| Navid-AI/Yehia-7B-preview                   | 73.32    |
+| FreedomIntelligence/AceGPT-v2-32B-Chat      | 72.8     |
+| Qwen/Qwen2.5-32B-Instruct                   | 71.61    |
+| tiiuae/Falcon-H1-34B-Instruct               | 71.1     |
+| meta-llama/Llama-3.3-70B-Instruct           | 69.74    |
+| QCRI/Fanar-1-9B-Instruct                    | 69.22    |
+| tiiuae/Falcon-H1-7B-Instruct                | 65.13    |
+| CohereForAI/c4ai-command-r7b-arabic-02-2025 | 64.54    |
+| silma-ai/SILMA-9B-Instruct-v1.0             | 63.94    |
+| FreedomIntelligence/AceGPT-v2-8B-Chat       | 63.43    |
+| CohereLabs/aya-expanse-8b                   | 61.21    |
+| yasserrmd/kallamni-2.6b-v1                  | 61.13    |
+| yasserrmd/kallamni-4b-v1                    | 60.7     |
+| microsoft/Phi-4-mini-instruct               | 58.57    |
+| tiiuae/Falcon-H1-3B-Instruct                | 57.12    |
+| silma-ai/SILMA-Kashif-2B-Instruct-v1.0      | 48.51    |
+| Qwen/Qwen2.5-7B-Instruct                    | 45.44    |
+| google/gemma-3-4b-it                        | 46.12    |
+| meta-llama/Llama-3.1-8B-Instruct            | 46.29    |
+| meta-llama/Llama-3.2-3B-Instruct            | 39.64    |
+| yasserrmd/kallamni-1.2b-v1                  | 37.77    |
+| Qwen/Qwen3-4B                               | 26.26    |
+| google/gemma-2-2b-it                        | 26.00    |
+| Qwen/Qwen3-14B                              | 26.00    |
+| Qwen/Qwen3-8B                               | 25.66    |
+
+## Analysis and Observed Trends
+
+![](https://cdn-uploads.huggingface.co/production/uploads/681b3d99ff4a468b725484d7/TdYWyg-ZIKckW3K0ifIOy.png)\
+ **Figure 1:** Models' accuracy across categories based on size.
+
+![](https://cdn-uploads.huggingface.co/production/uploads/681b3d99ff4a468b725484d7/yakzj4kaPcWnhawTAkUoe.png)\
+ **Figure 2:** Models' accuracy across categories based on language.
+
+Several trends emerge from the evaluation. Instruction-tuned models generally outperform their base counterparts as shown in Figures 1 and 2. This is particularly the case on questions involving conversational norms and culturally appropriate responses (i.e. the Etiquette & Values Category). Furthermore, it is the case with questions that test imagery and figurative meaning. This can be attributed, to the model’s original strong capabilities with understanding MSA-based imagery and figurative language regardless of the dialect at hand. The models are able to draw patterns of non-literal description regardless of dialect. Generally, the most difficult categories for the models were consistently “Language and Dialect” and “Greeting and Daily expressions” across model sizes as shown in figure 1. These results reflect the current state of Emirati dialect presence in written media, as the dialect is mostly spoken rarely written, which explains its novelty relative to the evaluated models. Nonetheless, there is a clear benefit to instruct models with understanding the dialect (and the other evaluation categories) in comparison to their counterparts, especially in small and medium models. This is particularly noticeable with the Poetry and Creative Expression category, which is where the large instruct models performed marginally better than the smaller models.
+
+![](https://cdn-uploads.huggingface.co/production/uploads/681b3d99ff4a468b725484d7/RizOTB3qq9YRFGlypYBqh.png)\
+ **Figure 3:** Evaluated models average accuracy.
+
+As shown in Figure 3, even strong multilingual models show notable degradation on the most challenging Alyah questions, suggesting that dialect-specific semantic knowledge is not easily acquired through generic multilingual training alone. It must be noted that while Arabic-native models tend to perform more robustly on culturally grounded content, their performances are not uniform across all categories (figure 2). In particular, questions involving implicit meanings and rare expressions remain difficult across nearly all evaluated models. This highlights a persistent gap between surface-level dialect familiarity and deeper cultural understanding. The high variance in performance across categories , where a model that excels at imagery and figurative meaning may still struggle with poetry or heritage-related creative questions, indicates that dialectal competence is multi-dimensional and cannot be captured by a single score. Figure 3 shows that the highest scoring large model in Jais-2-70B, followed by the two small models jais-2-8B and ALLaM-7B-instruct, which are all Arabic instruct-tuned models.
+
+## Conclusion and Community Impact
+
+This benchmark represents a step toward more realistic and culturally grounded evaluation of Arabic language models. By focusing on the Emirati dialect, we aim to support the development of models that better serve local communities, institutions, and users in the UAE. Beyond model ranking, the benchmark is intended as a diagnostic tool to guide future data collection, training, and adaptation efforts.
+
+We invite researchers, practitioners, and the broader community to use the benchmark, explore the results, and share feedback. Community input will be essential to refining the dataset, expanding coverage, and ensuring that dialectal Arabic receives the attention it deserves in the evaluation of Large Language Models.
+
+## Citation
+
+```bibtex
+@misc{emirati_dialect_benchmark_2026,
+title = {Alyah: An Emirati Dialect Benchmark for Evaluating Arabic Large Language Models},
+author={Omar Alkaabi and Ahmed Alzubaidi and Hamza Alobeidli and Shaikha Alsuwaidi and Mohammed Alyafeai and Leen AlQadi and Basma El Amel Boussaha and Hakim Hacid},
+year = {2026},
+month = {january},
+}
+```

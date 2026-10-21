@@ -1,0 +1,316 @@
+<div id="readability-page-1" class="page"><div>
+<p>The best thing about agent skills is <em>upskilling</em> your agents on hard problems. There are two ways to look at that: </p>
+<ol>
+<li>You can take Opus 4.5 or other SOTA models and tackle the hardest problems out there. </li>
+<li>You can take models that run on your laptop and upskill them to harder problems. In this blog post, we’ll show you how to take on the latter.</li>
+</ol>
+<p>This blog post walks through the process of using a new tool, <code>upskill</code>, to generate and evaluate agent skills with large models and use them with smaller models. We will benchmark <code>upskill</code> on the task of writing CUDA kernels for <a href="https://huggingface.co/docs/diffusers/en/index"><code>diffusers</code></a> models, but the process is generally useful for cutting costs, or using smaller models on hard and domain-specific problems. </p>
+<h2>
+	<a id="what-are-agent-skills" href="#what-are-agent-skills" rel="nofollow">
+		
+	</a>
+	<span>
+		What are agent skills?
+	</span>
+</h2>
+<p>In case you missed it, agent skills are taking the coding agent game by storm. In fact, they’re a straightforward concept to define model context as files, like instructions as markdown and code as scripts. The file format makes them easy to generate, share, and review. In short, they’re a practical medium to share capabilities across models and tools, and they're most useful in specific domains or hard problems. Not stuff the model can do well anyway. </p>
+<p>This post showcases this process by using Claude to generate a Skill file that can be used by open source models for a complex and specialized task: write CUDA kernels.
+We first tried a simple skill based on existing documentation, and we found that it improved performance for some others, but not all. In fact, it could even degrade performance or increase token usage for some models. Check out the plot below to see the performance of the model with and without the basic skill.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/upskill-blog/plot.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/upskill-blog/plot.png" alt="plot of model performance"></a></p>
+<p>Now, let's walk through how you can use <code>upskill</code> to upskill your agents on hard problems, and measure performance.</p>
+<h2>
+	<a id="1-get-the-teacher-claude-opus-45-to-build-a-kernel" href="#1-get-the-teacher-claude-opus-45-to-build-a-kernel" rel="nofollow">
+		
+	</a>
+	<span>
+		1. Get the teacher (Claude Opus 4.5) to build a kernel
+	</span>
+</h2>
+<p>First, we use Claude Code to build a kernel interactively and export the trace. We worked through the process by instructing, validating, and adding documentation links. This somewhat naive process is important to reveal the models' initial challenges. In fact, you can iterate on this multiple times, by trying to solve the task with draft versions of the skill, and experimenting with smaller models. Each time, you can instruct the agent to improve the skill and test it on the smaller model.</p>
+<p>Here's an <a href="https://huggingface.co/hf-skills/h100-diffusers-kernel-builder">example of the skill</a> that we created and have been using to build kernels. We started from this <a href="https://huggingface.co/hf-skills/h100-diffusers-kernel-builder/blob/main/agent-trace.txt">agent trace</a> where the agent was able to build a kernel, but not without some help.</p>
+<h2>
+	<a id="2-make-an-agent-skill-from-the-trace" href="#2-make-an-agent-skill-from-the-trace" rel="nofollow">
+		
+	</a>
+	<span>
+		2. Make an agent skill from the trace
+	</span>
+</h2>
+<p>Once the teacher model has performed the task, we need them to make a skill. There are a number of effective ways to do this.</p>
+<ul>
+<li>Within the same session, instruct the agent to create a skill file for the task it just completed.</li>
+<li>Use <a href="https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md" rel="nofollow">Anthropic ‘skill creator’ skill</a> either within the agent session or with an exported trace and a new agent session.  </li>
+<li>Use the <code>upskill</code> tool to create a skill based on the trace.</li>
+</ul>
+<p>In most cases, the first 2 options result in functional skills. However, the performance of an agent with the skill is unknown. That’s where <code>upskill</code> is useful, because it will also generate test cases for your skill based on the trace. It then compares the results under both scenarios: using the trace, or applying the skill. We see below that the original model (Claude Opus) met the same performance with and without the skill. This means the skill captured the task <em>for this model</em>. Great!</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/upskill-blog/terminal.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/upskill-blog/terminal.png" alt="terminal evaluation"></a></p>
+<h2>
+	<a id="3-take-your-skill-to-an-open-source-smaller-or-cheaper-model" href="#3-take-your-skill-to-an-open-source-smaller-or-cheaper-model" rel="nofollow">
+		
+	</a>
+	<span>
+		3. Take your skill to an open source, smaller, or cheaper model
+	</span>
+</h2>
+<p>Finally, we need to transfer our newly created skill to the tool or model we intend to use. Most tools like <code>codex</code>, <code>cursor</code>, and <code>opencode</code> have settled on a consistent format for skills, which is a directory at <code>{agent}/skills/{skill_name}/SKILL.md</code> , so we just need to copy the skill directory to this location. </p>
+<p>With <code>upskill</code> we can pass a skill and a set of models to the <code>eval</code> command and <code>upskill</code> will run the test cases on those models with and without the skill to compare performance. We can see here that the skill increases accuracy on some open models, but not on all. </p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/upskill-blog/accuracy.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/upskill-blog/accuracy.png" alt="performance evaluation"></a></p>
+<p>In this case, we might want to iterate further on the <code>gpt-oss</code> skills by regenerating the skill. We can do <code>upskill generate --from {skill}</code>.</p>
+<p>There is more to agent skills than model performance. Often agents can reach a given accuracy with or without a skill, they just need to consume more tokens to get there. For recurring tasks, we want to optimize agents to use less tokens to achieve the same accuracy. The results below reveal another dimension to the skill. Some models are significantly reducing their performance token usage, whilst others are using more tokens <strong>with</strong> the skill. For example, with <a href="https://huggingface.co/moonshotai/Kimi-K2-Thinking"><code>moonshotai/Kimi-K2-Thinking</code></a> the skill is clearly effective in terms of accuracy and token usage. However, for Claude Opus 4.5 there is no clear performance increase and an increase in token usage, so you would not want to use this skill with Claude Opus 4.5.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/upskill-blog/tokens.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/upskill-blog/tokens.png" alt="token usage"></a></p>
+<p><strong>tldr;</strong> try out and evaluate models with the skills you create. Use <code>upskill eval</code> or a similar tool to evaluate the models performance with and without skills.</p>
+<p>That’s the high level end to end of upskilling your coding agents on hard problems. Try out upskill now like this:</p>
+<pre><code data-language="shell"># install upskill
+pip install upskill
+
+# or use uvx 
+uvx upskill --help
+
+# generate a skill based on an agent trace
+upskill generate "write nvidia kernels" --from ./trace.md
+# evaluate models on a skill
+upskill eval ./skills/my-skill/ --model haiku --model sonnet
+
+# generate skills for local models
+upskill generate "parse YAML" 
+    --model opus 
+    --eval-model "unsloth/GLM-4.7-Flash-GGUF:Q4_0" 
+    --eval-base-url http://localhost:8080/v1
+</code></pre>
+<h2>
+	<a id="deep-dive-tutorial-into-building-kernels-with-agent-skills" href="#deep-dive-tutorial-into-building-kernels-with-agent-skills" rel="nofollow">
+		
+	</a>
+	<span>
+		Deep dive tutorial into building kernels with agent skills
+	</span>
+</h2>
+<p>We have a high level understanding of how we can upskill an agent. Let’s now look at the use case we solved for writing CUDA kernels.</p>
+<p>We didn’t just want to write kernel code, but understand the full kernel-builder workflow: project structure, <code>build.toml</code> configuration, architecture-specific optimizations, and PyTorch bindings. This tutorial shows how upskill creates validated skills that actually work.</p>
+<p>The <a href="https://github.com/burtenshaw/kernel-skill" rel="nofollow"><code>kernel-builder-cuda-kernels</code></a> skill teaches Claude everything it needs to know about CUDA development: which GPU architecture to target, how to structure a kernel-builder project, when to use shared memory versus registers, and how to write PyTorch bindings.</p>
+<p>With this skill, you can tell Claude things like:</p>
+<pre><code>Build a fused LayerNorm + GELU kernel optimized for H100.
+</code></pre>
+<p>And Claude will create the complete project structure, CUDA implementation, and build configuration—following the exact conventions that kernel-builder expects.</p>
+<p>This isn't about generating boilerplate. The skill encodes domain expertise: H100 uses compute capability 9.0, shared memory should be aligned to 128 bytes, async memory copies require <code>__CUDA_ARCH__ &gt;= 900</code>. Knowledge that would take hours to gather from documentation gets packaged into ~500 tokens that load on demand.</p>
+<h2>
+	<a id="setup-and-install" href="#setup-and-install" rel="nofollow">
+		
+	</a>
+	<span>
+		Setup and Install
+	</span>
+</h2>
+<p>Install upskill:</p>
+<pre><code data-language="shell">pip install upskill
+# or use uvx for one-off runs
+uvx upskill --help
+</code></pre>
+<p>Set your API key:</p>
+<pre><code data-language="shell">export ANTHROPIC_API_KEY=sk-ant-...
+export HF_TOKEN=hf_...
+</code></pre>
+<p>That's it. Upskill uses Anthropic Claude Opus-4.5 model by default but also supports OpenAI and local models via OpenAI-compatible endpoints as generators. We want to use the more expensive and higher quality models to generate skills, and the smaller ones to use them. Think robin hood.  </p>
+<h2>
+	<a id="skill-generation" href="#skill-generation" rel="nofollow">
+		
+	</a>
+	<span>
+		Skill Generation
+	</span>
+</h2>
+<p>Let's walk through generating a skill that teaches agents how to build CUDA kernels with HuggingFace's <a href="https://github.com/huggingface/kernels" rel="nofollow"><code>kernels</code></a> library. </p>
+<h3>
+	<a id="generate-the-skill" href="#generate-the-skill" rel="nofollow">
+		
+	</a>
+	<span>
+		Generate the Skill
+	</span>
+</h3>
+<p>Start with a clear task description:</p>
+<pre><code data-language="shell">upskill generate "build optimized CUDA kernels for PyTorch using HuggingFace kernel-builder"
+</code></pre>
+<p>Above we used upskill, but it could in fact be any agent or chat tool and an exported trace. </p>
+<pre><code data-language="shell">upskill generate "write kernels" --from &lt;agent-trace&gt;.md
+</code></pre>
+<p>Also, we could start from an existing skill and add to it:</p>
+<pre><code data-language="shell">upskill generate "add more error handling and edge cases" 
+    --from ./skills/kernel-builder-cuda-kernels/
+</code></pre>
+<p>upskill loads the existing skill, applies your improvements, and re-evaluates to ensure the changes help.</p>
+<p>upskill creates a skill, generates test cases, evaluates performance, and refines based on failures:</p>
+<pre><code>Generating skill with sonnet...
+Generating test cases...
+Evaluating on sonnet... (attempt 1)
+  60% -&gt; 95% (+35%) OK
+
+  kernel-builder-cuda-kernels
+  Build optimized CUDA kernels for PyTorch using HuggingFace kernel-builder.
+
+  SKILL.md              ~520 tokens
+
+  baseline   ████████████                60%
+  with skill ███████████████████    95%  (+35%)
+
+Saved to ./skills/kernel-builder-cuda-kernels
+</code></pre>
+<p>The baseline shows how the model performs without any skill. The "with skill" result shows performance after the skill is injected into context. A 35% improvement means the skill is working.</p>
+<p>The skill is saved as a directory following the <a href="https://agentskills.io" rel="nofollow">Agent Skills specification</a>:</p>
+<pre><code>./skills/kernel-builder-cuda-kernels/
+├── SKILL.md           # Main instructions (~520 tokens)
+└── skill_meta.json    # Metadata and test cases
+</code></pre>
+<details>
+<summary>Open `SKILL.md` to see what upskill generated:</summary>
+
+<pre><code>---
+name: kernel-builder-cuda-kernels
+description: Build optimized CUDA kernels for PyTorch using HuggingFace kernel-builder.
+---
+
+# Building CUDA Kernels with kernel-builder
+
+## Overview
+
+This guide explains how to create optimized CUDA kernels for PyTorch models 
+using HuggingFace's kernel-builder. It covers project setup, kernel implementation, 
+and building for specific GPU architectures like NVIDIA H100.
+
+## Project Structure
+
+project/
+├── build.toml              # Build configuration
+├── kernel_src/             # CUDA kernel implementations
+│   ├── attention.cu
+│   ├── layernorm.cu
+│   └── geglu.cu
+└── torch-ext/              # PyTorch C++ bindings
+    └── torch_binding.cpp
+
+## Build Configuration
+
+Create `build.toml` to define your kernel package:
+
+[general]
+name = "diffuser_kernels"
+backends = ["cuda"]
+
+[general.cuda]
+# H100 is compute capability 9.0
+capabilities = ["9.0"]
+
+...
+</code></pre>
+</details>
+
+<h3>
+	<a id="evaluate-on-a-different-model" href="#evaluate-on-a-different-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluate on a Different Model
+	</span>
+</h3>
+<p>The important test is: does this skill help local or cheaper models to build kernels?</p>
+<pre><code data-language="shell"># Start a local OpenAI-compatible server with a web UI:
+llama-server -hf unsloth/GLM-4.7-Flash-GGUF:Q4_K_M
+
+# Evaluate on local model (llama.cpp server)
+upskill eval ./skills/my-skill/ 
+    --model "unsloth/GLM-4.7-Flash-GGUF:Q4_0" 
+    --base-url http://localhost:8080/v1
+</code></pre>
+<pre><code>Generating skill with sonnet...
+Generating test cases...
+Evaluating on "unsloth/GLM-4.7-Flash-GGUF:Q4_0"... (attempt 1)
+  40% -&gt; 85% (+45%) OK
+
+  baseline   ████████░░░░░░░░░░░░   40%
+  with skill █████████████████░░░   85%  (+45%)
+
+Saved to ./skills/kernel-builder-cuda-kernels
+</code></pre>
+<p>A 45% improvement on <code>"unsloth/GLM-4.7-Flash-GGUF:Q4_0"</code> means the skill successfully transfers domain knowledge from a capable model to a faster, cheaper one. Skills that work on weaker models will definitely work on stronger ones.</p>
+<p>This is the core value proposition: use expensive models to create skills, then deploy those skills with cheap or local models.</p>
+<h2>
+	<a id="how-the-evaluation-in-upskill-works" href="#how-the-evaluation-in-upskill-works" rel="nofollow">
+		
+	</a>
+	<span>
+		How the evaluation in upskill works
+	</span>
+</h2>
+<p>upskill uses a teacher-student approach to evaluate models where the teacher model generates test cases for the student model to be evaluated on.</p>
+<ol>
+<li><strong>Teacher model</strong> (Opus) generates the skill  </li>
+<li><strong>Test cases</strong> (Opus) are generated automatically from the task description  </li>
+<li><strong>Student model</strong> (local) is evaluated with and without the skill  </li>
+<li><strong>Skill lift</strong> measures the improvement</li>
+</ol>
+<p>If you pass an existing skill to <code>upskill eval</code>, it will generate test cases for the skill and evaluate the model on them. Test cases are simple input/output pairs that verify the agent understands the task:</p>
+<pre><code data-language="json">{
+  "cases": [
+    {
+      "input": "Create a build.toml for a CUDA kernel targeting H100",
+      "expected": {"contains": "9.0"}
+    },
+    {
+      "input": "Write a basic CUDA kernel template with proper includes",
+      "expected": {"contains": "cuda_runtime.h"}
+    }
+  ]
+}
+</code></pre>
+<p>We can also test how a skill performs across different models:</p>
+<pre><code data-language="shell">upskill eval ./skills/kernel-builder-cuda-kernels/ 
+    --model haiku --m kimi --runs 5
+</code></pre>
+<pre><code>Evaluating kernel-builder-cuda-kernels across 2 model(s)
+  3 test case(s), 5 run(s) per model
+
+haiku
+  Pass rate: 4/5 (80%)  Avg assertions: 2.8/3
+
+sonnet  
+  Pass rate: 5/5 (100%)  Avg assertions: 3.0/3
+
+┏━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃ Model  ┃ Pass Rate ┃ Avg Assertions ┃ Avg Tokens ┃
+┡━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ haiku  │ 4/5       │ 2.8/3          │ 1250       │
+│ kimi   │ 5/5       │ 3.0/3          │ 1890       │
+└────────┴───────────┴────────────────┴────────────┘
+</code></pre>
+<p>This helps you find the cost-performance sweet spot: maybe Haiku with the skill is good enough for your use case, saving significant API costs.</p>
+<h2>
+	<a id="whats-next" href="#whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		What's Next
+	</span>
+</h2>
+<p>We've shown that upskill can create validated skills that transfer domain expertise from powerful models to cheaper ones. The kernel-builder skill is just one example of what's possible.</p>
+<p>Some things to try:</p>
+<ul>
+<li><strong>Generate skills for your internal tools</strong>   </li>
+<li><strong>Build a skill library for your codebase</strong>   </li>
+<li><strong>Capture tribal knowledge</strong>   </li>
+<li><strong>Benchmark across models</strong></li>
+</ul>
+<p>The approach works for any specialized task where you'd otherwise write detailed prompts repeatedly. Skills are portable across <a href="https://docs.anthropic.com/en/docs/claude-code" rel="nofollow">Claude Code</a>, <a href="https://github.com/openai/codex" rel="nofollow">Codex</a>, <a href="https://cursor.com/docs/context/skills" rel="nofollow">Cursor</a>, and other tools that support the <a href="https://agentskills.io" rel="nofollow">Agent Skills specification</a>.</p>
+<h2>
+	<a id="resources" href="#resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Resources
+	</span>
+</h2>
+<ul>
+<li><a href="https://github.com/huggingface/upskill" rel="nofollow">Upskill repo</a>  </li>
+<li><a href="https://agentskills.io" rel="nofollow">Agent Skills Specification</a>   </li>
+<li><a href="https://github.com/huggingface/kernels/tree/main/kernel-builder" rel="nofollow">HuggingFace kernel-builder</a></li>
+</ul>
+</div></div>

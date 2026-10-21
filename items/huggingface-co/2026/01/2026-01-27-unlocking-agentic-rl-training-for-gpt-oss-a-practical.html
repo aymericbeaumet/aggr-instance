@@ -1,0 +1,385 @@
+<div id="readability-page-1" class="page"><div>
+<p>Agentic reinforcement learning (RL) extends traditional LLM training by optimizing not just a single-turn response, but an entire decision-making process learned through direct interaction with an environment during training. Unlike traditional single-turn reinforcement learning or offline preference-based methods that rely on static datasets, agentic RL trains policies by actively collecting on-policy data as the agent plans actions, invokes tools, observes outcomes, and adapts its behavior over multi-step trajectories in either simulated or real environments. This interaction-driven optimization assigns credit across long-horizon decisions, where intermediate choices such as query reformulation, tool selection, and execution order directly influence downstream success. Training follows an iterative closed loop in which the agent interacts with the environment to collect rollout trajectories, computes rewards over these trajectories, updates the policy based on observed outcomes, and then uses the updated policy to drive the next round of interaction and data collection such as GRPO or PPO algorithms..</p>
+<p>LinkedIn is an AI-first company that's built agents to help professionals be more successful. In this setting, models must reason over incomplete information, interact with structured services, and adapt to evolving user intent across multiple steps rather than produce a single static response. These capabilities are especially critical for agents that support the goals of recruiters, job and knowledge seekers, and learners end users, such as retrieving information, refining queries, coordinating tools, and executing multi-step workflows. By learning robust decision policies through interaction, agentic RL provides a principled foundation for building scalable, reliable, and adaptable AI systems through end-to-end optimization.</p>
+<p>The GPT-OSS model has shown comparable performance to OpenAI o3-mini and o4-mini [<a href="https://openai.com/index/introducing-gpt-oss/" rel="nofollow">ref</a>], but its suitability for agentic reinforcement learning training has not yet been validated. Most recent work focuses on fine-tuning without tool calling, such as: <a href="https://cookbook.openai.com/articles/gpt-oss/fine-tune-transfomers" rel="nofollow">Fine-tuning with gpt-oss and Hugging Face Transformers</a> and <a href="https://unsloth.ai/docs/models/gpt-oss-how-to-run-and-fine-tune/tutorial-how-to-fine-tune-gpt-oss" rel="nofollow">unsloth tutorial: how to fine-tune gpt-oss</a>. This blog explores the journey to unlock <a href="https://github.com/volcengine/verl/issues/3794" rel="nofollow">agentic RL</a> training for GPT-OSS as a potential backbone model for agentic applications.</p>
+<p>In our experiments, we use <a href="https://github.com/volcengine/verl" rel="nofollow">verl</a> as our training framework since it is one of the most popular adopted frameworks in the open source community. We use gsm8k, <a href="https://github.com/verl-project/verl-recipe/tree/21892b9276936efab5375c3f6b8415e472ef7118/retool" rel="nofollow">Retool</a> task, <a href="https://arxiv.org/abs/2507.02833" rel="nofollow">verifiable instruction following task</a>, which are commonly used in RL training. We focus on presenting experimental results for the GPT-OSS-20B model, and our attention-sink fix also works for GPT-OSS-120B. The Qwen-2.5-32B model is additionally used to benchmark standard metric trends during RL training.</p>
+<h2>
+	<a id="challenges-of-gpt-oss-rl-training" href="#challenges-of-gpt-oss-rl-training" rel="nofollow">
+		
+	</a>
+	<span>
+		Challenges of GPT-OSS RL Training
+	</span>
+</h2>
+<p>verl has been an OSS framework used by the team, and the team has previously collaborated and contributed to it to help democratize agentic reinforcement learning training. With the introduction of the new Harmony chat template in GPT-OSS, the first step is to ensure that the training framework fully supports the updated message format and conversation semantics required by Harmony. This step helps rollout generation, trajectory construction, and tool parsing remain consistent and correct under the new template.</p>
+<p>The team uses ReTool as a representative example to verify code correctness. ReTool is an agentic coding task in which the model is asked to solve a math problem with the assistance of a code compiler tool. This setup allows the model to focus on core reasoning and algorithmic logic, while delegating the actual arithmetic and execution to the tool. During an episode, the model interacts with the code tool multiple times, using execution results as feedback to refine its solution. At the end of the trajectory, the model produces a final answer, on which the reward is computed.</p>
+<p>During the initial training runs, we observed exploding KL divergence and entropy, along with non-increasing rewards, indicating underlying issues in the GPT-OSS training setup, as shown in Figure 1.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Average Gradient Norm</th>
+<th>Average Reward</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/5eWLHQ-EAWKjPc7T0c6CK.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/5eWLHQ-EAWKjPc7T0c6CK.png" alt="Average gradient norm in a batch"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/ZpBvRXLKyAT-PIdsuRi11.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/ZpBvRXLKyAT-PIdsuRi11.png" alt="Average reward in a batch"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Figure 1.</strong> Left: Qwen32b has significantly higher rewards compared to GPT-OSS 20B; Right: The gradient norm exploded as training progressed.</p>
+<h2>
+	<a id="a-practical-debugging-journey-in-verl-restoring-ppo-on-policy-integrity" href="#a-practical-debugging-journey-in-verl-restoring-ppo-on-policy-integrity" rel="nofollow">
+		
+	</a>
+	<span>
+		A Practical Debugging Journey in verl: Restoring PPO On-Policy Integrity
+	</span>
+</h2>
+<h3>
+	<a id="restoring-ppo-on-policy-integrity-a-fix-for-moe-log-probability-mismatch" href="#restoring-ppo-on-policy-integrity-a-fix-for-moe-log-probability-mismatch" rel="nofollow">
+		
+	</a>
+	<span>
+		Restoring PPO On-Policy Integrity: A Fix for MoE Log-Probability Mismatch
+	</span>
+</h3>
+<p>
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/21xIlXKeAlTK5qKSp-TkX.png" width="500">
+</p>
+<p><b>Figure 2.</b> Non-zero importance sampling clip value even for on-policy training.</p>
+
+<p>We focus on on-policy methods because they provide greater stability and more reliable convergence. The foundation of pure on-policy Proximal Policy Optimization (PPO) mandates that the importance sampling ratio must be exactly 1. The mathematical definition of the importance ratio is:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mtext>ratio</mtext><mo>=</mo><mfrac><mrow><mi>π</mi><mo stretchy="false">(</mo><mi>a</mi><mo>∣</mo><mi>s</mi><mo stretchy="false">)</mo></mrow><mrow><msub><mi>π</mi><mtext>old</mtext></msub><mo stretchy="false">(</mo><mi>a</mi><mo>∣</mo><mi>s</mi><mo stretchy="false">)</mo></mrow></mfrac></mrow>
+\text{ratio} = \frac{\pi(a \mid s)}{\pi_{\text{old}}(a \mid s)}
+</math></span></span></span></p>
+<p>This requirement ensures that the policy update is executed only on the data generated by the current policy π(a | s) = π<sub>old</sub>(a | s), preventing unintended clipping.</p>
+<p>We have observed the non-zero clipping value in our ReTool training, as shown in Figure 2, stemming from a mismatch between the two log-probabilities:</p>
+<ul>
+<li>Current log-probability <code>log_prob</code>: log(π(a | s))</li>
+<li>Old log-probability <code>old_log_prob</code>: log(π<sub>old</sub>(a | s))</li>
+</ul>
+<p><strong>Root Cause: The Dual Forward Pass and MoE Architecture</strong></p>
+<p>Prior to verl 0.3.0, the implementation relied on two separate forward passes (one to compute the current <code>log_prob</code> and one to retrieve the stored <code>old_log_prob</code>) for the same state-action pair.</p>
+<p>In a Mixture of Experts (MoE) architecture like GPT-OSS, the gating network routes the input to different experts. Due to implementation factors (e.g., subtle floating-point differences or explicit stochasticity), the expert routing can differ slightly between the two passes. Readers who are interested can further read <em><a href="https://arxiv.org/pdf/2510.11370v1" rel="nofollow">Stabilizing MoE Reinforcement Learning by Aligning Training and Inference Routers</a></em>.</p>
+<p>This difference in routing leads to:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>log</mi><mo>⁡</mo><mo stretchy="false">(</mo><mi>π</mi><mo stretchy="false">(</mo><mi>a</mi><mo>∣</mo><mi>s</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo mathvariant="normal">≠</mo><mi>log</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>π</mi><mtext>old</mtext></msub><mo stretchy="false">(</mo><mi>a</mi><mo>∣</mo><mi>s</mi><mo stretchy="false">)</mo><mo stretchy="false">)</mo></mrow>
+\log(\pi(a \mid s)) \neq \log(\pi_{\text{old}}(a \mid s))
+</math></span></span></span></p>
+<p>The resulting ratio deviates from 1, falsely triggering the PPO clip and violating the core on-policy assumption.</p>
+<p><strong>Solution: Enforcing Ratio = 1 via Log-Probability Substitution</strong></p>
+<p>The fix resolves the issue by logically overriding the flawed computation when the environment is known to be on-policy (i.e., when the minibatch size equals the global batch size):</p>
+<pre><code data-language="python">if on_policy:
+    old_log_prob = log_prob.detach()
+else:
+    old_log_prob = model_inputs["old_log_probs"]
+</code></pre>
+<p>By setting <code>old_log_prob</code> equal to the newly computed <code>log_prob</code> (detached to prevent gradient flow through the reference value), the importance ratio is mathematically forced back to 1. This strategy bypasses the instability caused by MoE's non-deterministic routing and guarantees strict on-policy behavior during PPO training.</p>
+<hr>
+<h3>
+	<a id="correcting-traininginference-mismatch" href="#correcting-traininginference-mismatch" rel="nofollow">
+		
+	</a>
+	<span>
+		Correcting Training–Inference Mismatch
+	</span>
+</h3>
+<p>Although fixing the log-probability mismatch reduced the importance-sampling clip ratio to zero, gradient norms continued to explode and rewards failed to improve. To isolate the issue, we simplified training to GSM8K, a single-step task without agentic tool use. The same instability persisted, as shown in the green curves in Figure 3, indicating a <strong>fundamental issue in basic RL training with GPT-OSS under verl.</strong></p>
+<p>We hypothesize that <strong>training–inference mismatch</strong> could be a potential cause: discrepancies between inference-time execution—where engines such as vLLM and SGLang aggressively optimize for throughput—and training-time execution under FSDP, which prioritizes numerical precision and stability, can effectively turn otherwise <strong>on-policy RL into off-policy optimization.</strong></p>
+<p>This <a href="https://yingru.notion.site/When-Speed-Kills-Stability-Demystifying-RL-Collapse-from-the-Training-Inference-Mismatch-271211a558b7808d8b12d403fd15edda" rel="nofollow">blog</a> details why such mismatches lead to unstable gradients and non-improving rewards. Figure 3 compares training runs with and without rollout correction (see this <a href="https://verl.readthedocs.io/en/latest/algo/rollout_corr.html" rel="nofollow">verl blog</a> for details). After applying rollout correction, training dynamics improve significantly, with gradient norms remaining stable rather than exploding.</p>
+<p>However, as shown in the left plot of Figure 4, the reward increases only modestly, and convergence on the simple GSM8K task remains substantially slower compared to smaller dense model variants.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Average Entropy</th>
+<th>Average Gradient Norm</th>
+<th>Average KL Loss</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/MoBnatEipCi_OScgm5fAJ.png" width="250"></td>
+<td><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/k4Su03zqq6Cg-7jM6Il6J.png" width="250"></td>
+<td><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/g77U9c8a-FY1rvwru96Ez.png" width="250"></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Figure 3.</strong> Gradient norm behavior under different training configurations. Green: Training without rollout correction, exhibiting unstable gradients. Red: Training with the attention layer frozen to isolate the issue to the attention mechanism, resulting in partial stabilization. Blue: Training with rollout correction enabled (sequence-level importance sampling), yielding stable gradient norms.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Average Reward</th>
+<th>Max Log-Perplexity Difference</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/ihx-XsWH51V0-JM46jODE.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/ihx-XsWH51V0-JM46jODE.png" alt="Average reward in a batch"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/fP5KNR2XYY7EH-muYBk_X.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/fP5KNR2XYY7EH-muYBk_X.png" alt="Maximum absolute log-perplexity difference in a batch between rollout policy and training policy"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Figure 4.</strong> Left: Reward improvement on GSM8K remains slow even after applying rollout correction, with performance comparable to runs where the attention layer is frozen during training. Right: A substantial log-ppl mismatch is observed between the inference engine (SGLang with Triton kernels supporting attention-sink forward passes) and the training stack (FSDP with FlashAttention-v2), indicating a large training–inference inconsistency.</p>
+<p>To further isolate the root cause, we freeze the attention layers during training and observe reward dynamics similar to those of runs without freezing (blue curve vs yellow curve in Figure 4). This indicates that learning is primarily driven by the MoE layers, while the attention mechanism contributes less effectively than expected. In addition, we observe a substantial token-level probability mismatch between the inference engine and the distributed training stack which are using different attention kernels. Together, these observations motivate a deeper investigation into the attention mechanism.</p>
+<hr>
+<h2>
+	<a id="attention-sink-support-in-flashattentionv3" href="#attention-sink-support-in-flashattentionv3" rel="nofollow">
+		
+	</a>
+	<span>
+		Attention Sink Support in FlashAttentionV3
+	</span>
+</h2>
+<p>Attention sinks used in GPT-OSS are learnable scalar parameters (one per attention head) that act as "virtual tokens" in the softmax computation. They allow the model to allocate attention mass to a learned sink rather than forcing all attention to content tokens, which has been shown to improve attention stability in streaming inference and training with sliding-window attention.</p>
+<p>After a deeper investigation, we identified several major issues:</p>
+<ul>
+<li>verl hard-codes FlashAttention v2 in <code>fsdp_worker</code>, which does not support attention sinks.</li>
+<li>The attention sink backward pass is not supported in FlashAttention v2 and v3, so it does not work as expected even when FlashAttention v3 is enabled.</li>
+<li>Since the forward pass has not yet been merged into the original FlashAttention v3 repository, we leveraged the forward pass from the vLLM FlashAttention fork (<a href="https://github.com/vllm-project/flash-attention/pull/75" rel="nofollow">PR #75</a>) and implemented the backward pass to compute the sink gradient.</li>
+</ul>
+<h3>
+	<a id="standard-attention" href="#standard-attention" rel="nofollow">
+		
+	</a>
+	<span>
+		Standard Attention
+	</span>
+</h3>
+<pre><code data-language="python">scores = QK^T / sqrt(d)               # [B, H, N_q, N_k]
+probs = softmax(scores, dim=-1)       # Σ_j P_ij = 1
+output = probs @ V                   # [B, H, N_q, d_v]
+</code></pre>
+<h3>
+	<a id="attention-with-sinks-gpt-oss" href="#attention-with-sinks-gpt-oss" rel="nofollow">
+		
+	</a>
+	<span>
+		Attention with Sinks (GPT-OSS)
+	</span>
+</h3>
+<pre><code data-language="python">scores = QK^T / sqrt(d)                               # [B, H, N_q, N_k]
+combined = concat([scores, sink_param], dim=-1)       # [B, H, N_q, N_k+1]
+probs = softmax(combined, dim=-1)                     # Σ_j P_ij + P_sink = 1
+probs_content = probs[..., :-1]                       # Drop sink component
+output = probs_content @ V                           # [B, H, N_q, d_v]
+</code></pre>
+<p><strong>Key difference:</strong> The sink participates in softmax normalization but doesn't contribute to the output.</p>
+<h3>
+	<a id="mathematical-formulation" href="#mathematical-formulation" rel="nofollow">
+		
+	</a>
+	<span>
+		Mathematical Formulation
+	</span>
+</h3>
+<p>The attention weight for content token j in row i is defined as:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>P</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mfrac><mrow><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>S</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo stretchy="false">)</mo></mrow><mrow><munderover><mo>∑</mo><mrow><msup><mi>j</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup><mo>=</mo><mn>1</mn></mrow><msub><mi>N</mi><mi>k</mi></msub></munderover><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>S</mi><mrow><mi>i</mi><msup><mi>j</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup></mrow></msub><mo stretchy="false">)</mo><mo>+</mo><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>S</mi><mi>h</mi></msub><mo stretchy="false">)</mo></mrow></mfrac></mrow>
+P_{ij}
+=
+\frac{\exp(S_{ij})}
+{\sum_{j'=1}^{N_k} \exp(S_{ij'}) + \exp(S_h)}
+</math></span></span></span></p>
+<p><strong>Where:</strong></p>
+<ul>
+<li>S<sub>ij</sub> = Q<sub>i</sub> K<sub>j</sub><sup>⊤</sup> / √d are the attention scores</li>
+<li>P<sub>ij</sub> are the attention weights for the content tokens</li>
+<li>S<sub>h</sub> is the learnable sink parameter for head h</li>
+</ul>
+<p><strong>Sink Probability:</strong></p>
+<p>The sink probability is computed but not used in the output:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>P</mi><mrow><mi>i</mi><mo separator="true">,</mo><mi>h</mi></mrow></msub><mo>=</mo><mfrac><mrow><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>S</mi><mi>h</mi></msub><mo stretchy="false">)</mo></mrow><mrow><munderover><mo>∑</mo><mrow><msup><mi>j</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup><mo>=</mo><mn>1</mn></mrow><msub><mi>N</mi><mi>k</mi></msub></munderover><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>S</mi><mrow><mi>i</mi><msup><mi>j</mi><mo mathvariant="normal" lspace="0em" rspace="0em">′</mo></msup></mrow></msub><mo stretchy="false">)</mo><mo>+</mo><mi>exp</mi><mo>⁡</mo><mo stretchy="false">(</mo><msub><mi>S</mi><mi>h</mi></msub><mo stretchy="false">)</mo></mrow></mfrac></mrow>
+P_{i,h}
+=
+\frac{\exp(S_h)}
+{\sum_{j'=1}^{N_k} \exp(S_{ij'}) + \exp(S_h)}
+</math></span></span></span></p>
+<h3>
+	<a id="backward-pass" href="#backward-pass" rel="nofollow">
+		
+	</a>
+	<span>
+		Backward Pass
+	</span>
+</h3>
+<p>The gradient of the loss L with respect to the sink parameter S<sub>h</sub> is:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mfrac><mrow><mi mathvariant="normal">∂</mi><mi>L</mi></mrow><mrow><mi mathvariant="normal">∂</mi><msub><mi>S</mi><mi>h</mi></msub></mrow></mfrac><mo>=</mo><mo>−</mo><munder><mo>∑</mo><mi>i</mi></munder><msub><mi>P</mi><mrow><mi>i</mi><mo separator="true">,</mo><mi>h</mi></mrow></msub><mrow><mo fence="true">(</mo><mfrac><mrow><mi mathvariant="normal">∂</mi><mi>L</mi></mrow><mrow><mi mathvariant="normal">∂</mi><msub><mi>S</mi><mrow><mi>i</mi><mo separator="true">,</mo><mi>h</mi></mrow></msub></mrow></mfrac><mo>−</mo><munder><mo>∑</mo><mrow><mi>j</mi><mo>∈</mo><mo stretchy="false">{</mo><mn>1</mn><mo separator="true">,</mo><mo>…</mo><mo separator="true">,</mo><msub><mi>N</mi><mi>k</mi></msub><mo stretchy="false">}</mo></mrow></munder><msub><mi>P</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mfrac><mrow><mi mathvariant="normal">∂</mi><mi>L</mi></mrow><mrow><mi mathvariant="normal">∂</mi><msub><mi>S</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow></mfrac><mo fence="true">)</mo></mrow></mrow>
+\frac{\partial L}{\partial S_h}
+=
+-
+\sum_i
+P_{i,h}
+\left(
+\frac{\partial L}{\partial S_{i,h}}
+-
+\sum_{j \in \{1,\ldots,N_k\}}
+P_{ij}
+\frac{\partial L}{\partial S_{ij}}
+\right)
+</math></span></span></span></p>
+<p><strong>Where:</strong></p>
+<ul>
+<li>P<sub>i,h</sub> is the sink attention probability for row i</li>
+<li>∂L/∂S<sub>ij</sub> is the gradient with respect to the attention scores, including the sink</li>
+</ul>
+<p><strong>Simplified Gradient:</strong></p>
+<p>Since the sink is computed but not used in the output, its gradient ∂L/∂S<sub>i,h</sub> = 0.</p>
+<p>Therefore, the backward equation simplifies to:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mfrac><mrow><mi mathvariant="normal">∂</mi><mi>L</mi></mrow><mrow><mi mathvariant="normal">∂</mi><msub><mi>S</mi><mi>h</mi></msub></mrow></mfrac><mo>=</mo><mo>−</mo><munder><mo>∑</mo><mi>i</mi></munder><msub><mi>P</mi><mrow><mi>i</mi><mo separator="true">,</mo><mi>h</mi></mrow></msub><mrow><mo fence="true">(</mo><munder><mo>∑</mo><mrow><mi>j</mi><mo>∈</mo><mo stretchy="false">{</mo><mn>1</mn><mo separator="true">,</mo><mo>…</mo><mo separator="true">,</mo><msub><mi>N</mi><mi>k</mi></msub><mo stretchy="false">}</mo></mrow></munder><msub><mi>P</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mfrac><mrow><mi mathvariant="normal">∂</mi><mi>L</mi></mrow><mrow><mi mathvariant="normal">∂</mi><msub><mi>S</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow></mfrac><mo fence="true">)</mo></mrow></mrow>
+\frac{\partial L}{\partial S_h}
+=
+-
+\sum_i
+P_{i,h}
+\left(
+\sum_{j \in \{1,\ldots,N_k\}}
+P_{ij}
+\frac{\partial L}{\partial S_{ij}}
+\right)
+</math></span></span></span></p>
+<p>The forward pass was adapted from vLLM's FlashAttention fork, and we implemented the backward pass to compute gradients for the sink parameters. The implementation will be released following the internal review process.</p>
+<hr>
+<h3>
+	<a id="results" href="#results" rel="nofollow">
+		
+	</a>
+	<span>
+		Results
+	</span>
+</h3>
+<p>After applying the fix in FlashAttention v3, we observe substantially faster convergence for GPT-OSS-20B across a range of reinforcement learning tasks. These include single-turn RL on math reasoning (GSM8K — red curve in Figure 5), instruction following (VerifyIf, evaluated on an out-of-domain multi-if benchmark — Figure 6), and multi-turn agentic RL with tool use (ReTool — Figure 7).</p>
+<p>Across all settings, training becomes stable and exhibits steady reward improvement.</p>
+<p>
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/6TYGevydK99nQ-I1QTouf.png" width="500">
+</p>
+
+
+<p><strong>Figure 5.</strong>. Single Turn GSM8K, the red curve converges much faster than the rest without the fix</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Average Entropy</th>
+<th>Average Gradient Norm</th>
+<th>Average Reward</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/ydmBLCSGlD9YKWiIocI1S.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/ydmBLCSGlD9YKWiIocI1S.png" alt="Average entropy in a batch"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/_kl8mn_CXPsRYJ467IbFs.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/_kl8mn_CXPsRYJ467IbFs.png" alt="Average gradient norm in a batch"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/vb2JmmSu-LI5szC_84KsM.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/vb2JmmSu-LI5szC_84KsM.png" alt="Average reward in a batch"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Figure 6</strong>. On verifiable instruction following the task, the run without the fix collapsed (blue), and the run with fix showed steady reward improvement.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Average Gradient Norm</th>
+<th>Average Reward</th>
+<th>Validation Accuracy</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/_Xz7_RLhYuYhzGAeMjDXs.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/_Xz7_RLhYuYhzGAeMjDXs.png" alt="Average gradient norm in a batch"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/uFX-sTWI6knecIf56uahk.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/uFX-sTWI6knecIf56uahk.png" alt="Average reward in a batch"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/5x2mdkpHcdvctZ96yfv58.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/5x2mdkpHcdvctZ96yfv58.png" alt="val score accuracy mean@30 for aime_2025"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Figure 7</strong>. On the Retool task, the run with fix showed steady reward improvement and no gradient exploding (fa2 is the flash attention 2 without the fix while fa3 is the flash attention 3 with the fix). After the fix, the validation accuracy score goes up now.</p>
+<h2>
+	<a id="memory-efficient-training" href="#memory-efficient-training" rel="nofollow">
+		
+	</a>
+	<span>
+		Memory-Efficient Training
+	</span>
+</h2>
+<h3>
+	<a id="mitigating-fsdp-memory-blow-ups-caused-by-repeated-moe-expert-materialization" href="#mitigating-fsdp-memory-blow-ups-caused-by-repeated-moe-expert-materialization" rel="nofollow">
+		
+	</a>
+	<span>
+		Mitigating FSDP Memory Blow-Ups Caused by Repeated MoE Expert Materialization
+	</span>
+</h3>
+<p>One issue we consistently encountered was excessive memory allocation during the FSDP forward pass, which led to repeated out-of-memory (OOM) failures when training GPT-OSS-20B bf16 models on 16 H200 nodes (max response length: 16k, prompt length: 8k). This behavior is highly unexpected for a 20B-parameter MoE model.</p>
+<pre><code data-language="text">2025-11-27T11:15:27.927Z [36m(TaskRunner pid=32081)[0m File "/home/jobuser/.local/lib/python3.10/site-packages/transformers/models/gpt_oss/modeling_gpt_oss.py", line 123, in forward
+2025-11-27T11:15:27.927Z [36m(TaskRunner pid=32081)[0m hidden_states = hidden_states.repeat(num_experts, 1)
+2025-11-27T11:15:27.927Z [36m(TaskRunner pid=32081)[0m torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 180.00 GiB. GPU 0 has a total capacity of 139.72 GiB of which 110.94 GiB is free. Process 685851 has 24.88 GiB memory in use. Process 692458 has 3.87 GiB memory in use. Of the allocated memory 23.28 GiB is allocated by PyTorch, and 84.43 MiB is reserved by PyTorch but unallocated.
+</code></pre>
+<p>We identified the issue as originating from two different implementations of the MoE forward path in Hugging Face Transformers. This issue has also been reported by other users: <a href="https://github.com/huggingface/transformers/issues/40073" rel="nofollow">https://github.com/huggingface/transformers/issues/40073</a>; When verl computes log-probabilities under FSDP, the inference forward path is triggered. In the current Hugging Face implementation, this path duplicates hidden states for all experts and performs batched matrix multiplication, materializing extremely large tensors in GPU memory. By contrast, the training forward path uses a for-loop to process each expert sequentially and then combines the results. While slower, this approach is significantly more memory efficient.</p>
+<pre><code data-language="python">    @GPUMemoryLogger(role="dp actor", logger=logger)
+    def compute_log_prob(self, data: DataProto, calculate_entropy=False) -&gt; torch.Tensor:
+        """
+        ....
+        """
+        # set to eval, this essentially prioritizes parallelism at the cost of memory efficiency
+        self.actor_module.eval()
+        ...
+</code></pre>
+<p>We patched the Hugging Face implementation to use a more memory-efficient execution path, avoiding repeated materialization of experts.</p>
+<h3>
+	<a id="sequence-parallel-with-flash-attention-v3" href="#sequence-parallel-with-flash-attention-v3" rel="nofollow">
+		
+	</a>
+	<span>
+		Sequence Parallel with Flash Attention V3
+	</span>
+</h3>
+<p>Agentic RL requires the agent to interact with the environment over multiple steps while maintaining an ever-expanding context. Observations and environment feedback from each step are appended to the context and used as input for subsequent decision-making, which introduces significant challenges for memory efficiency and scalability during training.</p>
+<p>Under fully sharded data parallelism (FSDP), model parameters, optimizer states, and gradients are sharded across the entire world size (i.e., all GPUs in the training cluster). Each GPU stores and updates only its assigned parameter shards, while rollout data are replicated across all GPUs—meaning every GPU processes the full agent interaction history for each rollout.</p>
+<p>During the forward pass, when computation reaches a layer whose parameters are not locally available, an <code>all_gather</code> operation is triggered to materialize the full parameters across GPUs. During the backward pass, a corresponding <code>reduce_scatter</code> operation aggregates gradients and ensures that each GPU retains only its local shard. This provides a degree of scaling: as the number of GPUs increases, the per-GPU memory footprint decreases.</p>
+<p>FSDP provides model-level scaling by sharding model parameters, gradients, and optimizer states across GPUs. Sequence parallelism (or context parallelism) further reduces per-GPU memory consumption by partitioning the input sequence across devices, thereby lowering the peak activation memory on each GPU.</p>
+<p>As the number of sequence-parallel dimensions increases, the maximum activation memory per GPU correspondingly decreases. We have implemented sequence parallelism to be attention-sink-aware and compatible with FlashAttention v3 (Figure 8, right).</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/ryT_y9BpbFSdMDxNYlVlK.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/64efbd469e7770db74cb72f5/ryT_y9BpbFSdMDxNYlVlK.png" alt="SP  (2)"></a></p>
+<p><strong>Figure 8</strong>. Left: Inference without sequence parallelism. Right: Inference with sequence parallelism, where additional all-to-all communication is performed before and after the attention layer. This partitions the sequence across parallel workers and reduces the peak memory footprint of attention computation by a factor proportional to the sequence-parallelism degree.</p>
+<p>Sequence parallelism scales along the sequence dimension to reduce the per-GPU activation footprint. Input tokens from all sequences are packed into a single contiguous list by removing padding tokens, while position IDs are used to distinguish tokens belonging to different sequences. This design naturally benefits from FlashAttention’s variable-length support. For sequence parallelism, layers other than the attention layer do not have inter-position dependencies; therefore, they do not require each GPU to hold a complete sequence shard, and no additional communication is needed for these layers.</p>
+<p>The attention layer, however, requires all tokens belonging to the same sequence to be present on the same GPU in order to compute attention weights correctly. To satisfy this constraint, an all-to-all communication is performed to gather sequence elements, with the split performed at the attention-head level. This design avoids communication within the attention computation itself, which would otherwise be prohibitively expensive. After the attention layer, a single all-to-all communication redistributes the outputs back to their original sequence-parallel layout, after which the remaining non-attention layers can proceed without further synchronization.</p>
+<h2>
+	<a id="conclusion" href="#conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion
+	</span>
+</h2>
+<p>Our journey to enable agentic RL training for the GPT-OSS backbone model was a practical retrospective, highlighting that unlocking advanced capabilities in open-source LLMs requires meticulous, deep-dive engineering.</p>
+<p>We made contributions that transformed the viability of GPT-OSS for agentic applications, specifically by:</p>
+<ul>
+<li><p><strong>Stabilizing PPO:</strong> We contributed a fix to restore on-policy integrity, overriding the log-probability mismatch caused by the MoE architecture’s non-determinism (Figure 2).</p>
+</li>
+<li><p><strong>Enabling Attention Sink Support:</strong> We successfully implemented and integrated the attention sink backward pass into FlashAttention v3, correcting the catastrophic training–inference mismatch that had previously caused instability and slow convergence (Figures 5, 6, and 7).</p>
+</li>
+<li><p><strong>Scaling Memory Efficiency:</strong> We introduced crucial memory optimizations, including patching the MoE materialization process and integrating sequence parallelism with the new attention sink support, enabling training with the long context windows essential for multi-step agents (Figure 8).</p>
+</li>
+</ul>
+<p>These engineering efforts validate GPT-OSS as a scalable and high-performance backbone for building the next generation of intelligent, multi-step decision-making agents.</p>
+<h2>
+	<a id="acknowledgments" href="#acknowledgments" rel="nofollow">
+		
+	</a>
+	<span>
+		Acknowledgments
+	</span>
+</h2>
+<p>Thanks to Deepak Agarwal, Bee-Chung Chen, Animesh Singh, Gungor Polatkan, Balaji Krishnapuram, and Jitendra Agarwal for their leadership support.</p>
+<h2>
+	<a id="references" href="#references" rel="nofollow">
+		
+	</a>
+	<span>
+		References
+	</span>
+</h2>
+<ol>
+<li><p>Feng, Jiazhan, et al. <em>Retool: Reinforcement Learning for Strategic Tool Use in LLMs.</em> arXiv preprint arXiv:2504.11536 (2025).</p>
+</li>
+<li><p>Xiao, Guangxuan, et al. <em>Efficient Streaming Language Models with Attention Sinks.</em> arXiv preprint arXiv:2309.17453 (2023).</p>
+</li>
+<li><p>When Speed Kills Stability: Demystifying RL Collapse from the Training–Inference Mismatch.<br><a href="https://yingru.notion.site/When-Speed-Kills-Stability-Demystifying-RL-Collapse-from-the-Training-Inference-Mismatch-271211a558b7808d8b12d403fd15edda" rel="nofollow">https://yingru.notion.site/When-Speed-Kills-Stability-Demystifying-RL-Collapse-from-the-Training-Inference-Mismatch-271211a558b7808d8b12d403fd15edda</a></p>
+</li>
+</ol>
+</div></div>
