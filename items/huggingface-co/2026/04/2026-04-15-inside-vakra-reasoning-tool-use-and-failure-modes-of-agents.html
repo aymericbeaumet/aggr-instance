@@ -1,0 +1,299 @@
+<div id="readability-page-1" class="page"><div> 
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/oGFhvAEhWZLctvTLeUoZ6.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/oGFhvAEhWZLctvTLeUoZ6.png" alt="image"></a></p>
+<p> <a href="https://huggingface.co/datasets/ibm-research/VAKRA">VAKRA Dataset </a> | <a href="https://ibm-research-vakra.hf.space/" rel="nofollow">LeaderBoard</a> | <a href="https://www.ibm.com/new/announcements/introducing-vakra-benchmark" rel="nofollow">Release Blog</a> | <a href="https://github.com/IBM/vakra" rel="nofollow">GitHub</a> | <a href="https://github.com/IBM/vakra?tab=readme-ov-file#submitting-to-the-live-leaderboard" rel="nofollow">Submit to Leaderboard</a>
+
+</p><p>We recently introduced <strong>VAKRA</strong>, a tool-grounded, executable benchmark for evaluating how well AI agents reason and act in enterprise-like environments.</p>
+<p>Unlike traditional benchmarks that test isolated skills, VAKRA measures <strong>compositional reasoning across APIs and documents</strong>, using full execution traces to assess whether agents can reliably complete multi-step workflows. </p>
+<p><strong>VAKRA</strong> provides an executable environment where agents interact with over <strong>8,000+ locally hosted APIs</strong> backed by real databases spanning <strong>62 domains</strong>, along with domain-aligned document collections. Tasks can require <strong>3-7 step reasoning chains</strong> that combine structured API interaction with unstructured retrieval under natural-language tool-use constraints.</p>
+<p>As can be seen below, models perform poorly on VAKRA - in this blog, we include additional <a href="https://huggingface.co/blog/ibm-research/vakra-benchmark-analysis#task-description"> dataset details </a> about the tasks in VAKRA and present an <a href="https://huggingface.co/blog/ibm-research/vakra-benchmark-analysis#evaluation-framework">analysis of failure modes</a> we observed on different tasks. </p>
+<p><a href="https://ibm-research-vakra.hf.space/" rel="nofollow">
+    <img src="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/S4hPFdAe7AlrHHS_aAqni.png">
+  </a></p>
+
+<hr>
+<h2>
+	<a id="task-description" href="#task-description" rel="nofollow">
+		
+	</a>
+	<span>
+		Task Description
+	</span>
+</h2>
+<p>As shown below, the <strong>VAKRA</strong> benchmark comprises of four tasks, each testing a different set of <em>capabilities</em>.</p>
+<p>Fig 1: Representative examples of each <em>capability</em> in the VAKRA benchmark</p>
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/l05VRsxYKcKNxq_zrdnkS.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/l05VRsxYKcKNxq_zrdnkS.png" alt="core_benchmark_capabilities"></a></p>
+<h4>
+	<a id="capability-1-api-chaining-using-business-intelligence-apis" href="#capability-1-api-chaining-using-business-intelligence-apis" rel="nofollow">
+		
+	</a>
+	<span>
+		Capability 1: API Chaining using Business Intelligence APIs
+	</span>
+</h4>
+<p>This capability includes 2,077 test instances across 54 domains, requiring the use of tools from the SLOT-BIRD and SEL-BIRD collections (<a href="https://arxiv.org/pdf/2506.11266" rel="nofollow">Elder et al., 2026</a>). Compared to the setup in Elder et al., the tool universe in SLOT-BIRD and SEL-BIRD is expanded through the inclusion of a larger number of domains. Each domain is restricted to one tool collection, and tasks involve chaining 1–12 tool calls to arrive at the final answer.</p>
+<pre><code>{
+  "query": "Which football team has a build-up play speed of 31, build-up plan dribbling of 53, and build-up play passing of 32?",
+  "tool_calls":[
+      {
+        "name": "get_data",
+        "arguments":{"tool_universe_id="486ea46224d1-aeb8037c5e78"},
+        "label": "retrieved_data_1"
+      },
+      {
+        "name": "select_data_equal_to",
+        "arguments":{"data_label":"retrieved_data_1","key_name":"play_speed","value":31},
+        "label": "FILTERED_DF_0"
+      },
+      {
+        "name": "select_data_equal_to",
+        "arguments":{"data_label":"FILTERED_DF_0","key_name":"play_dribble","value":53},
+        "label": "FILTERED_DF_1"
+      },
+      {
+        "name": "select_data_equal_to",
+        "arguments":{"data_label":"FILTERED_DF_1","key_name":"play_passing","value":32},
+        "label": "FILTERED_DF_2"
+      },
+      {"name":{get_team_name},"arguments":{"data_label":"FILTERED_DF_2","n":1}}}],
+  "answer": "FC Barcelona"
+}
+</code></pre>
+<p>Fig 2: Data sample from SEL-BIRD collection
+
+</p><p>As shown above, each instance has an associated JSON data source from which the answer must be derived. The MCP servers supporting this task include a special tool, called <code>get_data(tool_universe_id=id)</code>, which must be called at the beginning of each instance.
+This tool initializes the data source, returns a lightweight preview of the data (see below Figure 3), and stores the full dataset server-side to avoid large data transfers. This prevents the inefficient transfer of large data over the MCP protocol. The call also configures the MCP server to expose the appropriate tool set based on the <code>tool_universe_id</code> and aligns the data source with the domain-specific database for the instance.</p>
+<p>The SLOT-BIRD collection provides a global set of 7 tools for generic data manipulation (e.g., filtering, sorting), inspired by systems like <a href="https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_concepts_filtering_and_sorting.htm" rel="nofollow">Tableau</a> and 
+<a href="https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/FilterExpression" rel="nofollow">Google Analytics</a>. The SEL-BIRD collection extends this by introducing more specialized tools: some are shared with SLOT-BIRD, while others are derived by flattening categorical arguments into separate functions (e.g., <code>sort_data</code> with argument ascending: <code>bool = False</code> becomes <code>sort_data_ascending</code> and <code>sort_data_descending</code>). Additionally, the generic (<code>retrieve_data</code>) function from SLOT-BIRD is replaced with query-specific getters. Every key in the data for a given instance has an associated get function (<code>get_KEY_NAME</code>) for an average of 4 get functions per instance.</p>
+<pre><code>{
+  "handle": "retrieved_data_1",
+  "num_records": 2,
+  "key_details": [
+    {"name": "team_name", "dtype": "str", "first_3_values": ["FC Barcelona", "Manchester City"]},
+    {"name": "play_speed", "dtype": "int32", "first_3_values": [31, 40]},
+    {"name": "play_dribble", "dtype": "int32", "first_3_values": [53, 30]},
+    {"name": "play_passing", "dtype": "int32", "first_3_values": [32, 16]}
+  ]}
+</code></pre>
+<p>Fig 3: Data preview obtained from `get_data` function
+
+</p><hr>
+<h4>
+	<a id="capability-2-tool-selection-using-dashboard-apis" href="#capability-2-tool-selection-using-dashboard-apis" rel="nofollow">
+		
+	</a>
+	<span>
+		Capability 2: Tool Selection using Dashboard APIs
+	</span>
+</h4>
+<p>This capability includes 1,597 instances across 17 domains, requiring tools from an expanded REST-BIRD collection (<a href="https://arxiv.org/pdf/2506.11266" rel="nofollow">Elder et al.</a>).
+These use endpoint-style interfaces that provide highly specific, query-aligned endpoints that encapsulate most computation. They are served as REST APIs running in a FastAPI server, which is wrapped by the MCP server. This task requires selecting the correct APIs from the domain-specific tool set (as shown in the example in <a href="https://huggingface.co/blog/ibm-research/vakra-benchmark-analysis/#task-description">Figure 1</a>). Each domain contains a minimum of 6 to a maximum of 328 tools (with an average of 116 tools). Similar to the previous task, the <code>get_data</code> tool configures the MCP server to expose only the relevant domain-specific APIs.</p>
+<p>The OpenAI API Specification restricts the tool list input to a maximum length of 128 tools. This restriction requires an agent builder using this API to manage the length of the tool list directly via a shortlisting mechanism. In the baseline agents in our repository, a simple <a href="https://github.com/IBM/vakra/blob/main/agents/components/tool_shortlister.py" rel="nofollow">shortlisting capability</a> handles this challenge.</p>
+<hr>
+<h4>
+	<a id="capability-3-multi-hop-reasoning-using-dashboard-apis" href="#capability-3-multi-hop-reasoning-using-dashboard-apis" rel="nofollow">
+		
+	</a>
+	<span>
+		Capability 3: Multi-Hop Reasoning using Dashboard APIs
+	</span>
+</h4>
+<p>The Capability 3 segment of the benchmark has 869 test instances drawn from 38 subject domains. These instances rely again on the REST-BIRD API collection, but add multi-hop reasoning to the challenge (refer to example in <a href="https://huggingface.co/blog/ibm-research/vakra-benchmark-analysis/#task-description">Figure 1</a>). Multi-hop questions require multiple pieces of supporting evidence to be extracted and combined to reach an answer. The instances in this section require between one and five logical hops to answer a query. The question types distribution for queries within the test dataset is shown below in Figure 4.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/-KsUUjAJU-Pspy6wUHDJO.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/-KsUUjAJU-Pspy6wUHDJO.png" alt="hop_depth_analysis"></a></p>
+<p>Fig 4: API Hop-Type distribution for Capability 3 (MultiHop) and Hybrid Hop-Type distribution for Capability 4 (MultiHop MultiSource Reasoning)
+
+</p><h4>
+	<a id="capability-4-multi-hop-multi-source-reasoning-and-policy-adherence" href="#capability-4-multi-hop-multi-source-reasoning-and-policy-adherence" rel="nofollow">
+		
+	</a>
+	<span>
+		Capability 4: Multi-Hop, Multi-Source Reasoning and Policy Adherence
+	</span>
+</h4>
+<p>Capability 4 includes 644 instances across 41 domains and is also built on the REST-BIRD API collection. Figure 4 above shows a distribution of hybrid hops for test queries without policies. It contains the most complex queries with the following characteristics:</p>
+<p><b><u>Multi-Source</u></b>: This segment adds document indices per domain. Queries in this capability could require information from these document indexes as well as API calls. Similar to Capability 3, this task also has Multi-Hop queries. The required information source applies at the per-hop level, so, for example, a question may entail three logical hops with sources: API - RAG (Document Retrieval) - API. To enforce correct reasoning, sources are decontaminated during data generation, i.e. information required for a given hop is available in only one source. For example, if a hop is to be answered using APIs, the document index is built by removing documents that likely contain the information needed to answer the question.  </p>
+<p><b><u>Multi-Turn</u></b>: This segment of the dataset also adds multi-turn conversations to the setting. Each instance is a dialog with multiple turns. The data is released as context-response pairs, where the context encodes the current dialog history and the agent is only responsible for answering the current turn. </p>
+<p><b><u>Tool-usage Policies</u></b>: A subset of these instances includes tool-use policies that the agent is required to follow. These policies take the form of plain-text instructions about the knowledge sources that the agent is allowed to access and under which circumstances. For example: </p>
+<pre><code>If a user's query pertains to Technology &amp; Software, which is/are about Topics focusing on codebases,
+software platforms, applications, and user interactions in tech, make sure you try answering them by
+only using document retrievers. Do not use other types of tools.
+</code></pre>
+<p>The baseline agent in the project repo imposes adherence to these policies through a simple addition to the prompt: <code>"You are a helpful assistant with access to tools.\n Tool Usage Constraint: {additional_instructions}."</code>. Of course, agent builders are free to choose any constraint enforcement mechanism.</p>
+<hr>
+<h2>
+	<a id="evaluation-framework" href="#evaluation-framework" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation Framework
+	</span>
+</h2>
+<p>VAKRA evaluates agents in tool environments where success depends on both the ability to execute coherent, multi-step workflows and answer correctness. We introduce an <strong>execution-centric evaluation framework</strong> that assesses not only final outputs but also the full tool-execution trajectory that includes tool calls, inputs, and intermediate results.</p>
+<h4>
+	<a id="evaluation-metric" href="#evaluation-metric" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation Metric
+	</span>
+</h4>
+<p>The <a href="https://github.com/IBM/vakra/tree/main/evaluator" rel="nofollow">VAKRA Evaluator</a> operates over two key inputs for each sample: a <strong>predicted final response</strong> and the corresponding <strong>tool-call trajectory</strong>. The tool calls from the predicted trajectory are executed in the same environment as the ground truth to verify intermediate tool outputs.</p>
+<p>The evaluation follows a <strong>waterfall-style pipeline</strong> (Figure 6), where later stages are conditioned on earlier success:</p>
+<ul>
+<li>For Capability 4 tasks, <strong>policy adherence</strong> is first verified programmatically (this step is not applied to other capabilities).  </li>
+<li>The <strong>predicted tool call sequence</strong> is then compared against the ground truth sequence.</li>
+<li>Only samples with <strong>valid trajectories</strong> proceed to final response evaluation.</li>
+</ul>
+<p>
+  Fig 6: Waterfall-style Evaluation Pipeline
+</p>
+<p>
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/LP13FH1OviGtRUGs6OSqF.png">
+</p>
+
+<p><b><u>Tool-Sequence Comparison</u></b>
+Due to the presence of an executable environment, agents can explore the environment and sometimes return the answer by invoking a different set of APIs than the ones identified by us. In order to support alternative but valid tool invocations and reasoning paths, correctness is assessed by executing each predicted tool and comparing the set of tool responses against those from the ground truth (rather than enforcing strict step-level matching).</p>
+<p>Specifically, we first perform a programmatic check, verifying whether all information present in the ground-truth tool responses is recovered by the predicted tool responses. This check may be inconclusive in cases involving partial matches, semantic equivalence, or differences in representation (e.g., ordering, aggregation, or formatting). In such cases, we apply a secondary <strong>LLM-based evaluation</strong>, adapted from the CRAG framework <a href="https://arxiv.org/html/2406.04744v1" rel="nofollow">Yang et al., 2024</a>, to determine whether the predicted trajectory retrieves all required information despite structural differences. This step uses an adapted <a href="https://github.com/facebookresearch/CRAG/blob/main/prompts/templates.py" rel="nofollow">prompt</a> to determine whether the predicted trajectory captures all required information, even if obtained through a different sequence of tool calls.</p>
+<p><b><u>Final Response Evaluation</u></b>
+For trajectories that pass the previous check, the final response is evaluated using an LLM-based judge. This step ensures that the response is (i) <strong>grounded in the predicted tool outputs</strong>, and (ii) <strong>factually consistent with the ground truth answer</strong>, accounting for potential variations in phrasing or structure. </p>
+<p>This design ensures that agents are rewarded not only for producing correct answers, but for obtaining them through valid and complete reasoning processes.</p>
+
+
+<div><p><b><u>Scoring</u></b></p></div>
+<p>Every capability is equally weighted to obtain a final leaderboard score</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mtext>Leaderboard_Score</mtext><mo>=</mo><mfrac><mn>1</mn><mn>4</mn></mfrac><munderover><mo>∑</mo><mrow><mi>n</mi><mo>=</mo><mn>1</mn></mrow><mn>4</mn></munderover><msub><mtext>Capability</mtext><mi>n</mi></msub></mrow>
+\text{Leaderboard\_Score} = \frac{1}{4} \sum_{n=1}^{4} \text{Capability}_n
+</math></span></span></span></p>
+
+<p>To obtain a capability score, every sample within a capability is equally weighted for capabilities 1 through 3.</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mtext>Capability</mtext><mrow><mn>1</mn><mo>−</mo><mn>3</mn></mrow></msub><mo>=</mo><mfrac><mrow><mi mathvariant="normal">#</mi><mtext> </mtext><mtext>correct&nbsp;queries</mtext></mrow><mrow><mi mathvariant="normal">#</mi><mtext> </mtext><mtext>total&nbsp;queries</mtext></mrow></mfrac></mrow>
+\text{Capability}_{1-3}
+=
+\frac{\#\,\text{correct queries}}{\#\,\text{total queries}}
+</math></span></span></span></p>
+
+<p>For capability 4, we weight heterogeneous queries higher:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mtext>Capability</mtext><mn>4</mn></msub><mo>=</mo><mfrac><mrow><mi mathvariant="normal">#</mi><mtext> </mtext><mtext>correct&nbsp;multi-source</mtext><mo>×</mo><mn>2</mn><mo>+</mo><mi mathvariant="normal">#</mi><mtext> </mtext><mtext>correct&nbsp;API-only&nbsp;or&nbsp;RAG-only</mtext></mrow><mrow><mi mathvariant="normal">#</mi><mtext> </mtext><mtext>total&nbsp;multi-source</mtext><mo>×</mo><mn>2</mn><mo>+</mo><mi mathvariant="normal">#</mi><mtext> </mtext><mtext>total&nbsp;API-only&nbsp;or&nbsp;RAG-only</mtext></mrow></mfrac></mrow>
+\text{Capability}_4
+=
+\frac{
+\#\,\text{correct multi-source} \times 2 +
+\#\,\text{correct API-only or RAG-only}
+}{
+\#\,\text{total multi-source} \times 2 +
+\#\,\text{total API-only or RAG-only}
+}
+</math></span></span></span></p>
+
+<hr>
+<h2>
+	<a id="error-analysis" href="#error-analysis" rel="nofollow">
+		
+	</a>
+	<span>
+		Error Analysis
+	</span>
+</h2>
+<p>We now present detailed error analysis across the four VAKRA capabilities.  To facilitate our analysis, we adopt <strong>stage-wise error categorization</strong> to assign each failure to the first point of breakdown. Specifically, we evaluate, in order: (i) whether the correct tool(s) were selected, (ii) whether the required arguments were provided without omissions or hallucinations, (iii) whether argument values were correct, and (iv) whether the final response is both accurate and grounded in the tool outputs.</p>
+<h4>
+	<a id="failure-stage-isolation" href="#failure-stage-isolation" rel="nofollow">
+		
+	</a>
+	<span>
+		Failure Stage Isolation
+	</span>
+</h4>
+<p>Since a single sample may exhibit multiple errors across different steps, we sequentially classify each instance to the earliest failing stage (e.g., tool selection errors take precedence over argument errors). This avoids double-counting and allows error categories to be interpreted as disjoint fractions of the dataset. While more granular metrics (e.g., precision/recall over tool usage) are possible (Elder et al., 2026), we find this formulation provides a simple and interpretable breakdown of agent failures.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/cTXZ1LmNP-tkPIe5ghj_t.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/cTXZ1LmNP-tkPIe5ghj_t.png" alt="bi_apis_error_plot"></a></p>
+<p>The instances in this part of the benchmark required selecting and sequencing multiple tools to solve a single task. We have 2077 samples in this capability. This was challenging for all models, but GPT-OSS-120B performed best on this segment of the benchmark. </p>
+<ul>
+<li><strong>GPT-OSS-120B</strong> outperformed the other models by a large margin, mostly from a better understanding of the tool schemas.</li>
+<li>The tools in this part of the benchmark involve a large number of parameters, many of which are optional, and GPT-OSS-120B was especially robust, as compared to the others, at choosing the right parameters to fill.</li>
+<li>Overall, synthesizing a correct answer after making all tool calls correctly was less challenging in this section of the benchmark, most likely because the tool call sequencing made the tool choice problem less amenable to guessing compared with the <a href="#analysis-figure" rel="nofollow">Dashboard API capability</a></li>
+</ul>
+<p>Fig 7: SEL-BIRD vs SLOT-BIRD Error Types Analysis</p>
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/Ckd7lRTEYbTM9gVXUvwDI.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/Ckd7lRTEYbTM9gVXUvwDI.png" alt="sel_vs_slot_error_plot_v2"></a></p>
+<p>The Business Intelligence (BI) API capability contains two sets of APIs, from the SLOT-BIRD and SEL-BIRD tool collections. The SEL part of this benchmark had 600 samples, while the SLOT part of the benchmark had 1477 samples. These two collections are grouped under the BI API capability, but have slightly different characteristics. The SLOT-BIRD collection has a smaller number of generic tools with a large number of parameter values to fill, while the SEL-BIRD collection has a larger set of tools and fewer parameters per tool. This focus is reflected in the relative errors made by models using these two tool collections. </p>
+<ul>
+<li>Using SLOT-BIRD, all models except for GPT-OSS-120b made a substantial number of errors producing correct names for the tool arguments. This is largely the reason that GPT-OSS-120b performed so well overall in this segment of the benchmark.</li>
+<li>With fewer parameters to fill, the same models made very few such errors when using the SEL-BIRD tool collection, but they made many more errors selecting the correct tools, reflecting the increased difficulty of choosing from a larger (and dynamic) tool set.</li>
+</ul>
+<p><img src="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/joxNk95eg1BtTQ7SRDbgI.png" alt="dashboard_apis_error"></p>
+
+<ul>
+<li>As shown above, for the 1597 samples in the tool selection capability, Gemini-3-flash-preview outperforms the other models tested on all error categories.</li>
+<li>As expected, since the dashboard API instances require the models to choose from a large number of tool options, but each tool requires only a small number of parameters, there are a large number of errors in tool selection and parameter value selection.</li>
+<li>There seems to be little problem with hallucinating or skipping required parameters. However, even when all tool calls are made correctly, models (especially Gemini-3-flash-preview and Claude-Sonnet-4-5 still struggle to synthesize a correct answer from the tool responses, as evidenced by the large drop-offs at the far right side of the plot.</li>
+</ul>
+<hr>
+<h4>
+	<a id="multi-hop-reasoning-effect-of-hop-depth-on-model-performance" href="#multi-hop-reasoning-effect-of-hop-depth-on-model-performance" rel="nofollow">
+		
+	</a>
+	<span>
+		Multi-Hop Reasoning: Effect of Hop Depth on Model Performance
+	</span>
+</h4>
+<p>Fig 8: Comparison of Accuracy Across Models by Hop Depth</p>
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/JGR1iJ0DgZulV_gQ4Wx-Z.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/JGR1iJ0DgZulV_gQ4Wx-Z.png" alt="multihop_hop_depth_acc"></a></p>
+<p>Multi-hop reasoning increases the difficulty of the original task by requiring models to successfully answer multiple implicitly coupled questions, each of which requires selecting and calling the correct API. As expected, all models performed best on the questions with only a single logical hop, and saw performance degradations on 2-hop and again on 3+ hop questions.</p>
+<h4>
+	<a id="multi-hop-multi-source-reasoning-effect-of-hybrid-hops-on-model-performance" href="#multi-hop-multi-source-reasoning-effect-of-hybrid-hops-on-model-performance" rel="nofollow">
+		
+	</a>
+	<span>
+		Multi-Hop Multi-Source Reasoning: Effect of Hybrid Hops on Model Performance
+	</span>
+</h4>
+<p>Fig 9: Model Accuracy Rates by Interaction Type (API, Document-Retriever, Hybrid)</p>
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/d8Cqz2tApdRe6ePcaZbYf.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/d8Cqz2tApdRe6ePcaZbYf.png" alt="question_type_acc"></a></p>
+<p>The final segment of the dataset includes document sources in addition to the tool/API sources in the other segments. This leads to instances that require single or multiple API calls, single or multiple document searches, or some combination of API calls and document searches. </p>
+<ul>
+<li>As before, there is a marked difference in performance on instances that require single API calls (1-hop API) as compared to those that require multiple API invocations (2-hop API), and including document retrievers makes the task more challenging (RAG Hops and Hybrid). </li>
+<li>Interestingly, we find that on questions that require a single document retriever call (1-hop RAG), GPT-OSS-120B tries to directly return the answer from parameter knowledge, though when the question <em>appears</em> to require multiple hops, it answers the question. We hypothesize that since the questions for 1-hop RAG are very Wikipedia-entity focussed the model skips the tool call (we don't see this problem on 1-hop API, where back-end database-specific entities/facts might be present more frequently in the question).</li>
+<li>It is also interesting that the performance of Gemini-3-flash-preview shoots up on 2-hop API-RAG as compared to other hybrid hop-patterns. This is likely explained by the relatively strong performance of Gemini-3-flash-preview on the dashboard APIs (Tool Selection Capability), and thus, once the correct intermediate answer is identified using the tool-call, the retrieval query is likely to be more successful.</li>
+</ul>
+<h4>
+	<a id="effect-of-policies-on-model-performance" href="#effect-of-policies-on-model-performance" rel="nofollow">
+		
+	</a>
+	<span>
+		Effect of Policies on Model Performance
+	</span>
+</h4>
+<p>Fig 10: Model Accuracy Rates by Policy Type</p>
+
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/P5L7b-vzkQKYqO63EHccb.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/677629b4931b3b2eb8d5820a/P5L7b-vzkQKYqO63EHccb.png" alt="policy_acc"></a></p>
+<p>Policies introduce an additional layer of difficulty on top of multi-hop, multi-source reasoning.  When policies align with the required source for answering i.e. they do not affect the tool list required for models to answer the question, we refer to it as "No Updates to Answer"  -- as shown in Figure 10, all models except for Granite-4.0-h-Small-32B experience a clear drop in performance under policy constraints that restrict access to the most relevant information source (i.e. "Policy updates the answer"). </p>
+<p>In general, we find that models either violate constraints or fail to retrieve sufficient information, where they sometimes understood the policy but could not answer the question correctly, or they exhibit one of the previously analyzed failure modes.  </p>
+<p>Overall, tool-use policy-constrained settings suggest that while models can reason over tools and sources, they struggle to incorporate external constraints into that reasoning - often a key requirement for reliable real-world deployment.</p>
+<hr>
+<h2>
+	<a id="conclusion" href="#conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion
+	</span>
+</h2>
+<p>VAKRA exposes a critical gap between surface-level tool competence and robust, end‑to‑end agent reliability. Although modern models can increasingly select APIs and execute isolated tool calls, VAKRA shows that these abilities alone are insufficient for real‑world deployment. In practice, models often break down when required to perform compositional reasoning under execution constraints—spanning APIs, documents, dialog context, and policy requirements.</p>
+<h2>
+	<a id="try-vakra--where-does-your-agent-break" href="#try-vakra--where-does-your-agent-break" rel="nofollow">
+		
+	</a>
+	<span>
+		Try VAKRA — Where Does Your Agent Break?
+	</span>
+</h2>
+<p>Think your agent is solid? Put it to the test.</p>
+<p>Run it on <a href="https://huggingface.co/datasets/ibm-research/VAKRA">VAKRA</a> and see where it falls apart—tool selection, multi-hop reasoning, or policy constraints.</p>
+<ul>
+<li>⭐ Submit to the leaderboard: <a href="https://github.com/IBM/vakra?tab=readme-ov-file#submitting-to-the-live-leaderboard" rel="nofollow">https://github.com/IBM/vakra?tab=readme-ov-file#submitting-to-the-live-leaderboard</a>  </li>
+<li>📦 Explore the dataset: <a href="https://huggingface.co/datasets/ibm-research/VAKRA">https://huggingface.co/datasets/ibm-research/VAKRA</a>  </li>
+<li>🛠️ Check out the code: <a href="https://github.com/IBM/vakra" rel="nofollow">https://github.com/IBM/vakra</a></li>
+</ul>
+<p>👉 Try it and tell us what your agent learned</p>
+</div></div>
