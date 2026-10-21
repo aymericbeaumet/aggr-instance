@@ -1,0 +1,123 @@
+<div id="readability-page-1" class="page"><div>
+<p><a href="https://huggingface.co/blog/ServiceNow-AI/sygra-v2">SyGra 2.0.0</a> introduces <strong>Studio</strong>, an interactive environment that turns synthetic data generation into a transparent, visual craft. Instead of juggling YAML files and terminals, you compose flows directly on the canvas, preview datasets before committing, tune prompts with inline variable hints, and watch executions stream live—all from a single pane. Under the hood it’s the same platform, so everything you do visually generates the corresponding SyGra compatible graph config and task executor scripts.</p>
+<h3>
+	<a id="what-studio-lets-you-do" href="#what-studio-lets-you-do" rel="nofollow">
+		
+	</a>
+	<span>
+		What Studio lets you do
+	</span>
+</h3>
+<ol>
+<li>Configure and validate models with guided forms (OpenAI, Azure OpenAI, Ollama, Vertex, Bedrock, vLLM, custom endpoints).</li>
+<li>Connect Hugging Face, file-system, or ServiceNow data sources and preview rows before execution.</li>
+<li>Configure nodes by selecting models, writing prompts (with auto-suggested variables), and defining outputs or structured schemas.</li>
+<li>Design downstream outputs using shared state variables and Pydantic-powered mappings.</li>
+<li>Execute flows end-to-end and review generated results instantly with node-level progress.</li>
+<li>Debug with inline logs, breakpoints, Monaco-backed code editors, and auto-saved drafts.</li>
+<li>Monitor per-run token cost, latency, and guardrail outcomes with execution history stored in <code>.executions/</code>.</li>
+</ol>
+<p>Let’s walk through this experience step by step.</p>
+<hr>
+<h2>
+	<a id="step-1-configure-the-data-source" href="#step-1-configure-the-data-source" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 1: Configure the data source
+	</span>
+</h2>
+<p>Open Studio, click <strong>Create Flow</strong>, and Start/End nodes appear automatically. Before adding anything else:</p>
+<ul>
+<li>Choose a connector (Hugging Face, disk, or ServiceNow).</li>
+<li>Enter parameters like <code>repo_id</code>, split, or file path, then click <strong>Preview</strong> to fetch sample rows.</li>
+<li>Column names immediately become state variables (e.g., <code>{prompt}</code>, <code>{genre}</code>), so you know exactly what can be referenced inside prompts and processors.</li>
+</ul>
+<p>Once validated, Studio keeps the configuration in sync and pipes those variables throughout the flow—no manual wiring or guesswork.</p>
+<hr>
+<h2>
+	<a id="step-2-build-the-flow-visually" href="#step-2-build-the-flow-visually" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 2: Build the flow visually
+	</span>
+</h2>
+<p>Drag the blocks you need from the palette. For a story-generation pipeline:</p>
+<ol>
+<li>Drop an <strong>LLM node</strong> named “Story Generator,” select a configured model (say, <code>gpt-4o-mini</code>), write the prompt, and store the result in <code>story_body</code>.</li>
+<li>Add a second <strong>LLM node</strong> named “Story Summarizer,” reference <code>{story_body}</code> inside the prompt, and output to <code>story_summary</code>.</li>
+<li>Toggle structured outputs, attach tools, or add Lambda/Subgraph nodes if you need reusable logic or branching behavior.</li>
+</ol>
+<p>Studio’s detail panel keeps everything in context—model parameters, prompt editor, tool configuration, pre/post-process code, and even multi-LLM settings if you want parallel generations. Typing <code>{</code> inside a prompt surfaces every available state variable instantly.</p>
+<hr>
+<h2>
+	<a id="step-3-review-and-run" href="#step-3-review-and-run" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 3: Review and run
+	</span>
+</h2>
+<p>Open the <strong>Code Panel</strong> to inspect the exact YAML/JSON Studio is generating. This is the same artifact written to <code>tasks/examples/</code>, so what you see is what gets committed.</p>
+<p>When you’re ready to execute:</p>
+<ul>
+<li>Click <strong>Run Workflow</strong>.</li>
+<li>Choose record counts, batch sizes, retry behavior etc.</li>
+<li>Hit <strong>Run</strong> and watch the Execution panel stream node status, token usage, latency, and cost in real time. Detailed logs provide observability and make debugging effortless. All executions are written to <code>.executions/runs/*.json</code>.</li>
+</ul>
+<p>After the run, download outputs, compare against prior executions, get metadata of latency and usage details.</p>
+<h2>
+	<a id="see-it-in-action" href="#see-it-in-action" rel="nofollow">
+		
+	</a>
+	<span>
+		See it in action!
+	</span>
+</h2>
+
+
+<hr>
+<h2>
+	<a id="running-existing-workflows" href="#running-existing-workflows" rel="nofollow">
+		
+	</a>
+	<span>
+		Running Existing Workflows
+	</span>
+</h2>
+<h3>
+	<a id="run-the-glaive-code-assistant-workflow" href="#run-the-glaive-code-assistant-workflow" rel="nofollow">
+		
+	</a>
+	<span>
+		Run the Glaive Code Assistant workflow
+	</span>
+</h3>
+<p>SyGra Studio can also execute existing workflow in the <code>tasks</code>. For example, in the <code>tasks/examples/glaive_code_assistant/</code> <a href="https://github.com/ServiceNow/SyGra/tree/v2.0.0/tasks/examples/glaive_code_assistant" rel="nofollow">workflow</a> — it ingests the <code>glaiveai/glaive-code-assistant-v2</code> <a href="https://huggingface.co/datasets/glaiveai/glaive-code-assistant-v2">dataset</a>, drafts answers, critiques them, and loops until the critique returns “NO MORE FEEDBACK.”</p>
+<p>Inside Studio you’ll notice:</p>
+<ol>
+<li><strong>Canvas layout</strong> – two LLM nodes (<code>generate_answer</code> and <code>critique_answer</code>) linked by a conditional edge that either routes back for more revisions or exits to <strong>END</strong> when the critique is satisfied.</li>
+<li><strong>Tunable inputs</strong> – the Run modal lets you switch dataset splits, adjust batch sizes, cap records, or tweak temperatures without touching YAML.</li>
+<li><strong>Observable execution</strong> – watch both nodes light up in sequence, inspect intermediate critiques, and monitor status in real time.</li>
+<li><strong>Generated outputs</strong> – synthetic data is generated, ready for model training, evaluation pipelines or annotation tools.</li>
+</ol>
+<hr>
+<h2>
+	<a id="get-started" href="#get-started" rel="nofollow">
+		
+	</a>
+	<span>
+		Get started
+	</span>
+</h2>
+<pre><code data-language="bash">git clone https://github.com/ServiceNow/SyGra.git
+cd SyGra &amp;&amp; make studio
+</code></pre>
+<ul>
+<li><strong>Docs</strong>: <a href="https://servicenow.github.io/SyGra/" rel="nofollow">https://servicenow.github.io/SyGra/</a></li>
+<li><strong>Studio Docs</strong>: <a href="https://servicenow.github.io/SyGra/getting_started/create_task_ui/" rel="nofollow">https://servicenow.github.io/SyGra/getting_started/create_task_ui/</a> </li>
+<li><strong>Example config</strong>: <a href="https://github.com/ServiceNow/SyGra/blob/v2.0.0/tasks/examples/glaive_code_assistant/graph_config.yaml" rel="nofollow"><code>tasks/examples/glaive_code_assistant/graph_config.yaml</code></a></li>
+</ul>
+<p>SyGra Studio turns synthetic data workflows into a visual, user friendly experience. Configure once, build with confidence, run with full observability, generate the data without ever leaving the canvas.</p>
+</div></div>

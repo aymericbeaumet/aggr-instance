@@ -7,10 +7,809 @@ updated: 2026-10-13T15:25:50Z
 first_seen: 2026-10-13T18:08:43.541012300Z
 authors:
 - sammy0910
-content: feed
+content: extracted
 html: 2026-10-13-i-posted-to-hn-and-then-my-website-was-flooded-with-ai-bot.html
 extra:
   comments_url: https://news.ycombinator.com/item?id=50073221
   num_comments: 66
   points: 108
 ---
+
+## Table of Contents
+
+- [1\. I posted to HN, and then my website was flooded with AI BOT traffic](https://www.sammystraus.com/#i-posted-to-hn-and-then-my-website-was-flooded-with-ai-bot-traffic)
+- [2\. Using LLMs to Make the Emacs Web Browser Great Again](https://www.sammystraus.com/#using-llms-to-make-the-emacs-web-browser-great-again)
+- [3\. If technology got better, why did everything get worse?](https://www.sammystraus.com/#if-technology-got-better-why-did-everything-get-worse)
+- [4\. Deft version 0.2.0](https://www.sammystraus.com/#deft-version-0-2-0)
+- [5\. How much LLMs is too much LLMs?](https://www.sammystraus.com/#how-much-llms-is-too-much-llms)
+- [6\. Building Chess in about 350 lines of Clojure](https://www.sammystraus.com/#building-chess-in-about-350-lines-of-clojure)
+- [7\. Announcing Deft: A class and interface system for Clojure and ClojureScript](https://www.sammystraus.com/#announcing-deft-a-class-and-interface-system-for-clojure-and-clojurescript)
+- [8\. My Blog is Now on RSS](https://www.sammystraus.com/#my-blog-is-now-on-rss)
+- [9\. How to Win at Wordle](https://www.sammystraus.com/#how-to-win-at-wordle)
+- [10\. The Power Of Habit (Book Review Pt 1)](https://www.sammystraus.com/#the-power-of-habit-book-review-pt-1)
+- [11\. Modern Monetary Theory and You](https://www.sammystraus.com/#modern-monetary-theory-and-you)
+- [12\. The Perfect Camera](https://www.sammystraus.com/#the-perfect-camera)
+- [13\. Camera Lenses: What's in My Bag](https://www.sammystraus.com/#camera-lenses-what-s-in-my-bag)
+- [14\. Why Many Primary Forecasts are Wrong](https://www.sammystraus.com/#why-many-primary-forecasts-are-wrong)
+- [15\. The Wonky Math behind the Democratic Primary](https://www.sammystraus.com/#the-wonky-math-behind-the-democratic-primary)
+- [16\. What's Going on With The Impeachment](https://www.sammystraus.com/#what-s-going-on-with-the-impeachment)
+- [17\. Treating Cancer with Chemo (Part 3)](https://www.sammystraus.com/#treating-cancer-with-chemo-part-3)
+- [18\. Treating Cancer with Chemo (Part 2)](https://www.sammystraus.com/#treating-cancer-with-chemo-part-2)
+- [19\. Treating Cancer with Chemo (Part 1)](https://www.sammystraus.com/#treating-cancer-with-chemo-part-1)
+- [20\. The Importance of Doing Nothing](https://www.sammystraus.com/#the-importance-of-doing-nothing)
+- [21\. Why I Support Citizens United](https://www.sammystraus.com/#why-i-support-citizens-united)
+- [22\. Camera Settings](https://www.sammystraus.com/#camera-settings)
+
+## 1. I posted to HN, and then my website was flooded with AI BOT traffic
+
+For the past few years, I've been working on [sprinklz.io](https://sprinklz.io), a customizable feed reader that can, among other things, deprioritize certain topics from your news feed.
+
+A month ago, I [posted it to HN](https://news.ycombinator.com/item?id=49660482), and it got a hundred or so upvotes, nice! It seems like people are really tired of hearing about LLMs, and they enjoyed being able to deprioritize them from their feed. It was a good demo of why a tool like this is useful. Everything was looking up, and then…
+
+My website got slow. Like, really, painfully slow. At first I chalked it up to the extra attention of a suddenly popular post. Like any developer I both celebrated, and vowed to make my website more resiliant in the future. Strangely though, the slowness continued, and even started to get worse *several days after* my post went live, and the metrics I did log did not make sense. Like, you know, a good handful of genuinely active, logged-in users, and a sever exhibiting exhorbatantly high load.
+
+So I took a look at some data. I added top-level logging for every endpoint (how many times was a request made to each url path), and I found that a majority of the requests did not even make an attempt to fetch news articles! For reference, my website is built as a single-page-application, and what this means is that a majority of the requests did not even run the javascript necessary to render the page (!).
+
+Digging further, I looked at aggregate NGINX logs to find abusers, and, you're never going to believe this, but it turns out that nearly half of our traffic was coming from one *specific* user. I won't name names, but I looked them up, and they describe themselves as a service that listens for changes to a website, and then summarizes them into an AI slop news letter. And by 'listens to changes' I mean query our website many many times per-minute. Blocked.
+
+Several of the others were your standard known crawlers, and kindly identified themselves as such. Claude bot, OpenAI bot, google's search indexer, and several others. I even picked up a few vulnerability scanners along the way. At least, somebody is trying to access -/wp-content/phpinfo.php (my website is not a wordpress site). I added robots.txt to discourage most of the AI scanners, but allow google-bot and other search-related traffic, and asked claude to query all the vulnerability paths and mimic the scanners to make sure I wasn't leaking anything. I also added reasonable rate limits, etc., etc.
+
+The most important lesson though, is that it's time to make my website faster. I want to be the website that *can* day handle xxx QPS of real traffic, and it should scale better than it did, even under heavy load. Inspired by this encounter, I've made quite a few improvements to the underlying infrastructure over the past few weeks, and these should result in pretty substantial performance gains for all users.
+
+P.S. if you'd like to check it out, the website is fully free, and available [here](https://sprinklz.io)
+
+The TLDR is that it lets you define your own customizations, *in addition* to things like the points totals from hacker news. You can use it to filter out topics, like AI or LLMs, but the topics are completely arbitrary and you can program your own customizations.
+
+## 2. Using LLMs to Make the Emacs Web Browser Great Again
+
+When I tell people about the emacs web browser, their first reaction is 'Wait emacs has a web browser?!', followed by, 'yeah… I guess that's kind of a web browser'.
+
+The emacs web browser is designed to render webpages in a terminal-based, textonly environment and, well, it goes about exactly the way you'd expect. It works well on HTML-only, small-content websites, but not so good for anything else.
+
+The problem is that emacs is primarily a text-only editor, but the modern internet is very much *not* plain-text based. *Simple* HTML, designed in the *simple* style of the 1990s has a clear translation into plain text, but *modern* UI design, with it's visual styling, heavy javascript, and just, overall chaos, not so much.
+
+The emacs web browser would be great, if only we could find a way to go back in time…
+
+Ok, so the plan is simple. We take modern webpages, rewrite their source code into old-school simply-styled HTML, and then pipe it through to the emacs web browser. We just need to find a way to do this easily and at scale.
+
+So um, you didn't forget about LLMs did you? It's nice to be using them in a way that will hopefully *reduce* the amount of spam content in the world.
+
+Basically, the plan is we write a program that:
+
+- Opens a webpage in firefox
+- Loads the page and runs all the javascript
+- Asks an LLM to generate a **re-usable program** that transforms the current-page's contents into simplified text
+- Inject the generated javascript into the firefox browser
+- Grab the new page source and forward it to emacs web browser.
+
+Yeah, and so, I've been using it, and it runs very well. Like realistically I can use this on many webpages where eww (emacs web wowser) did not run previously.
+
+Below are some examples of before and after:
+
+The docs for Clojure's mapcat
+
+![ClojureDocs_before.png](https://www.sammystraus.com/images/ClojureDocs_before.png)
+
+Figure 1: (before) Using eww-readable
+
+![ClojureDocs_after.png](https://www.sammystraus.com/images/ClojureDocs_after.png)
+
+Figure 2: (after) Using simpleweb-simplify-page
+
+It takes a moment to generate the initial modifier program, but once it's generated, it runs pretty fast, and during day-to-day browsing, it mostly doesn't need any extra LLM calls. I have been using it myself and enjoying the experience.
+
+The source code lives here: [https://github.com/sstraust/simpleweb](https://github.com/sstraust/simpleweb)
+
+and is open-source, and free to install, etc., etc.
+
+## 2. If technology got better, why did everything get worse?
+
+I think we all know the answer to this: bad incentives.
+
+Technology makes systems more productive, but it does not, in fact, make *you* in particular more productive. The tools that enable computers to be more efficient also enable *people* to be more efficient at exploiting your time, attention, and wellbeing. I'm talking neural nets babyyy.
+
+I first noticed the problem in 2018. Or rather, I noticed that *I* had a problem, and that problem was spendinng 3 hours a day watching starcraft 2 replays and wondering where the time went, and how I managed to stay up til 2am again.
+
+What's interesting to me is that I didn't have any of these problems until the late 2010s. I had a computer with an internet connection since at least the mid 2000s, and a smartphone with twitter and reddit and the like not long after. It's possible that I've gotten less resiliant over the years, but I have a sneaking suspiscion that it's the computers who changed.
+
+I can't quite put my finger on it, but I have this sensation that every time I interact with a system or website, I'm playing this kind of adversarial game, where I'm trying to just go about my day, and maybe read a little article about computers, and they're trying to figure out a way to keep me on their site for just a little bit longer.
+
+I also have this feeling that as software engineering has moved from a discipline of hobbyists and enthusiasts to leaders who increasingly developed through finance or business-minded tracks, we've found ourselves with these major tools that we used to love become both extremely bland and extremely profitable.
+
+So what can we do it make it stop?
+
+1. touch grass. really when the world is like this, i think the best solution is to just leave. it's not easy, especially when the planning is often online, but if you can set it up, I promise that a day in the park playing chess with your friends is better than any amount of time you can spend on the internet.
+2. take to the streets. i think that protesting is effective, and more people should do it. if you're willing to take action, it models to others that they can take action.
+3. stop coming back to the same machines. I think we all have this gamblers fallacy in us, where if it didn't pay out the first time, but it pays out sometimes, we try the machine again, but it doesn't really work like that. if you're losing money the lesson is to stop putting coins in the machine.
+
+editor's note: I've been working on a free [customizable news reader](https://sprinklz.io) as a way to take out some of my frustrations with the modern internet. if you don't use this one, I recommend following individual blogs and websites, because it's so much better to just get off these big platforms entirely.
+
+editors note 2: i haven't yet posted this latest article to my rss xml, because i'm not ready to send notifications for it yet. will add in the coming weeks.
+
+## 3. Deft version 0.2.0
+
+Now that [deft 0.2.0](https://github.com/sstraust/deft) is released, I figure it's a good time to talk about what I built, and why I built it.
+
+The *point* of Clojure's everything-is-a-map toolkit is that getters and setters are a waste of time. Clojure was built, in large part, in response to the crappy 2008 Java workflow, where you had to write getters, setters, and builders, and you took on all this bloat that nobody enjoyed.
+
+The *problem* is that if you want to represent your data using the built-in defprotocol and defrecord, and you want to define functions that depend on the presence of a certain field, then the only way to *encode* that information into the protocol is to add getter and setter metohds to it. icky.
+
+You can also use a combination of protocol + malli schema to represent this, but then when you use it, you need to specify 'this function takes as input something that both implements this protocol *and* implements this Malli schema'. Also icky.
+
+What we *want* is something we can use in the style of defprotocol and defrecord, but gives us all the getters and setters and map-like stuff by default. The key insight is that if a field exists in a record, we get all the other good stuff, so we just need to add support for protocols with required keys.
+
+Deft v0.2.0 adds support for namespaced keys in type and protocol definitions. i.e., you can now do:
+
+```
+(defp Positioned :required-keys [::pos - ::Point])
+```
+
+and
+
+```
+(deft Circle [::location/position radius])
+
+(>Circle ::location/position [1 2] :radius 12)
+```
+
+this is useful because you can now define methods that *depend on those fields being present* i.e.:
+
+```
+(defp Gremlin :extends [location/Positioned])
+
+(defmethod game-object/get-hitbox ::Gremlin [self]
+  (js/Matter.Bodies.rectangle
+   (get-in self [::location/pos ::location/x])
+   (get-in self [::location/pos ::location/y])
+   15 15))
+```
+
+Check it out!
+
+[https://github.com/sstraust/deft](https://github.com/sstraust/deft)
+
+## 4. How much LLMs is too much LLMs?
+
+I finished reading *On the Edge* last week, and it was bad. Not that I don't respect Nate Silver. I respect him a lot. So when his seminal text on gambling and risk taking was a rambling mess, I was suprised and disappointed. Nevertheless, a completionist at heart, I trudged on, to the very end, where I was greeted with this message:
+
+"ChatGPT was a significant help in writing this book, serving as a creative muse when coming up with things like chapter subheadings, metaphors, and analogies, and for refining my understanding of technical topics that are likely to be well represented in its corpus."
+
+*Technically* he wrote the book by hand, and *technically* he typed the letters onto his keyboard, but you know, did he really? Did he put his whole thought and mind and being into every word on the page? Maybe. I'm reminded of the absolute classic \[Simple Made Easy\]([https://www.youtube.com/watch?v=SxdOUGdseq4](https://www.youtube.com/watch?v=SxdOUGdseq4)), a video where so much of the core lecture is built on defining precise language, and saying exactly what you mean. When you offload that work, you don't just skip word choices, you skip that thinking, and you miss out on that organization and mental clarity.
+
+In reading Nate's book, there's a real and noticeable difference between the language that feels baked into the organizational fabric of Nate's mentality, and the bits that were added on as an afterthought. The later chapters especially felt like they lacked that sort of mental compactification that cohesifies everything under one vision. I'm sad because this could have been a phenominal work, and it's clear that a lot of effort was made, especially into interviews and data collection, and it feels like it's just lacking that one last missing piece of insight to bring it all the way home.
+
+So how much LLMs is too much LLMs? Well, when it comes to human connection, I'd say the answer is near zero. I don't want to read your AI generated e-mails, and I certainly don't want to read your AI generated essays. I'd much rather read your prompt instead, because I care about what *you*, yes, *you* personally think about, and I want to understand what *you* wanted to communicate.
+
+Don't get me wrong, I love LLMs for the right purpose. I'd love to use LLMs on doctor's notes to build models that predict whether the flu is spreading. But when it comes to writing, especially this kind of writing, it just feels so unnecessary, because when you write down your thoughts, I already have exactly what I wanted, and it just feels so silly to add an extra stop in between.
+
+As a poker player and game theorist, I'm sure Nate would appreciate the phrase "If you couldn't be bothered to write it, then I can't be bothered to read it". And you know, despite a belief that art can live separately from the artist, deep down for me this claim rings true. Not that the same words produced by a person are inherently different than the same words from an LLM, but it throws off my little Bayesian estimator a little.
+
+If the smartest person I know spent 10,000 hours writing, editing, polishing, and publishing a 500 page novel, it tells me not just that the smartest person I know had some thoughts on a topic, but it tells me that they decided to spend 10,000 hours of *their* precious time, and of *their* precious energy to communicate this idea to me. It feels good that the time it took me to read it is porportional (and usually less than) the time it took you to write it, because it shows me that you care about the time and energy of creating this exchange.
+
+And it's not just fully AI generated slop that hits this barrier. When you incorporate LLMs into your writing, even a little bit, you miss out on the ability to process your thoughts and create human connection.
+
+## 5. Building Chess in about 350 lines of Clojure
+
+I recently released [deft](https://github.com/sstraust/deft), a Clojure library that defines types and protocols using plain maps, and so, to take it for a spin, I wrote the game of chess in Clojure.
+
+Chess is a good trial run for any class and interface system, because it's reasonably small and self-contained (and has some pretty obvious choice for classes), but it also comes with some of the messiness of a real application, in that, you want to write something concise, but you still have to handle edge-cases, like castling and en passant.
+
+I hand-drew all of the pieces, and used this little reagent snippet to render the display,
+
+```
+[:h-box
+ (doall (for [x (range (count tiles))]
+                  ^{:key x}
+                  [:v-box
+                   (doall (for [y (reverse (range (count (nth tiles x))))]
+                     ^{:key y}
+                     [:p {:style {:background-color (cond
+                                                      (= [x y] @currently-selected-location)  "yellow"
+                                                      (= (mod (+ x y) 2) 1) "white"
+                                                      :else "black")
+                                  :height "4rem"
+                                  :width "4rem"
+                                  }
+                           :on-click (fn [] (move-selected-piece
+                                                    game-board-atom
+                                                    currently-selected-location
+                                                    [x y]))}
+
+                      (if (not (nil? (get-in tiles [x y])))
+                        [:img {:src (image-path (::piece-type (get-in tiles [x y])))
+                               :style {:height "100%"
+                                       :width "100%"
+                                       :filter (when (= (::color (get-in tiles [x y])) ::black)
+                                                 "invert()")}}]
+                        "")]))]))]
+```
+
+but kind of the interesting bit is how to represent the board state and all of its pieces.
+
+I did sort of the obvious thing, and defined types representing a chess piece, and then a board, as a 8x8 grid of pieces
+
+```
+(deft ChessPiece [color piece-type])
+
+
+(deft ChessBoard [tiles - [:vector [:vector [:or :nil ChessPiece]]]
+                  curr-move - [:enum ::white ::black]
+                  move-history - [:vector ChessMove]])
+```
+
+and then for the piece behavior, I made protocols that define how a piece is displayed, and how it can move.
+
+```
+(defp PieceType
+  (image-path [this]))
+
+(defp MovablePiece
+  (is-valid-move-for-piece? [this game-board start-location end-location]))
+```
+
+here is an example for the knight:
+
+```
+(deft Knight []
+  PieceType
+  (image-path [this] (image-asset "knight_white.png"))
+  MovablePiece
+  (is-valid-move-for-piece?
+   [this game-board start-location end-location]
+   (and
+    (let [direction (map abs (map - end-location start-location))]
+      (or (and (= (first direction) 1) (= (second direction) 2))
+          (and (= (first direction) 2) (= (second direction) 1))))
+    (is-valid-end-location? game-board start-location end-location))))
+```
+
+is-valid-move-for-piece? returns a true-false value of "can my piece move to this square".
+
+This works great for most pieces, but is insufficient for more complicated moves, like castling, where several pieces move at the same time. To handle this, we use another multimethod
+
+```
+(defmulti special-move-for-piece (fn [x & args] (:type x)))
+```
+
+that is defined only for special moves, and returns the actual state of the modified gameboard.
+
+so for pawns, it would look something like this:
+
+```
+(defmethod special-move-for-piece ::Pawn
+  [this game-board start-location end-location]
+  (let [curr-piece-color (::color (get-in (::tiles game-board) start-location))
+        move-direction (into [] (map - end-location start-location))
+        prev-move (last (::move-history game-board))]
+    (cond
+      ;; en passant
+      (and (= (second move-direction)
+              (if (= curr-piece-color ::white)
+                1 -1))
+           (= (abs (first move-direction)) 1)
+         (= (:type (::piece-type (::piece prev-move))) ::Pawn)
+         (= (apply max (map abs (map - (::end-location prev-move) (::start-location prev-move)))) 2)
+         (= end-location
+            (into []
+                  (map +
+                       (map (fn [x] (/ x 2 )) (map - (::end-location prev-move) (::start-location prev-move)))
+                       (::start-location prev-move)))))
+      (-> game-board
+          (update ::tiles assoc-in start-location nil)
+          (update ::tiles assoc-in end-location
+                  (get-in (::tiles game-board) start-location))
+          (update ::tiles assoc-in (::end-location prev-move)
+                  nil))
+
+      (and (is-valid-move-for-piece? this game-board start-location end-location)
+           (or (= (second end-location) 0)
+               (= (second end-location) 7)))
+      (-> game-board
+          (update ::tiles assoc-in start-location nil)
+          (update ::tiles assoc-in end-location
+                  (assoc (get-in (::tiles game-board) start-location)
+                         ::piece-type (>Queen))))
+      :else nil)))
+```
+
+I'm not going to copy-paste the movesets for every piece in this post, but it was pretty straightforward to define relevant methods for all the different piece types and special-cases, and I'm pretty happy with how the code turned out. When you're reading this code, it really looks like somebody just wrote down all the rules for the game of chess, and that's what makes me feel good, and feel like we've done things in a way that's well organized.
+
+But now, sort of the most important question (for me) is:
+
+is this library actually helping? did deft make our lives better?
+
+I think it did, for the following reasons:
+
+- deft gives us the features from both protocols/records and multimethods/plain-maps, so we didn't need to *decide* which tool was right for our use-case. this removes just like a lot of cognitive load, because we can use one tool, and trust that it can do everything pretty well.
+- in particular, it was nice to be able to define :default method dispatch for our protocols, and it was extremely nice to be able to reload protocol method defs from the repl without having to re-instantiate the entire chessboard (and clear the current position)
+- it was really nice to be able to enforce when I wanted method defs to be defined for a particular type, and it was really nice to have an easy way to add Malli schema
+
+Overall, I'm pretty happy with how it all turned out, and I'd say the test of our library was a success.
+
+You can find the entire code for
+
+the game here: [https://github.com/sstraust/deft/blob/master/examples/src/examples/chess.cljs](https://github.com/sstraust/deft/blob/master/examples/src/examples/chess.cljs)
+
+the library here: [https://github.com/sstraust/deft](https://github.com/sstraust/deft)
+
+and the detailed video explanation here: [https://www.youtube.com/watch?v=lrofmFI1UJY](https://www.youtube.com/watch?v=lrofmFI1UJY)
+
+## 6. Announcing Deft: A class and interface system for Clojure and ClojureScript
+
+Today I'm releasing deft! It's a library that replaces clojure's existing class system with plain maps and Malli schema.
+
+It took me about 6 months to really think it through all the way, and get the design just right, so it feels good to finally publish it.
+
+The library: [https://github.com/sstraust/deft](https://github.com/sstraust/deft) Video Tutorial: [https://www.youtube.com/watch?v=dlW6YzwUZ-M](https://www.youtube.com/watch?v=dlW6YzwUZ-M) On Hackernews: [https://news.ycombinator.com/item?id=46590958](https://news.ycombinator.com/item?id=46590958) (plz star the repo!)
+
+Synopsis: This library came out of out frustrations with Clojure's existing type ecosystem. Both defrecord/defprotocol, and plain maps+multimethods, the way they are currently used, make Clojure programs fundamentally difficult to organize and refactor.
+
+The problem is that:
+
+- Clojure records use single-colon (unnamespaced) keyword access to lookup record fields
+- Clojure records do not allow you to define abstract classes, or things that rely on complex dispatch behavior.
+- Clojure maps are extremely difficult to nail down and make stable. Even with libraries like Malli, it's hard to declare interfaces that explain "what can I do with this thing?"
+- Unless you are extremely regimented about defining Malli schemas for every single use case, it's easy for things to get disconnected during destructuring, because missed field lookups return nil
+
+The goal is to give something that's still enjoyable to work with, but lets you really nail down the behavior when you want to (and still keeps it ergonomic and fun).
+
+A secondary goal was to make something that is reliable and stable, and is (hopefully) easy to adopt in existing codebases. check it out!
+
+## 8. How to Win at Wordle
+
+I played my first game of Wordle this week, and I got in 4!
+
+Ok, I got a little bit lucky, but it wasn't all luck. While I was playing I had a chance to think through some of the strategies, and saw some pitfalls I think others might have missed.
+
+### 8.1. Don't guess letters that are already green
+
+Unless you're trying to make your final guess to win the game, you shouldn't guess the same letter in the same place. You already tried that, so doing it again doesn't give you new information.
+
+Your "guess" is guaranteed to be wrong, but you now rule out (or find!) another possible letter when you go to actually solve the puzzle. Lets see an example:
+
+Suppose you have B - A - \_ - E - S, all green. You just need to guess the last letter, but there are a lot of remaining options. Among letters you haven't guessed in that slot, D, K, N, R, S all work. You could guess every letter individually, but you most likely won't get it first try, and worst case it will take you five turns. Instead, if you guess D - R - I - N - K, a word that you know is wrong you "guess" every letter at once, so you're guaranteed to get it in 2 (you guess S if there are no yellows).
+
+### 8.2. When you guess new letters, put them in places they commonly appear
+
+Just for a moment, think of worlde a little bit like binary search. Your goal is to learn as much information as possible with every guess. If your guess splits the problem space in half (i.e. you eliminate half of possible words if it shows up green, and half of words if it shows up yellow), you learn (on average) the most possible information with every guess.
+
+Now – you only get to guess a letter in one position, so either it's in the one specific position you chose, or it's in any of the other possible four positions. If you want these two outcomes to be roughly equally likely (or as close to equally likely as possible), then that one position you chose had better be really likely to make up for 4 other slots.
+
+You learn (on average) way more about the letter 'Y' with a guess like R - A - I - N - Y, than you do with a guess like Y - E - A - R - N.
+
+### 8.3. Guess common letters first
+
+Basically the same logic as above. It's either one of the 5 specific letters you guessed, or it's one of the 21 other letters. You want to guess the 5 that most closely split the problem in half.
+
+Going a step further, once you have a few lines guessed, you want to guess the most common/most evenly dividing letters given the letters you already have. Q is a bad first guess, but if you already have a U down, then maybe…
+
+### 8.4. Think through the list of possible words at every step
+
+Remember, your goal is to "divide in half" with every letter. If you have a sense of/random sample of the words in the space, it's easier to pick the letters/positions that divide that list the most precisely.
+
+## 9. The Power Of Habit (Book Review Pt 1)
+
+Charles Duhigg was a reporter for the New York Times, and you can feel it in his writing. This is a modern-science report that's sensational, inspirational, and often highly misleading.
+
+This book has it all, self-help transformations from couch potatoes to superstars, the success of Starbucks and the Colts football team, all simply explained by the power of habit. Of course habbit only plays a small role in each of these things. Of course every football game comes down to a little bit of luck (even left up to the wind and the weather). But – someone adopted good habits and later become successful – BOOM – causation – done – problem solved.
+
+Beyond the wild conclusions though, there is some real (and recent!) science being done, and our changing understanding of habits is both interesting and powerful. For me the key takeaways are:
+
+Habits circumvent our normal process of reasoning (and aren't stored in the same brain-area as planning and short term memory) Habits can be modelled as a sequence of trigger – action – reward. If you're missing one of these pieces, you won't trigger (or learn the habit loop) Habits can live latent for a long time, even as we move on from them. Make no mistake though, this book is meant to be transformative. What can YOU do to change YOUR life, just like Peyton Manning did? Again, the science is mixed here, but it seems like the author's point is:
+
+Habits are hard to un-learn, but it's easier if you break them down into the trigger – action – reward lifecycle. If you can swap out the action, but keep the trigger and reward the same, you can hijack your bad habits to learn good behavior. If you want to make a transformative change, it's easiest to focus all your attention on one habit, and then the rest are likely to follow. Habits can be a good thing. Thinking is hard, and deciding what to do takes effort. If something (like choosing what to make for dinner) takes mental effort, your less likely to do it, because that mental effort is as much work as the actual cooking. Try to form habits, and try to think about what you're going to do ahead of time, so that when you get to the moment of truth, it doesn't take effort.
+
+## 10. Modern Monetary Theory and You
+
+Like any political agenda, modern monetary theory isn't perfectly specified, and people often tailor its definition to their own ambitions. As best I can tell it goes like this:
+
+If you're a country that controls its own currency, its ok to go into debt, and you can print as much money as you want as long as it doesn't cause inflation.
+
+Some people argue that with the power of MMT, we have the money to finance all of our wildest hopes and dreams, if somebody would just have the courage to turn on the money printer. Free college, loan reimbursement, free housing, we could pay for everything with a click of a button, and no negative long-term reprecussions. As long as we don't cause inflation, there really isn't anything to worry about.
+
+### 10.1. The Big If
+
+The thing is, that's a pretty big if. You can "prove" anything you want if you start with a false assumption. If we could print infinite money, and not cause inflation, that'd be pretty awesome, but is such a thing even possible? How did we get here, and why does anybody believe we can do this?
+
+In theory, economics is based on supply and demand. If everyone wants apples, but there are no apples available, the price of apples goes up. If nobody wants apples, but every citizen has a stockpile of 100 apples, the price (and the implied value of apples) goes down.
+
+In the same way, if everyone in the United States magically had 12 million dollars, they'd all be competing to use that money to buy the same limited supply of things. Many people want 3-bedroom houses, but there aren't magically more of them. It's the same people competing with each other to buy the same house. In order to outbid someone with 12 million dollars for something they really want, you also need to spend millions of dollars.
+
+Fundamentally, people want money so that they can use it to buy goods and services. On a global scale, if every government printed more money, but didn't also increase the global amount of available goods and services, you're not increasing everybody's real buying power, because everyone is still competing to buy the same limited number of goods and services. You only increase real wealth if the number of goods and services produced also increases.
+
+### 10.2. How We Got Here
+
+So if America went out tommorrow, and started printing tons of money, and taking on tons of debt, we'd expect the cost of everything to go way up. We'd expect government bonds to be much less valuable, right? Right?
+
+Well it turns out that during the 2008 financial crisis, the U.S. did print a lot of money, and did take on a lot of extra debt, and everybody expected inflation to happen, but somehow it just… didn't. Markets are hard to reason about, and nobody really understands why it happened, but people have thrown around some theories:
+
+The United States is considered a trustworthy institution, and people need a safe place to put their money. The world financial system is already so invested in the U.S. dollar that the U.S. can do whatever it wants. The stimulus bill spurred so much economic growth that it offset inflation.
+
+### 10.3. The United States as a Trustworthy Institution
+
+Ok, so, we took on a lot of debt before, and it was fine. We printed a truly wild amount of money, and people still trusted us as a stable, reliable institution. Everyone believed that the U.S. government would pay them back, and would pay them back in dollars that held value.
+
+Even in a crisis caused by the U.S. economy, the U.S. looked like a safe place to put your money because the U.S. always had been so responsible, and so reliable in the past.
+
+So – if we suddenly started being irresponsible, like, racking up huge debts and printing money to pay them back, people will keep lending to us forever, right? Right?? If we don't produce anything, we can just keep printing money forever, and people will just give us stuff, right?
+
+There's this idea that because we're borrowing in U.S. dollars, and that U.S. dollars are the de-facto currency of the world, we're never in trouble, because we can just print more money to cover our losses. But do you think people will keep lending to us if, in terms of real physical goods, we're not offering anything meaningful in return? Do you think people will continue to use USD as their default currency if the U.S. government buys all your stuff, but gives you paper, and no items in return?
+
+We could technically pay off our debts by printing a shit ton of money, but from an investing perspective, it would be essentially the same as default. We made a promise, and in terms of goods and services, we're not providing any real value to fulfill that promise.
+
+Defaulting on a loan is so dangerous because it destroys your credit. If you go bankrupt, it's super hard to get another loan because people don't trust you anymore.
+
+In the same way, even if the U.S. doesn't technically default on its debt, if it covers up by printing more money, it's essentially going to have the same effect because people won't trust us anymore.
+
+We can "cash in" on our current trust and influence, but once we break that trust we can't rely on it as strongly anymore.
+
+### 10.4. Take From the Rich and Give to the Poor
+
+The argument goes something like this:
+
+Wealthy people have money, and poor people don't have money. So, if we print some extra money, and give it to poor people, it lowers the value of the rich people's money, effectively taking buying power from rich people and redistributing it to poor people.
+
+It accomplishes a goal people were already after, in a way that's clean and simple.
+
+The thing is – rich people don't own wealth in dollars. The very rich know that dollars aren't necessarily stable, and they own houses, stock in businesses, and even precious art. When you inflate the values of dollars, it doesn't really affect a lot of the rich people, but it does hurt others.
+
+The people that it does hurt are the ones governed by a fixed $15 (or less) minimum wage. The people it does hurt are the lower-middle class people that don't know much about investing, and just keep all their money in a savings account. It helps people who are in debt, and might have some other positive effects, but for many it's more a destabilizing element than it is helpful.
+
+### 10.5. Stimulus and Economic Growth
+
+Ok so there's a real argument here. The idea is – it's ok to print money because we can generate more goods and services. If we spend it wisely – build bridges, improve broadband, we can create jobs for people who were previously out of work. What's more, that new infrastructure and spending will spur even further economic growth.
+
+If for every dollar we spend, it generates $N dollars of economic activity (how is it even possible to reliably calculate these things?), then we're not just printing money, we're printing value.
+
+This is one of those arguments that I like because it's logically consistent. If we produce more goods and services, then even though there's more dollars in circulation, there's also more stuff to buy with those dollars. If it really creates that much growth, then it works.
+
+The challenge here is it's extremely optimistic. Is your government so smart and well organized that it's going to create 10 trillion dollars worth of value? It might. We've had our shining moments, and I'm hopeful that we'll make it count, but most of the time it doesn't work out that way.
+
+## 11. The Perfect Camera
+
+Every year, sometime around the holidays, I splurge on one really nice thing for myself. Locked inside during quarantine, there hasn't been much to spend on, but I've had a great time doing landscape photography. We still haven't been to bars and restaurants, but we can drive around in a car, and we've been exploring parks in and around New Jersey.
+
+This year I set my mind on a new camera. Something a little bit nicer than I already had, maybe that I could use to print pictures and big posters.
+
+I bought my first camera in December of 2018. I remember spending ages picking something out, and eventually settling on a Nikon Z6. I really wanted a D850, but along with lenses it was too expensive for consideration. I also looked into the D750, but even though I liked the idea of an optical viewfinder, mirrorless seemed to be the way of the future, and an old DSLR would make me a dinosour. I also looked into some other brands, but Canon didn't have great mirrorless options yet, and I didn't love Sony as a company.
+
+Fast forward two years later, and here I was in the same spot, spending ages to pick out a camera.
+
+In the mean time, I also had the chance to try out an old school DSLR (the D610), and I absolutely loved it. The image quality was better (SOOC at least). The optical viewfinder was a relief to use. Even more than that, the whole camera was just so well thought out and well constructed. Every button was in exactly the right place and there was always a button when I wanted one. Things like white balance, buried in menus on the Z6 were just one tap here. They even had a well functioning assist light that basically solved all my problems with low light focus. It felt like whenever I needed something, I reached out and the D610 had an answer.
+
+This time I had spent so little during the course of the pandemic, I decided it was time to go for a really nice camera. Every brand/style was on the table. I decided that I was going to get the best camera, and then not have to think about upgrading it again, at least not for a really long time.
+
+Of course, I quickly found out that it's not so easy. Even if you had all the money in the world, different cameras have different tradeoffs. The ones with the best image quality are big and bulky. Some cameras technically have lower dynamic range, but beautiful and natural image rendering. Mirrorless cameras have face and eye detect, but miss that great optical and mechanical feeling.
+
+Really each camera gives you a different experience, and different cameras are "the best" in different situations. If you're taking selfies you want a flippy screen. If you're bringing a camera to dinner, you want something fashionable and lightweight. If you're shooting an event, you need the very best in reliability and focus tracking.
+
+I definitely wanted something small that I could take to game night with my friends, but I also wanted something (potentially big and heavy) that could shoot landscapes with the very best image quality. I very quickly realized that I wanted different setups for different situations I was in, and that no camera was going to be perfect for everything for me.
+
+Between everything, I kind of narrowed it down to three situations I usually shoot in:
+
+Photo walks. I set out specifically to take nice landscape photos. I want an enjoyable shooting experience and the ultimate image quality. Less weight is nice, but I don't really mind heavier cameras or slower autofocus too much. Friends and Family memories. This is the camera that I'm taking to hang out and play minigolf. I don't need the ultimate image quality, but I want something unobtrusive and super reliable. I care that I'm going to get a usable image in any and every situation. If the family photo in front of the Eiffel tower comes out blurry, we're not making another trip, and we're not spending 2 hours readjusting to get the perfect shot. It's also important here that if someone else is taking the picture, it still comes out nice. Portraits/selfies – this is somewhere in between the two above. You have more time to set up your environment/carry the right lenses, but you still want fairly reliable face/eye detect. 4.1 The Contenders
+
+4.1.1 Canon
+
+Canon makes professional dslr and mirrorless cameras.
+
+Their most recent professional mirrorless, the R5 is a solid all-arounder that, from what I can tell, preforms very well in almost all situations. It's fast enough to capture sports and wildlife, has very good face/eye detect for ease of use in capturing friends/family memories, and has very good (although expensive) glass for ultimate image quality. As a very big plus, it even has a flippy screen, which is maybe not so useful to professional photographers, but very useful for including everyone in the family portrait.
+
+The only real downsides of the R5 is that it's very expensive, and that it overheats when taking video (although I don't take 8k video it still makes me kind of nervous to have a camera which can overheat). Part of the challenge is there isn't much third party RF glass, so you're stuck with Canon's very good, but very expensive lenses. Canon's colors are known to be good, but I've also heard that the R5/R6 have a flatter profile than earlier Canon DSLRs, meaning it can take some more work in post to get very good images.
+
+They also make a professional DSLR, which is popular, and produces solid SOOC results, although it has worse dynamic range and few meaningful performance improvements over its Nikon counterparts.
+
+Canon also makes the RP which is a much smaller, and lower performing version of the R5
+
+4.1.2 Sony
+
+Sony's A7R4 has the highest resolution, and the best face tracking of any mirrorless camera. It's thought to be a technically very precise camera, although considered lacking in some ease of use features like nice SOOC jpegs and nice ergonomics. Now that the face tracking and tech specs of the Canon have mostly caught up, I think it's harder to justify, especially because I don't love Sony anyway. It is much cheaper though, especially when you take cost of glass into consideration.
+
+Sony also makes the A7C which, paired with a Zeiss 35 2.8 is one of the smallest packages you can buy that gets very good image quality. They also make the Rx1R which is higher resolution, but lacks a flippy screen and IBIS, and the RX100, which is much smaller, but along with a 1" sensor, lacks some of the quality you expect from a dedicated camera.
+
+4.1.3 Nikon
+
+I own a Z6, and the face/eye detect is just bad. It's bad enough that I don't feel like I can fully rely on it. I've taken photos that just look bad, and then later realized that my camera just missed focus. I can't even use the single-point af because the joystick moves the focusing point too slowly.
+
+I've also noticed, that compared to the images I took on the D610 the color balance is slightly off, especially when I use the camera with adapted F-mount lenses, in a way that makes the same image with the same lens just look less pleasing. Maybe there's a way to bring it back in post, but I just find the images from the D610 look way nicer and are way easier to deal with.
+
+Maybe Nikon fixed the AF issues in their Mark II. Maybe the colors look right if you use the latest and greatest Z glass and make adjustments. Maybe the autofocus works better without the adapter. But at this point, I just don't trust them. I really like the Z mount glass, I just wish they had a better camera behind it.
+
+In contrast, my experience with the D610 was just great. A 10 year old camera with performance that holds up to today's standards. Buttons and ergonomics just the way I wanted them. Not a new idea but a fully iterated, rugged, professional camera. It felt like everything I needed was thought through and provided for. And most importantly: the image quality, straight out of camera, was near perfect.
+
+The D850, Nikon's newest DSLR is the next iteration of the D610 (well technically, several iterations). It keeps most of the same design and build quality, uses the same F-mount lenses, and, from what I can tell, renders images in the same very nice way. It's actually missing a few features from the very well designed D610 (e.g. more incremental WB adjustments and a built in flash), but for those small sacrifices, you get a much higher resolution sensor, better dynamic range, better AF points, better color retention if you push the image, and much more.
+
+Unlike the Z6, I trusted the D610, and I knew if I got a D850 with basically the same stuff, I would get basically the same very good images (although hopefully a tiny bit better).
+
+I was waiting/hoping for Nikon to release a successor to the D850, but based on the more recent D780, and other recent camera releases, I guessed that:
+
+They probably wouldn't significantly increase the resolution. At least, it wouldn't make sense if they released a DSLR with significantly more resolution than their most recent mirrorless offerings. They would probably port the same bad face and eye detect from their mirrorless cameras into live view mode. I actually prefer the contrast detect on my D610. It might be slow, but at least it's reliable. Adding phase detect also means more stuff on the sensor that can affect image quality. They might add IBIS, and I'd really like IBIS, but it's not a super big deal since a lot of my lenses already have it. 4.1.4 Leica
+
+I feel like leica is one of these brands where people buy into it to figure out if it's actually worth buying a Leica. Is it really a much smoother ride in a Ferrari? You'll never know unless you try one.
+
+Jokes aside, I've thought of a few real reasons why people might want one:
+
+They render nice. This is one that's hard to qualify, especially when the technical charts don't always back up these claims, but some people like the overall image rendering/asthetic feel of leica images. They look nice. Ok, for a photographer it feels like it shouldn't matter, but it does matter, and it matters because it affects whether you take it with you. If you show up to the royal wedding with a D5 you look like the paparrazi, but a leica is stylish and classy. You might even wear one as part of your outfit, just to look a little bit hipster. They're small. Have you seen the enormous Nikkor 0.95 Noct? Have you seen it in comparison to the leica noctilux? The noct is a little bit better, but you're getting what would normally be very big full-frame primes in a very small package. That means something you can casually carry, and something that fits better in casual environments. They're rangefinders. If you want the rangefinder experience, leica is pretty much your only option. I don't think it interests me, but if you need a manual focus rangefinder leica is the place to be. I like that Leica's are super small. It matters to me that I can take them with me, and that they stay out of the way when I'm not using them. It feels more relaxed to go out to dinner without carrying an enormous DSLR.
+
+The challenge is, Leica's don't have great autofocus (if at all), and are entirely lacking in "ease of use for non-professionals". They're a great lightweight vacation camera for fun photowalks, but if I go on a nice family vacation, I want a nice family photo, and Leica cameras just don't get the job done. (The q2 sort of does).
+
+4.1.5 Fujifilm
+
+Their APS-C line of cameras is solid (and nice-looking!) but I felt they weren't small enough to justify the difference in quality to a body like the A7C. They also make the X100V, whose rangefinder style is very appealing, but there are smaller, lighter cameras with better image quality.
+
+The GFX system is an adventure, because it's a little inconvenient, but undeniably a better performer than any other practical system. When other manufacturers announce 100MP the images might look more grainy, but pull that off with a larger image sensor, and you really are getting 50% more space. Not just that, I can tell the just-released GFX 100S is something special. Not only does it fix the ergonomics of the original GFX 100, not only does it fit the performance into a tiny, dslr-sized package, but it's an absolute bargain at 60% the cost of a GFX 100.
+
+I wanted one because I knew cameras that are that kind of performance breakthrough can hold their own for a really long time. It's like they made a substantially better camera than their absolute medium format flagship, and are charging less money than not only their own flagship, but those of full frame competitors. The D850, when it came out, was a big deal 4 years ago, but this is a big deal that's happening right now, and will continue to be significant far into the future.
+
+I can't quite vouch for the Fuji color science, as I haven't quite put them through the paces like I have my Nikon's, but I've heard great things about their color science, and their film simulations look really appealing, at least from the online test images I've sifted through.
+
+The big problem with the GFX system is that there aren't that many available lenses. The lenses they do have are stunning, some even considered significantly better than their DSLR counterparts, but you have to stick with the lenses fuji gives you, and if you need something specific, like a 14-24 2.8 you're out of luck. This is one system where you're really buying into the glass as much as the body, so you can't just think about the camera in isolation, but how it performs with the lenses you're actually going to use.
+
+If I bought into the GFX system, I wanted the 32-64 f/4, and the 45 f/2.8, both very high performing lenses, though I do wish they had a true 24-70 f/2.8 equivalent, and some other options with more range.
+
+4.2 Decision Time
+
+I knew that, due to the pandemic, I was pretty much cut off from normal social events for a few months to a year, so it didn't matter too much if I carried a big heavy DSLR around. I also didn't want to be the guy that had a million different cameras falling out of his pockets for different situations. The key here is it's ok to take your selfies with a cellphone. You can have a nice camera, but every photo doesn't need to be the ultimate in high resolution image quality. If you just want a nice memory of making pancakes for dinner it matters more that you don't interrupt the memory that you're trying to capture. Maybe if I bought a million cameras, I would get one really tiny one, but it's not what I need right now, and phones are a pretty solid replacement for non-photography photos. I'm also a little wary of fixed-length prime cameras, because once you start cropping, you lose all the benefits in image quality.
+
+I wanted to try all the cameras out in person, but also due to the pandemic, I wasn't really able to visit a camera store. I could get sample images online, but it's always hard to tell how much editing has been done, and how much is due to the scene's lighting and the skill of the photographer.
+
+With that in mind, only looking at big, high-performing interchangable lens cameras, I narrowed down my search. The Nikon Z and A7R cameras were out of contention as I considered them surpassed by the Canon R5. The 5DMark4 was also out of contention, considered surpassed by the D850. That left the remaining options as: The Canon R5, The Nikon D850, and the Fujifilm GFX 100s.
+
+The R5 has excellent RF glass, is a well rounded camera, has a flippy screen, and the benefit of very functional face and eye detect. Plus canon are known for making nice, easy-to-use camers. The thing is, in terms of lenses, Tamron's glass is much cheaper, and very high performing (especially the 35/1.4!), and the face-detect in live view on the D610 is actually very accurate and usable, albeit too slow for fast-moving subjects. The colors straight out of camera are also thought to be a little flatter than it's DSLR counterpart. The thing that I'd really miss most from the R5 is actually the flippy screen, but I figure if we need to take a group photo that badly, we can just ask someone to take our picture. Compared to the D850, it's also missing tons of buttons and the optical viewfinder experience.
+
+The GFX 100S is the camera I gave the most thought to. Paired with the 45 f/2.8 or the 110 f/2, it gives the very best image quality of any practical camera, and it feels good to know that you have the very best. If your image doesn't look as good as the stock photo you find online, it feels good to know that it's not because you took the wrong camera. In programming, we think about debugging as "finding the source of error that broke your software", and having the very best makes your system simpler because there's one less source of error that you have to check. You don't have to go back to the same place and try it with a different camera, because you know that it wasn't the camera's fault. It lets you stop thinking about gear and focus on other factors that make something into a good image.
+
+Although competitive with the R5, the D850 is also a 4 year old camera. With the way technology progresses, it's fortunate to have a camera that lasts 10 years before obsolesence, and it's already mid-way through it's lifespan. By comparison the GFX 100s is not just new, but groundbreaking, a big leap forward in technology that seems likely to stand for a long time. You're buying into a system that's big, and new and rapidly growing, compared to one that's slowly being phased out of existence. It's also on it's fourth iteration, and it's really getting the attention to detail that forms it into a full fledged product. It lacks a vertical grip, but for the most part it's very flushed out, and doesn't have anything major that's still clunky or missing.
+
+Between the D850 and the GFX 100s, the decision was the hardest because the GFX 100s is just such a compelling option.
+
+But ultimately….
+
+I went with the D850. The big thing for me is I loved using the D610, and not just that, I trusted it. I didn't know if the GFX 100s would be fun to use, or if it would render images the way I liked, but I knew the D850 would, because it was just the same as the D610. I remember before I bought the Z6 two years ago, some reviewers told me that it rendered nice and had usable autofocus, but in my mind, they couldn't be more wrong.
+
+Lack of available lenses on the GFX system was also a huge deal for me. If you shoot at 35mm, and then crop it down to 85mm, you're not getting any of the image quality of a medium format sensor. If you shoot the GFX system, you're stuck with a paltry 2x zoom range, meaning that you're not going to get the shot unless the composition lines up exactly with the one lens you happen to have.
+
+Some of the fuji lenses are great, don't get me wrong, but not all of the lenses are perfect, and if something I need is missing, I just can't get it. The 45mm, 110mm, and 32-64mm are considered by most reviewers (and tech charts) to be near perfect, but the same isn't true for other focal lengths. What if I want an ultra-high performing 35-150? What if I really need the long end of my 24-70 f/2.8? Not only are you stuck buying expensive fuji glass, but you're unable to make choices about which lenses best suit your use case.
+
+Even for the same focal length, choices matter. Fuji only has one real pancake lens, but it's not what I want it for. I want a 28mm pancake, and a larger/higher performing 50mm, but fuji doesn't offer that. Not only that, some of the lenses might not render the way I like. Tamron and Sigma both make excellent 35 1.4s, but I like the look of the Tamron, and I don't want to give that up to move to the Fuji system.
+
+I know I said at the beginning that I was willing to switch systems (I definitely would have if only the Z6 were available), but it is nice not having to trade in for new lenses, and more importantly, I've already done my research, and I know which lenses I like, and which lenses are good for the things I need them for.
+
+4.3 The Grand Finale
+
+My D850 arrived in the mail a few weeks ago, and it's exactly what I wanted. It's just like the D610, except the focus is snappier and the resolution is higher (the images even look a little crispier too). As a work of engineering, it's just so well thought out, and so well designed. It's also built like a tank and looks like it could survive anything. The only things I really miss from the D610 are more granular temperature adjustments inside of auto-white balance, a dedicated retouch button inside of playback mode, and a built-in flash. I also prefer having the white-balance button on the side of the camera, rather than at the top by the command dial, even though it's placement on the D850 is still very logical. You get a little grain sometimes along with the higher sensor resolution, but I think it still outperforms the D610 when binned down to a fair comparison.
+
+But the thing that really blew me away, and the thing I didn't expect, is how well the D850 files perform when you try to edit them. If you push a D610 file by 2 stops, it looks washed out and you have to bump the exposure and contrast to compensate, but on the D850 I experienced no such thing. They're mostly comprable SOOC, but once you try to edit them, the colors from the D850 just look better, and are so much easier to get right.
+
+In terms of image quality, I feel like I bought the D610, but even better. I'm getting the same look that's both exactly what I wanted, but even nicer looking than it was before. It works perfectly with the lenses I know and am already very happy with. I love shooting through the optical viewfinder.
+
+It's a 4-year-old camera, but, weirdly I don't think it's going away for a really long time. The latest-and-greatest from canon and sony offer almost no improvement in image quality (I actually like the Nikon better), and I don't even find them significantly more easy/enjoyable to shoot with. I don't think Sony will obsolete it's brand new Alpha One any time soon, and the Tamron 35/1.4 is on par with the very best of mirrorless glass. It is a 4 year old camera, but it's my favorite, and I think it will remain competitive for a very long time.
+
+## 12. Camera Lenses: What's in My Bag
+
+Camera lenses are expensive. If you own a DSLR, chances are your lenses cost more than the camera body itself. This is because lenses are often the bottleneck for image quality. If you're looking through a blurry window, it doesn't matter how sensitive your sensor is.
+
+In addition, camera lenses come in all sorts of shapes and sizes. Physical limitations mean you can't have one lens that just does everything. If your lens has a massive zoom range, then it probably sacrifices some image quality. You want to choose the lens that's right for the situation you're shooting.
+
+If you want to find the right glass for you, you should think about the situations you take photographs first, and then choose a lens that is appropriate for that situation. Unless you're in a studio, or have a very patient subject, chances are you don't want to switch lenses on the fly, so you want a lens that encompasses the entirety of that situation.
+
+So what's in my bag?
+
+5.1 The portrait lens: Tamron 35-150mm f/2.8-4
+
+Most pro photographers carry two zoom lenses, one 24-70 f/2.8 and one 70-200 f/2.8. But for portraits, neither of these gets you entirely what you want. 85mm is widely considered the "standard" portrait length, but 50mm and even 35mm are also common. The problem is, the range of focal lengths used for portraits is like a normal distribution centered around 70mm. In order to get the right photo, you'd need to constantly swap between the two lenses. I've used a 24-70 for portraits, and I found myself constantly near the long end of the zoom range, often wishing I had just a little more.
+
+The Tamron 35-150 is perfect because the center of it's zoom range is also the center of the range I use for portraits. It has a little more zoom (5x vs 3x) than the standard 24-70, but it's not one of these ultra super zooms that sacrifices on image quality. Most of the lab tests rate it similarly to some of the older 70-200 f/2.8 lenses, so you're not losing much over one of the more standard zooms.
+
+In addition, it's quite fast. It's variable aperture, so you lose some of that speed at the long end of the zoom range, but 2.8 at 35mm is just as fast as a standard 24-70. This means if you find yourself indoors without a flash, it's still sometimes usable.
+
+There isn't quite an everything and the kitchen sink lens, but for me this is as close as it gets. I'll often use it if I'm going on a day trip somewhere unsure of what I'm going to be shooting. The downsides are it's very large (especially with an FTZ adapter), it focuses a little slower and less reliably than some of the native Z lenses, and it's a little less sharp and less fast than a good prime lens.
+
+5.2 In the dark: 50mm f/1.8 G
+
+Ok, well, I'm currently looking to upgrade my 50mm to a different lens of the same type, either the 50mm f/1.8 Z or the 50mm f/1.4 Sigma Art. I bought it because it was cheap, and did something none of my other lenses had. It's not even sharper than my zoom lenses at it's only focal length of 50mm, but it does have one thing those zoom lenses do not: a maximum aperature of f/1.8. If it's dark, and you need light, a fast prime is your only option. Once you're already cranking your camera's ISO the extra stop over an f/2.8 makes a huge difference. A fixed length prime is the least flexible, but it's important when you need it. Also, most fixed length lenses are sharper than their zoomy counterparts, but not this one :(.
+
+5.3 Lightweight Travel/Group Photos: 24-70mm f/4 S
+
+I'm gonna be honest, the only reason why I own this lens is it was half off when it came with my camera. Don't get me wrong, it's still a good lens, but I probably wouldn't have gone out and purchased it on my own. What I like about this lens is that it's super reliable. It's a native Z mount lens on a Z body camera, and the autofocus just works better than any of the other lenses on the same camera. The image quality is also consistently good at f/4 throughout the zoom range, so much so that I don't have to think about it. If I'm going out for the day with casual people, this is the lens that I take. Most people don't want to wait while you fiddle with your settings, and most group photos don't care about artistic framing. The people care that you got the shot, the one where everyoen was smiling, and it didn't come out weird. If it's blurry that's really bad and you likely don't have that many do-overs. It's also super small on the Z body, and feels nicely balanced. Most travel photos I take are wide-angle anyway, because I want to capture the environment, and you're often in those situations where you have to pull the shot quickly and not mess it up. The lack of light can be inconvenient sometimes, but so far it hasn't been worth it to me to shell out for the much better (and much more expensive) 24-70mm f/2.8 S lens.
+
+## 13. Why Many Primary Forecasts are Wrong
+
+Ok, wrong might be a little bit too severe, but at the very least unfairly biased. I think most models underestimate Warren and Sander's chances of winning the primary because it evaluates the voting in every state as a single event, rather than viewing the primaries as a sequential selection process. In past elections, while the later states still matter, the early voting states have had special significance because they narrow down the pool of candidates by eliminating out candidates which seem unlikely to win.
+
+Let's say you're a Democratic moderate. Even if you really really like Tulsi Gabbard, you're probably not going to vote for her, because you know that if you do, your vote won't matter. Since she's not going to run anyway, you might as well vote for Mayor Pete or Joe Biden. When the votes from the early states come in, they tell the people what candidates are unlikely to win. When a candidate does badly in an early state, people become less willing to vote for them and they become even more unlikely to win.
+
+While eventually the race usally comes down to two or three, often closely split candidates, it's important to remember that primary elections are an unstable equillibrium, and it can be easy for things to snowball. Right now Biden is by most polling clear favorite to win the election, with roughly double the odds of the next major candidate. But it's important to remember that this is because Elizabeth Warren and Bernie Sanders split the progressive vote, and their policies and supporters are in many ways very similar. If one or the other starts to outpreform in some of the early states, they're going to start picking up all of the progressive votes, and start to become competitive in the states where Biden was heavily favored. While Biden could also gain some ground from early victories, he has less room to grow because the moderate vote is less split, and the other candidates to gain from like Mayor Pete, have some significant ideological differences.
+
+## 14. The Wonky Math behind the Democratic Primary
+
+Oh man, if you thought the electoral college was bad, you're in for a real treat.
+
+On paper, it looks like primaries are mostly the same process. Every state gets "electoral college delegates", and the number of delegates for each state is the same as in the presidential election: two plus some extra porportionate to the state's population.
+
+The thing is, the number of delegates is porportional to the state's TOTAL population, not the number of people that actually vote in the election. If California has 50 million citizens, but only 5 people actually vote, those 5 people have tremendous influence. In primaries, certain states are dominated by particular parties. That means even though Tennessee has 5 million elligible citizens, it only has 400 thousand voting in the Democratic primary. That means if you're a Democrat in Tenessee, you have much more influence than a Democrat from California. The state is considered large even though the number of Democrats actually voting is small.
+
+7.1 Biden is Winning in States with Low Voter Turnout
+
+Ever wonder why Biden seems so unpopular with so many voters, yet forecasts frequently predict him to win the election? Biden's best state's, according to 538: Alabama, Mississippi ,Delaware ,South Carolina, North Carolina, and Louisiana, are ALL low Democratic voter turnout states. Biden isn't actually that popular with the Democratic party overall, but it doesn't matter because he's disporportionately popular among the subsets of people that have the most voting power.
+
+By contrast, take a look at the best states for Bernie Sanders: Vermont, Utah, Washington, California, Colorado, New Hampshire, all heavily Democratic states. Because he's appealing to more liberal states, and because his message resonates with certain groups of people, he's being disproportionately hurt by the electoral college relative to his popularity.
+
+[https://fivethirtyeight.com/features/biden-is-the-front-runner-but-there-is-no-clear-favorite/](https://fivethirtyeight.com/features/biden-is-the-front-runner-but-there-is-no-clear-favorite/)
+
+## 15. What's Going on With The Impeachment
+
+The impeachment trial, as it stands, is a little bit of a mess, with what feels like many muddled and ever-changing accusations, against a president who keeps doing new things to be accused of. Right now Nancy Pelosi orchestrated an impeachment vote in the house, but has stalled refusing to send a vote to the senate. Given all the confusion I'd like to take a step back to understand how we got here, and why it all happened the way it did.
+
+Before anything, we need to understand that this is first and foremost a popularity contest, with a jury of the American public. There are legal rules, sure, but the people who are voting on impeachment are congressmen, and congressmen represent the desires of their constituents. You can see this in the correllation between congressmen's willingness to defend Trump and his popularity within their home state, as well as how their treatment of him changed as he rose in popularity within the republican party. In order to get him impeached, the Democrats need to convince the people that he should be removed from office.
+
+8.1 The Russia Investiagtion
+
+On November 8, 2016 Democrats were absolutely stunned. Despite all the polls from trustworthy sources like the New York Times\*, an unthinkable candidate had won the election. There had to have been a mistake. There had to have been something deeply wrong, Democrats everywhere searched for an explanation.
+
+Not believing that such a candidate could have won fairly, they blamed James Comey for unfairly reporting on Hillary's e-mails just days before the election. They blamed misleading polls discouraging Democrats from voting in an already "certain" election. And finally, they blamed Russia for interfering in our Democratic process, certain that for this to happen, rules must have been deeply and influentially broken.
+
+There was a lot of evidence suggesting wrongdoing. Trump always seemed to have a soft spot when he spoke of Russia. There were the meetings in Trump tower. And Trump seemed to be doing everything in his power to kill the investigation.
+
+The first weeks of Trump's administration were hectic to say the least. Trump picked fights with anyone and everyone. He struggled to assemble a cabinet and wound up leaving many key government positions unfilled. He seemed hell-bent on ignoring all rules and structure, as much as he possibly could. And finally, in a move that shocked many, he fired the person investigating him, FBI director James Comey.
+
+Things moved quickly. Deputy Attorney Rod Rosenstien appointed a special counsel to replace Comey in the Russia investigation. Mueller seemed like just the man for the job, and over the coming weeks, his team gained momentum. Democrats saw not only mountains of evidence piling up, but real criminal offenses, with Mueller and his team reaching indictment after indictment. And Trump, although powerless to fire Mueller seemed to be doing everything in his power to kill the investigation.
+
+The Democrats saw the way the investigation was going, and they saw the indictments lining up, and they made a crucial tactical error. Instead of zeroing in on the firing of Comey, the offense they knew he had committed, they threw all their efforts behind the Russia investigation, doing everything possible to stoke public excitement for a dramatic Mueller testimony.
+
+They had a precedent from the Nixon investigation, one of the few issues on which Trump lacked positive sentiment within the Republican party, and what looked to be an undeniable act of treason. They thought the Mueller report was going to be a bombshell. That they were going to catch Trump red-handed, and that it would suddenly and dramatically sway public opinion. They were expecting something so severe that it would be impossible to claim impeachment was a purely partisan investigation. Even many Republicans were holding their words, waiting to see what the report described.
+
+A week before the report's release, the Democrats made another tactical error. Instead of demanding Mueller first testify to the public directly, they allowed his report to pass, largely unquestioned, through Trump's justice department, and Attorney General William Barr. I don't know if they could have stopped Barr from publishing his letter, but they could have kept the tension, pushing people to wait for the bombshell that was the final report. Instead, they let the singular news story, the one they were building up for months, be not Mueller's report itself, but Barr's report on Mueller's report.
+
+8.2 The Mueller Report
+
+On March 24, 2019, Barr issued his letter to Congress. The verdict was "no collusion", i.e. the investigation did not establish coordination between Trump and the Russian government. Importantly, despite all the evidence in the report, Barr himself decided that Trump had not committed obstruction of justice, and attached his own findings, instead of the report's in his letter. Mueller himself described Barr's letter as a mischaracterization of his report, and in another mistake, Mueller expressed his discontent privately instead of immediately going to the public.
+
+It was only after the full report was released, nearly a month later, that people began to realize what happened. Most neutral media organizations and fact checkers described Barr's letter to be intentionally misleading. Instead of "totally exhonerating" the president, Mueller had carefully layed out the case for obstruction of justice, and seemed only to not reach a verdict because it was not in the mandate for his report. In addition, instead of finding no evidence of direct collusion, he did suggest there was questionable behavior towards Russia.
+
+By this point the moment had long since passed. Democrats had been hyping up a jarring news story, and what they got was a drawn out fizzle. There was a lot of dirt in the Mueller report, but Democrats didn't get the conclusive proof they claimed was lurking. They tried to pivot and push further, but having failed the first time, it looks like they were just grasping at ways to accuse the president.
+
+If they had focused in on obstruction of justice, they would have gotten the president on an act they knew he had committed, and bad news from the Russia investigation wouldn't have broken their momentum. On the other hand, if they had spent months arguing that Trump had broken rules by firing Comey, and real evidence was found from the Russia investigation it still would have been the bombshell they needed to sway public sentiment and press further. This is again an instance where Democratic leadership was too confident and failed to plan effectively to minimize their downside.
+
+8.3 Rebuilding a Case
+
+In the months after the Barr's letter, the Democrats were frustrated and disorganized. They sensed Trump was doing something wrong still, and pushing the boundries, but they lacked a single rallying cry. If they had done so from the beginning, their strongest play would have been to rally around the firing of James Comey, but by now years had passed, and it would be hard to pick back up again.
+
+Despite the lack of a central rallying cry Democratic voters were angry, and they were growing more angry with each new presidential offense. More and more moderate Democrats, long evasive, now publically voiced their support for impeachment. As primary season rolled in, all eyes turned to the candidates, who felt rising pressure from the left-most wing of the party. Unable to avoid the question in debate after debate, the candidates all lined up in support of impeachment. Only Nancy Pelosi and her closest allies held their breath.
+
+8.4 The Ukraine Scandal
+
+Finally, in September, news broke that President Trump asked the Ukranian government to investigate Hunter Biden the son of his chief political rival. Abuse of power to investigate a political oponent drew such a parallel to Watergate that it immediately set off alarm bells in politician's minds. Not only did they have more evidence of wrongdoing, but their anger had a central focus once again. Pelosi, sensing a shift in momentum, announced that she would begin the impeachment process. After an announcement from their extremely cautious, yet trusted leader, the rest of the Democratic party followed suit.
+
+Why was Pelosi cautious for so long? I think it's because you only get one shot to announce articles of impeachment (or at least, if your first attempt fails, it makes your second attempt harder). I think she was saving it, waiting for a news story like this one to break, so that when something like this did come out, she could investigate it and apply pressure on it. Starting an impeachment proceding draws national news coverage, and she wanted an event that the American people would see as definitely wrong, something that was worth spending her news coverage on.
+
+The impeachment process also makes it easier for the Democrats to carry out a formal investigation. This means that the democrats got to learn about the Ukraine scandal in more detail, and potentially uncover even more damaging information. In addition, waiting for so long gave some kind of additional credibility to the investigation. It sends the message that Pelosi feels "we don't want to do this, and we won't unless we really have to, but as it turns out we really have to."
+
+In addition, Pelosi learned from the mistakes of the Russia investigation. Despite gaining such a powerful rallying cry, she didn't make the impeachment entirely reliant on proving coordination with Ukraine. She included an article "Obstruction of Congress", about Trump's efforts to block investigation, which relies almost entirely on publically available knowledge. As such, it can't be easily disproven, so Democrats can keep pushing in that direction no matter what other information comes out.
+
+8.5 The Threshold of Popular Support
+
+Despite all this, Nancy Pelosi is stuck. One of the reasons why she stalled on starting the impeachment process for so long is she knew that she wouldn't be able to carry it through to completion. At least not through the Reupblican controlled Senate, where Mitch McConnel has promised a speedy acquittal. And yet, she still wanted to start the impeachment process so that she could draw public attention and promote an investigation. So, she drafted the articles of impeachment, got them passed in the house, and then, did the only thing that she could do. She stalled. Hearing Mitch McConnel's vow, she refused to send the articles of impeachment to the senate. This means that Mitch can't kill the impeachment, and she gets to keep up the pressure until the tide turns in her favor.
+
+What gives? Trump is an unpopular president. Just a month after he took office, over 50% of people disapproved of his presidency, according to polling tracked by 538. As of this moment, more Americans support impeaching Trump than those who are against it. Congressional votes are largely determined by the opinions of their voter-base. So why can't Pelosi get the votes she needs?
+
+Well, impeachment is very popular among Democratic voters, but as you might have guessed, it's not very popular among Republican voters. And the thing is, it's Republican senators that need to vote for impeachment for the thing to pass. 50% of people might want Trump impeached, but that breaks down to like 80% of Democrats and only 10% of Republicans. Republican senators likely won't support impeachment unless a majority of their own party supports it. That means Trump has to be really unpopular.
+
+Given the unwavering support of his base, it's not clear what it would take to move the needle on impeachment. Polls show an uptick in support for impeachment after news of the Ukraine scandal broke, but only a small uptick, and one that still gives impeachment less than 10% support among Republicans. If anything, the history behind the impeachment proceedings, and the haphazard way in which it all went down made it much harder to impeach Trump because it gave wiggle room for his most ferverent supporters to believe it was all just a partisan mess. I don't think it'll go anywhere in the near future, because if Pelosi is smart, she'll hold her cards and continue to prevent a Senate vote, and if Trump doesn't make any big mistakes, he likely won't lose enough popular support to be impeached.
+
+I think going forward, the stalemate will continue. Pelosi doesn't have the votes, and shouldn't risk a clean shot at impeaching the president. Senate Republicans might try to entice her with the promise of additional testimony in the house trial, but I think Pelosi would be stupid to take it. I think Pelosi is going to wait for the next big bombshell, and then pull the trigger whenever the momentum swings.
+
+## 16. Treating Cancer with Chemo (Part 3)
+
+In this section, we now look at the specific drugs we would need to put the ideas in Part 2 into practice. We have a tremendous advantage here because we are not developing new chemicals. All of the drugs listed have already seen clinical use. What we'd like to do is, send a signal that tells all the cells in your body to start dividing, and then send a chemotherapy drug which kills any cells that are still dividing. Your body has many types of signals which tell cells when to grow and divide,
+
+notes: platelts come from Megakaryocytes which come from hematopoietic stem cells
+
+I found the paper that has this idea [https://www.ncbi.nlm.nih.gov/pubmed/8839398](https://www.ncbi.nlm.nih.gov/pubmed/8839398)
+
+## 17. Treating Cancer with Chemo (Part 2)
+
+In the last section we looked into what types of cancer treatments are out there, and, from a research perspective, what areas hopefully have the most low hanging fruit. Due to cancer heterogeneity, and the problem of targeting undetectable or microscopic tumors, black-box chemotherapy methods seemed like they would yield the best results. I wrote down the definition of our "black box" and narrowed in on one property, that cancer cells divide regardless of external signaling.
+
+Many drugs already target this pathway. Certain drugs attack cells which divide more rapidly, intentionally causing damage to cells during the process of cell division. In theory this will cause cancer cells to die because they will be more likely to die than the normal cells.
+
+The problem is, this also kills healthy cells. Some cells, such as bone marrow cells, divide rapidly and, some cancers don't even grow that quickly. Some cancers grow at a normal rate for cells, they just don't stop growing when they're supposed to. The problem is that what you want to measure is not the cancer's rate of growth, but it's responsiveness to external signals within the body.
+
+So how can we target this? How do we identify cells which don't respond to signals?
+
+Well, instead of targeting cancer cells, we can send signals to identify healthy cells. We know that the healthy cells will respond to the signals and the cancer cells won't. By targeting everything else, we can measure when something doesn't respond to the signals that it's supposed to, and then go after it. Instead of attacking cells that divide quickly, we can tell all of the cells to stop dividing, and then kill all the cells that still divide. The cancer cells won't listen, but the normal cells will, so they won't get the damage that usually comes with intensive chemotherapy.
+
+What's completely wild about this to me is that people are doing this already, but not on the cells that actually matter. We treat hair loss. We can help people not lose all their hair who are going through chemo by having them apply ice packs to the top of their head while they're receiving treatment. This works by slowing the division of the cells around your hair follicles, so they won't actually get killed and fall out while you're getting treatment.
+
+In the same way that we treat hair loss, we can tell the cells in your bone marrow to stop dividing as quickly while the chemo is active and thus drastically reduce the side effects. Furthermore, we'd be able to use drugs that weren't previously available because even though they killed the cancer they were otherwise too toxic to the human body. Even better, we already have the tools to do this. We already have drugs which slow the growth of bone marrow cells. We just have to apply them in the right way.
+
+## 18. Treating Cancer with Chemo (Part 1)
+
+Cancer treatment is something I've thought about a lot recently, and the more I've studied it, the more I've seen that it's an interesting and complex problem. At it's core a cancer is a group of cells whose genetic code has mutated such that they divide uncontrollably, in a way that cannot be properly regulated by the body. Cancer cells, in contrast to benign tumors, also have the ability to sustain their growth, and to invade other parts of the body. If the cancer cells grow too much, they can "crowd out" other bodily functions, by having large tumors that press against vital organs, or "replace" other healthy cells.
+
+The challenge with treatment is that cancer cells, unlike bacteria or viruses, look remarkably like healthy human cells. It's difficult to kill the cancer cells without accidentally killing the normal cells. As a result, the main treatment options for cancer are:
+
+- Surgery: Cancers typically grow as a cluster of cells in the same physical location, called a tumor. One way to treat this is to just cut out the tumor. This is good because it can quickly and fully remove the entire tumor, but bad because it might not be in a place you can safely reach with a knife, and bad because it doesn't catch it if the cancer spread without your knowledge.
+- Radiation: Radiation zaps the cancer with high intensity beams of light. Think a really powerful microwave pointed directly at your tumor. This is good because it kills cells in places that aren't easy to reach with a knife, and can cover a wider area than would be safe to cut out, but bad because it might not kill everything in its beam and again, it won't catch the cancer if it spreads.
+- Chemotherapy: This is a broad term that refers to using chemicals to kill, or otherwise harm the cancer cells. Since this refers to many different types of chemicals, which act in many different types of ways, it's hard to give a one-size-fits all explanation. One type of chemical which is fairly common essentially tries to kill cells which are dividing very quickly or haphazardly, hoping to target the cancer cells unctonrollable growth. Chemotherapy is great because unlike radiation or surgery, it can attack cancer cells anywhere in the body, meaning that if the tumor had spread to a small undetectable cluster of cells, chemotherapy would still fight it. The downside of chemotherapy is it's not always very good at determining which cells are cancer cells. This means it can kill healthy cells all over your body, most notably in the bone marrow, which tends to replenish quickly.
+
+There are a few other types of treatments, such as immunotherapy, which I'll skip for now as largely niche (but growing) fields.
+
+I'd like to focus here on chemotherapy because, while currently surgery and radiation are often necessary, because they are unable to attack small groups of cells, I don't believe that in the future, anything more than incremental progress will be made. Whatever the solution is will likely have to be some sort of medicine because we can't physically target something we don't have the ability to detect.
+
+Medicines that treat cancer (even including immunotherapy) are hard to make because it's hard for anything to classify whether or not a cell is cancerous. So, in order to treat cancer, we need to solve the classification problem, build a model to predict whether or not a cell is cancerous, and then encode it on a macroscopic scale. The more accurate our model, the more likely that the drug will kill the cancer without being otherwise fatal to the human body.
+
+We can approach this classification as a "black box", i.e. the cell is a generic thing with certain properties which we can't see into. Or, we can think of it as an open box, i.e. the mutated DNA of a cancer cell causes these specific chemical reactions which, eventually cause the cell to divide uncontrollably. With open box models, we have a tremendous amount more information that we can use to classify the cell as dangerous, and it seems like this would be intrinsically easier, but this information comes at a cost. Cancer is a name for a disease that can occur in many different ways and for many different reasons, often exhibiting significant heterogeneity within a single tumor. If we treat one specific pathway of chemical reactions, we'll only solve the problem for those specific cells, and we'll miss out on all the different types of cancer that are possible.
+
+I'd like to think about this problem as a black box problem because in addition to the curse of heterogeneity, it's also just better suited to my background. Treating the cell as an open box generally means lab work with equipment I don't have access to, and at best a 5-10 year trial period before a new chemical gets into production. It's my hypothesis that there are enough building blocks that are already well studied, that if we put them together in just the right way, we'll get a better result.
+
+So let's take a look at the black box. I took a look at the definition of a cancer cell. It boils down to roughly:
+
+1. The cells grow and divide regardless of what body signals them to do
+2. They don't die when they're supposed to
+3. They can invade other parts of the body
+4. They get the rest of the body to support their growth (encourage blood vessel construction)
+
+I'd say 2 is almost impossible to go after as a black box, since you can't ask a cell whether it will die without killing it. 3 seems similarly difficult because at best it can only attack spread, and not the original tumor, and because it's hard to ask a cell where it originally came from. 4 seems promising, but again has the problem that it likely won't cure tumors of smaller than a certain size. So, all things considered, I'd like to take a closer look at 1, that cancer cells grow and divide regardless of the body's signals.
+
+## 19. The Importance of Doing Nothing
+
+This morning I woke up, a little on the later side, and didn't have anything important to do. I didn't have work, and I didn't have chores, just had to eat breakfast, and be out the door by noon. I had 2 and a half hours, so it should have been easy.
+
+With so much time, and nothing, really, to do, I started browsing the front page of reddit. I thought maybe the act of reading, or looking at something would wake me up a little. 30 minutes passed. This was no big deal, as I had all morning, really, but I felt like I wasn't quite done yet, so I kept going.
+
+By 1130, I was still searching for something initeresting, and I still hadn't found what I was looking for. I knew I was wasting time, and I knew that I wasn't going to feel fully satisfied at the end of it, but it always felt like the next two or three minutes would make me feel a little bit better, and that little time wouldn't be a deal breaker. By the end of it, I would click on a YouTube video and only watch the last thirty seconds of it, because in truth I didn't really want to watch the video, but I wanted to feel like I was going to find something new and entertaining. I didn't really feel like I was thinking at all, or even that I was enjoying what I was doing, but I wanted to see something. You can probably guess that I rushed the quickest breakfast (read: two bananas), and was out the door 20 minutes late.
+
+Whenever I mess something up, I ask myself how I could of done better. In this case it seems pretty obvious. I could have just not wasted 3 hours scrolling around on the internet. I could have looked at Reddit for only an hour and a half, made myself a delicious breakfast, and still left on time.
+
+But in practice, it's not that simple. That's because what you do with your time affects your ability to think and make decisions. If, after 90 minutes, I took a break to really sit, and think clearly about what I wanted to be doing, I would have realized I still wanted to breakfast, and that I wanted to be on time. But because I was watching videos, and because I was constantly blasting my mind with different signals, I never had a moment to really process what was going on.
+
+Not only that, I noticed even after I left my apartment, after I had already stopped looking at a screen, I was still left with that same mentality. While I was walking to the train, I still felt this impulse to play chess or read the news. I wasn't thinking about the rest of the day, or about things I wanted to learn, or things I really cared about. For most of the afternoon, my head was still overloaded, and when I went to think, what came out were random memes and stories. I had given myself so much new information to process, that even after I was done looking at it, it still crowded out my other thoughts. It's not just about the moment, wasting your time does damage, and it's important to recognize what damage it's doing.
+
+Maybe the videos made me feel happy for a half hour or so. Maybe I even learned a tiny bit, about news, or life advice, or something that might make good conversation. But I think I would have been better off if I had done, really, absolutely nothing. I would have been better off if I just sat down in a chair, and just waited. When I do nothing, it gives me the mental space to process longer-term thoughts, to prepare for my day, and to figure out what I really, genuinely want to be doing.
+
+## 20. Why I Support Citizens United
+
+Most people I know really don't like Citizens United. For those who aren't familiar, Citizens United was a supreme court decision that essentially let corporations and wealthy individuals funnel unlimited amounts of money into American politics. Not only that, it let people donate to certain types of political causes with little to no transparency or oversight. The people I know who don't like it view it as letting big money buy elections and spread corruption in American politics.
+
+We have anti-bribery laws (which the courts have upheld). We have campaign finance laws (which the courts have upheld). So, what makes the Citizens United ruling different?
+
+The Citizens United ruling applies only to campaign advertisements (not general campaign contributions), and only to money that is spent "independently", i.e. without talking directly to the candidate or political party. This means that if I'm Exxon Mobile, I still can't write Mitch McConnell a check for 10 million dollars. I also can't work with Mitch McConnel to film a TV ad for his upcoming election. But if I decide that I really like Mitch McConnel, and I don't talk to anybody, and I just pay for an ad telling everyone how great he is, then nobody can stop me.
+
+As experience has shown, advertising can make a huge difference in the outcome of an election. If someone is allowed to spend an infinite amount of money on advertising, they, as an individual can have a massive influence on the outcome of an election. We have anti-bribery laws, but if someone can use money to ensure candidates with certain political views are elected, aren't the effects the same?
+
+I like to think of this by considering the role of a news organization. We need some news organizations discussing American politics in order to keep voters informed, so that they can better understand the issues and decide who to vote for. Along these lines, it's even important to have news organizations that debate different topics, and to have editorials which discuss their own opinions because it's important for people to understand the reasoning behind the legislation, and get a sense of why or why not something is a good idea. Especially for traditional media outlets like newspapers and television, It's nearly impossible to publish editorials or simply report the news without incurring some sort of bias.
+
+If you wanted to start a new cable news channel, you'd have to pay for a studio, for cable companies to distribute your broadcast, and to advertise your broadcast to others. Your news broadcast might be extremely biased, because, as we've already discussed, it's impossible to regulate bias in news organizations. You might not want a long-form news broadcast, so instead of paying for an entire television channel for an entire day, you might want to only purchase a slot that's the length of your show, or the message you want to publish. Separately, you might also want to be able to advertise your show (as news organizations are able to advertise), and in doing so accurately describe what's in it.
+
+So, the question is, where do you draw the line? What's the difference between paying to broadcast an editorial piece and donating directly to a political campaign? Well, I think making sure that the broadcast isn't part of (organized by) the political campaign itself is a pretty fair place to draw the line.
+
+## 21. Camera Settings
+
+When I got my first DSLR, I opened up the settings menu, and found it loaded with options: active-d lighting, vignette control, auto-bracketing, ambient lighting, and much more. It took a while to sift through all the options, but after assigning some reasonable defaults (use full resolution, turn on vibration reduction when available, etc.), I found that despite all of the options, there were really only four dials that effected the raw image. The rest were either only in post-processing, or just different ways of twisting those original four dials.
+
+Despite all the complexity, the only four dials you have on your camera are:
+
+1. Exposure
+
+   Your camera has a sensor in it. When you take a picture, the camera opens up and lets light into the sensor. The longer the camera opens up, the more time light has to hit the sensor, and the brighter the overall image.
+
+   This comes from a time before people had digital cameras. When people used film, each wave of light would cause a chemical reaction on the film, so letting in waves of light for a longer period of time would cause more chemical reactions, and all of the individual waves of light would "add together" to form the overall image. That's why if you move a camera around while the film is exposed, the image comes out blurry.
+
+2. Focus Distance
+
+   In front of the sensor, your camera has a lens. The job of the lens is to take in all of the light from the outside world, and bend it, so that the light is pointed at the sensor. Typically the outside world is larger than the size of the sensor, so the lens bends the light toward the center, with the light kind of following the shape of a cone. If the lens bends the light correctly, the square of the outside world that you want to capture will hit the image like a bunch of parallel beams of light, and you'll project a much bigger image onto a much smaller sensor. However, if the cone of light is too short, or too long, instead of hitting the image like parallel lines, the beams of light will get criss-crossed. Instead of one exact point on the outside world corresponding to one exact spot on the sensor, it might miss, and send some of the light kind of nearby, causing the image to be blurry. The correct focal distance is different for objects at different distances from the camera, so if you make nearby objects in focus, you make faraway objects out of focus.
+
+   Long story short, if a part of an image is not in focus, it looks blurry. You get to choose a distance away from the camera such that objects at that distance are in focus. The further away an object is from the focus you chose, the more blurry it looks in the photo.
+
+3. Aperture
+
+   Typically, there's a physical shutter that opens up when you take a picture to let light onto the film or sensor. Aperature refers to how big of an opening there is when the shutter is open. If there's a really big hole, it lets in a lot of light, but if there's really small hole, it only lets in a little bit of light. Also, if there's a small hole, the cone of light (from the focus section) is skinnier, so the beams don't get criss-crossed as much. This means that objects that aren't at the focus distance don't wind up being as blurry, because there's less interference. If there's a big hole, the cone is wider, so only objects at a specific distance are in focus, and everything else comes out blurry. This can be useful in taking portraits when you want to emphasize an in-focus person against an out-of-focus background.
+
+4. ISO
+
+   How sensitive your camera sensors are to light. High ISO means your camera registers a lot of input from a small amount of light. Most cameras are only able to get accurate readings up to a certain level of sensitivity, so bumping your ISO too high can result in noisy/grainy images.
+
+So why do cameras have so many other options? Well, taking photos in the real world it isn't always easy to quickly and accurately adjust these four dials to set up for the shot you want. Want to get that monkey in focus? The one that's swinging across the jungle? Good luck twisting your focus knob and trying to keep up with it. You'll probably want your camera's autofocus tracking. Want to take many photos in a row, with different levels of exposure? There's a setting for that. It's not enough to just have access to those dials, you also want convenience tools that let you quickly choose how and when to take a photo.
+
+In addition, even though it doesn't effect the raw image, many cameras have built-in post-processing to adjust for things like ambient lighting. While for more serious shots, you'll probably edit the raw files in a program on your computer like photoshop or lightroom, it is convenient, visually to get quick feedback on what the image might look like, and for those of us that are lazy out there, can be a quick way to produce reasonable quality images.

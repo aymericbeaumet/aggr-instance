@@ -1,0 +1,259 @@
+<div id="readability-page-1" class="page"><div>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformersjs-v4/thumbnail-wide.png" alt="Overview" width="100%"></p><p>We're excited to announce that Transformers.js v4 is now available on NPM! After a year of development (we started in March 2025 🤯), we're finally ready for you to use it. </p>
+<pre><code data-language="sh">npm i @huggingface/transformers
+</code></pre>
+<h2>
+	<a id="performance--runtime-improvements" href="#performance--runtime-improvements" rel="nofollow">
+		
+	</a>
+	<span>
+		Performance &amp; Runtime Improvements
+	</span>
+</h2>
+<p>The biggest change is undoubtedly the adoption of a new WebGPU Runtime, completely rewritten in C++. We've worked closely with the ONNX Runtime team to thoroughly test this runtime across our ~200 supported model architectures, as well as many new v4-exclusive architectures.</p>
+<p>In addition to better operator support (for performance, accuracy, and coverage), this new WebGPU runtime allows the same transformers.js code to be used across a wide variety of JavaScript environments, including browsers, server-side runtimes, and desktop applications. That's right, you can now run WebGPU-accelerated models directly in Node, Bun, and Deno!</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformersjs-v4/webgpu.png" alt="WebGPU Overview" width="100%"></p><p>We've proven that it's possible to run state-of-the-art AI models 100% locally in the browser, and now we're focused on performance: making these models run as fast as possible, even in resource-constrained environments. This required completely rethinking our export strategy, especially for large language models. We achieve this by re-implementing new models operation by operation, leveraging specialized ONNX Runtime <a href="https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md" rel="nofollow">Contrib Operators</a> like <a href="https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.GroupQueryAttention" rel="nofollow">com.microsoft.GroupQueryAttention</a>, <a href="https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.MatMulNBits" rel="nofollow">com.microsoft.MatMulNBits</a>, or <a href="https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.QMoE" rel="nofollow">com.microsoft.QMoE</a> to maximize performance.</p>
+<p>For example, adopting the <a href="https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.MultiHeadAttention" rel="nofollow">com.microsoft.MultiHeadAttention</a> operator, we were able to achieve a ~4x speedup for BERT-based embedding models.</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformersjs-v4/speedups.png" alt="Optimized ONNX Exports" width="100%"></p><h2>
+	<a id="repository-restructuring" href="#repository-restructuring" rel="nofollow">
+		
+	</a>
+	<span>
+		Repository Restructuring
+	</span>
+</h2>
+<p>Developing a new major version gave us the opportunity to invest in the codebase and tackle long-overdue refactoring efforts.</p>
+<h3>
+	<a id="pnpm-workspaces" href="#pnpm-workspaces" rel="nofollow">
+		
+	</a>
+	<span>
+		PNPM Workspaces
+	</span>
+</h3>
+<p>Until now, the GitHub repository served as our npm package. This worked well as long as the repository only exposed a single library. However, looking to the future, we saw the need for various sub-packages that depend heavily on the Transformers.js core while addressing different use cases, like library-specific implementations, or smaller utilities that most users don't need but are essential for some.</p>
+<p>That's why we converted the repository to a monorepo using pnpm workspaces. This allows us to ship smaller packages that depend on <code>@huggingface/transformers</code> without the overhead of maintaining separate repositories.</p>
+<h3>
+	<a id="modular-class-structure" href="#modular-class-structure" rel="nofollow">
+		
+	</a>
+	<span>
+		Modular Class Structure
+	</span>
+</h3>
+<p>Another major refactoring effort targeted the ever-growing models.js file. In v3, all available models were defined in a single file spanning over 8,000 lines, becoming increasingly difficult to maintain. For v4, we split this into smaller, focused modules with a clear distinction between utility functions, core logic, and model-specific implementations. This new structure improves readability and makes it much easier to add new models. Developers can now focus on model-specific logic without navigating through thousands of lines of unrelated code.</p>
+<h3>
+	<a id="examples-repository" href="#examples-repository" rel="nofollow">
+		
+	</a>
+	<span>
+		Examples Repository
+	</span>
+</h3>
+<p>In v3, many Transformers.js example projects lived directly in the main repository. For v4, we've moved them to a <a href="https://github.com/huggingface/transformers.js-examples" rel="nofollow">dedicated repository</a>, allowing us to maintain a cleaner codebase focused on the core library. This also makes it easier for users to find and contribute to examples without sifting through the main repository.</p>
+<h3>
+	<a id="prettier" href="#prettier" rel="nofollow">
+		
+	</a>
+	<span>
+		Prettier
+	</span>
+</h3>
+<p>We updated the Prettier configuration and reformatted all files in the repository. This ensures consistent formatting throughout the codebase, with all future PRs automatically following the same style. No more debates about formatting... Prettier handles it all, keeping the code clean and readable for everyone.</p>
+<h2>
+	<a id="new-models-and-architectures" href="#new-models-and-architectures" rel="nofollow">
+		
+	</a>
+	<span>
+		New Models and Architectures
+	</span>
+</h2>
+<p>Thanks to our new export strategy and ONNX Runtime's expanding support for custom operators, we've been able to add many new models and architectures to Transformers.js v4. These include popular models like GPT-OSS, Chatterbox, GraniteMoeHybrid, LFM2-MoE, HunYuanDenseV1, Apertus, Olmo3, FalconH1, and Youtu-LLM. Many of these required us to implement support for advanced architectural patterns, including Mamba (state-space models), Multi-head Latent Attention (MLA), and Mixture of Experts (MoE). Perhaps most importantly, these models are all compatible with WebGPU, allowing users to run them directly in the browser or server-side JavaScript environments with hardware acceleration. We've released several <a href="https://huggingface.co/collections/webml-community/transformersjs-v4-demos">Transformers.js v4 demos</a> so far... and we'll continue to release more!</p>
+<h2>
+	<a id="new-build-system" href="#new-build-system" rel="nofollow">
+		
+	</a>
+	<span>
+		New Build System
+	</span>
+</h2>
+<p>We've migrated our build system from Webpack to esbuild, and the results have been incredible. Build times dropped from 2 seconds to just 200 milliseconds, a 10x improvement that makes development iteration significantly faster. Speed isn't the only benefit, though: bundle sizes also decreased by an average of 10% across all builds. The most notable improvement is in transformers.web.js, our default export, which is now 53% smaller, meaning faster downloads and quicker startup times for users.</p>
+<h2>
+	<a id="new-library-features" href="#new-library-features" rel="nofollow">
+		
+	</a>
+	<span>
+		New Library Features
+	</span>
+</h2>
+<p>Version 4 also adds new library features that make it easier to build robust, production-ready applications.</p>
+<h3>
+	<a id="modelregistry" href="#modelregistry" rel="nofollow">
+		
+	</a>
+	<span>
+		ModelRegistry
+	</span>
+</h3>
+<p>The new <code>ModelRegistry</code> API is designed for production workflows. It provides explicit visibility into pipeline assets before loading anything: list required files with <code>get_pipeline_files</code>, inspect per-file metadata with <code>get_file_metadata</code> (quite useful to calculate total download size), check cache status with <code>is_pipeline_cached</code>, and clear cached artifacts with <code>clear_pipeline_cache</code>. You can also query available precision types for a model with <code>get_available_dtypes</code>. Based on this new API, <code>progress_callback</code> now includes a <code>progress_total</code> event, making it easy to render end-to-end loading progress without manually aggregating per-file updates.</p>
+<details>
+<summary>See `ModelRegistry` examples</summary>
+
+<pre><code data-language="javascript">import { ModelRegistry, pipeline } from "@huggingface/transformers";
+
+const modelId = "onnx-community/all-MiniLM-L6-v2-ONNX";
+const modelOptions = { dtype: "fp32" };
+
+const files = await ModelRegistry.get_pipeline_files(
+  "feature-extraction",
+  modelId,
+  modelOptions
+);
+// ['config.json', 'onnx/model.onnx', ..., 'tokenizer_config.json']
+
+const metadata = await Promise.all(
+  files.map(file =&gt; ModelRegistry.get_file_metadata(modelId, file))
+);
+
+const downloadSize = metadata.reduce((total, item) =&gt; total + item.size, 0);
+
+const cached = await ModelRegistry.is_pipeline_cached(
+  "feature-extraction",
+  modelId,
+  modelOptions
+);
+
+const dtypes = await ModelRegistry.get_available_dtypes(modelId);
+// ['fp32', 'fp16', 'q4', 'q4f16']
+
+if (cached) {
+  await ModelRegistry.clear_pipeline_cache(
+    "feature-extraction",
+    modelId,
+    modelOptions
+  );
+}
+
+const pipe = await pipeline(
+  "feature-extraction",
+  modelId,
+  {
+    progress_callback: e =&gt; {
+      if (e.status === "progress_total") {
+        console.log(`${Math.round(e.progress)}%`);
+      }
+    },
+  }
+);
+</code></pre>
+</details>
+
+<h3>
+	<a id="new-environment-settings" href="#new-environment-settings" rel="nofollow">
+		
+	</a>
+	<span>
+		New Environment Settings
+	</span>
+</h3>
+<p>We also added new environment controls for model loading. <code>env.useWasmCache</code> enables caching of WASM runtime files (when cache storage is available), allowing applications to work fully offline after the initial load.</p>
+<p><code>env.fetch</code> lets you provide a custom fetch implementation for use cases such as authenticated model access, custom headers, and abortable requests.</p>
+<details>
+<summary>See env examples</summary>
+
+<pre><code data-language="javascript">import { env } from "@huggingface/transformers";
+
+env.useWasmCache = true;
+
+env.fetch = (url, options) =&gt;
+  fetch(url, {
+    ...options,
+    headers: {
+      ...options?.headers,
+      Authorization: `Bearer ${MY_TOKEN}`,
+    },
+  });
+</code></pre>
+</details>
+
+<h3>
+	<a id="improved-logging-controls" href="#improved-logging-controls" rel="nofollow">
+		
+	</a>
+	<span>
+		Improved Logging Controls
+	</span>
+</h3>
+<p>Finally, logging is easier to manage in real-world deployments. ONNX Runtime WebGPU warnings are now hidden by default, and you can set explicit verbosity levels for both Transformers.js and ONNX Runtime. This update, also driven by community feedback, keeps console output focused on actionable signals rather than low-value noise.</p>
+<details>
+<summary>See `logLevel` example</summary>
+
+<pre><code data-language="javascript">import { env, LogLevel } from "@huggingface/transformers";
+
+// LogLevel.DEBUG
+// LogLevel.INFO
+// LogLevel.WARNING
+// LogLevel.ERROR
+// LogLevel.NONE
+
+env.logLevel = LogLevel.WARNING;
+</code></pre>
+</details>
+
+<h2>
+	<a id="standalone-tokenizersjs-library" href="#standalone-tokenizersjs-library" rel="nofollow">
+		
+	</a>
+	<span>
+		Standalone Tokenizers.js Library
+	</span>
+</h2>
+<p>A frequent request from users was to extract the tokenization logic into a separate library, and with v4, that's exactly what we've done. <a href="https://www.npmjs.com/package/@huggingface/tokenizers" rel="nofollow">@huggingface/tokenizers</a> is a complete refactor of the tokenization logic, designed to work seamlessly across browsers and server-side runtimes. At just 8.8kB (gzipped) with zero dependencies, it's incredibly lightweight while remaining fully type-safe.</p>
+<details>
+<summary>See example code</summary>
+
+<pre><code data-language="javascript">import { Tokenizer } from "@huggingface/tokenizers";
+
+// Load from Hugging Face Hub
+const modelId = "HuggingFaceTB/SmolLM3-3B";
+const tokenizerJson = await fetch(
+  `https://huggingface.co/${modelId}/resolve/main/tokenizer.json`
+).then(res =&gt; res.json());
+
+const tokenizerConfig = await fetch(
+  `https://huggingface.co/${modelId}/resolve/main/tokenizer_config.json`
+).then(res =&gt; res.json());
+
+// Create tokenizer
+const tokenizer = new Tokenizer(tokenizerJson, tokenizerConfig);
+
+// Tokenize text
+const tokens = tokenizer.tokenize("Hello World");
+// ['Hello', 'ĠWorld']
+
+const encoded = tokenizer.encode("Hello World");
+// { ids: [9906, 4435], tokens: ['Hello', 'ĠWorld'], ... }
+</code></pre>
+</details>
+
+<p>This separation keeps the core of Transformers.js focused and lean while offering a versatile, standalone tool that any WebML project can use independently.</p>
+<h2>
+	<a id="miscellaneous-improvements" href="#miscellaneous-improvements" rel="nofollow">
+		
+	</a>
+	<span>
+		Miscellaneous Improvements
+	</span>
+</h2>
+<p>We've made several quality-of-life improvements across the library. The type system has been enhanced with dynamic pipeline types that adapt based on inputs, providing better developer experience and type safety.</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformersjs-v4/types.png" alt="Type Improvements" width="100%"></p><p>Additionally, we've added support for larger models exceeding 8B parameters. In our tests, we've been able to run GPT-OSS 20B (q4f16) at ~60 tokens per second on an M4 Pro Max.</p>
+<h2>
+	<a id="acknowledgements" href="#acknowledgements" rel="nofollow">
+		
+	</a>
+	<span>
+		Acknowledgements
+	</span>
+</h2>
+<p>We want to extend our heartfelt thanks to everyone who contributed to this major release, especially the ONNX Runtime team for their incredible work on the new WebGPU runtime and their support throughout development, as well as all external contributors and early testers.</p>
+</div></div>

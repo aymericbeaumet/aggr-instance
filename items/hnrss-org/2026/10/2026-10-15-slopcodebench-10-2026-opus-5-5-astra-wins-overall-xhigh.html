@@ -1,0 +1,263 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc" aria-labelledby="file-name-id-wide file-name-id-mobile"><article itemprop="text"><p dir="auto"><h2 tabindex="-1" dir="auto">SlopCodeBench update 10/2026 - Opus 5.5 update, Astra improves by 1.5% over gpt-5.5, xhigh considered harmful</h2><a id="user-content-slopcodebench-update-102026---opus-55-update-astra-improves-by-15-over-gpt-55-xhigh-considered-harmful" aria-label="Permalink: SlopCodeBench update 10/2026 - Opus 5.5 update, Astra improves by 1.5% over gpt-5.5, xhigh considered harmful" href="#slopcodebench-update-102026---opus-55-update-astra-improves-by-15-over-gpt-55-xhigh-considered-harmful"></a></p>
+<p dir="auto">October 15, 2026 - <a href="https://x.com/dexhorthy" rel="nofollow">Dex Horthy</a> w/ contributions from <a href="https://x.com/gorlanski" rel="nofollow">Gabe Orlanski</a></p>
+<blockquote>
+<p dir="auto"><strong>NOTE:</strong> This is Part I of our October 2026 writeup: the Q4 state of the slop. Gabe and the <a href="https://arxiv.org/abs/2603.24755" rel="nofollow">SlopCodeBench team</a> will share their analysis and a more qualitative deep dive into slop patterns in Part II.</p>
+</blockquote>
+<blockquote>
+<p dir="auto">For my previous writeups on SlopcodeBench, see <a href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/benchmarking-opus-5-on-slop-code-bench.md">benchmarking-opus-5-on-slop-code-bench.md</a> and <a href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/benchmarking-sol-fable-kimi-on-slop-code-bench.md">benchmarking-sol-fable-kimi-on-slop-code-bench.md</a>. Both include deeper dives on the core structure of SCB and how each of its challenges is broken into checkpoints.</p>
+</blockquote>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Overview</h3><a id="user-content-overview" aria-label="Permalink: Overview" href="#overview"></a></p>
+<p dir="auto">In May, the last time SCB was published, gpt-5.5 got a <strong>14.8% strict pass rate on slopcodebench</strong>. This month, I ran the frontier models through the same campaigns, and the highest scorer was gpt-6 astra, hitting <strong>16.3%</strong>.</p>
+<p dir="auto">While the benchmark reports several different pass rates, the one we focus on is <strong>strict pass rate</strong> - in how many checkpoints did the model pass every test case while still passing all regression tests the frontier models we tested here had strict pass rates in the <strong>12.2-16.3%</strong> range:</p>
+<ul dir="auto">
+<li>Opus 5.5</li>
+<li>Fable 5.1</li>
+<li>SOL 6 and 6.1</li>
+<li>Astra</li>
+<li>GLM 5.3</li>
+</ul>
+<p dir="auto">For comparison, the benchmark also reports a "core pass rate" which is less strict, which lands in the <strong>65.8-74.0%</strong> pass rate for these models.</p>
+<p dir="auto">One interesting thing here that I'll dig into - medium effort performed better than XHigh for some newer models. XHigh costs <strong>2.11-4.22x</strong> as much as Medium in the three complete pairs, and most notably, <strong>opus 5.5 did <em>BETTER</em> on medium effort than on xhigh</strong></p>
+<p dir="auto">Over the past few months, I ran subsets of the bench. I <a href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/benchmarking-opus-5-on-slop-code-bench.md">started with three problems</a>, then <a href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/benchmarking-sol-fable-kimi-on-slop-code-bench.md">tried six</a>. This time: <strong>36 problems and 196 checkpoints per setting</strong>. Since we used a subset before, we can't use the earlier subsets to measure improvement or decline. The full benchmark lets us compare these results with the official research findings. It also means while the 30% fable 5 score from the latter of those two is interesting, its not comparable here, because it only covers 6 out of 36 problems.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">quick SCB background</h2><a id="user-content-quick-scb-background" aria-label="Permalink: quick SCB background" href="#quick-scb-background"></a></p>
+<p dir="auto"><a href="https://arxiv.org/abs/2603.24755" rel="nofollow">SlopCodeBench</a> gives a coding agent a problem in stages. It writes a program, gets new requirements, and changes the existing code. Later checkpoints test both new behavior and old behavior.</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/images/scb-paper-degradation.png"><img src="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/raw/main/images/scb-paper-degradation.png" alt="Diagram from the SlopCodeBench paper: new requirements arrive in stages, and code quality can degrade as the agent changes its solution."></a></p>
+<p dir="auto">The idea here is that this maps more onto how software is really built - with unclear and evolving requirements during the course of the build.</p>
+<p dir="auto">For folks who want to try to repro these findings: I used the pinned v1.0 catalog, the stock <code>just-solve</code> prompt, seed 42, the <code>any-case</code> runner pass policy, and Docker with Python 3.12 and uv.</p>
+<p dir="auto">I ran each model and effort setting once. Each checkpoint builds on the code from earlier checkpoints. Some problems have more checkpoints than others. Each checkpoint counts equally toward the pass rate, so problems with more checkpoints have more weight.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Core vs. Strict pass rates</h2><a id="user-content-core-vs-strict-pass-rates" aria-label="Permalink: Core vs. Strict pass rates" href="#core-vs-strict-pass-rates"></a></p>
+<ul dir="auto">
+<li><strong>Strict:</strong> every test category passes, including Regression.</li>
+<li><strong>Core:</strong> all tests in a nonempty Core category pass. For example, if a model fails checkpoint 2, it can still get a core pass for a later checkpoint, even if the ck2 tests remain failing.</li>
+</ul>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/images/scb-3-pass-rates.png"><img src="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/raw/main/images/scb-3-pass-rates.png" alt="Stacked checkpoint pass-rate bars for ten complete campaigns. Solid segments show strict passes and tinted extensions show Core-only passes. Astra XHigh leads strict success at 32/196; Opus Medium leads Core success at 145/196."></a></p>
+<p dir="auto"><em>Strict passes: 24-32 of 196. Core passes, including strict: 129-145. The tinted portion isn't extra strict success.</em></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Complete campaign</th>
+<th>Strict passes</th>
+<th>Strict rate</th>
+<th>Core rate</th>
+<th>Estimated cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-6 Astra XHigh</td>
+<td>32/196</td>
+<td>16.33%</td>
+<td>69.39%</td>
+<td>$758.62</td>
+</tr>
+<tr>
+<td>GPT-6 SOL Medium</td>
+<td>30/196</td>
+<td>15.31%</td>
+<td>67.86%</td>
+<td>$245.69</td>
+</tr>
+<tr>
+<td>GPT-6 Astra Medium</td>
+<td>29/196</td>
+<td>14.80%</td>
+<td>66.33%</td>
+<td>$261.05</td>
+</tr>
+<tr>
+<td>GPT-6.1 SOL Medium</td>
+<td>29/196</td>
+<td>14.80%</td>
+<td>65.82%</td>
+<td>$178.51</td>
+</tr>
+<tr>
+<td>Opus 5.5 Medium</td>
+<td>28/196</td>
+<td>14.29%</td>
+<td>73.98%</td>
+<td>$193.47</td>
+</tr>
+<tr>
+<td>GPT-5.6 SOL XHigh</td>
+<td>28/196</td>
+<td>14.29%</td>
+<td>70.92%</td>
+<td>$753.30</td>
+</tr>
+<tr>
+<td>Fable 5.1 XHigh</td>
+<td>26/196</td>
+<td>13.27%</td>
+<td>72.45%</td>
+<td>$1,550.07</td>
+</tr>
+<tr>
+<td>GPT-6 SOL XHigh</td>
+<td>26/196</td>
+<td>13.27%</td>
+<td>68.37%</td>
+<td>$517.32</td>
+</tr>
+<tr>
+<td>Opus 5.5 XHigh</td>
+<td>25/196</td>
+<td>12.76%</td>
+<td>71.94%</td>
+<td>$817.04</td>
+</tr>
+<tr>
+<td>GLM 5.3 XHigh</td>
+<td>24/196</td>
+<td>12.24%</td>
+<td>66.33%</td>
+<td>$365.13</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">Astra XHigh has the most strict passes in this snapshot. But it's lead over SOL 6.1 Medium is only <strong>two checkpoints</strong>.</p>
+<p dir="auto">Opus Medium leads Core success at <strong>145/196</strong>, but passes only <strong>28/196</strong> strictly.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">more effort == more spend, but not necessarily better outcomes</h2><a id="user-content-more-effort--more-spend-but-not-necessarily-better-outcomes" aria-label="Permalink: more effort == more spend, but not necessarily better outcomes" href="#more-effort--more-spend-but-not-necessarily-better-outcomes"></a></p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/images/scb-3-effort.png"><img src="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/raw/main/images/scb-3-effort.png" alt="Medium and XHigh cost and strict-pass comparisons: Opus costs 4.22x more with 28 to 25 strict passes, GPT-6 SOL costs 2.11x more with 30 to 26, and Astra costs 2.91x more with 29 to 32."></a></p>
+<p dir="auto"><em>XHigh costs more in all three pairs; strict success rises only for Astra. These single runs don't isolate effort as the cause.</em></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Strict: Medium → XHigh</th>
+<th>Core: Medium → XHigh</th>
+<th>Estimated cost multiplier</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Opus 5.5</td>
+<td>28 → 25</td>
+<td>145 → 141</td>
+<td>4.22x</td>
+</tr>
+<tr>
+<td>GPT-6 SOL</td>
+<td>30 → 26</td>
+<td>133 → 134</td>
+<td>2.11x</td>
+</tr>
+<tr>
+<td>GPT-6 Astra</td>
+<td>29 → 32</td>
+<td>130 → 136</td>
+<td>2.91x</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">This doesn't prove that more reasoning hurts coding. It says <strong>higher effort was not a reliable way to buy more strict passes in these runs</strong>. One campaign per setting can't tell me how much is run-to-run variation.</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/images/scb-3-cost-strict.png"><img src="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/raw/main/images/scb-3-cost-strict.png" alt="Scatterplot of recorded estimated cost versus strict checkpoint pass rate. GPT-6.1 Medium records $178.51 and 29 strict passes, Fable $1,550.07 and 26, and Astra XHigh $758.62 and 32."></a></p>
+<p dir="auto"><em>Recorded estimates span $178.51-$1,550.07 within a 12.24-16.33% strict-score range.</em></p>
+<p dir="auto">GPT-6.1 Medium has the lowest recorded cost at $178.51, with the same strict count as Astra Medium. Fable's recorded estimate is about <strong>8.68x</strong> as much, with three fewer strict passes.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">the final code still fails tests</h2><a id="user-content-the-final-code-still-fails-tests" aria-label="Permalink: the final code still fails tests" href="#the-final-code-still-fails-tests"></a></p>
+<p dir="auto">Checkpoint success also isn't the same as ending with a working program.</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/images/scb-3-final-failures.png"><img src="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/raw/main/images/scb-3-final-failures.png" alt="Final failed test cases across 36 problem snapshots per campaign, from 1,435 for Astra XHigh to 2,831 for GPT-6 SOL Medium. A separate column shows zero to three strictly passing final checkpoints per campaign."></a></p>
+<p dir="auto"><em>Only each problem's last checkpoint counts here. Failed test cases aren't distinct bugs; skips stay separate.</em></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Complete campaign</th>
+<th>Strict final checkpoints, out of 36</th>
+<th>Final failed test cases</th>
+<th>Of those, Regression</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-6 Astra XHigh</td>
+<td>3</td>
+<td>1,435</td>
+<td>1,178</td>
+</tr>
+<tr>
+<td>GPT-6 Astra Medium</td>
+<td>1</td>
+<td>1,747</td>
+<td>1,516</td>
+</tr>
+<tr>
+<td>GPT-6 SOL XHigh</td>
+<td>1</td>
+<td>1,651</td>
+<td>1,366</td>
+</tr>
+<tr>
+<td>GPT-6 SOL Medium</td>
+<td>1</td>
+<td>2,831</td>
+<td>2,479</td>
+</tr>
+<tr>
+<td>GPT-6.1 SOL Medium</td>
+<td>3</td>
+<td>2,757</td>
+<td>2,404</td>
+</tr>
+<tr>
+<td>GPT-5.6 SOL XHigh</td>
+<td>2</td>
+<td>2,727</td>
+<td>2,376</td>
+</tr>
+<tr>
+<td>Fable 5.1 XHigh</td>
+<td>1</td>
+<td>2,463</td>
+<td>2,126</td>
+</tr>
+<tr>
+<td>Opus 5.5 Medium</td>
+<td>0</td>
+<td>2,508</td>
+<td>2,206</td>
+</tr>
+<tr>
+<td>Opus 5.5 XHigh</td>
+<td>1</td>
+<td>2,446</td>
+<td>2,123</td>
+</tr>
+<tr>
+<td>GLM 5.3 XHigh</td>
+<td>1</td>
+<td>2,748</td>
+<td>2,311</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h2 tabindex="-1" dir="auto">code quality findings - blurry</h2><a id="user-content-code-quality-findings---blurry" aria-label="Permalink: code quality findings - blurry" href="#code-quality-findings---blurry"></a></p>
+<p dir="auto">First - the models left a ton of junk and scratch code while working. My first reaction was to remove the random temp files from the quality scores. But I chatted with <a href="https://x.com/gorlanski" rel="nofollow">gabe</a> and he made a good point: <strong>the benchmark should measure how much garbage models leave in the codebase. If we're not reading the code, we need to measure it.</strong> Tests, scratch code, and generated copies probably shouldn't get a free pass just because they aren't the main program.</p>
+<p dir="auto">I did use a fixed list of folder names to exclude installed packages, virtual environments, and caches from both analyses.</p>
+<p dir="auto">The main results analyze all leftover code. For comparison, we also calculate the same metrics after removing a fixed list of temporary and generated files. That lets us see how much the cleanup changes the numbers. The rules and the actual difference are below.</p>
+<p dir="auto">These figures cover <strong>the same 28 problems for all ten completed runs</strong>, not all 36 problems. The scanner couldn't fully measure some files in eight problems (more on that in gabe's update later), so we left those problems out for every model.</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/images/scb-3-quality-slop-coverage.png"><img src="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/raw/main/images/scb-3-quality-slop-coverage.png" alt="Ten campaigns ranked from lowest to highest SLOC-weighted heuristic coverage across 28 matched problems. Opus XHigh is lowest at 77.75%; Opus Medium is highest at 94.25%, or 92.90% after filtering."></a></p>
+<p dir="auto">Some high level details on how we compute "what % of this code triggers at least one slop rule":</p>
+<ul dir="auto">
+<li>The scanner flags slop patterns and repeated code within each file.</li>
+<li>"Coverage" is the share of source lines flagged by those checks.</li>
+<li>We count each line only once, even if several checks flag it.</li>
+<li>A check can flag a whole function without every line being a problem.</li>
+</ul>
+<p dir="auto">We total the flagged lines and source lines across all 28 problems, then divide to get the percentage. Larger programs therefore have more weight. <strong>In the earlier posts, we averaged each problem's percentage instead.</strong></p>
+<p dir="auto">Opus XHigh has the lowest slop percentage at <strong>77.75%</strong>, versus <strong>94.25%</strong> for Opus Medium. Interestingly, once again, the xhigh version has fewer strict passes: 25 versus 28.</p>
+<div dir="auto"><h3 tabindex="-1" dir="auto"><blockquote>while Opus 5.5 Medium had more strict passes, Opus 5.5. XHigh wrote code that was close to ~5x cleaner.</blockquote></h3><a id="user-content-while-opus-55-medium-had-more-strict-passes-opus-55-xhigh-wrote-code-that-was-close-to-5x-cleaner" aria-label="Permalink: while Opus 5.5 Medium had more strict passes, Opus 5.5. XHigh wrote code that was close to ~5x cleaner." href="#while-opus-55-medium-had-more-strict-passes-opus-55-xhigh-wrote-code-that-was-close-to-5x-cleaner"></a></div>
+<p dir="auto">It is possible that this is because newer models come with new / different slop patterns, and the paper's original battery of 200+ linters is focused on a set of hand-curated patterns derived from agent-authored PRs in the months preceding the original publication in march 2026 and the v1.1 in may 2026. These new models may produce new maintainability anti-patterns that we haven't built linters for yet (more on that in Gabe's follow up post).</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/images/scb-3-quality-volume.png"><img src="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/raw/main/images/scb-3-quality-volume.png" alt="Total source lines across 28 matched final problems per campaign. Opus Medium has 216,881 SLOC, including 41,265 removed by the deterministic filter, leaving 175,616."></a></p>
+<p dir="auto"><em>Opus Medium leaves the most code, even after filtering. We don't remove all tests.</em></p>
+<p dir="auto">For the filtered score, we leave out folders named <code>_work</code>, <code>tmp</code>, <code>temp</code>, <code>scratch</code>, <code>generated</code>, <code>build</code>, or <code>dist</code>, plus <code>*_pb2.py</code> and <code>*_pb2_grpc.py</code> files. We use the same rules for every run. We don't guess whether code looks generated or exclude tests as a group. In these runs, the filter only removed <code>_work</code> files: <strong>45 files and 41,265 source lines</strong>, all from Opus Medium's final <code>dynamic_buffer</code> code. Its total drops from <strong>216,881 to 175,616 source lines</strong>, and slop-presence drops to <strong>92.90%</strong>. It still ranks most-frequent on slop presence. The filter changes nothing for the other models.</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/blob/main/images/scb-3-quality-callables.png"><img src="https://github.com/humanlayer/advanced-context-engineering-for-coding-agents/raw/main/images/scb-3-quality-callables.png" alt="Functions and methods alongside callable-weighted mean complexity. Fable has 8,967 callables and mean complexity 3.57; GPT-6 SOL Medium has 1,083 and mean complexity 11.70."></a></p>
+<p dir="auto"><em>Fable has the lowest mean complexity, 3.57; GPT-6 SOL Medium has the highest, 11.70. Functions and methods each get one vote.</em></p>
+<p dir="auto">As you might expect, splitting code into more helper functions can lower average complexity without making the code easier to change. Less code isn't always better either.</p>
+<p dir="auto">There's a ton more metrics and I'm excited to get Gabe's take on the more qualitative side of these outputs.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">my takeaway</h2><a id="user-content-my-takeaway" aria-label="Permalink: my takeaway" href="#my-takeaway"></a></p>
+<p dir="auto">The full benchmark is hard in a way that matters to me: the agents get the main behavior right much more often than they keep <strong>all</strong> tested behavior working as requirements change.</p>
+<p dir="auto">We're getting better at maintaing a codebase over time (14.8% to 16.3% during may-&gt;september), but not as fast as anyone would have you believe. I think we'll be keeping the lights on for a while to come.</p>
+<blockquote>
+<p dir="auto"><strong>NOTE:</strong> This is Part I of our October 2026 writeup: the Q4 state of the slop. Gabe and the <a href="https://arxiv.org/abs/2603.24755" rel="nofollow">SlopCodeBench team</a> will share their analysis and a more qualitative deep dive into slop patterns in Part II.</p>
+</blockquote>
+</article></div></div>

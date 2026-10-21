@@ -1,0 +1,894 @@
+<div id="readability-page-1" class="page"><div>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/sAbRvxS84gKtil9BEaqXP.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/sAbRvxS84gKtil9BEaqXP.png" alt="image"></a></p>
+<p>Welcome back! This is the second part of <a href="https://huggingface.co/blog/Photoroom/prx-open-source-t2i-model">our series on training efficient text-to-image models from scratch</a>.</p>
+<p>In the <a href="https://huggingface.co/blog/Photoroom/prx-part1-architectures">first post of this series</a>, we introduced our goal: training a competitive text-to-image foundation model entirely from scratch, in the open, and at scale. We focused primarily on architectural choices and motivated the core design decisions behind our model <strong>PRX</strong>.
+We also <a href="https://huggingface.co/spaces/Photoroom/PRX-1024-beta-version">released an early, small (1.2B parameters) version of the model</a> as a preview of what we are building (go try it if you haven't already 😉).</p>
+<p>In this post, we shift our focus from architecture to training. <strong>The goal is to document what actually moved the needle for us</strong> when trying to make models train faster, converge more reliably, and learn better representations. The field is moving quickly and the list of “training tricks” keeps growing, so rather than attempting an exhaustive survey, we structured this as an experimental logbook: we reproduce (or adapt) a set of recent ideas, implement them in a consistent setup, and report how they affect optimization and convergence in practice. Finally, we do not only report these techniques in isolation; we also explore which ones remain useful when combined.</p>
+<p>In the next post, <strong>we will publish the full training recipe as code</strong>, including the experiments in this post. <strong>We will also run and report on a public "speedrun"</strong> where we put the best pieces together into a single configuration and stress-test it end-to-end. This exercise will serve both as a stress test of our current training pipeline and as a concrete demonstration of how far careful training design can go under tight constraints. 
+If you haven’t already, we invite you to join our <a href="https://discord.gg/ZRwdpBSyyC" rel="nofollow">Discord</a> to continue the discussion. A significant part of this project has been shaped by exchanges with community members, and we place a high value on external feedback, ablations, and alternative interpretations of the results.</p>
+<h2>
+	<a id="the-baseline" href="#the-baseline" rel="nofollow">
+		
+	</a>
+	<span>
+		The Baseline
+	</span>
+</h2>
+<p>Before introducing any training-efficiency techniques, we first establish a clean reference run. This baseline is intentionally simple. It uses standard components, avoids auxiliary objectives, and does not rely on architectural shortcuts or tricks to save compute resources. Its role is to serve as a stable point of comparison for all subsequent experiments.<br>Concretely, this is a <strong>pure Flow Matching</strong> (<a href="https://arxiv.org/abs/2210.02747" rel="nofollow">Lipman et al., 2022</a>) training setup (as introduced in <a href="https://huggingface.co/blog/Photoroom/prx-part1-architectures">Part 1</a>) with no extra objectives and no architectural speed hacks.
+We will use the small PRX-1.2B model we presented in the first post of this series (single stream architecture with global attention for the image tokens and text tokens) as our baseline and train it in Flux VAE latent space, keeping the configuration fixed across all comparisons unless stated otherwise.</p>
+<p>The baseline training setup is as follows:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Setting</th>
+<th>Value</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Steps</td>
+<td>100k</td>
+</tr>
+<tr>
+<td>Dataset</td>
+<td><a href="https://huggingface.co/datasets/BitTranslate/Bittensor_subnet_19_06_04_24">Public 1M synthetic image generated with MidJourneyV6</a></td>
+</tr>
+<tr>
+<td>Resolution</td>
+<td>256×256</td>
+</tr>
+<tr>
+<td>Global batch size</td>
+<td>256</td>
+</tr>
+<tr>
+<td>Optimizer</td>
+<td>AdamW</td>
+</tr>
+<tr>
+<td>lr</td>
+<td>1e-4</td>
+</tr>
+<tr>
+<td>weight_decay</td>
+<td>0.0</td>
+</tr>
+<tr>
+<td>eps</td>
+<td>1e-15</td>
+</tr>
+<tr>
+<td>betas</td>
+<td>(0.9, 0.95)</td>
+</tr>
+<tr>
+<td>Text encoder</td>
+<td>GemmaT5</td>
+</tr>
+<tr>
+<td>Positional encoding</td>
+<td>Rotary (RoPE)</td>
+</tr>
+<tr>
+<td>Attention mask</td>
+<td>Padding mask</td>
+</tr>
+<tr>
+<td>EMA</td>
+<td>Disabled</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>This baseline configuration provides a transparent and reproducible anchor. It allows us to attribute observed improvements and regressions to specific training interventions, rather than to shifting hyperparameters or hidden setup changes.
+Throughout the remainder of this post, every technique is evaluated against this reference with a single guiding question in mind:</p>
+<blockquote>
+<p><em>Does this modification improve convergence or training efficiency relative to the baseline?</em></p>
+</blockquote>
+<p><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/AvE0WPccu6P5lF5T5xidf.png" width="180">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/1j82fCWMFOxC8HzPFqIST.png" width="180">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/Tq2DJCziRtPjNEWS3AxQQ.png" width="180">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/fMCpFObEhj2K3AL5LkeF5.png" width="180">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/ZCiFmMXbrecJR89MHR_wn.png" width="180"></p>
+<p>
+  Examples of baseline model generations after 100K training steps.
+</p>
+
+<h2>
+	<a id="benchmarking-metrics" href="#benchmarking-metrics" rel="nofollow">
+		
+	</a>
+	<span>
+		Benchmarking Metrics
+	</span>
+</h2>
+<p>To keep this post grounded, we rely on a small set of metrics to monitor checkpoints over time. None of them is a perfect proxy for perceived image quality, but together they provide a practical scoreboard while we iterate.</p>
+<ul>
+<li><p><strong>Fréchet Inception Distance (FID):</strong> (<a href="https://proceedings.neurips.cc/paper_files/paper/2017/file/8a1d694707eb0fefe65871369074926d-Paper.pdf" rel="nofollow">Heusel et al., 2017</a>) Measures how close the distributions of generated and real images are, using Inception-v3 feature statistics (mean and covariance). Lower values typically correlate with higher sample fidelity.</p>
+</li>
+<li><p><strong>CLIP Maximum Mean Discrepancy (CMMD):</strong> (<a href="https://openaccess.thecvf.com/content/CVPR2024/papers/Jayasumana_Rethinking_FID_Towards_a_Better_Evaluation_Metric_for_Image_Generation_CVPR_2024_paper.pdf" rel="nofollow">Jayasumana et al., 2024</a>) Measures the distance between real and generated image distributions using CLIP image embeddings and Maximum Mean Discrepancy (MMD). Unlike FID, CMMD does not assume Gaussian feature distributions and can be more sample-efficient; in practice it often tracks perceptual quality better than FID, though it is still an imperfect proxy.</p>
+</li>
+<li><p><strong>DINOv2 Maximum Mean Discrepancy (DINO-MMD):</strong> Same MMD-based distance as CMMD, but computed on DINOv2 (<a href="https://arxiv.org/abs/2304.07193" rel="nofollow">Oquab et al. 2023</a>) image embeddings instead of CLIP. This provides a complementary view of distribution shift under a self-supervised vision backbone.</p>
+</li>
+<li><p><strong>Network throughput:</strong> Average number of samples processed per second (samples/s), as a measure of end-to-end training efficiency.</p>
+</li>
+</ul>
+<p>With the scoreboard defined, we can now dive into the methods we explored, grouped into four buckets: <strong>Representation Alignment</strong>, <strong>Training Objectives</strong>, <strong>Token Routing and Sparsification</strong>, and <strong>Data</strong>.</p>
+<h2>
+	<a id="representation-alignment" href="#representation-alignment" rel="nofollow">
+		
+	</a>
+	<span>
+		Representation Alignment
+	</span>
+</h2>
+<p>Diffusion and flow models are typically trained with a single objective: predict a noise-like target (or vector field) from a corrupted input. Early in training, that one objective is doing two jobs at once: it must build a useful internal representation and learn to denoise on top of it. Representation alignment makes this explicit by keeping the denoising objective and adding an auxiliary loss that directly supervises intermediate features using a strong, frozen vision encoder. This tends to speed up early learning and bring the model’s features closer to those of modern self-supervised encoders. As a result, you often need less compute to hit the same quality.</p>
+<p>A useful way to view it is to decompose the denoiser into an implicit encoder that produces intermediate hidden states, and a decoder that maps those states to the denoising target. The claim is that representation learning is the bottleneck: diffusion and flow transformers do learn discriminative features, but they lag behind foundation vision encoders when training is compute-limited. Therefore, borrowing a powerful representation space can make the denoising problem easier.</p>
+<h3>
+	<a id="repa-yu-et-al-2024" href="#repa-yu-et-al-2024" rel="nofollow">
+		
+	</a>
+	<span>
+		REPA (<a href="https://arxiv.org/abs/2410.06940" rel="nofollow">Yu et al., 2024</a>)
+	</span>
+</h3>
+<p><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/jchZULI-fHCl-PbWIPzdl.png" alt="PRX block" width="600">
+  <br>
+  <sub>Representation alignment with a pre-trained visual encoder. Figure from <a href="https://arxiv.org/abs/2410.06940" rel="nofollow">arXiv:2410.06940</a>.</sub></p>
+
+<p><strong>REPA</strong> adds a representation matching term on top of the base flow-matching objective.<br>Let <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>x</mi><mn>0</mn></msub><mo>∼</mo><msub><mi>p</mi><mtext>data</mtext></msub></mrow>x_0 \sim p_{\text{data}}</math></span></span> be a clean sample and <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>∼</mo><msub><mi>p</mi><mtext>prior</mtext></msub></mrow>x_1 \sim p_{\text{prior}}</math></span></span> be the noise sample. The model is trained on an interpolated state <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>x</mi><mi>t</mi></msub></mrow>x_t</math></span></span> (for <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>t</mi><mo>∈</mo><mo stretchy="false">[</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo stretchy="false">]</mo></mrow>t \in [0,1]</math></span></span>) and predicts a vector field <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>v</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo separator="true">,</mo><mi>t</mi><mo stretchy="false">)</mo></mrow>v_\theta(x_t, t)</math></span></span>. In REPA, a pretrained vision encoder <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>f</mi></mrow>f</math></span></span> processes the clean sample <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>x</mi><mn>0</mn></msub></mrow>x_0</math></span></span> to produce patch embeddings <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>y</mi><mn>0</mn></msub><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><msub><mi>x</mi><mn>0</mn></msub><mo stretchy="false">)</mo><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mrow><mi>N</mi><mo>×</mo><mi>D</mi></mrow></msup></mrow>y_0 = f(x_0) \in \mathbb{R}^{N \times D}</math></span></span>, where <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>N</mi></mrow>N</math></span></span> is the number of patch tokens and <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>D</mi></mrow>D</math></span></span> is the teacher embedding dimension. In parallel, the denoiser processes <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>x</mi><mi>t</mi></msub></mrow>x_t</math></span></span> and produces intermediate hidden tokens <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>h</mi><mi>t</mi></msub></mrow>h_t</math></span></span> (one token per patch). A small projection head <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>h</mi><mi>ϕ</mi></msub></mrow>h_\phi</math></span></span> maps these student hidden tokens into the teacher embedding space, and an auxiliary loss maximizes patch-wise similarity between corresponding teacher and student tokens:
+<span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi mathvariant="script">L</mi><mtext>REPA</mtext></msub><mo stretchy="false">(</mo><mi>θ</mi><mo separator="true">,</mo><mi>ϕ</mi><mo stretchy="false">)</mo><mo>=</mo><mo>−</mo><msub><mi mathvariant="double-struck">E</mi><mrow><msub><mi>x</mi><mn>0</mn></msub><mo separator="true">,</mo><msub><mi>x</mi><mn>1</mn></msub><mo separator="true">,</mo><mi>t</mi></mrow></msub><mo fence="false" stretchy="true" minsize="1.8em" maxsize="1.8em">[</mo><mfrac><mn>1</mn><mi>N</mi></mfrac><munderover><mo>∑</mo><mrow><mi>n</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><mtext>sim</mtext><mo fence="false" stretchy="true" minsize="1.2em" maxsize="1.2em">(</mo><msub><mi>y</mi><mrow><mn>0</mn><mo separator="true">,</mo><mo stretchy="false">[</mo><mi>n</mi><mo stretchy="false">]</mo></mrow></msub><mo separator="true">,</mo><mtext> </mtext><msub><mi>h</mi><mi>ϕ</mi></msub><mo stretchy="false">(</mo><msub><mi>h</mi><mrow><mi>t</mi><mo separator="true">,</mo><mo stretchy="false">[</mo><mi>n</mi><mo stretchy="false">]</mo></mrow></msub><mo stretchy="false">)</mo><mo fence="false" stretchy="true" minsize="1.2em" maxsize="1.2em">)</mo><mo fence="false" stretchy="true" minsize="1.8em" maxsize="1.8em">]</mo></mrow>
+
+\mathcal{L}_{\text{REPA}}(\theta,\phi) =
+-\mathbb{E}_{x_0,x_1,t}\Big[\frac{1}{N}\sum_{n=1}^{N}
+\text{sim}\big(y_{0,[n]},\, h_\phi(h_{t,[n]})\big)\Big]
+
+</math></span></span></span>
+Here <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>n</mi><mo>∈</mo><mo stretchy="false">{</mo><mn>1</mn><mo separator="true">,</mo><mo>…</mo><mo separator="true">,</mo><mi>N</mi><mo stretchy="false">}</mo></mrow>n \in \{1,\dots,N\}</math></span></span> indexes patch tokens, <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>y</mi><mrow><mn>0</mn><mo separator="true">,</mo><mo stretchy="false">[</mo><mi>n</mi><mo stretchy="false">]</mo></mrow></msub></mrow>y_{0,[n]}</math></span></span> is the teacher embedding for patch <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>n</mi></mrow>n</math></span></span>, <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>h</mi><mrow><mi>t</mi><mo separator="true">,</mo><mo stretchy="false">[</mo><mi>n</mi><mo stretchy="false">]</mo></mrow></msub></mrow>h_{t,[n]}</math></span></span> is the corresponding student hidden token at time <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>t</mi></mrow>t</math></span></span>, and <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mtext>sim</mtext><mo stretchy="false">(</mo><mo>⋅</mo><mo separator="true">,</mo><mo>⋅</mo><mo stretchy="false">)</mo></mrow>\text{sim}(\cdot,\cdot)</math></span></span> is typically cosine similarity.</p>
+<p>This term is combined with the main flow-matching loss:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi mathvariant="script">L</mi><mo>=</mo><msub><mi mathvariant="script">L</mi><mtext>FM</mtext></msub><mo>+</mo><mi>λ</mi><mtext> </mtext><msub><mi mathvariant="script">L</mi><mtext>REPA</mtext></msub></mrow>
+\mathcal{L} = \mathcal{L}_{\text{FM}} + \lambda\,\mathcal{L}_{\text{REPA}}
+</math></span></span></span></p>
+<p>with <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>λ</mi></mrow>\lambda</math></span></span> controlling the trade-off.</p>
+<p>In practice, the student is trained to produce <em>noise-robust, data-consistent patch representations</em> from <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>x</mi><mi>t</mi></msub></mrow>x_t</math></span></span>, so later layers can focus on predicting the vector field and generating details rather than rediscovering a semantic scaffold from scratch.</p>
+<h4>
+	<a id="what-we-observed" href="#what-we-observed" rel="nofollow">
+		
+	</a>
+	<span>
+		What we observed
+	</span>
+</h4>
+<p> We ran REPA on top of our baseline PRX training, using two frozen teachers: <strong>DINOv2</strong> and <strong>DINOv3</strong> (<a href="https://arxiv.org/abs/2508.10104" rel="nofollow">Siméoni et al., 2025</a>). The pattern was very consistent: <strong>adding alignment improves quality metrics</strong>, and the stronger teacher helps more, at the cost of a bit of speed.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/komSJyY0PAWwwC90ckmin.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/komSJyY0PAWwwC90ckmin.png" alt="image"></a></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Method</th>
+<th>FID ↓</th>
+<th>CMMD ↓</th>
+<th>DINO-MMD ↓</th>
+<th>batches/sec ↑</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Baseline</td>
+<td>18.2</td>
+<td>0.41</td>
+<td>0.39</td>
+<td>3.95</td>
+</tr>
+<tr>
+<td>REPA-Dinov3</td>
+<td>14.64</td>
+<td>0.35</td>
+<td>0.3</td>
+<td>3.46</td>
+</tr>
+<tr>
+<td>REPA-Dinov2</td>
+<td>16.6</td>
+<td>0.39</td>
+<td>0.31</td>
+<td>3.66</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>On the quality metrics, both teachers improve over the baseline. The effect is strongest with DINOv3, which achieves the best overall numbers in this run.</p>
+<p>REPA is not free: we pay for an extra frozen teacher forward and the patch-level similarity loss, which shows up as a throughput drop from <strong>3.95 batches/s</strong> to <strong>3.66</strong> (DINOv2) or <strong>3.46</strong> (DINOv3). In other words, DINOv3 prioritizes maximum representation quality at the cost of slower training, while DINOv2 offers a more efficient tradeoff, still delivering substantial gains with a smaller slowdown.</p>
+<p>Our practical takeaway is that <strong>REPA is a strong lever for text-to-image training</strong>. In our setup, the throughput trade-off is real and the <em>net speedup</em> (time required to reach a given level of image quality) felt a bit less dramatic than what the authors of the paper report on ImageNet-style, class-conditioned generation. That said, the <strong>quality gains are still clearly significant</strong>. Qualitatively, we also saw the difference early: after ~100K steps, samples trained with alignment tended to lock in <strong>cleaner global structure and more coherent layouts</strong>, which makes it easy to see why REPA (and alignment variants more broadly) have become a go-to ingredient in modern T2I training recipes.</p>
+<div>
+	<table>
+		<thead><tr>
+<th><strong>Baseline</strong></th>
+<th><strong>Repa-DinoV2</strong></th>
+<th><strong>Repa-DinoV3</strong></th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/wH0iMWE6E9a9vkY9CdsaC.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/wH0iMWE6E9a9vkY9CdsaC.png" alt="media_images_txt2img_12_ Photography of a powerful, full-maned lion in mid-leap, emerging from a large, moss-covere..._100000_6011eb14deee0e4853fd(1)"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/zP7r5EZAivYI2kSwZbvPi.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/zP7r5EZAivYI2kSwZbvPi.png" alt="media_images_txt2img_12_ Photography of a powerful, full-maned lion in mid-leap, emerging from a large, moss-covere..._100000_e9f0e5ab2b08fd7a26ac"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/GROruaYvwwUvL1o9pzkpR.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/GROruaYvwwUvL1o9pzkpR.png" alt="media_images_txt2img_12_ Photography of a powerful, full-maned lion in mid-leap, emerging from a large, moss-covere..._100000_8c29450cd3e318204dc1"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="irepa-singh-et-al-2025" href="#irepa-singh-et-al-2025" rel="nofollow">
+		
+	</a>
+	<span>
+		iREPA (<a href="https://arxiv.org/abs/2512.10794" rel="nofollow">Singh et al., 2025</a>)
+	</span>
+</h3>
+<p>A natural follow-up to REPA is: <em>what exactly should we be aligning?</em> <strong>iREPA</strong> argues that the answer is <strong>spatial structure</strong>, not global semantics. Across a large sweep of 27 vision encoders, the authors find that ImageNet-style “global” quality (e.g., linear-probe accuracy on patch tokens) is only weakly predictive of downstream generation quality under REPA, while simple measures of <strong>patch-token spatial self-similarity</strong> correlate much more strongly with FID. Based on that diagnosis, iREPA makes two tiny but targeted changes to the REPA recipe to better preserve and transfer spatial information:</p>
+<ul>
+<li>Replace the usual MLP projection head with a lightweight <strong>3×3 convolutional projection</strong> operating on the patch grid.</li>
+<li>Apply a <strong>spatial normalization</strong> to teacher patch tokens that removes a global overlay (mean across spatial locations) to increase local contrast.</li>
+</ul>
+<p>Despite representing  “less than 4 lines of code”, these tweaks consistently speed up convergence and improve quality across encoders, model sizes, and even REPA-adjacent training recipes.  </p>
+<h4>
+	<a id="what-we-observed-1" href="#what-we-observed-1" rel="nofollow">
+		
+	</a>
+	<span>
+		What we observed
+	</span>
+</h4>
+<p>In our setup, we observed a similar kind of boost when applying the iREPA spatial tweaks on top of <strong>DINOv2</strong>: convergence was a bit smoother and the metrics improved more steadily over the first 100K steps. Interestingly, the same changes did <strong>not</strong> transfer as cleanly when applied on top of a <strong>DINOv3 teacher</strong> and they tended to degrade performance rather than help. We do not want to over-interpret that result: this could easily be an interaction with our specific architecture, resolution/patching, loss weighting, or even small implementation details. Still, given this inconsistency across teachers, we will likely <strong>not</strong> include these tweaks in our default recipe, even if they remain an interesting option to revisit when tuning for a specific setup.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/P6pNA1lFjxwWyqF9p88od.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/P6pNA1lFjxwWyqF9p88od.png" alt="image"></a></p>
+<h3>
+	<a id="about-using-repa-during-the-full-training" href="#about-using-repa-during-the-full-training" rel="nofollow">
+		
+	</a>
+	<span>
+		About Using REPA During the Full Training:
+	</span>
+</h3>
+<p>The paper <a href="https://arxiv.org/abs/2505.16792" rel="nofollow"><em>REPA Works Until It Doesn't: Early-Stopped, Holistic Alignment Supercharges Diffusion Training</em> (Wang et al., 2025)</a> highlights a key caveat: REPA is a powerful <em>early</em> accelerator, but it can plateau or even become a brake later in training. The authors describe a <strong>capacity mismatch</strong>. Once the generative model starts fitting the full data distribution (especially high-frequency details), forcing it to stay close to a frozen recognition encoder’s lower-dimensional embedding manifold becomes constraining. Their practical takeaway is simple: keep alignment for the “burn-in” phase, then <strong>turn it off</strong> with a stage-wise schedule.</p>
+<p>We observed the same qualitative pattern in our own runs. When training our preview model, <strong>removing REPA after ~200K steps</strong> noticeably improved the <em>overall feel</em> of image quality, textures, micro-contrast, and fine detail continued to sharpen instead of looking slightly muted. For that reason, we also recommend treating representation alignment as a transient scaffold. Use it to get fast early progress, then <strong>drop it after a while</strong> once the model’s own generative features have caught up. </p>
+<h3>
+	<a id="alignment-in-the-token-latent-space" href="#alignment-in-the-token-latent-space" rel="nofollow">
+		
+	</a>
+	<span>
+		Alignment in the Token Latent Space
+	</span>
+</h3>
+<p>So far, “alignment” meant <strong>regularizing the generator’s internal features</strong> against a frozen teacher while treating the tokenizer / latent space as fixed. A more direct lever is to <strong>shape the latent space itself</strong> so the representation presented to the flow backbone is intrinsically easier to model, without sacrificing the reconstruction fidelity needed for editing and downstream workflows.  </p>
+<p><strong>REPA-E</strong> (<a href="https://arxiv.org/abs/2504.10483" rel="nofollow">Leng et al., 2025</a>) makes this concrete.  Its starting point is a failure mode: if you simply backprop the diffusion / flow loss into the VAE, the tokenizer quickly learns a pathologically easy latent for the denoiser, which can even degrade final generation quality. REPA-E’s fix is a two-signal training recipe: </p>
+<ul>
+<li>keep the diffusion loss, but apply a stop-gradient so it only updates the latent diffusion model (not the VAE); </li>
+<li>update both the VAE and the diffusion model using an end-to-end REPA alignment loss.</li>
+</ul>
+<p>Thanks to these two tricks, the tokenizer is explicitly optimized to produce latents that yield higher alignment and empirically better generations.  </p>
+<p>In parallel, Black Forest Labs’ <a href="https://bfl.ai/research/representation-comparison" rel="nofollow">FLUX.2 AE work</a> frames latent design as a trade-off between learnability, quality, and compression.Their core argument is that improving learnability requires injecting semantic structure into the representation, rather than treating the tokenizer as a pure compression module. This motivates retraining the latent space to explicitly target “better learnability and higher image quality at the same time". They do not share the full recipe, but they do clearly state the key idea: make the AE’s latent space more learnable by adding semantic or representation alignment, and explicitly point to REPA-style alignment with a frozen vision encoder as the mechanism they build on and integrate into the FLUX.2 AE.</p>
+<h4>
+	<a id="what-we-observed-2" href="#what-we-observed-2" rel="nofollow">
+		
+	</a>
+	<span>
+		What we observed
+	</span>
+</h4>
+<p>To probe alignment in the latent space, we compared two <strong>pretrained autoencoders</strong> as drop-in tokenizers for the same flow backbone: a <strong>REPA-E-VAE</strong> (where we <em>do</em> add the REPA alignment objective, as in the paper) and the <strong>Flux2-AE</strong> (where we <em>do not</em> add REPA, following their recommendation). The results were, honestly, extremely impressive, both quantitatively and qualitatively. In samples, the gap is immediately visible: generations show more coherent global structure and cleaner layouts, with far fewer “early training” artifacts.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/tbe05KV4hG0JCvVy8Bjiz.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/tbe05KV4hG0JCvVy8Bjiz.png" alt="image"></a></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Method</th>
+<th>FID ↓</th>
+<th>CMMD ↓</th>
+<th>DINO-MMD ↓</th>
+<th>batches/sec ↑</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Baseline</td>
+<td>18.20</td>
+<td>0.41</td>
+<td>0.39</td>
+<td>3.95</td>
+</tr>
+<tr>
+<td>Flux2-AE</td>
+<td>12.07</td>
+<td>0.09</td>
+<td>0.08</td>
+<td>1.79</td>
+</tr>
+<tr>
+<td>REPA-E-VAE</td>
+<td>12.08</td>
+<td>0.26</td>
+<td>0.18</td>
+<td>3.39</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>A first striking point is that both latent-space interventions lower the FID by ~6 points (18.20 to ~12.08), which is a much larger jump than what we typically get from “just” aligning intermediate features. This strongly supports the core idea: if the tokenizer produces a representation that is intrinsically more learnable, the flow model benefits everywhere.</p>
+<p>The two AEs then behave quite differently in the details. <strong>Flux2-AE</strong> dominates most metrics (very low CMMD and DINO_MMD, but it comes with a huge throughput penalty: batches/sec drops from <strong>3.95  to 1.79</strong>. In our case this slowdown is explained by practical factors they also emphasize: the model is simply heavier, and it also produces a <strong>larger latent (32 channels)</strong>, which increases the amount of work the diffusion backbone has to do per step.</p>
+<p><strong>REPA-E-VAE</strong> is the “balanced” option: it reaches essentially the same FID as Flux2-AE while keeping throughput much closer to the baseline (<strong>3.39 batches/sec</strong>).</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Baseline</th>
+<th>Flux2-AE</th>
+<th>REPA-E-VAE</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/I4E6Yf3oUDxtuRfeH8zuw.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/I4E6Yf3oUDxtuRfeH8zuw.png" alt="Baseline sample"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/J2D_0OjE6kLk_HIZouPQD.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/J2D_0OjE6kLk_HIZouPQD.png" alt="FLUX2_AE sample"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/9c5pwry-zTbUQrBEfHvQW.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/9c5pwry-zTbUQrBEfHvQW.png" alt="REPA-E sample"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="training-objectives-beyond-vanilla-flow-matching" href="#training-objectives-beyond-vanilla-flow-matching" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Objectives: Beyond Vanilla Flow Matching
+	</span>
+</h2>
+<p>Architecture gets you capacity, but the training objective is what decides how that capacity is used. In practice, small changes to the loss often have outsized effects on convergence speed, conditional fidelity, and how quickly a model “locks in” global structure. In the sections below, we will go through the objectives we tested on top of our baseline rectified flow setup, starting with a simple but surprisingly effective modification: Contrastive Flow Matching.</p>
+<h3>
+	<a id="contrastive-flow-matching-stoica-et-al-2025" href="#contrastive-flow-matching-stoica-et-al-2025" rel="nofollow">
+		
+	</a>
+	<span>
+		Contrastive Flow Matching (<a href="https://arxiv.org/abs/2506.05350" rel="nofollow">Stoica et al., 2025</a>)
+	</span>
+</h3>
+<p>Flow matching has a nice property in the unconditional case: trajectories are implicitly encouraged to be unique (flows should not intersect). But once we move to conditional generation (class- or text-conditioned), different conditions can still induce overlapping flows, which empirically shows up as “averaging” behavior: weaker conditional specificity, and muddier global structure. Contrastive flow matching addresses this directly by adding a contrastive term that pushes conditional flows away from other flows in the batch.</p>
+<p><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/vhLpYTMmLPaXOlYTnawF6.png" alt="PRX block" width="600">
+  <br>
+  <sub>Contrastive flow matching makes class-conditional flows more distinct, reducing overlap seen in standard flow matching, and produces higher-quality images that better represent each class. Figure from <a href="https://arxiv.org/abs/2506.05350" rel="nofollow">arXiv:2506.05350</a>.</sub></p>
+
+<p>For a given training triplet <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo separator="true">,</mo><mi>ε</mi><mo stretchy="false">)</mo></mrow>(x, y, \varepsilon)</math></span></span>, standard conditional flow matching trains the model velocity <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>v</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo separator="true">,</mo><mi>t</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow>v_\theta(x_t,t,y)</math></span></span> to match the target transport direction. Contrastive flow matching keeps that positive term, but additionally samples a <em>negative</em> pair <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mo stretchy="false">(</mo><mover accent="true"><mi>x</mi><mo>~</mo></mover><mo separator="true">,</mo><mover accent="true"><mi>y</mi><mo>~</mo></mover><mo separator="true">,</mo><mover accent="true"><mi>ε</mi><mo>~</mo></mover><mo stretchy="false">)</mo></mrow>(\tilde{x}, \tilde{y}, \tilde{\varepsilon})</math></span></span> from the batch and penalizes the model if its predicted flow is also compatible with that other trajectory. In the paper’s notation, this becomes:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi mathvariant="script">L</mi><mrow><mi mathvariant="normal">Δ</mi><mtext>FM</mtext></mrow></msub><mo stretchy="false">(</mo><mi>θ</mi><mo stretchy="false">)</mo><mo>=</mo><mi mathvariant="double-struck">E</mi><mo fence="false" stretchy="true" minsize="1.8em" maxsize="1.8em">[</mo><mi mathvariant="normal">∥</mi><msub><mi>v</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo separator="true">,</mo><mi>t</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>−</mo><mo stretchy="false">(</mo><msub><mover accent="true"><mi>α</mi><mo>˙</mo></mover><mi>t</mi></msub><mi>x</mi><mo>+</mo><msub><mover accent="true"><mi>σ</mi><mo>˙</mo></mover><mi>t</mi></msub><mi>ε</mi><mo stretchy="false">)</mo><msup><mi mathvariant="normal">∥</mi><mn>2</mn></msup><mtext>  </mtext><mo>−</mo><mtext>  </mtext><mi>λ</mi><mi mathvariant="normal">∥</mi><msub><mi>v</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo separator="true">,</mo><mi>t</mi><mo separator="true">,</mo><mi>y</mi><mo stretchy="false">)</mo><mo>−</mo><mo stretchy="false">(</mo><msub><mover accent="true"><mi>α</mi><mo>˙</mo></mover><mi>t</mi></msub><mover accent="true"><mi>x</mi><mo>~</mo></mover><mo>+</mo><msub><mover accent="true"><mi>σ</mi><mo>˙</mo></mover><mi>t</mi></msub><mover accent="true"><mi>ε</mi><mo>~</mo></mover><mo stretchy="false">)</mo><msup><mi mathvariant="normal">∥</mi><mn>2</mn></msup><mo fence="false" stretchy="true" minsize="1.8em" maxsize="1.8em">]</mo></mrow>
+\mathcal{L}_{\Delta \text{FM}}(\theta)
+=
+\mathbb{E}\Big[
+\|v_\theta(x_t,t,y)-(\dot{\alpha}_t x+\dot{\sigma}_t\varepsilon)\|^2
+\;-\;
+\lambda \|v_\theta(x_t,t,y)-(\dot{\alpha}_t \tilde{x}+\dot{\sigma}_t\tilde{\varepsilon})\|^2
+\Big]
+</math></span></span></span></p>
+<p>where <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>λ</mi><mo>∈</mo><mo stretchy="false">[</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo stretchy="false">)</mo></mrow>\lambda\in[0,1)</math></span></span> controls the strength of the “push-away” term. Intuitively: <strong>match your own trajectory, and be incompatible with someone else’s</strong>.</p>
+<p>The authors show that contrastive flow matching produces <strong>more discriminative trajectories</strong> and that this translates into both <strong>quality and efficiency gains</strong>: faster convergence (reported up to <strong>9× fewer training iterations</strong> to reach similar FID) and fewer sampling steps (reported up to <strong>5× fewer denoising steps</strong>) on <strong>ImageNet</strong> (<a href="https://ieeexplore.ieee.org/document/5206848" rel="nofollow">Deng et al. 2009</a>) and <strong>CC3M</strong>(<a href="https://aclanthology.org/P18-1238/" rel="nofollow">Sharma et al., 2018</a>) experiments.</p>
+<p>A key advantage is that the objective is almost a drop-in replacement: you keep the usual flow-matching loss, then add a single contrastive “push-away” term using other samples in the same batch as negatives which provides the extra supervision without introducing additional model passes.</p>
+<h3>
+	<a id="what-we-observed-3" href="#what-we-observed-3" rel="nofollow">
+		
+	</a>
+	<span>
+		What we observed
+	</span>
+</h3>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/62As0PavSB4rxTIm-OHYY.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/62As0PavSB4rxTIm-OHYY.png" alt="image"></a></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Method</th>
+<th>FID ↓</th>
+<th>CMMD ↓</th>
+<th>DINO-MMD ↓</th>
+<th>batches/sec ↑</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Baseline</td>
+<td>18.20</td>
+<td>0.41</td>
+<td>0.39</td>
+<td>3.95</td>
+</tr>
+<tr>
+<td>Contrastive-FM</td>
+<td>20.03</td>
+<td>0.40</td>
+<td>0.36</td>
+<td>3.75</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>On this run, contrastive flow matching yields a small but measurable improvement on the representation-driven metrics: CMMD goes from <strong>0.41 → 0.40</strong> and DINO-MMD from <strong>0.39 → 0.36</strong>. The magnitude of the gain is smaller than what the paper reports on ImageNet, which is not too surprising: text conditioning is much more complex than discrete classes, and the training data distribution is likely less “separable” than ImageNet, making the contrastive signal harder to exploit.</p>
+<p>We do not see an improvement in FID in this specific experiment (it slightly worsens), but the <strong>throughput cost is negligible</strong> in practice (3.95 → 3.75 batches/sec). Given the simplicity of the change and the consistent movement in the right direction for the conditioning/representation metrics, we will likely still keep contrastive flow matching in our training pipeline as a low-cost regularizer.</p>
+<h3>
+	<a id="jit-li-and-he-2025" href="#jit-li-and-he-2025" rel="nofollow">
+		
+	</a>
+	<span>
+		JiT (<a href="https://arxiv.org/abs/2511.13720" rel="nofollow">Li and He, 2025</a>)
+	</span>
+</h3>
+<p><a href="https://arxiv.org/abs/2511.13720" rel="nofollow"><em>Back to Basics: Let Denoising Generative Models Denoise</em></a> is probably one of our favorite recent papers in the diffusion space because it is not a new trick but a reset: stop asking the network to predict off-manifold quantities (noise or velocity) and just let it denoise.
+Most modern diffusion and flow models train the network to predict <strong>noise <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>ε</mi></mrow>\varepsilon</math></span></span></strong> or a <strong>mixed quantity</strong> like <strong>velocity <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>v</mi></mrow>v</math></span></span></strong>. Under the manifold assumption, natural images live on a low-dimensional manifold, while <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>ε</mi></mrow>\varepsilon</math></span></span> and <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>v</mi></mrow>v</math></span></span> are inherently <strong>off-manifold</strong>, so predicting them can be a harder learning problem than it looks. </p>
+<p><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/fyy9m5Nh7F-IkksdlmnlR.png" alt="PRX block" width="600">
+  <br>
+  <sub>Under the manifold assumption, clean images lie on the data manifold while noise and velocity do not. Thus training the model to predict clean images is fundamentally easier than training it to predict noise-like targets. Figure from <a href="https://arxiv.org/abs/2511.13720" rel="nofollow">arXiv:2511.13720</a>.</sub></p>
+
+
+<p>The authors frame the problem with the standard linear interpolation between the clean image <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>x</mi></mrow>x</math></span></span> and the noise <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>ε</mi></mrow>\varepsilon</math></span></span>:
+<span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>z</mi><mi>t</mi></msub><mo>=</mo><mi>t</mi><mtext> </mtext><mi>x</mi><mo>+</mo><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mi>t</mi><mo stretchy="false">)</mo><mtext> </mtext><mi>ε</mi><mo separator="true">,</mo></mrow>
+z_t = t\,x + (1-t)\,\varepsilon,
+</math></span></span></span>
+and the corresponding flow velocity:
+<span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>v</mi><mo>=</mo><mfrac><mrow><mi>d</mi><msub><mi>z</mi><mi>t</mi></msub></mrow><mrow><mi>d</mi><mi>t</mi></mrow></mfrac><mo>=</mo><mi>x</mi><mo>−</mo><mi>ε</mi><mi mathvariant="normal">.</mi></mrow>
+v = \frac{d z_t}{dt} = x - \varepsilon.
+</math></span></span></span></p>
+<p>Instead of outputting <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>v</mi><mi>θ</mi></msub></mrow>v_\theta</math></span></span> directly, the model predicts a clean image estimate:
+<span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>x</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>z</mi><mi>t</mi></msub><mo separator="true">,</mo><mi>t</mi><mo stretchy="false">)</mo><mo>:</mo><mo>=</mo><msub><mrow><mi mathvariant="normal">n</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">t</mi></mrow><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>z</mi><mi>t</mi></msub><mo separator="true">,</mo><mi>t</mi><mo stretchy="false">)</mo><mo separator="true">,</mo></mrow>
+x_\theta(z_t,t) := \mathrm{net}_\theta(z_t,t),
+</math></span></span></span>
+and we <strong>convert</strong> it to a velocity prediction via:
+<span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi>v</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>z</mi><mi>t</mi></msub><mo separator="true">,</mo><mi>t</mi><mo stretchy="false">)</mo><mo>=</mo><mfrac><mrow><msub><mi>x</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>z</mi><mi>t</mi></msub><mo separator="true">,</mo><mi>t</mi><mo stretchy="false">)</mo><mo>−</mo><msub><mi>z</mi><mi>t</mi></msub></mrow><mrow><mn>1</mn><mo>−</mo><mi>t</mi></mrow></mfrac><mi mathvariant="normal">.</mi></mrow>
+v_\theta(z_t,t) = \frac{x_\theta(z_t,t) - z_t}{1-t}.
+</math></span></span></span></p>
+<p>Then we can keep the exact same flow-style objective in <strong>v-space</strong>:
+<span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msub><mi mathvariant="script">L</mi><mi>v</mi></msub><mo>=</mo><msub><mi mathvariant="double-struck">E</mi><mrow><mi>t</mi><mo separator="true">,</mo><mi>x</mi><mo separator="true">,</mo><mi>ε</mi></mrow></msub><mrow><mo fence="true">[</mo><msubsup><mrow><mo fence="true">∥</mo><msub><mi>v</mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>z</mi><mi>t</mi></msub><mo separator="true">,</mo><mi>t</mi><mo stretchy="false">)</mo><mo>−</mo><mi>v</mi><mo fence="true">∥</mo></mrow><mn>2</mn><mn>2</mn></msubsup><mo fence="true">]</mo></mrow><mspace width="1em"></mspace><mtext>with</mtext><mspace width="1em"></mspace><mi>v</mi><mo>=</mo><mi>x</mi><mo>−</mo><mi>ε</mi><mi mathvariant="normal">.</mi></mrow>
+\mathcal{L}_{v} = \mathbb{E}_{t,x,\varepsilon}\left[\left\|v_\theta(z_t,t) - v\right\|_2^2\right]
+\quad\text{with}\quad
+v = x-\varepsilon.
+</math></span></span></span></p>
+<p>This formulation makes the learning problem substantially easier in high dimensions: instead of predicting noise or velocity (which are essentially unconstrained in pixel space), the network predicts the clean image <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>x</mi></mrow>x</math></span></span>, i.e., something that lies on the data manifold. In practice, this makes it feasible to train large-patch Transformers directly on pixels without a VAE or tokenizer while keeping optimization stable and the total number of tokens manageable.</p>
+<h4>
+	<a id="what-we-observed-4" href="#what-we-observed-4" rel="nofollow">
+		
+	</a>
+	<span>
+		What we observed
+	</span>
+</h4>
+<p>We first evaluated <strong>x-prediction</strong> in the same setting as the rest of our objective experiments, namely <strong>training in the FLUX latent space at 256×256 resolution</strong>.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/BoNl8yyAr9ziOT7ORceKr.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/BoNl8yyAr9ziOT7ORceKr.png" alt="image"></a></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Method</th>
+<th>FID ↓</th>
+<th>CMMD ↓</th>
+<th>DINO-MMD ↓</th>
+<th>batches/sec ↑</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Baseline</td>
+<td>18.20</td>
+<td>0.41</td>
+<td>0.39</td>
+<td>3.95</td>
+</tr>
+<tr>
+<td>X-Pred</td>
+<td>16.80</td>
+<td>0.54</td>
+<td>0.49</td>
+<td>3.95</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>In this regime, the benefit of x-prediction is <strong>unclear</strong>. While <strong>FID improves slightly</strong> compared to the baseline, both <strong>CMMD</strong> and <strong>DINO-MMD</strong> degrade noticeably, and throughput is unchanged. This suggests that, when working in an already well-structured latent space, predicting clean images instead of velocity does not consistently dominate the baseline objective, and can even hurt representation-level alignment.</p>
+<p>That said, this experiment is not where x-prediction really shines.</p>
+<p>The exciting part is that <strong>x-prediction stabilizes high-dimensional training</strong>, making it feasible to use <strong>larger patches</strong> and denoise <strong>directly in pixel space</strong>, without a VAE, at much higher resolutions. Using JiT, we trained a model <strong>directly on 1024×1024 images</strong> with <strong>32×32 patches</strong>, instead of operating in a compressed latent space. Despite the much higher resolution and the absence of a tokenizer, optimization remained stable and fast. We reached <strong>FID 17.42</strong>, <strong>DINO_MMD 0.56</strong>, and <strong>CMMD 0.71</strong> with a throughput of <strong>1.33 batches/sec</strong>.</p>
+<p>These results are remarkable: training directly on 1024×1024 images is only about <strong>3× slower</strong> than training in a 256×256 latent space, while operating on raw pixels. This strongly supports the core claim of <em>Back to Basics</em>: letting the model predict clean images makes the learning problem significantly easier, and opens the door to high-resolution, tokenizer-free text-to-image training without prohibitive compute costs.</p>
+<p>As a result, we plan to use this formulation as the backbone of our upcoming <strong>speedrun experiments</strong>, to see how far we can push it when combined with the other efficiency and sparsification techniques discussed above. The main downside for now is that this approach does not let us benefit from the very nice properties of the <strong>FLUX.2 VAE</strong>; exploring whether some form of alignment or hybrid training could make these two worlds compatible is an open direction we plan to investigate further.</p>
+<div>
+	<table>
+		<thead><tr>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/Q4arVHf3xw8CHeMZX4xE3.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/Q4arVHf3xw8CHeMZX4xE3.png" alt="Sample 1"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/d_wI2o18mj48JKC73F5oV.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/d_wI2o18mj48JKC73F5oV.png" alt="Sample 2"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/dWDtgRQRUtWBz2m7XPfiQ.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/dWDtgRQRUtWBz2m7XPfiQ.png" alt="Sample 3"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="token-routing-and-sparsification-to-reduce-compute-costs" href="#token-routing-and-sparsification-to-reduce-compute-costs" rel="nofollow">
+		
+	</a>
+	<span>
+		Token Routing and Sparsification to Reduce Compute Costs
+	</span>
+</h2>
+<p>So far, most of the techniques we discussed focus on making <strong>each training step more effective</strong>: improving the objective, shaping the representations, or accelerating convergence. The next lever is orthogonal: <strong>make each step cheaper</strong>.</p>
+<p>For  diffusion and flow transformers, the dominant cost is running deep transformer stacks over a large set of image/latent tokens where attention scales poorly with sequence length. <em>Token sparsification</em> methods target this directly by ensuring that only a subset of tokens pays the full compute price in the expensive parts of the network, while still preserving enough information flow to keep quality high.<br>Most masking approaches accelerate training by <strong>removing tokens from the forward pass</strong>, then asking the model to hallucinate the missing content from learned placeholders. That works surprisingly well, but it violates the spirit of iterative denoising. Instead of refining all the content in each step, we are reconstructing parts from scratch.</p>
+<p>Two recent papers illustrate a cleaner alternative: instead of deleting information, they reorganize where compute is spent. <strong>TREAD</strong> and <strong>SPRINT</strong> share the same high-level objective of avoiding full-depth computation for every token at every layer, but they pursue it through complementary strategies.</p>
+<p><strong>TREAD</strong>'s (<a href="https://openaccess.thecvf.com/content/ICCV2025/papers/Krause_TREAD_Token_Routing_for_Efficient_Architecture-agnostic_Diffusion_Training_ICCV_2025_paper.pdf" rel="nofollow">Krause et al., 2025</a>) core idea is to replace compute reduction through information loss, such as dropping or masking tokens, with compute reduction through information transport using token routing. It introduces a <strong>route</strong>: for each training sample, it randomly selects a fraction of tokens and <em>temporarily bypasses</em> a contiguous chunk of layers, then <strong>re-injects those tokens later</strong>. Tokens are not discarded. Instead, they avoid paying the cost of full depth.
+Concretely, for a denoiser with a stack of blocks <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>L</mi><mn>0</mn></msub><mo separator="true">,</mo><mo>…</mo><mo separator="true">,</mo><msub><mi>L</mi><mrow><mi>B</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow>L_0, \dots, L_{B-1}</math></span></span>, TREAD defines a route <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>r</mi><mrow><mi>i</mi><mspace></mspace><mi>t</mi><mi>o</mi><mi>j</mi></mrow></msub></mrow>r_{i\\to j}</math></span></span> (start layer <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>i</mi></mrow>i</math></span></span>, end layer <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>j</mi></mrow>j</math></span></span>). A subset of tokens follows the cheap path (identity) across <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>L</mi><mi>i</mi></msub><mo separator="true">,</mo><mo>…</mo><mo separator="true">,</mo><msub><mi>L</mi><mi>j</mi></msub></mrow>L_i,\dots,L_j</math></span></span>, while the rest follows the normal full computation. Then both streams merge again at <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>L</mi><mi>j</mi></msub></mrow>L_j</math></span></span>.
+In practice, the paper shows that routing up to <strong>50% of tokens</strong> remains effective, while higher rates begin to degrade quality.</p>
+<p><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/2eO2iKhoZfIgHJTMdPYe6.png" alt="PRX block" width="600">
+  <br>
+  <sub>. TREAD enhances training efficiency by routing tokens around certain layers. Figure from <a href="https://arxiv.org/abs//2501.04765" rel="nofollow">arXiv:/2501.04765</a>.</sub></p>
+
+<p><strong>SPRINT</strong> (<a href="https://arxiv.org/pdf/2510.21986" rel="nofollow">Park et al., 2025</a>) extends this approach by introducing sparsity in the most computationally expensive parts of the network, while preserving a dense information pathway. Its recipe is intentionally structured: run <strong>dense early layers</strong> over all tokens to build reliable low-level features, then keep only a subset of tokens through the <strong>sparse middle layers</strong> where compute is heaviest, and finally go <strong>dense again</strong> by re-expanding and <strong>fusing</strong> sparse deep features with a <strong>dense residual stream</strong> from the early layers, before producing the output. The key distinction from TREAD is where robustness comes from: TREAD keeps tokens “present” but shallower (routing), whereas SPRINT allows many tokens to be <em>absent</em> in the middle blocks, relying on the dense residual path to preserve full-resolution information. This is what enables <strong>more aggressive sparsification</strong> in practice. The paper explores drop ratios around <strong>75%</strong>, versus ~50% for TREAD.</p>
+<p><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/27K_mTbSIxdT5pPetxrpQ.png" alt="PRX block" width="600">
+  <br>
+  <sub>SPRINT goes beyond TREAD by dropping most tokens in the middle layers while keeping a dense residual path to preserve full-resolution information. Figure from <a href="https://arxiv.org/abs//2510.21986" rel="nofollow">arXiv:/2510.21986</a>.</sub></p> 
+
+
+<h4>
+	<a id="what-we-observed-5" href="#what-we-observed-5" rel="nofollow">
+		
+	</a>
+	<span>
+		What we observed
+	</span>
+</h4>
+<div>
+	<table>
+		<thead><tr>
+<th>Method</th>
+<th>FID ↓</th>
+<th>CMMD ↓</th>
+<th>DINO-MMD ↓</th>
+<th>batches/sec ↑</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Baseline</td>
+<td>18.20</td>
+<td>0.41</td>
+<td>0.39</td>
+<td>3.95</td>
+</tr>
+<tr>
+<td>TREAD</td>
+<td>21.61</td>
+<td>0.55</td>
+<td>0.41</td>
+<td>4.11</td>
+</tr>
+<tr>
+<td>SPRINT</td>
+<td>22.56</td>
+<td>0.72</td>
+<td>0.42</td>
+<td>4.20</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Under our standard 256×256 latent setup, both methods deliver the primary benefit we were targeting. TREAD goes from 3.95 → 4.11 batches/sec, and SPRINT pushes it a bit further to 4.20 batches/sec. The cost is that under our evaluation protocol, this extra throughput comes with a clear loss in quality: FID rises from 18.20 to 21.61 (TREAD) and 22.56 (SPRINT), with the same pattern observed in CMMD and DINO-MMD.</p>
+<p>Taken at face value, routing yields a modest <strong>~7–9% throughput gain</strong>, but it comes with worse metrics in this benchmark, with <strong>SPRINT</strong> (the more aggressive scheme) degrading quality slightly more than <strong>TREAD</strong>.</p>
+<p>One important caveat is that <strong>token-sparse / routed models tend to score worse under vanilla Classifier-Free Guidance (CFG)</strong>, and this effect is likely amplified here because these runs are still relatively <strong>undertrained</strong> in our setting. The authors of <em>Guiding Token-Sparse Diffusion Models</em> (<a href="https://arxiv.org/abs/2601.01608" rel="nofollow">Krause et al., 2025</a>) argue this is partly an evaluation mismatch: routing changes the model’s effective capacity, and plain “conditional vs. unconditional” CFG often becomes less effective, which can artificially reduce quality. We deliberately did <strong>not</strong> use specialized guidance schemes to keep our benchmark consistent across methods, and at this stage it would also not be very meaningful to treat the sparse model as a “bad version of itself” for guidance. As a result, we consider these numbers directionally useful, but still <strong>pessimistic</strong> and worth interpreting with caution.</p>
+<p>At <strong>256×256</strong>, routing only gave modest gains because the model processes relatively few tokens. At <strong>1024×1024</strong>, the picture changes completely. With <strong>1024 tokens</strong>, routing finally targets the dominant cost, and the results are striking.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/p7EfNrasU3pDy9EuTRB-K.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/p7EfNrasU3pDy9EuTRB-K.png" alt="image"></a></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Method</th>
+<th>FID ↓</th>
+<th>CMMD ↓</th>
+<th>DINO-MMD ↓</th>
+<th>batches/sec ↑</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Baseline</td>
+<td>17.42</td>
+<td>0.71</td>
+<td>0.56</td>
+<td>1.33</td>
+</tr>
+<tr>
+<td>TREAD</td>
+<td>14.10</td>
+<td>0.46</td>
+<td>0.37</td>
+<td>1.64</td>
+</tr>
+<tr>
+<td>SPRINT</td>
+<td>16.90</td>
+<td>0.51</td>
+<td>0.41</td>
+<td>1.89</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Both <strong>TREAD</strong> and <strong>SPRINT</strong> deliver <strong>large throughput gains</strong> over the dense baseline, with SPRINT pushing speed the furthest. More importantly, this time the gains do <strong>not</strong> come at the expense of quality but quite the opposite. <strong>TREAD</strong> in particular stands out, with a dramatic drop in FID (<strong>17.42 → 14.10</strong>) alongside strong improvements in CMMD and DINO-MMD. <strong>SPRINT</strong> is slightly more aggressive and a bit noisier in quality, but still clearly improves over the baseline while being the fastest option.</p>
+<p>In short, this is the regime where token routing really shines: <strong>high resolution, many tokens, and JiT-style pixel-space training</strong>. Here, routing is no longer a marginal optimization—it’s a major lever that improves both <strong>how fast</strong> and <strong>how well</strong> the model trains.</p>
+<h2>
+	<a id="data" href="#data" rel="nofollow">
+		
+	</a>
+	<span>
+		Data
+	</span>
+</h2>
+<p>After covering representation alignment, the core training objective, and token routing, we turned to the fourth axis that kept constantly mattered in practice: <strong>data</strong>. We found that the choice of training data, including how it is described through captions, can influence the trajectory of a training run as much as optimization techniques. Below are three concrete data experiments that consistently moved the needle in our setup.</p>
+<h3>
+	<a id="long-vs-short-captions" href="#long-vs-short-captions" rel="nofollow">
+		
+	</a>
+	<span>
+		Long vs. Short Captions
+	</span>
+</h3>
+<p>Captions are an essential part of the training set: for a text-to-image model, they are not just metadata, they are the supervision. The <a href="https://cdn.openai.com/papers/dall-e-3.pdf" rel="nofollow">DALL·E 3 (Betker et al., 2023) research paper</a> showed that richer captions can be one of the strongest levers for improving training signal and prompt-following.
+To isolate the effect in our setup, we kept everything else fixed and changed only the caption style to compare:</p>
+<ul>
+<li><p>Long, descriptive captions (our baseline): multi-clause captions that mention composition, attributes, lighting, materials, and relationships.</p>
+<blockquote>
+<p><strong>Example</strong><br> <em>"A photograph depicts a fluffy lop-eared rabbit sitting on a weathered wooden surface outdoors. The rabbit is predominantly white with patches of light brown and tan fur, particularly on its head and ears. Its ears droop noticeably, and its fur appears soft and thick. The rabbit's eyes are dark and expressive. It is positioned slightly off-center, facing towards the left of the frame. Behind the rabbit, slightly out of focus, is a miniature dark red metal wheelbarrow. A partially visible orange apple sits to the left of the rabbit. Fallen autumn leaves, predominantly reddish-brown, are scattered around the rabbit and apple on the wooden surface. The background is a blurred but visible expanse of green grass, suggesting an outdoor setting. The lighting is soft and natural, likely diffused daylight, casting no harsh shadows. The overall atmosphere is calm, peaceful, and autumnal. The aesthetic is rustic and charming, with a focus on the rabbit as the main subject. The color palette is muted and natural, consisting mainly of whites, browns, oranges, and greens. The style is naturalistic and straightforward, without any overt artistic manipulation. The vibe is gentle and heartwarming."</em></p>
+</blockquote>
+</li>
+<li><p>Short, one-line captions: minimal descriptions with much less structure. </p>
+<blockquote>
+<p><strong>Example</strong><br> <em>"A rabbit sitting on top of a wooden table."</em></p>
+</blockquote>
+</li>
+</ul>
+<h4>
+	<a id="what-we-observed-6" href="#what-we-observed-6" rel="nofollow">
+		
+	</a>
+	<span>
+		What we observed
+	</span>
+</h4>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/B2Ot5-iPSTgMm613HOXE-.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/B2Ot5-iPSTgMm613HOXE-.png" alt="image"></a></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Method</th>
+<th>FID ↓</th>
+<th>CMMD ↓</th>
+<th>DINO-MMD ↓</th>
+<th>batches/sec ↑</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Baseline</td>
+<td>18.20</td>
+<td>0.41</td>
+<td>0.39</td>
+<td>3.95</td>
+</tr>
+<tr>
+<td>Short-Captions</td>
+<td>36.84</td>
+<td>0.98</td>
+<td>1.14</td>
+<td>3.95</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The outcome was unambiguous: switching to short captions severely hurt convergence across all metrics.
+Long captions provide a richer supervision signal: beyond prompt adherence, there is a very practical optimization reason. More tokens usually means more information, and therefore more learning signal for the denoiser. When the conditioning text specifies composition, attributes, lighting, materials, and relationships, the model gets a sharper “target” for what the denoising trajectory should preserve and refine, especially early in training. </p>
+<p>The fun paradox is that this extra detail often makes the learning problem <em>easier</em>, not harder: intuitively, one might expect longer prompts, with more attributes, constraints, and relationships, to increase complexity and burden the model. In practice, the opposite happens. Short captions leave many degrees of freedom unspecified, forcing the model to learn under ambiguity and implicitly average across multiple plausible interpretations. Long captions collapse that uncertainty by turning implicit choices into explicit constraints, allowing the denoiser to focus its capacity on refining a well-posed solution instead of guessing what matters.</p>
+<p>Long captions are a strong training-time accelerator, but we still want the model to behave well on short prompts because that is how people actually use these systems. A simple workaround is to end training with a short fine-tuning stage on a mixture of long and short captions. That keeps the benefits of rich supervision early, while teaching the model to stay robust when conditioning is sparse.</p>
+<h3>
+	<a id="bootstrapping-with-synthetic-images" href="#bootstrapping-with-synthetic-images" rel="nofollow">
+		
+	</a>
+	<span>
+		Bootstrapping With Synthetic Images
+	</span>
+</h3>
+<p>Another data-related research question we explore is whether a low-cost synthetic corpus can accelerate early training compared to a real corpus of similar size. For this benchmark, we trained a model on a dataset of <strong>real images collected from <a href="https://www.pexels.com/" rel="nofollow">Pexels</a></strong> and compared it with our Baseline which was trained on synthetic data generated with MidjourneyV6, both of which have around 1M images. 
+We evaluated both runs against the same <strong><a href="https://unsplash.com/" rel="nofollow">Unsplash</a></strong> reference set, composed exclusively of real images.
+<a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/tqlQWXQJzA7HqXzBy-0B_.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/tqlQWXQJzA7HqXzBy-0B_.png" alt="image"></a></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Method</th>
+<th>FID ↓</th>
+<th>CMMD ↓</th>
+<th>DINO-MMD ↓</th>
+<th>batches/sec ↑</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Synthetic images</td>
+<td>18.20</td>
+<td>0.41</td>
+<td>0.39</td>
+<td>3.95</td>
+</tr>
+<tr>
+<td>Real images</td>
+<td>16.6</td>
+<td>0.5</td>
+<td>0.46</td>
+<td>3.95</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>The synthetic-trained model scores better on CMMD and DINO-MMD</strong>, while <strong>the model trained on real images achieves a lower FID</strong>. Rather than a contradiction, this split mostly reflects what these metrics emphasize.</p>
+<p>FID is particularly sensitive to <strong>low-level image statistics</strong>: fine textures, high-frequency detail, noise patterns, and the subtle irregularities of real photography. Since our evaluation reference is composed of real images, a model trained on real photos naturally matches those statistics more closely, which translates into a better FID. Synthetic images, by contrast, often exhibit slightly different high-frequency signatures, cleaner edges, smoother micro-textures, more uniform noise, which are barely noticeable qualitatively but still get penalized by distributional metrics like FID.</p>
+<p>Qualitatively, this difference is easy to spot. Models trained on synthetic data tend to produce images with cleaner global structure and stronger compositional and object coherence, but also exhibit a more synthetic appearance, characterized by smoother textures and reduced photographic noise. In contrast, models trained on real images better capture the irregular, fine-grained textures typical of natural photographs, though they often require more training to achieve comparable global structure.</p>
+<p>One plausible explanation synthetic data remains so effective early on is that it exposes the model to a wider range of <strong>compositional collisions</strong>: unusual pairings of objects, attributes, styles, and viewpoints that rarely co-occur in natural datasets. While this can hurt realism at the texture level, it forces the model to explain a broader space of combinations, which appears to help with <strong>early disentanglement and structure learning</strong>.</p>
+<p>Considered jointly, this suggests a simple but practical strategy: synthetic data is an efficient way to bootstrap training and lock in global structure quickly, while real images remain important later on if matching photographic texture statistics is the priority. </p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model trained with real data</th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/5-3TE7jXhqCJVlknE1Tjh.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/5-3TE7jXhqCJVlknE1Tjh.png" alt="dog_cropped"></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/KpXibG5uK9QbrefG3yynR.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/KpXibG5uK9QbrefG3yynR.png" alt="kid_cropped"></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/0ONhsdnDelBZmuDkrwHA7.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/0ONhsdnDelBZmuDkrwHA7.png" alt="bike_cropped"></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/Mh8GkTVlMzboE8F6ttoYo.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/Mh8GkTVlMzboE8F6ttoYo.png" alt="media_images_txt2img_06_ An exquisite crystal bottle of luxury perfume resting on a mirrored surface. Soft, diffuse..._100000_9a3d35747cdb5d20c649"></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/vjmcpiI_1KegTDuUv4dMV.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/vjmcpiI_1KegTDuUv4dMV.png" alt="media_images_txt2img_00_ A curious tabby cat perched on a moss-covered log in a lush, misty forest at dawn. Sunbeam..._100000_558072142d560edc7553"></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/c1U9iVAfPx6zuCghhgzi4.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/c1U9iVAfPx6zuCghhgzi4.png" alt="people_cropped"></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Model trained with synthetic data</td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/P5fGS2iRChjizxL7lJVou.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/P5fGS2iRChjizxL7lJVou.png" alt="media_images_txt2img_17_ The image is a photography of a calm, serene dog in a meditative pose, sitting on a lush g..._100000_428d53247e6cac4f09eb(1)"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/xfbMia525Csco8AiNY3DF.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/xfbMia525Csco8AiNY3DF.png" alt="media_images_txt2img_08_ A carefree young child with tousled hair and rosy cheeks, laughing joyfully while running ..._100000_4e389f3f00e6bc85e55a"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/Pbz17ckHk_GvS2l8I8Wz-.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/Pbz17ckHk_GvS2l8I8Wz-.png" alt="media_images_txt2img_24_ An old, cobblestone street in a European city. Colorful buildings with flower boxes in the..._100000_2db1f8aece2aa6bbeb36"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/yBFy5Wjp7XlpRSajSTj1B.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/yBFy5Wjp7XlpRSajSTj1B.png" alt="media_images_txt2img_06_ An exquisite crystal bottle of luxury perfume resting on a mirrored surface. Soft, diffuse..._100000_8b3a0abb1807c27ad5a4"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/iIRdUhwMV5HPxAJkQb9G0.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/iIRdUhwMV5HPxAJkQb9G0.png" alt="media_images_txt2img_00_ A curious tabby cat perched on a moss-covered log in a lush, misty forest at dawn. Sunbeam..._100000_7cb7d005b969e32c3b81"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/2hOQ-cxfoncFMsVLBHuZV.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/2hOQ-cxfoncFMsVLBHuZV.png" alt="media_images_txt2img_20_ Photography of a bustling city street at dusk. Neon signs illuminate the scene, reflecting..._100000_cc633614b68c98ab11e3"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="sft-with-alchemist-small-dataset-real-impact" href="#sft-with-alchemist-small-dataset-real-impact" rel="nofollow">
+		
+	</a>
+	<span>
+		SFT With Alchemist: Small Dataset, Real Impact
+	</span>
+</h3>
+<p>Finally, we experimented with a targeted Supervised Fine-Tuning (SFT) pass using <strong>Alchemist</strong> (<a href="https://arxiv.org/abs/2505.19297" rel="nofollow">Startsev et al., 2025</a>), a compact dataset explicitly curated for high-impact. Alchemist is small by design (3,350 image–text pairs), but is constructed through a sophisticated curation pipeline that starts from a web-scale pool and progressively distills it down to visually exceptional samples.</p>
+<p>In our setup, we fine-tuned our preview models for 20K steps on Alchemist. Despite the dataset’s small size, it had an outsized effect: it adds a distinct “style layer” with better composition, more photographic polish, and richer scenes without a clear impact on generalization.</p>
+<p>The samples below show a <strong>side-by-side comparison</strong> of generations from the same base model, before and after the Alchemist fine-tuning pass.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Without SFT</th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/tbWxKwi5MIzisD7RYZ3Om.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/tbWxKwi5MIzisD7RYZ3Om.png" alt=""></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/ayTlbjvvL_BsGMCefnsgz.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/ayTlbjvvL_BsGMCefnsgz.png" alt=""></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/kJ6g3HU7Op7hciLr3_DVy.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/kJ6g3HU7Op7hciLr3_DVy.png" alt=""></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/Nx1IlqAvUQ4WeFtUQkdo5.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/Nx1IlqAvUQ4WeFtUQkdo5.png" alt=""></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/FDH3ekKI8_S5Gg6nlJ93R.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/FDH3ekKI8_S5Gg6nlJ93R.png" alt=""></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/8K-ZHtSsL3uAQFJRAcxzH.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/8K-ZHtSsL3uAQFJRAcxzH.png" alt=""></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/HuUjxgbpe9jUebEJDPB-g.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/HuUjxgbpe9jUebEJDPB-g.png" alt=""></a></th>
+<th><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/jnBYAQWY4HJeAwFHf915S.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/jnBYAQWY4HJeAwFHf915S.png" alt=""></a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>With SFT</td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/ti6sX1n4rcbG2jD64nGy4.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/ti6sX1n4rcbG2jD64nGy4.png" alt=""></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/qwPzYsdq2xdm4tke2mI8M.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/qwPzYsdq2xdm4tke2mI8M.png" alt=""></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/6QbjTTsPl06F2Geqn38cX.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/6QbjTTsPl06F2Geqn38cX.png" alt=""></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/YdaTUv9EGRn6hKXSNokQs.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/YdaTUv9EGRn6hKXSNokQs.png" alt=""></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/LdWbPCJ_q6hMKnIUxwydS.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/LdWbPCJ_q6hMKnIUxwydS.png" alt=""></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/u82EW1XyHi1164-PyZl-F.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/u82EW1XyHi1164-PyZl-F.png" alt=""></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/WoiS_HIxOkpEqQuJU1Rbk.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/WoiS_HIxOkpEqQuJU1Rbk.png" alt=""></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/OJ25nDSAmi6xjUivz3QC5.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/OJ25nDSAmi6xjUivz3QC5.png" alt=""></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="more-useful-tips-for-training" href="#more-useful-tips-for-training" rel="nofollow">
+		
+	</a>
+	<span>
+		More Useful Tips for Training
+	</span>
+</h2>
+<p>Last but not least, we will briefly cover two practical training details that turned out to matter more than we expected.
+These factors are easily overlooked and in our case they had a clear impact on convergence and final image quality.</p>
+<h3>
+	<a id="muon-optimizer" href="#muon-optimizer" rel="nofollow">
+		
+	</a>
+	<span>
+		Muon Optimizer
+	</span>
+</h3>
+<p>We generally default to AdamW for our benchmarks because it’s predictable and easy to compare across runs. However, lately, we have seen a renewed interest in optimizers that try to behave more like a good preconditioner without the full overhead of second-order methods. One recent example is <strong>Muon</strong> (<a href="https://kellerjordan.github.io/posts/muon/" rel="nofollow">Jordan et al., 2024</a>), which, at a high level, tries to improve optimization by applying a better-conditioned update step, often translating into faster convergence and cleaner progress early in training.</p>
+<p>In our setup, Muon was one of the rare cases in which a change of optimizer produced an immediately observable effect on the metrics.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/IhD8XksIA4rN2N339ZH47.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/IhD8XksIA4rN2N339ZH47.png" alt="image"></a></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Method</th>
+<th>FID ↓</th>
+<th>CMMD ↓</th>
+<th>DINO-MMD ↓</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Baseline</td>
+<td>18.20</td>
+<td>0.41</td>
+<td>0.39</td>
+</tr>
+<tr>
+<td>Muon</td>
+<td>15.55</td>
+<td>0.36</td>
+<td>0.35</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>For this experiment, we used the official PyTorch implementation of Muon, which at the moment supports Distributed Data Parallel (DDP) training only. If you’re running Fully Sharded Data Parallel (FSDP), there are community variants available; for example <a href="https://github.com/samsja/muon_fsdp_2" rel="nofollow">here</a>. </p>
+<p>While we refrain from broad conclusions based on a single benchmark, these results indicate that optimizer choice extends beyond stability considerations and can yield tangible gains in time-to-quality.</p>
+<h3>
+	<a id="precision-gotcha-casting-vs-storing-weights-in-bf16" href="#precision-gotcha-casting-vs-storing-weights-in-bf16" rel="nofollow">
+		
+	</a>
+	<span>
+		Precision Gotcha: Casting vs. Storing weights in BF16
+	</span>
+</h3>
+<p>We eventually identified an error in our setup, where the denoiser weights were mistakenly stored in bfloat16 for a period of time.</p>
+<p>To be clear, using the BF16 autocast is great. Running the forward and backward passes in BF16 or mixed precision is standard and usually what you want for speed and memory. The problem arises from keeping the parameters in BF16 precision, which negatively impacts numerically sensitive operations.</p>
+<p>In practice, some layers and operations are much less tolerant to reduced parameter precision:</p>
+<ul>
+<li>normalization layers (e.g. LayerNorm / RMSNorm statistics),</li>
+<li>attention softmax/logits paths,</li>
+<li>RoPE,</li>
+<li>optimizers’ internal state / update dynamics.</li>
+</ul>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/b2tC-L9u5NxU_PSvPg8DJ.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/b2tC-L9u5NxU_PSvPg8DJ.png" alt="image"></a></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Method</th>
+<th>FID ↓</th>
+<th>CMMD ↓</th>
+<th>DINO-MMD ↓</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Baseline</td>
+<td>18.20</td>
+<td>0.41</td>
+<td>0.39</td>
+</tr>
+<tr>
+<td>BF16 weights (bug)</td>
+<td>21.87</td>
+<td>0.61</td>
+<td>0.57</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>So the rule we now follow very strictly is: use BF16 autocast for compute, but keep weights (and optimizer state) in FP32 or at least ensure numerically sensitive modules stay FP32.</p>
+<p>It is not a glamorous trick but it is exactly the kind of “silent” detail that can cost you multiple days of work if you do not notice it early.</p>
+<h2>
+	<a id="summary" href="#summary" rel="nofollow">
+		
+	</a>
+	<span>
+		Summary
+	</span>
+</h2>
+<p>We ran a systematic set of ablations on PRX training, comparing a range of optimization, representation, efficiency, and data choices against a clean flow-matching baseline using both quality metrics and throughput.</p>
+<p>The biggest gains came from alignment: REPA boosts early convergence (best used as a burn-in, then turned off), and better latents/tokenizers (REPA-E/FLUX2-AE) give a large jump in quality with clear speed trade-offs. Objective tweaks were mixed—contrastive FM helped slightly, while x-prediction mattered most by enabling stable 1024² pixel training. Token routing (TREAD/SPRINT) is minor at 256² but becomes a major win at high resolution. Data and practical details also mattered: long captions are critical, synthetic vs. real data shifts texture vs. structure, small SFT adds polish, Muon helped, and BF16-stored weights quietly hurt training.</p>
+<h2>
+	<a id="whats-next" href="#whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		What's next?
+	</span>
+</h2>
+<p>That’s it for Part 2! If you want to play with an earlier public checkpoint from this series, the <strong>PRX-1024 T2I beta</strong> is still available <a href="https://huggingface.co/Photoroom/prx-1024-t2i-beta">here</a>.</p>
+<p>We are really excited about what’s next: <strong>in the coming weeks we will release the full source code of the PRX training framework</strong>, and we will do a public <strong>24-hour “speedrun”</strong> where we combine the best ideas from this post into a single run and see how far the full recipe can go in one day.</p>
+<p>If you made it this far, first of all thank you very much for your interest. Furthermore, we would love to have you join our <a href="https://discord.gg/HXp7Znc3" rel="nofollow">Discord</a> community where we discuss PRX progress and results, along with everything related to diffusion and text-to-image models.</p>
+</div></div>
