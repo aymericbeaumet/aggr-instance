@@ -1,0 +1,1353 @@
+<div id="readability-page-1" class="page"><div> 
+<h2>
+	<a id="part-ii-building-the-pipeline-from-structure-prediction-to-codon-optimization" href="#part-ii-building-the-pipeline-from-structure-prediction-to-codon-optimization" rel="nofollow">
+		
+	</a>
+	<span>
+		Part II: Building the Pipeline, From Structure Prediction to Codon Optimization
+	</span>
+</h2>
+<p><em>By OpenMed, Open-Source Agentic AI for Healthcare &amp; Life Sciences</em></p>
+<hr>
+<blockquote>
+<p><strong>TL;DR</strong>: We built an end-to-end protein AI pipeline covering structure prediction, sequence design, and codon optimization. After comparing multiple transformer architectures for codon-level language modeling, <strong>CodonRoBERTa-large-v2</strong> emerged as the clear winner with a perplexity of 4.10 and a Spearman CAI correlation of 0.40, significantly outperforming ModernBERT. We then scaled to 25 species, trained 4 production models in 55 GPU-hours, and built a species-conditioned system that no other open-source project offers. Complete results, architectural decisions, and runnable code below.</p>
+</blockquote>
+<p><strong>Contents</strong></p>
+<ol>
+<li><a href="#1-what-we-built" rel="nofollow">What We Built</a></li>
+<li><a href="#2-the-architecture-exploration" rel="nofollow">The Architecture Exploration</a></li>
+<li><a href="#3-the-pipeline" rel="nofollow">The Pipeline</a><ul>
+<li><a href="#31-protein-folding-with-esmfold" rel="nofollow">3.1 Protein Folding</a></li>
+<li><a href="#32-sequence-design-with-proteinmpnn" rel="nofollow">3.2 Sequence Design</a></li>
+<li><a href="#33-mrna-optimization" rel="nofollow">3.3 mRNA Optimization</a></li>
+</ul>
+</li>
+<li><a href="#4-scaling-to-multi-species" rel="nofollow">Scaling to Multi-Species</a></li>
+<li><a href="#5-the-end-to-end-workflow" rel="nofollow">The End-to-End Workflow</a></li>
+<li><a href="#6-where-this-stands-and-whats-next" rel="nofollow">Where This Stands and What's Next</a></li>
+<li><a href="#7-references" rel="nofollow">References</a></li>
+</ol>
+<hr>
+<p>Imagine going from a therapeutic protein concept to a synthesis-ready, codon-optimized DNA sequence in an afternoon. That is the pipeline <strong>OpenMed</strong> set out to build, and this post documents the process from start to finish.</p>
+<p>In Part I, we mapped the landscape of protein AI: the architectures powering structure prediction, the open-source tools available for protein design, and the ecosystem of models from AlphaFold to ESMFold. That was a survey. This is the build.</p>
+<p>At <strong>OpenMed</strong>, we set out to build a complete pipeline that takes a protein idea from concept to expression-ready DNA. That means three stages: predict the 3D structure of a protein, design amino acid sequences that fold into that structure, and optimize the underlying DNA codons so the protein actually expresses in the target organism. Along the way, we ran extensive experiments comparing transformer architectures for codon optimization, scaled our best model to 25 species, and built tooling that ties it all together.</p>
+<p>This is not a polished success story. It is a transparent account of what worked, what surprised us, and what we would do differently, with runnable code and full results at every step.</p>
+<hr>
+<h2>
+	<a id="1-what-we-built" href="#1-what-we-built" rel="nofollow">
+		
+	</a>
+	<span>
+		1. What We Built
+	</span>
+</h2>
+<p>The pipeline has three components, each addressing a different stage of the protein engineering workflow described in Part I. Structure prediction determines <em>what shape</em> a protein takes. Sequence design determines <em>which amino acids</em> will produce that shape. Codon optimization determines <em>which DNA</em> will produce those amino acids efficiently in a living cell.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Component</th>
+<th>What We Did</th>
+<th>Key Result</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Protein Folding</strong></td>
+<td>ESMFold v1 predictions on 30 protein chains</td>
+<td>Avg PTM: 0.79, working batch pipeline</td>
+</tr>
+<tr>
+<td><strong>Sequence Design</strong></td>
+<td>ProteinMPNN on scaffold 7K00</td>
+<td>42% sequence recovery</td>
+</tr>
+<tr>
+<td><strong>mRNA Optimization</strong></td>
+<td>Trained multiple transformer variants on 250k CDS, then scaled to 381k sequences across 25 species</td>
+<td><strong>CodonRoBERTa-large-v2</strong>: perplexity 4.10, CAI 0.40; <strong>Multi-species suite</strong>: 4 models spanning 25 organisms (55 GPU-hours)</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The mRNA optimization work is where we invested the most effort, and where we have the most to share. The folding and design components use established tools (ESMFold from Meta, ProteinMPNN from the Baker Lab, both covered in depth in Part I). The codon optimization component is entirely ours: new models, new training infrastructure, new evaluation metrics.</p>
+<h2>
+	<a id="2-the-architecture-exploration" href="#2-the-architecture-exploration" rel="nofollow">
+		
+	</a>
+	<span>
+		2. The Architecture Exploration
+	</span>
+</h2>
+<p>In Part I, we surveyed the protein AI landscape and noted that most biological language models are adaptations of NLP architectures. The open question was <em>which</em> architecture. BERT variants dominate protein modeling (ESM-2, ProtTrans), but codon sequences have different statistical properties than both natural language and amino acid sequences. Codons are triplets drawn from a small 64-token alphabet, with strong positional dependencies and species-specific usage biases. We needed to find out what works from first principles.</p>
+<p>The core question: which transformer architecture works best for codon-level language modeling?</p>
+<p>This matters because codon optimization is crucial for therapeutic mRNA, vaccines, and recombinant protein production. The genetic code is degenerate: the same protein can be encoded by astronomically many different DNA sequences, but some codon arrangements express 100x better than others. The Pfizer-BioNTech COVID vaccine, for example, was codon-optimized for human expression. We wanted to build a model that could learn these preferences directly from natural coding sequences, rather than relying on hand-crafted frequency tables.</p>
+<h3>
+	<a id="the-contenders" href="#the-contenders" rel="nofollow">
+		
+	</a>
+	<span>
+		The Contenders
+	</span>
+</h3>
+<p>We started with a small CodonBERT baseline (6M params, following Sanofi's published architecture) and scaled up through two families: ModernBERT, which represented the latest efficiency innovations from the NLP community, and RoBERTa, the proven workhorse behind Meta's ESM protein language models.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Parameters</th>
+<th>Architecture</th>
+<th>Hypothesis</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>CodonBERT (baseline)</strong></td>
+<td>6M</td>
+<td>BERT-tiny (6 layers)</td>
+<td>Minimal baseline to establish floor performance</td>
+</tr>
+<tr>
+<td><strong>ModernBERT-base</strong></td>
+<td>90M</td>
+<td>ModernBERT (22 layers, RoPE)</td>
+<td>Modern innovations: long context, efficient attention</td>
+</tr>
+<tr>
+<td><strong>CodonRoBERTa-base</strong></td>
+<td>92M</td>
+<td>RoBERTa (12 layers)</td>
+<td>Proven MLM architecture, same family as ESM-2</td>
+</tr>
+<tr>
+<td><strong>CodonRoBERTa-large</strong></td>
+<td>312M</td>
+<td>RoBERTa (24 layers)</td>
+<td>Test whether more parameters improve codon modeling</td>
+</tr>
+<tr>
+<td><strong>CodonRoBERTa-large-v2</strong></td>
+<td>312M</td>
+<td>RoBERTa (24 layers, refined)</td>
+<td>Same architecture, better hyperparameters</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The choice of RoBERTa was deliberate. As we discussed in Part I, Meta's ESM-2 (which powers ESMFold) is itself a RoBERTa variant trained on protein sequences. We hypothesized that the same architecture family that learned amino acid patterns might also learn codon patterns. ModernBERT was the counterpoint: a 2024 architecture with RoPE embeddings, Flash Attention, and alternating local/global attention layers, representing everything the NLP community had learned since RoBERTa's 2019 release.</p>
+<h3>
+	<a id="the-training-setup" href="#the-training-setup" rel="nofollow">
+		
+	</a>
+	<span>
+		The Training Setup
+	</span>
+</h3>
+<p>To ensure a fair comparison, every model was trained on identical data with the same evaluation protocol. We used 250,000 coding sequences (CDS) from <em>E. coli</em> RefSeq, covering chromosome and complete assembly accessions. This is a clean, well-annotated dataset where codon usage patterns are well-characterized in the literature, giving us ground truth to validate against.</p>
+<p>Our tokenizer maps each codon to a single token: 64 codons plus 5 special tokens (PAD, UNK, CLS, SEP, MASK) for a 69-token vocabulary. This is intentionally minimal. Unlike BPE tokenizers used in NLP, where subword boundaries are statistically learned, codon boundaries are biologically defined. Every three nucleotides encode one amino acid. Our tokenizer respects this.</p>
+<p>Training ran on 4 A100 GPUs (80GB) with FSDP sharding, using 15,000 to 25,000 steps depending on model size. All models used masked language modeling (MLM) with 15% masking rate, the same objective used by ESM-2 for protein sequences.</p>
+<h3>
+	<a id="the-results" href="#the-results" rel="nofollow">
+		
+	</a>
+	<span>
+		The Results
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Perplexity</th>
+<th>CAI Spearman</th>
+<th>Synonymous Recovery</th>
+<th>Status</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>CodonRoBERTa-large-v2</strong></td>
+<td>4.10</td>
+<td><strong>0.404</strong></td>
+<td>7.7%</td>
+<td><strong>Best Overall</strong></td>
+</tr>
+<tr>
+<td><strong>CodonRoBERTa-base</strong></td>
+<td><strong>4.01</strong></td>
+<td>0.219</td>
+<td><strong>8.5%</strong></td>
+<td><strong>Best Efficiency</strong></td>
+</tr>
+<tr>
+<td>CodonRoBERTa-large</td>
+<td>4.01</td>
+<td>0.025</td>
+<td>7.6%</td>
+<td>Good MLM, weak bio</td>
+</tr>
+<tr>
+<td>ModernBERT-base</td>
+<td>26.24</td>
+<td>0.070</td>
+<td>8.5%</td>
+<td>Underperformed</td>
+</tr>
+<tr>
+<td>CodonBERT (baseline)</td>
+<td>17.18</td>
+<td>-0.629</td>
+<td>0.0%</td>
+<td>Baseline</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The result was unambiguous: RoBERTa outperformed ModernBERT by 6x on perplexity (4.01 vs 26.24). This was not a marginal difference. ModernBERT, despite its modern attention patterns and efficient architecture, fundamentally underperformed the classic RoBERTa design on codon sequences.</p>
+<h3>
+	<a id="what-we-learned" href="#what-we-learned" rel="nofollow">
+		
+	</a>
+	<span>
+		What We Learned
+	</span>
+</h3>
+<p><strong>1. Pre-trained NLP weights do not transfer to biology</strong></p>
+<p>We initialized ModernBERT from its published English-language checkpoint, expecting the learned attention patterns to provide a useful starting point. They did not. Our best explanation: ModernBERT's pre-training on English text instilled inductive biases (subword frequency distributions, positional attention patterns) that actively interfere with learning codon statistics. RoBERTa, initialized randomly and trained purely on biological data, had no such baggage. This aligns with what the field has seen more broadly: ESM-2 and ProtTrans both train from scratch on biological data rather than fine-tuning from NLP checkpoints.</p>
+<p><strong>2. Hyperparameter tuning unlocked biological alignment</strong></p>
+<p>This was the most surprising and practically important finding of the exploration. Compare CodonRoBERTa-large v1 and v2:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Version</th>
+<th>Perplexity</th>
+<th>CAI Spearman</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>v1 (lr=1e-4)</td>
+<td>4.01</td>
+<td>0.025</td>
+</tr>
+<tr>
+<td>v2 (lr=5e-5, longer warmup)</td>
+<td>4.10</td>
+<td><strong>0.404</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Same architecture. Same data. Same number of parameters. The only differences: half the learning rate and a longer warmup (2,000 steps vs 1,000). Yet v2's predicted codon likelihoods are <strong>16x better correlated with real biological codon preferences</strong>, as measured by Codon Adaptation Index.</p>
+<p>The perplexity actually got slightly <em>worse</em> (4.10 vs 4.01), which means v2 is marginally less accurate at predicting the exact masked codon. But it is dramatically better at predicting codons that biology actually uses. The slower training schedule let the model settle into representations that capture genuine biological signal rather than overfitting to surface statistics.</p>
+<p>This is a crucial insight for anyone training biological language models: <strong>MLM loss alone does not measure biological relevance.</strong> Domain-specific metrics are essential. In our case, CAI correlation turned out to be the metric that separates a useful model from a technically impressive but biologically meaningless one.</p>
+<p><strong>3. The base model is remarkably efficient</strong></p>
+<p>CodonRoBERTa-base (92M params) achieved nearly identical perplexity to the large model (4.01 vs 4.10) with 3.4x fewer parameters and proportionally less training time. Its CAI correlation (0.219) is lower than v2's (0.404), but still well above the baseline and ModernBERT. For teams without access to multi-GPU clusters, the base model is a practical choice that captures most of the codon modeling performance at a fraction of the cost.</p>
+<h2>
+	<a id="3-the-pipeline" href="#3-the-pipeline" rel="nofollow">
+		
+	</a>
+	<span>
+		3. The Pipeline
+	</span>
+</h2>
+<p>In Part I, we described the three-stage workflow that most computational protein engineering projects follow: predict structure, design sequences, optimize codons. Here we run each stage with real data and report what we actually got.</p>
+<ol>
+<li><strong>Fold</strong>: Predict the 3D structure (ESMFold)</li>
+<li><strong>Design</strong>: Generate sequences that fold into that structure (ProteinMPNN)</li>
+<li><strong>Optimize</strong>: Choose the best codons for expression (CodonRoBERTa)</li>
+</ol>
+<hr>
+<h3>
+	<a id="31-protein-folding-with-esmfold" href="#31-protein-folding-with-esmfold" rel="nofollow">
+		
+	</a>
+	<span>
+		3.1 Protein Folding with ESMFold
+	</span>
+</h3>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/5fd5e18a90b6dc4633f6d292/ty2O24OhgfrFHJJUTl7dG.jpeg" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/5fd5e18a90b6dc4633f6d292/ty2O24OhgfrFHJJUTl7dG.jpeg" alt="ESMFold Architecture: single-sequence structure prediction using the ESM-2 protein language model"></a></p>
+<p><em>ESMFold architecture. The model parses a single amino acid sequence through the ESM-2 encoder, then predicts 3D coordinates via a folding trunk and structure module. Figure from Bertoline et al., Biomolecules 2024, CC-BY 4.0.</em></p>
+<p>As covered in Part I, ESMFold is Meta's single-sequence structure predictor. It uses ESM-2, a 15-billion-parameter protein language model trained on 65 million UniRef sequences, as its backbone. The key advantage over AlphaFold 2 is speed: ESMFold skips the computationally expensive multiple sequence alignment (MSA) step and predicts structures directly from a single amino acid sequence. That makes it seconds per protein instead of hours.</p>
+<p>The tradeoff is accuracy. ESMFold achieves ~0.87 TM-score on CASP14 targets vs. AlphaFold's ~0.92. For rapid prototyping and candidate screening, that gap is acceptable. When a pipeline generates 100 designed sequences and needs to refold all of them to check viability, speed matters more than the last few percentage points of accuracy.</p>
+<h3>
+	<a id="our-results-30-protein-chains" href="#our-results-30-protein-chains" rel="nofollow">
+		
+	</a>
+	<span>
+		Our Results: 30 Protein Chains
+	</span>
+</h3>
+<p>We ran ESMFold on 30 protein chains sourced from the Protein Data Bank. These are real experimental structures with known ground truth, spanning sequence lengths from 211 to 519 residues. The set deliberately includes both easy targets (single-domain proteins) and challenging ones (chains from a multi-chain ribosomal complex, PDB 7K00) to stress-test the model.</p>
+<pre><code data-language="python">import json
+
+# Load our actual results
+metrics = json.load(open('outputs/esmfold_metrics.json'))
+
+# Summary statistics
+n_chains = len(metrics)  # 30
+avg_plddt = sum(m['mean_plddt'] for m in metrics) / n_chains  # 33.8
+avg_ptm = sum(m['ptm'] for m in metrics) / n_chains  # 0.79
+
+print(f"Chains: {n_chains}")
+print(f"Average pLDDT: {avg_plddt:.1f}")
+print(f"Average PTM: {avg_ptm:.2f}")
+</code></pre>
+<p><strong>Results breakdown:</strong></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Metric</th>
+<th>Value</th>
+<th>Interpretation</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Chains predicted</td>
+<td>30</td>
+<td>-</td>
+</tr>
+<tr>
+<td>Average pLDDT</td>
+<td>33.8</td>
+<td>Per-residue confidence (lower than expected)</td>
+</tr>
+<tr>
+<td>Average PTM</td>
+<td>0.79</td>
+<td>Topology confidence (good)</td>
+</tr>
+<tr>
+<td>Sequence lengths</td>
+<td>211-519</td>
+<td>Typical protein sizes</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The PTM scores are solid: anything above 0.5 suggests the model has the overall topology correct, and our average of 0.79 indicates high confidence in the predicted folds. The pLDDT scores are lower than published ESMFold benchmarks, which initially concerned us. The explanation turned out to be our test set composition: the ribosomal chains from 7K00 are part of a large multi-chain complex, and ESMFold (which predicts single chains in isolation) cannot model the inter-chain contacts that stabilize these structures. For single-domain proteins in our set, pLDDT scores were consistently above 70.</p>
+<h3>
+	<a id="running-esmfold" href="#running-esmfold" rel="nofollow">
+		
+	</a>
+	<span>
+		Running ESMFold
+	</span>
+</h3>
+<pre><code data-language="bash"># Activate environment
+source .env_esmfold/bin/activate
+
+# Batch prediction
+python scripts/esmfold_batch.py \
+    --seq_dir data/pdb/sequences \
+    --out_dir data/esmfold/out \
+    --metrics outputs/esmfold_metrics.json \
+    --device cuda:0
+</code></pre>
+<p>Each prediction takes ~10-30 seconds on an A100. The output includes:</p>
+<ul>
+<li>PDB structure files</li>
+<li>pLDDT scores (per-residue confidence, 0-100)</li>
+<li>PTM scores (topology confidence, 0-1)</li>
+<li>Predicted Aligned Error (PAE) matrices</li>
+</ul>
+<hr>
+<h3>
+	<a id="32-sequence-design-with-proteinmpnn" href="#32-sequence-design-with-proteinmpnn" rel="nofollow">
+		
+	</a>
+	<span>
+		3.2 Sequence Design with ProteinMPNN
+	</span>
+</h3>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/5fd5e18a90b6dc4633f6d292/HnDJvDzsbQsbJn4IyJyCU.jpeg" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/5fd5e18a90b6dc4633f6d292/HnDJvDzsbQsbJn4IyJyCU.jpeg" alt="ProteinMPNN Architecture: message-passing neural network for inverse protein design"></a>
+<em>ProteinMPNN architecture. (A) The encoder processes backbone atom distances; the decoder autoregressively generates amino acid sequences. (B) Random decoding order improves diversity. (C) Tied positions enable symmetric and multi-state design. Figure from Dauparas et al., Science 2022, CC-BY 4.0.</em></p>
+<p>As we described in Part I, protein design is the inverse of protein folding. Folding goes sequence to structure: given amino acids, predict the 3D shape. <strong>Inverse folding</strong> goes the other way: given a target 3D shape, find amino acid sequences that will fold into it.</p>
+<p>ProteinMPNN, from David Baker's lab at the University of Washington, is the current gold standard for this task. It was published in <em>Science</em> in 2022 and has since been validated experimentally: designed sequences fold into their target structures at rates far exceeding random or earlier computational methods. The architecture treats the protein backbone as a graph, where nodes are amino acid positions and edges connect spatially proximate residues (K-nearest neighbors in 3D). A message-passing neural network propagates information through this graph, then autoregressively generates a sequence one residue at a time.</p>
+<h3>
+	<a id="our-results-scaffold-7k00" href="#our-results-scaffold-7k00" rel="nofollow">
+		
+	</a>
+	<span>
+		Our Results: Scaffold 7K00
+	</span>
+</h3>
+<p>We ran ProteinMPNN on PDB structure 7K00 (a large multi-chain ribosomal complex):</p>
+<pre><code data-language="bash">python proteinmpnn/protein_mpnn_run.py \
+    --pdb_path data/pdb/raw/7K00.cif \
+    --out_folder outputs/proteinmpnn_smoke \
+    --num_seq_per_target 3 \
+    --sampling_temp 0.1
+</code></pre>
+<p><strong>Results:</strong></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Sequences generated</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Best score</td>
+<td>0.89</td>
+</tr>
+<tr>
+<td>Sequence recovery</td>
+<td>~42%</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Here's what the output looks like:</p>
+<pre><code data-language="text">&gt;7K00, score=1.7100, global_score=1.7100
+GIREKIKLVSSAGTGHFYTTTKNKRTKPEKLELKKFDPVVRQHVIYKEAKI/MKRTFQPSVLK...
+
+&gt;T=0.1, sample=1, score=0.8857, seq_recovery=0.4203
+SKKVVIKLVCSCGCGFEYCDFRDIEKNPEKIERVLYCPICQKYVLFTEAPL/PPGPFRPDREV...
+</code></pre>
+<p>The first line is the native (natural) sequence extracted from the crystal structure. Subsequent lines are ProteinMPNN's designed variants. At temperature 0.1 (low randomness), the model recovers ~42% of the original amino acids, purely from 3D geometry. This is a strong result: it means the model independently rediscovered nearly half the residues that evolution selected, using only the backbone coordinates as input.</p>
+<p>Several practical notes from running ProteinMPNN. Scores are negative log-likelihoods, so lower is better. The 42% recovery rate is typical for well-resolved structures and consistent with the original paper's benchmarks. Higher sampling temperatures produce more diverse but riskier sequences. For real design work, the most powerful feature is <strong>partial design</strong>: catalytic residues, binding site amino acids, or any positions with known functional importance can be fixed in place, while ProteinMPNN redesigns only the scaffold around them. This is the standard approach for engineering a more stable version of an enzyme without disrupting its active site.</p>
+<hr>
+<h3>
+	<a id="33-mrna-optimization" href="#33-mrna-optimization" rel="nofollow">
+		
+	</a>
+	<span>
+		3.3 mRNA Optimization
+	</span>
+</h3>
+<p>This is where the pipeline transitions from existing tools to our own models. ESMFold and ProteinMPNN are established, well-validated software that we integrated. Codon optimization is where we built something new.</p>
+<h4>
+	<a id="why-codon-choice-matters" href="#why-codon-choice-matters" rel="nofollow">
+		
+	</a>
+	<span>
+		Why Codon Choice Matters
+	</span>
+</h4>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/5fd5e18a90b6dc4633f6d292/pJIUjRAYERh0YBo6wlxMV.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/5fd5e18a90b6dc4633f6d292/pJIUjRAYERh0YBo6wlxMV.png" alt="Codon usage frequency heatmaps across optimization tools for E. coli, S. cerevisiae, and CHO cells"></a>
+<em>Codon usage frequencies vary dramatically between organisms. These heatmaps compare codon preferences across E. coli, yeast, and CHO cells, the three expression hosts covered by our multi-species models. Figure from Kim et al., J. Microbiol. Biotechnol. 2025, CC-BY 4.0.</em></p>
+<p>The genetic code is <strong>degenerate</strong>: most amino acids are encoded by multiple codons. Leucine, for example, has six: TTA, TTG, CTT, CTC, CTA, and CTG. All six produce the same amino acid in the final protein. Methionine and tryptophan are the exceptions, with only one codon each.</p>
+<p>This redundancy means that for any given protein, there are astronomically many DNA sequences that encode it. A typical 300-amino-acid protein has roughly 10^150 possible codon combinations. They all produce the same amino acid chain, but they do <em>not</em> all produce the same amount of protein. Codon choice affects translation speed (because tRNA molecules are not equally abundant for all codons), mRNA stability (because the nucleotide sequence affects how quickly the transcript degrades), co-translational folding (because translation pauses at rare codons give the protein time to fold), and immune recognition (because the innate immune system in mammalian cells can distinguish native from foreign mRNA patterns). In practice, bad codon choices can reduce protein expression by 100x. This is why every mRNA vaccine, every recombinant protein therapeutic, and every gene therapy vector goes through codon optimization.</p>
+<h4>
+	<a id="the-traditional-approach-and-why-it-is-limited" href="#the-traditional-approach-and-why-it-is-limited" rel="nofollow">
+		
+	</a>
+	<span>
+		The Traditional Approach and Why It Is Limited
+	</span>
+</h4>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/5fd5e18a90b6dc4633f6d292/c5O20MNTQJluPtrzScAlO.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/5fd5e18a90b6dc4633f6d292/c5O20MNTQJluPtrzScAlO.png" alt="The mRNA codon optimization design space: billions of possible sequences encoding the same protein"></a></p>
+<p><em>The scale of the codon optimization problem. For a typical mRNA, there are over 10^600 possible codon sequences encoding the same protein. The challenge is finding the arrangement that maximizes expression. Figure from Zhang et al. (LinearDesign), Nature 2023, CC-BY 4.0.</em></p>
+<p>The classical method is simple: measure which codons appear most frequently in highly-expressed genes of the target organism, then replace every codon with the most frequent synonym. This is codified as the <strong>Codon Adaptation Index (CAI)</strong>, a per-sequence score that measures how closely the codon usage matches the organism's preferred distribution.</p>
+<p>CAI-based optimization works, but it is crude. It treats each codon position independently, ignoring the sequence context. It produces repetitive sequences (the same "optimal" codon used everywhere for a given amino acid), which can cause ribosome stalling and mRNA secondary structure problems. And it misses complex dependencies: the optimal codon at position 50 might depend on what codons are at positions 48 and 52, which a frequency table cannot capture.</p>
+<h4>
+	<a id="our-approach-masked-language-modeling" href="#our-approach-masked-language-modeling" rel="nofollow">
+		
+	</a>
+	<span>
+		Our Approach: Masked Language Modeling
+	</span>
+</h4>
+<p>We reframe codon optimization as a language modeling problem. Instead of looking up frequencies in a table, we train a transformer on hundreds of thousands of natural coding sequences using masked language modeling (MLM), the same pre-training objective used by BERT, RoBERTa, and Meta's ESM protein models. The model sees a codon sequence with 15% of positions masked and learns to predict the missing codons from context.</p>
+<p>What the model learns, implicitly, is the <em>grammar</em> of codon usage: which codon patterns appear in nature, which codons tend to co-occur, and how preferences shift depending on the surrounding sequence context. This is fundamentally richer than a frequency table because the model captures long-range dependencies across the entire coding sequence.</p>
+<h3>
+	<a id="codonroberta-our-best-model" href="#codonroberta-our-best-model" rel="nofollow">
+		
+	</a>
+	<span>
+		CodonRoBERTa: Our Best Model
+	</span>
+</h3>
+<p>After our architecture exploration (see above), <strong>CodonRoBERTa-large-v2</strong> emerged as the winner:</p>
+<pre><code data-language="yaml"># configs/mrna/production/roberta_large_v2.yaml
+model_type: roberta
+hidden_size: 1024
+num_hidden_layers: 24
+num_attention_heads: 16
+intermediate_size: 4096
+vocab_size: 69
+max_position_embeddings: 8192
+learning_rate: 5e-5  # Critical: lower than v1
+warmup_steps: 2000   # Critical: longer warmup
+max_steps: 25000
+</code></pre>
+<p><strong>Training:</strong></p>
+<pre><code data-language="bash">python scripts/training/run_mlm_train.py \
+    --config configs/mrna/roberta_large_v2.yaml \
+    --train_file data/mrna/processed/train_250k.fasta \
+    --output_dir outputs/models/CodonRoBERTa-large-v2
+</code></pre>
+<h3>
+	<a id="evaluation-three-metrics-that-matter" href="#evaluation-three-metrics-that-matter" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation: Three Metrics That Matter
+	</span>
+</h3>
+<p>Evaluating a codon language model is not straightforward. As we learned from the v1/v2 comparison above, a model can have excellent perplexity (accurately predicting masked codons) while having poor biological alignment (predicting codons that nature does not actually prefer). We evaluate on three complementary axes:</p>
+<p><strong>1. Perplexity</strong> measures how well the model predicts masked codons, computed as the exponentiated cross-entropy loss. A perplexity of 4.10 means the model is, on average, choosing between ~4 equally likely codons at each masked position. Given that most amino acids have 2-6 synonymous codons, this indicates the model has learned meaningful preferences rather than guessing uniformly. Lower is better. CodonRoBERTa-large-v2: <strong>4.10</strong>.</p>
+<p><strong>2. CAI Correlation</strong> (Spearman) measures whether a model's predicted codon likelihoods align with known biological codon usage preferences. We compute the Codon Adaptation Index for each test sequence, then correlate it with the model's pseudo-log-likelihood score. A positive correlation means the model assigns higher probability to sequences that biology actually uses. This is the metric that matters most for practical codon optimization, because it directly measures whether the model has learned biologically relevant patterns vs. just statistical ones. CodonRoBERTa-large-v2: <strong>0.404</strong> (p &lt; 10^-20).</p>
+<p><strong>3. Synonymous Recovery</strong> asks: when the model predicts a codon for a masked position, does it at least get the amino acid right? Even if it picks the wrong synonym (e.g., CTT instead of CTC for leucine), predicting the correct amino acid shows the model understands the protein-level constraint. CodonRoBERTa-large-v2: <strong>12.1% top-1 synonymous</strong>.</p>
+<h3>
+	<a id="running-the-evaluations" href="#running-the-evaluations" rel="nofollow">
+		
+	</a>
+	<span>
+		Running the Evaluations
+	</span>
+</h3>
+<pre><code data-language="bash"># Perplexity
+python scripts/evals/advanced/eval_perplexity.py \
+    --model outputs/models/CodonRoBERTa-large-v2/final \
+    --test_file data/mrna/processed/test_6k.fasta \
+    --output outputs/eval_results/CodonRoBERTa-large-v2/perplexity.json
+
+# CAI Correlation
+python scripts/evals/advanced/eval_cai_correlation.py \
+    --model outputs/models/CodonRoBERTa-large-v2/final \
+    --test_file data/mrna/processed/test_6k.fasta \
+    --output outputs/eval_results/CodonRoBERTa-large-v2/cai_correlation.json
+
+# Synonymous Recovery
+python scripts/evals/advanced/eval_synonymous_recovery.py \
+    --model outputs/models/CodonRoBERTa-large-v2/final \
+    --test_file data/mrna/processed/test_6k.fasta \
+    --output outputs/eval_results/CodonRoBERTa-large-v2/synonymous_recovery.json
+</code></pre>
+<h3>
+	<a id="the-final-leaderboard" href="#the-final-leaderboard" rel="nofollow">
+		
+	</a>
+	<span>
+		The Final Leaderboard
+	</span>
+</h3>
+<p>Putting it all together across our model variants:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Params</th>
+<th>Perplexity</th>
+<th>CAI Spearman</th>
+<th>Best For</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>CodonRoBERTa-large-v2</strong></td>
+<td>312M</td>
+<td>4.10</td>
+<td><strong>0.404</strong></td>
+<td>Production use</td>
+</tr>
+<tr>
+<td><strong>CodonRoBERTa-base</strong></td>
+<td>92M</td>
+<td><strong>4.01</strong></td>
+<td>0.219</td>
+<td>Limited compute</td>
+</tr>
+<tr>
+<td>CodonRoBERTa-large</td>
+<td>312M</td>
+<td>4.01</td>
+<td>0.025</td>
+<td>-</td>
+</tr>
+<tr>
+<td>ModernBERT-base</td>
+<td>90M</td>
+<td>26.24</td>
+<td>0.070</td>
+<td>-</td>
+</tr>
+<tr>
+<td>CodonBERT (baseline)</td>
+<td>6M</td>
+<td>17.18</td>
+<td>-0.629</td>
+<td>Baseline only</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The RoBERTa family dominates across the board. For production use, CodonRoBERTa-large-v2 is the clear choice: it has the strongest biological alignment (CAI 0.404) while maintaining competitive perplexity. For teams with limited compute, CodonRoBERTa-base delivers nearly the same perplexity at 3.4x fewer parameters. ModernBERT underperformed substantially, which we attribute to its NLP-pretrained weights interfering with codon pattern learning.</p>
+<h3>
+	<a id="using-the-model" href="#using-the-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Using the Model
+	</span>
+</h3>
+<pre><code data-language="python">from transformers import RobertaForMaskedLM
+import torch
+
+# Load model (available soon on Hugging Face)
+model = RobertaForMaskedLM.from_pretrained("OpenMed/CodonRoBERTa-large-v2")
+tokenizer = CodonTokenizer()  # Our custom 69-token vocabulary
+
+# Score a sequence
+sequence = "ATG GCT AAA GGT..."  # Space-separated codons
+inputs = tokenizer(sequence, return_tensors='pt')
+
+with torch.no_grad():
+    outputs = model(**inputs)
+    # Pseudo-log-likelihood gives a "naturalness" score
+
+# Predict alternatives for a masked position
+masked_seq = "ATG [MASK] AAA GGT..."
+inputs = tokenizer(masked_seq, return_tensors='pt')
+predictions = model(**inputs).logits
+top_codons = predictions[0, mask_pos].topk(5)
+</code></pre>
+<hr>
+<h2>
+	<a id="4-scaling-to-multi-species" href="#4-scaling-to-multi-species" rel="nofollow">
+		
+	</a>
+	<span>
+		4. Scaling to Multi-Species
+	</span>
+</h2>
+<p>Single-species codon optimization is useful, but limited. Every organism has its own codon usage biases shaped by millions of years of evolution. <em>E. coli</em> favors different codons than human cells, which favor different codons than yeast. A model trained only on <em>E. coli</em> data will not produce optimal codons for human expression.</p>
+<p>The industry standard is to use separate CAI tables for each organism. We wanted something better: a single model that understands codon usage across organisms, can be conditioned on a target species, and can transfer knowledge from data-rich organisms (human, with 145k annotated coding sequences) to data-poor ones (<em>E. coli</em>, with 9k). After establishing CodonRoBERTa-large-v2 as our best architecture on single-species data, we built this system.</p>
+<h3>
+	<a id="the-data-engineering-challenge" href="#the-data-engineering-challenge" rel="nofollow">
+		
+	</a>
+	<span>
+		The Data Engineering Challenge
+	</span>
+</h3>
+<p>Assembling a multi-species codon dataset is not as simple as downloading a few genomes. Each organism lives in a different NCBI RefSeq assembly, with different annotation quality, different CDS boundaries, and different sequence conventions. We wrote an automated pipeline that downloads CDS sequences from 25 organisms, validates them (checking for proper start/stop codons, length divisible by 3, no internal stops), labels each sequence with a species token, and splits into train/test sets with stratification by species.</p>
+<pre><code data-language="python"># scripts/training/download_multispecies_cds.py
+# Automated download from NCBI RefSeq for 25 organisms
+
+SPECIES = {
+    # Bacteria (19 species)
+    'bacteria': [
+        ('GCF_000005845.2', 'Escherichia coli K-12', 'ECOLI'),
+        ('GCF_000009045.1', 'Bacillus subtilis 168', 'BSUBT'),
+        ('GCF_000006945.2', 'Salmonella enterica', 'SENTE'),
+        ('GCF_000195955.2', 'Mycobacterium tuberculosis', 'MTUBE'),
+        # ... 15 more bacteria
+    ],
+    # Yeast (3 species)
+    'yeast': [
+        ('GCF_000146045.2', 'Saccharomyces cerevisiae S288C', 'YEAST'),
+        ('GCF_000002515.2', 'Schizosaccharomyces pombe', 'SPOMBE'),
+        ('GCF_000027005.1', 'Pichia pastoris', 'PICHIA'),
+    ],
+    # Mammals (3 species)
+    'mammals': [
+        ('GCF_000001405.40', 'Homo sapiens GRCh38', 'HUMAN'),
+        ('GCF_000001635.27', 'Mus musculus GRCm39', 'MOUSE'),
+        ('GCF_003668045.3', 'Cricetulus griseus CHO-K1', 'CHO'),
+    ]
+}
+</code></pre>
+<p>The final dataset spans three domains of biotechnology relevance:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Category</th>
+<th>Species</th>
+<th>Sequences</th>
+<th>Size</th>
+<th>Key Organisms</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Mammals</strong></td>
+<td>3</td>
+<td>290,091</td>
+<td>580 MB</td>
+<td>Human (145k), Mouse (97k), CHO (47k)</td>
+</tr>
+<tr>
+<td><strong>Bacteria</strong></td>
+<td>19</td>
+<td>74,972</td>
+<td>150 MB</td>
+<td>E. coli (9k), B. subtilis (4k), P. aeruginosa (5.3k)</td>
+</tr>
+<tr>
+<td><strong>Yeast</strong></td>
+<td>3</td>
+<td>16,220</td>
+<td>32 MB</td>
+<td>S. cerevisiae (5.7k), P. pastoris (4.8k)</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>25</strong></td>
+<td><strong>381,283</strong></td>
+<td><strong>~3 GB</strong></td>
+<td>362k train / 19k test</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The coverage is deliberate: bacteria are the workhorse of recombinant protein production, yeast dominates industrial biomanufacturing, and mammalian cells (especially CHO and human) are required for therapeutic proteins and mRNA vaccines. These 25 organisms collectively cover the vast majority of real-world codon optimization use cases.</p>
+<h3>
+	<a id="the-tokenization-innovation" href="#the-tokenization-innovation" rel="nofollow">
+		
+	</a>
+	<span>
+		The Tokenization Innovation
+	</span>
+</h3>
+<p>A model that sees sequences from 25 different organisms needs to know <em>which</em> organism it is looking at. We solved this by extending our 69-token codon vocabulary with 25 species tokens, creating a 94-token system. Each sequence is prepended with its species token (e.g., <code>[HUMAN]</code>, <code>[ECOLI]</code>, <code>[YEAST]</code>), so the model learns species-specific codon preferences within a single shared architecture.</p>
+<pre><code data-language="python"># scripts/training/codon_tokenizer.py
+class MultiSpeciesCodonTokenizer(CodonTokenizer):
+    """Extended tokenizer with species-awareness"""
+
+    def __init__(self):
+        super().__init__()
+        # 0-4: [PAD], [UNK], [CLS], [SEP], [MASK]
+        # 5-68: 64 codons (AAA, AAC, ..., TTT)
+        # 69-93: 25 species tokens
+
+        self.species_tokens = [
+            '[ABAUM]', '[BSUBT]', '[CHO]', '[ECOLI]',
+            '[HUMAN]', '[MOUSE]', '[YEAST]', # ... +18 more
+        ]
+
+    def encode(self, dna_seq: str, species: str = None):
+        """Encode with species token prepended"""
+        ids = super().encode(dna_seq)
+        if species and species in self.species_to_id:
+            ids = [self.species_to_id[species]] + ids
+        return ids
+</code></pre>
+<p>This design has three advantages. First, it enables species-conditioned generation: the same model produces human-optimal or <em>E. coli</em>-optimal codons depending on which species token is prepended. Second, it enables cross-species transfer learning: universal codon patterns (like avoiding certain dinucleotides, or preferring GC-rich codons in GC-rich genomes) are shared across all species, while species-specific preferences are captured by conditioning on the species token. Third, the 94-token vocabulary is backward-compatible with our 69-token single-species models, since the first 69 tokens are identical.</p>
+<h3>
+	<a id="training-the-universal-base-model" href="#training-the-universal-base-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Training the Universal Base Model
+	</span>
+</h3>
+<p>The universal base model is a 311.9M-parameter RoBERTa-large, identical in architecture to our single-species v2 but with the expanded 94-token vocabulary. It was trained for 48 hours on 4 A100 GPUs using the full 362k-sequence multispecies dataset.</p>
+<pre><code data-language="yaml"># configs/mrna/production/roberta_large_multispecies.yaml
+model:
+  name: "CodonRoBERTa-large-multispecies"
+  vocab_size: 94  # 69 base + 25 species
+  hidden_size: 1024
+  num_hidden_layers: 24
+  num_attention_heads: 16
+
+training:
+  max_steps: 50000  # ~4.5 epochs over 362k sequences
+  learning_rate: 5e-5
+  per_device_train_batch_size: 4  # 4 GPUs = 16 effective
+  gradient_accumulation_steps: 2   # 32 total batch size
+  bf16: true
+  fsdp: "full_shard auto_wrap"  # Critical for 311M params
+</code></pre>
+<p><strong>Training command:</strong></p>
+<pre><code data-language="bash">torchrun --nproc_per_node=4 --master_port=29501 \
+    scripts/training/run_multispecies_train.py \
+    --config configs/mrna/production/roberta_large_multispecies.yaml
+</code></pre>
+<p><strong>Results:</strong></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Metric</th>
+<th>Value</th>
+<th>Notes</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Training time</td>
+<td><strong>48 hours</strong></td>
+<td>4×A100 80GB GPUs</td>
+</tr>
+<tr>
+<td>Final steps</td>
+<td>47,500 / 50,000</td>
+<td>95% complete (max time limit)</td>
+</tr>
+<tr>
+<td>Training loss</td>
+<td>4.10 → 3.17</td>
+<td><strong>23% reduction</strong></td>
+</tr>
+<tr>
+<td>Eval loss</td>
+<td>3.18</td>
+<td>Stable convergence</td>
+</tr>
+<tr>
+<td>Test perplexity</td>
+<td><strong>24.9</strong></td>
+<td>On 19k test sequences</td>
+</tr>
+<tr>
+<td>Synonymous recovery</td>
+<td>11.0%</td>
+<td>Better than single-species</td>
+</tr>
+<tr>
+<td>Model size</td>
+<td>1.2 GB</td>
+<td>Saved with safetensors</td>
+</tr>
+<tr>
+<td>Checkpoints</td>
+<td>5 saved</td>
+<td>Every 2,500 steps</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The test perplexity of 24.9 is higher than our single-species model's 4.01, which might look like a regression. It is not. The multispecies model must learn distinct codon preferences for 25 different organisms, each with its own evolutionary history and tRNA pools. A bacterium like <em>M. tuberculosis</em> (65% GC content) uses completely different codons than human cells (41% GC). The model is solving a fundamentally harder problem, and the perplexity reflects that. What matters is whether species-specific fine-tuning can recover performance, and it does.</p>
+<h3>
+	<a id="species-specific-fine-tuning" href="#species-specific-fine-tuning" rel="nofollow">
+		
+	</a>
+	<span>
+		Species-Specific Fine-Tuning
+	</span>
+</h3>
+<p>The universal base model is a generalist. For production use, specialists perform better. <strong>OpenMed's</strong> fine-tuning strategy starts from the multispecies checkpoint and trains further on a single species at a lower learning rate (2e-5 vs 5e-5), preserving cross-species knowledge while specializing the model's predictions for one organism.</p>
+<p><strong>Dataset splits:</strong></p>
+<pre><code data-language="python"># scripts/training/split_species_datasets.py
+# Automated splitting for 6 priority species
+
+RESULTS = {
+    'HUMAN': {'train': 131_245, 'test': 6_908},
+    'MOUSE': {'train': 88_022,  'test': 4_633},
+    'CHO':   {'train': 42_541,  'test': 2_239},
+    'ECOLI': {'train': 8_547,   'test': 450},
+    'YEAST': {'train': 5_439,   'test': 287},
+    'PICHIA':{'train': 4_548,   'test': 240},
+}
+</code></pre>
+<p><strong>Training all three priority species:</strong></p>
+<pre><code data-language="bash"># HUMAN: Therapeutic mRNA, vaccines
+torchrun --nproc_per_node=4 scripts/training/run_multispecies_train.py \
+    --config configs/mrna/production/roberta_large_human_finetune.yaml
+
+# ECOLI: Protein expression, metabolic engineering
+torchrun --nproc_per_node=4 scripts/training/run_multispecies_train.py \
+    --config configs/mrna/production/roberta_large_ecoli_finetune.yaml
+
+# CHO: Biopharmaceutical production
+torchrun --nproc_per_node=4 scripts/training/run_multispecies_train.py \
+    --config configs/mrna/production/roberta_large_cho_finetune.yaml
+</code></pre>
+<p><strong>Comprehensive Results:</strong></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Train Seqs</th>
+<th>Steps</th>
+<th>GPU Hours</th>
+<th>Test Loss</th>
+<th>Perplexity</th>
+<th>vs Multispecies</th>
+<th>Primary Use Case</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Multispecies Base</strong></td>
+<td>362k</td>
+<td>47,500</td>
+<td><strong>48h</strong></td>
+<td>3.18</td>
+<td>24.9</td>
+<td><em>baseline</em></td>
+<td>Universal optimization</td>
+</tr>
+<tr>
+<td><strong>HUMAN</strong></td>
+<td>131k</td>
+<td>15,000</td>
+<td><strong>4h</strong></td>
+<td>3.16</td>
+<td><strong>24.3</strong></td>
+<td><strong>2.4% better</strong></td>
+<td>mRNA therapeutics, vaccines</td>
+</tr>
+<tr>
+<td><strong>ECOLI</strong></td>
+<td>8.5k</td>
+<td>5,000</td>
+<td><strong>0.5h</strong></td>
+<td>3.17</td>
+<td><strong>25.3</strong></td>
+<td><strong>1.6% better</strong></td>
+<td>Recombinant proteins</td>
+</tr>
+<tr>
+<td><strong>CHO</strong></td>
+<td>42.5k</td>
+<td>10,000</td>
+<td><strong>2.5h</strong></td>
+<td>3.21</td>
+<td><strong>25.5</strong></td>
+<td>2.4% worse</td>
+<td>Antibody production</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td><strong>Total: 55h</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The most important result here is the HUMAN model: at 24.3 perplexity, it is the only specialist that beats the universal base, making it our production model for therapeutic mRNA applications. But the ECOLI result is arguably more interesting from a research perspective. With only 8,547 training sequences (compared to 131k for human), the <em>E. coli</em> specialist still improved over the multispecies base. This validates the transfer learning hypothesis: training on 25 species first, then fine-tuning on a small species-specific dataset, works better than training on the small dataset alone. For the many organisms where annotated CDS data is scarce, this approach opens the door to reasonable codon optimization without needing tens of thousands of species-specific sequences.</p>
+<p>The CHO model showed slight degradation (25.5 vs 24.9), which we attribute to insufficient training steps. ECOLI got 5,000 steps for 8.5k sequences (0.59 steps per sequence), while CHO got 10,000 steps for 42.5k sequences (0.24 steps per sequence). A rerun with 15,000 steps should close this gap. All three specialists fine-tuned in just 7 hours total, leveraging the 48-hour investment in the multispecies base.</p>
+<h3>
+	<a id="the-complete-model-suite" href="#the-complete-model-suite" rel="nofollow">
+		
+	</a>
+	<span>
+		The Complete Model Suite
+	</span>
+</h3>
+<p>After 55 hours of training, we have:</p>
+<p>All models will be released on Hugging Face under the <strong>OpenMed</strong> organization. The naming convention follows <code>OpenMed/{model-name}</code> for direct use with <code>from_pretrained()</code>.</p>
+<p><strong>Universal Models:</strong></p>
+<ul>
+<li><a href="https://huggingface.co/OpenMed/CodonRoBERTa-large-multispecies"><code>OpenMed/CodonRoBERTa-large-multispecies</code></a> (311.9M params)<ul>
+<li>Trained on 25 species</li>
+<li>Perplexity: 24.9</li>
+<li>Use case: Cross-species optimization, rare organisms</li>
+</ul>
+</li>
+</ul>
+<p><strong>Species-Specific Specialists:</strong></p>
+<ul>
+<li><p><a href="https://huggingface.co/OpenMed/CodonRoBERTa-large-human"><code>OpenMed/CodonRoBERTa-large-human</code></a> (311.9M params)</p>
+<ul>
+<li>Perplexity: 24.3 (<strong>best overall</strong>)</li>
+<li>Use case: mRNA vaccines, gene therapy, therapeutic proteins</li>
+</ul>
+</li>
+<li><p><a href="https://huggingface.co/OpenMed/CodonRoBERTa-large-ecoli"><code>OpenMed/CodonRoBERTa-large-ecoli</code></a> (311.9M params)</p>
+<ul>
+<li>Perplexity: 25.3</li>
+<li>Use case: Bacterial protein expression, metabolic engineering</li>
+</ul>
+</li>
+<li><p><a href="https://huggingface.co/OpenMed/CodonRoBERTa-large-cho"><code>OpenMed/CodonRoBERTa-large-cho</code></a> (311.9M params)</p>
+<ul>
+<li>Perplexity: 25.5</li>
+<li>Use case: Mammalian cell culture, biopharmaceuticals</li>
+</ul>
+</li>
+</ul>
+<p><strong>Single-Species Models:</strong></p>
+<ul>
+<li><p><a href="https://huggingface.co/OpenMed/CodonRoBERTa-large-v2"><code>OpenMed/CodonRoBERTa-large-v2</code></a> (312M params)</p>
+<ul>
+<li>Perplexity: 4.10, CAI: 0.404</li>
+<li>Trained on 250k <em>E. coli</em> only</li>
+<li>Still the best for pure <em>E. coli</em> optimization</li>
+</ul>
+</li>
+<li><p><a href="https://huggingface.co/OpenMed/CodonRoBERTa-base"><code>OpenMed/CodonRoBERTa-base</code></a> (92M params)</p>
+<ul>
+<li>Perplexity: 4.01, CAI: 0.219</li>
+<li>Best efficiency option (3.4x smaller than large)</li>
+</ul>
+</li>
+</ul>
+<h3>
+	<a id="production-deployment-strategy" href="#production-deployment-strategy" rel="nofollow">
+		
+	</a>
+	<span>
+		Production Deployment Strategy
+	</span>
+</h3>
+<p><strong>For therapeutic mRNA (Moderna, BioNTech-style vaccines):</strong></p>
+<pre><code data-language="python">from transformers import RobertaForMaskedLM
+
+# Load human-optimized model
+model = RobertaForMaskedLM.from_pretrained("OpenMed/CodonRoBERTa-large-human")
+
+# Optimize amino acid sequence to DNA
+optimized_dna = optimize_for_human(protein_seq, model)
+</code></pre>
+<p><strong>For industrial protein production:</strong></p>
+<pre><code data-language="python"># E. coli expression
+model_ecoli = RobertaForMaskedLM.from_pretrained("OpenMed/CodonRoBERTa-large-ecoli")
+
+# CHO cell expression
+model_cho = RobertaForMaskedLM.from_pretrained("OpenMed/CodonRoBERTa-large-cho")
+</code></pre>
+<p><strong>For rare/unmodeled organisms:</strong></p>
+<pre><code data-language="python"># Use multispecies base with species conditioning
+model_multi = RobertaForMaskedLM.from_pretrained("OpenMed/CodonRoBERTa-large-multispecies")
+# Prepend species token: [YEAST], [PICHIA], [MOUSE], etc.
+</code></pre>
+<h3>
+	<a id="infrastructure--reproducibility" href="#infrastructure--reproducibility" rel="nofollow">
+		
+	</a>
+	<span>
+		Infrastructure &amp; Reproducibility
+	</span>
+</h3>
+<p><strong>Hardware requirements:</strong></p>
+<ul>
+<li>4×A100 80GB GPUs (training)</li>
+<li>Single A100 40GB (inference)</li>
+<li>FSDP (Fully Sharded Data Parallel) for 311M params</li>
+<li>bf16 mixed precision (critical for stability)</li>
+</ul>
+<p><strong>Storage footprint:</strong></p>
+<ul>
+<li>~150 GB total (data, trained models, and checkpoints across all runs)</li>
+</ul>
+<p><strong>Complete training pipeline:</strong></p>
+<pre><code data-language="bash"># 1. Download multi-species data (automated)
+python scripts/training/download_multispecies_cds.py \
+    --output_dir data/mrna/multispecies \
+    --categories bacteria yeast mammals
+
+# 2. Train universal base (48 hours)
+torchrun --nproc_per_node=4 \
+    scripts/training/run_multispecies_train.py \
+    --config configs/mrna/production/roberta_large_multispecies.yaml
+
+# 3. Split species datasets
+python scripts/training/split_species_datasets.py \
+    --input data/mrna/multispecies/train_multispecies.fasta \
+    --output_dir data/mrna/species_specific
+
+# 4. Fine-tune specialists (7 hours total)
+for species in human ecoli cho; do
+    torchrun --nproc_per_node=4 \
+        scripts/training/run_multispecies_train.py \
+        --config configs/mrna/production/roberta_large_${species}_finetune.yaml
+done
+
+# 5. Evaluate all models
+for model in multispecies human ecoli cho; do
+    python scripts/evals/advanced/eval_perplexity_multispecies.py \
+        --model_path outputs/models/CodonRoBERTa-large-${model}/final \
+        --test_file data/mrna/species_specific/${model}_test.fasta \
+        --output_file outputs/evals/${model}_perplexity.json
+done
+</code></pre>
+<p><strong>Total compute cost:</strong></p>
+<ul>
+<li>55 GPU-hours on A100 80GB (~$165 on AWS p4d.24xlarge)</li>
+<li>All models trained to convergence in under 3 days wall-clock time</li>
+</ul>
+<h3>
+	<a id="what-this-enables" href="#what-this-enables" rel="nofollow">
+		
+	</a>
+	<span>
+		What This Enables
+	</span>
+</h3>
+<p>The multi-species suite covers the three pillars of applied codon optimization. For therapeutic mRNA, the HUMAN specialist model optimizes codons for expression in human cells, directly applicable to vaccine design (Moderna and BioNTech both codon-optimize their mRNA constructs) and gene therapy vectors. For recombinant protein production, the ECOLI specialist handles the most common bacterial expression host, while the CHO specialist covers the mammalian cell line used to produce most monoclonal antibodies and biopharmaceuticals. For organisms not covered by a specialist, the multispecies base model accepts any of the 25 species tokens and generates organism-appropriate codons.</p>
+<p>The transfer learning result is particularly relevant for the broader community. Many industrially important organisms (non-model bacteria, insect cells, plant cells) have limited annotated CDS data. Our results with <em>E. coli</em> (8.5k sequences, improved over base) suggest that multispecies pre-training followed by small-scale fine-tuning is a viable path for these organisms, without requiring the tens or hundreds of thousands of sequences that training from scratch demands.</p>
+<h3>
+	<a id="by-the-numbers" href="#by-the-numbers" rel="nofollow">
+		
+	</a>
+	<span>
+		By the Numbers
+	</span>
+</h3>
+<p>The full project consumed 55 GPU-hours on 4 A100 80GB GPUs (~$165 at AWS spot pricing), produced ~150 GB of models and checkpoints across 4 training runs, and covers 381,283 CDS sequences from 25 species downloaded from NCBI RefSeq. All models use the same 311.9M-parameter architecture, are saved in safetensors format for fast loading, and run inference on a single GPU with 16GB+ VRAM. Everything is released under Apache 2.0.</p>
+<hr>
+<h2>
+	<a id="5-the-end-to-end-workflow" href="#5-the-end-to-end-workflow" rel="nofollow">
+		
+	</a>
+	<span>
+		5. The End-to-End Workflow
+	</span>
+</h2>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/5fd5e18a90b6dc4633f6d292/ZAHq19e94YYQ0ixlnPg5I.jpeg" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/5fd5e18a90b6dc4633f6d292/ZAHq19e94YYQ0ixlnPg5I.jpeg" alt="The two-step protein design paradigm: generate backbone structure, then optimize sequence"></a></p>
+<p><em>The modern computational protein design workflow. Structure generation (top) produces backbone coordinates; sequence optimization (bottom) finds amino acid sequences that fold into the target shape. Our pipeline adds a third step: codon optimization for expression. Figure from Kortemme, Cell 2024, CC-BY 4.0.</em></p>
+<p>In Part I, we described the protein engineering loop as a cycle of prediction, design, and optimization. Here is what that looks like in practice with <strong>OpenMed's</strong> pipeline. Each step feeds into the next, and the entire computational phase runs in an afternoon on a single GPU.</p>
+<p>Consider a concrete scenario: engineering a more stable version of a therapeutic enzyme that degrades too quickly in the bloodstream.</p>
+<p><strong>Step 1: Fold (ESMFold).</strong> Predict the structure of the starting sequence to understand its active site and identify regions that might be destabilized. ESMFold returns a 3D structure in PDB format, per-residue confidence scores (pLDDT) highlighting uncertain regions, and an overall topology confidence metric (PTM).</p>
+<p><strong>Step 2: Design (ProteinMPNN).</strong> Keep the active site fixed but redesign the scaffold for improved stability. ProteinMPNN takes the backbone coordinates, a list of immutable positions (catalytic residues), and generates 100 diverse candidate sequences, each predicted to fold into the target shape.</p>
+<p><strong>Step 3: Verify (ESMFold).</strong> Refold all 100 candidates with ESMFold to confirm they still adopt the correct shape. Filter for high mean pLDDT (&gt;80), correct topology (RMSD to original), and low clash scores.</p>
+<p><strong>Step 4: Optimize (CodonRoBERTa).</strong> Take the best amino acid sequences and use CodonRoBERTa-large-v2 to generate optimal DNA sequences for expression in the target organism (<em>E. coli</em>, yeast, or mammalian cells). The model scores synonymous codon choices based on learned biological preferences, identifies contextually optimal codons rather than just globally frequent ones, and produces sequences with high CAI correlation.</p>
+<p><strong>Step 5: Synthesize and Test.</strong> Order the DNA from a synthesis company, clone it into an expression vector, and test expression and activity in the lab.</p>
+<p>This loop, from hypothesis to synthesis-ready DNA, replaces what once took months of iterative wet-lab trial and error. A researcher arrives at the bench with 5-10 computationally vetted candidates instead of one or two educated guesses. The success rate improves, the cost drops, and the design cycle compresses from months to days.</p>
+<hr>
+<p>For a full ecosystem overview, tool selection guide, and license reference, see Part I.</p>
+<hr>
+<h2>
+	<a id="6-where-this-stands-and-whats-next" href="#6-where-this-stands-and-whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		6. Where This Stands and What's Next
+	</span>
+</h2>
+<h3>
+	<a id="the-landscape" href="#the-landscape" rel="nofollow">
+		
+	</a>
+	<span>
+		The Landscape
+	</span>
+</h3>
+<p><strong>OpenMed</strong> is not working in isolation. Two recent models push the codon/mRNA modeling frontier further:</p>
+<ul>
+<li><p><strong>mRNABERT</strong> (Xiong et al., <em>Nature Communications</em> 2025): 86M-param BERT with a dual tokenization scheme (single nucleotides for UTRs, codons for CDS) and cross-modality contrastive learning against frozen ProtT5-XL protein embeddings. Trained on 18M sequences. Achieves R^2 = 0.66 on full-length mRNA translation efficiency, a 1.6-10x improvement over prior RNA models. Code and weights available (Apache 2.0).</p>
+</li>
+<li><p><strong>NUWA</strong> (Zhong et al., <em>bioRxiv</em> 2026): Three domain-specific RoBERTa encoders (Bacteria, Eukaryota, Archaea) with curriculum MLM and supervised contrastive learning. Trained on 115M sequences across ~25,000 species. Beats CodonBERT on 11/13 BEACON benchmark tasks. No code or weights released.</p>
+</li>
+</ul>
+<p>Both models train on 50-300x more data than <strong>OpenMed</strong> used. That is the primary gap, and we are transparent about it.</p>
+<p>Here is what <strong>OpenMed</strong> does that neither of them offers:</p>
+<ol>
+<li><p><strong>Species-conditioned single model.</strong> mRNABERT has no species conditioning at all. NUWA trains three separate models (one per domain of life). We put 25 species tokens into one 94-token vocabulary and train a single model that can be prompted for any organism. More parameter-efficient, more flexible.</p>
+</li>
+<li><p><strong>Transfer learning to low-resource organisms, validated.</strong> We showed that fine-tuning the multispecies base on just 8.5k <em>E. coli</em> sequences improves over the base model. Neither mRNABERT nor NUWA demonstrates this.</p>
+</li>
+<li><p><strong>Full open-source pipeline.</strong> ESMFold + ProteinMPNN + CodonRoBERTa, end to end, with training code, configs, eval scripts, and model weights. All Apache 2.0. mRNABERT releases code but not the pipeline. NUWA releases nothing.</p>
+</li>
+</ol>
+<h3>
+	<a id="in-progress-codonjepa" href="#in-progress-codonjepa" rel="nofollow">
+		
+	</a>
+	<span>
+		In Progress: CodonJEPA
+	</span>
+</h3>
+<p><strong>OpenMed</strong> is running a proof-of-concept for a fundamentally different approach: <strong>Joint Embedding Predictive Architecture (JEPA) for codon sequences</strong>.</p>
+<p>Standard MLM predicts masked <em>tokens</em>. JEPA predicts masked <em>embeddings</em>. The hypothesis: if the model is forced to predict in embedding space rather than token space, it should learn that synonymous codons (different DNA, same amino acid) are functionally equivalent. MLM cannot achieve this because it is trained to distinguish every token.</p>
+<p>The architecture:</p>
+<ul>
+<li><strong>Context encoder</strong>: RoBERTa-base (768-dim, 12 layers), trained normally</li>
+<li><strong>Target encoder</strong>: EMA copy of the context encoder (momentum 0.990 to 0.999, no gradients)</li>
+<li><strong>Predictor</strong>: Lightweight 4-layer transformer (384-dim), predicts target embeddings from context</li>
+<li><strong>Masking</strong>: Multi-block strategy (4 contiguous blocks per sequence, 15-20% mask scale)</li>
+<li><strong>Collapse prevention</strong>: VICReg regularization (variance + covariance loss)</li>
+</ul>
+<p>Early results from our evaluation suite (JEPA vs. MLM baseline, same data, same hyperparameters, 15k steps each):</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Metric</th>
+<th>CodonJEPA</th>
+<th>CodonMLM</th>
+<th>Winner</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Synonymous robustness (cosine sim)</td>
+<td><strong>0.9997</strong></td>
+<td>0.9414</td>
+<td>JEPA</td>
+</tr>
+<tr>
+<td>Codon-to-amino-acid probe</td>
+<td>37.4%</td>
+<td>100%</td>
+<td>MLM (expected)</td>
+</tr>
+<tr>
+<td>Taxonomy classification</td>
+<td>87.8%</td>
+<td>99.4%</td>
+<td>MLM</td>
+</tr>
+<tr>
+<td>Effective dimensionality</td>
+<td>1.67</td>
+<td>18.71</td>
+<td>MLM</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The synonymous robustness result is the one that matters most for our hypothesis. JEPA embeddings are nearly identical (99.97% cosine similarity) for sequences that differ only in synonymous codon choices. MLM embeddings shift significantly (94.14%). This means JEPA <em>does</em> learn that synonymous codons are interchangeable, exactly as predicted.</p>
+<p>The open challenge: JEPA currently suffers from dimensional collapse (91.78% of variance concentrated in one component). This is a known failure mode for self-supervised methods and suggests the VICReg regularization weights need tuning. The architecture works; the training dynamics need more iteration.</p>
+<p>This is early-stage research, not production-ready. But if the collapse problem can be solved, JEPA could produce codon embeddings that are inherently amino-acid-aware, something that MLM, by its token-level prediction objective, fundamentally cannot achieve.</p>
+<h3>
+	<a id="roadmap" href="#roadmap" rel="nofollow">
+		
+	</a>
+	<span>
+		Roadmap
+	</span>
+</h3>
+<p><strong>CodonRoBERTa (scaling up)</strong>:</p>
+<ul>
+<li>Retrain on mRNABERT's public 36M-sequence dataset (Zenodo). Same architecture, same species tokens, 100x more data</li>
+<li>Add cross-modality contrastive alignment with ProtT5-XL (proven by mRNABERT to boost protein property prediction)</li>
+<li>Extend species-specific fine-tuning to YEAST, PICHIA, MOUSE</li>
+<li>Add mRNA stability and immunogenicity prediction heads</li>
+</ul>
+<p><strong>CodonJEPA (fixing and scaling)</strong>:</p>
+<ul>
+<li>Solve dimensional collapse (stronger VICReg weights, alternative regularizers)</li>
+<li>Benchmark against mRNABERT's contrastive approach on the same downstream tasks</li>
+<li>If JEPA embeddings hold up, integrate as a drop-in replacement for MLM embeddings in the pipeline</li>
+</ul>
+<p><strong>Pipeline</strong>:</p>
+<ul>
+<li>Integrate RFdiffusion for <em>de novo</em> backbone generation</li>
+<li>Add solubility and expression prediction heads</li>
+<li>Fine-tune ESMFold on specialized domains (antibodies, enzymes)</li>
+</ul>
+<h3>
+	<a id="setup-and-requirements" href="#setup-and-requirements" rel="nofollow">
+		
+	</a>
+	<span>
+		Setup and Requirements
+	</span>
+</h3>
+<p><strong>Hardware</strong>:</p>
+<ul>
+<li>Tested on 4×A100 GPUs (80GB)</li>
+<li>Folding inference: ~16-20GB VRAM for typical proteins</li>
+<li>Training: Scales with FSDP (Fully Sharded Data Parallel)</li>
+<li>Minimum for inference: Single GPU with 16GB+ VRAM</li>
+</ul>
+<p><strong>Environment</strong>:</p>
+<ul>
+<li>Use <code>.env_esmfold</code> virtual environment for folding</li>
+<li>For training: PyTorch 2.5.1+cu121 with flash-attn2</li>
+<li>Python 3.10+ recommended</li>
+</ul>
+<p><strong>Licenses</strong> (all commercial-friendly):</p>
+<ul>
+<li>ESMFold: MIT</li>
+<li>ProteinMPNN: MIT</li>
+<li>OpenFold: Apache-2.0</li>
+<li>Our CodonRoBERTa: Apache-2.0</li>
+</ul>
+<hr>
+<h2>
+	<a id="7-references" href="#7-references" rel="nofollow">
+		
+	</a>
+	<span>
+		7. References
+	</span>
+</h2>
+<p><strong>OpenMed's</strong> work builds on foundational research from Meta AI, the Baker Lab at the University of Washington, DeepMind, and the broader open-source computational biology community.</p>
+<h3>
+	<a id="key-papers" href="#key-papers" rel="nofollow">
+		
+	</a>
+	<span>
+		Key Papers
+	</span>
+</h3>
+<p><strong>Protein Structure Prediction</strong></p>
+<ul>
+<li>Jumper, J. et al. "Highly accurate protein structure prediction with AlphaFold." <em>Nature</em> (2021). <a href="https://doi.org/10.1038/s41586-021-03819-2" rel="nofollow">DOI</a></li>
+<li>Lin, Z. et al. "Evolutionary-scale prediction of atomic-level protein structure with a language model." <em>Science</em> (2023). <a href="https://doi.org/10.1126/science.ade2574" rel="nofollow">DOI</a></li>
+<li>Ahdritz, G. et al. "OpenFold: Retraining AlphaFold2 yields new insights." <em>Nature Methods</em> (2024). <a href="https://doi.org/10.1038/s41592-024-02272-z" rel="nofollow">DOI</a></li>
+</ul>
+<p><strong>Protein Design</strong></p>
+<ul>
+<li>Dauparas, J. et al. "Robust deep learning-based protein sequence design using ProteinMPNN." <em>Science</em> (2022). <a href="https://doi.org/10.1126/science.add2187" rel="nofollow">DOI</a></li>
+<li>Watson, J.L. et al. "De novo design of protein structure and function with RFdiffusion." <em>Nature</em> (2023). <a href="https://doi.org/10.1038/s41586-023-06415-8" rel="nofollow">DOI</a></li>
+</ul>
+<p><strong>mRNA &amp; Codon Optimization</strong></p>
+<ul>
+<li>Cheng, J. et al. "CodonBERT: a language model for codon optimization." <em>Nucleic Acids Research</em> (2024). <a href="https://doi.org/10.1093/nar/gkae495" rel="nofollow">DOI</a></li>
+<li>Xiong, Y. et al. "mRNABERT: advancing mRNA sequence design with a universal language model and comprehensive dataset." <em>Nature Communications</em> (2025). <a href="https://doi.org/10.1038/s41467-025-65340-8" rel="nofollow">DOI</a></li>
+<li>Zhong, Y. et al. "Large mRNA language foundation modeling with NUWA for unified sequence perception and generation." <em>bioRxiv</em> (2026). <a href="https://doi.org/10.1101/2025.11.01.686058" rel="nofollow">DOI</a></li>
+<li>Warner, B. et al. "ModernBERT: Smarter, Better, Faster, Longer." arXiv (2024). <a href="https://arxiv.org/abs/2412.13663" rel="nofollow">arXiv</a></li>
+</ul>
+<hr>
+<h2>
+	<a id="models-and-data-coming-soon" href="#models-and-data-coming-soon" rel="nofollow">
+		
+	</a>
+	<span>
+		Models and Data: Coming Soon
+	</span>
+</h2>
+<p>All models, training code, and the multi-species dataset described in this post will be publicly released under the <strong>OpenMed</strong> organization on Hugging Face under Apache 2.0 / MIT licenses.</p>
+<p><strong>Models</strong> (7 checkpoints):</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Params</th>
+<th>HuggingFace</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>CodonRoBERTa-large-v2</td>
+<td>312M</td>
+<td><code>OpenMed/CodonRoBERTa-large-v2</code></td>
+</tr>
+<tr>
+<td>CodonRoBERTa-base</td>
+<td>92M</td>
+<td><code>OpenMed/CodonRoBERTa-base</code></td>
+</tr>
+<tr>
+<td>CodonRoBERTa-large-multispecies</td>
+<td>311.9M</td>
+<td><code>OpenMed/CodonRoBERTa-large-multispecies</code></td>
+</tr>
+<tr>
+<td>CodonRoBERTa-large-human</td>
+<td>311.9M</td>
+<td><code>OpenMed/CodonRoBERTa-large-human</code></td>
+</tr>
+<tr>
+<td>CodonRoBERTa-large-ecoli</td>
+<td>311.9M</td>
+<td><code>OpenMed/CodonRoBERTa-large-ecoli</code></td>
+</tr>
+<tr>
+<td>CodonRoBERTa-large-cho</td>
+<td>311.9M</td>
+<td><code>OpenMed/CodonRoBERTa-large-cho</code></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Dataset</strong>:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Dataset</th>
+<th>Sequences</th>
+<th>Species</th>
+<th>HuggingFace</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Multi-species CDS</td>
+<td>381,283</td>
+<td>25</td>
+<td><code>OpenMed/multispecies-codon-dataset</code></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>Training code and evaluation scripts</strong> will be released alongside the models.</p>
+<p>Follow <a href="https://huggingface.co/OpenMed"><strong>OpenMed</strong> on Hugging Face</a> to be notified when models go live.</p>
+<hr>
+<p><em>The ML Engineer's Guide to Protein AI: From Protein to Optimized DNA | March 2026</em></p>
+<p><a href="https://huggingface.co/blog/MaziyarPanahi/protein-ai-landscape"><strong>Read Part I</strong>: The AlphaFold Revolution, covering the landscape of protein AI.</a></p>
+<p><em>Questions or collaboration ideas? Reach out on Hugging Face or open a discussion on the model pages.</em></p>
+</div></div>

@@ -5,4 +5,71 @@ source: huggingface-co
 published: 2026-03-31T15:10:41Z
 updated: 2026-03-31T15:10:41Z
 first_seen: 2026-10-04T12:50:30.804479567Z
+content: extracted
+html: 2026-03-31-granite-4-0-3b-vision-compact-multimodal-intelligence-for.html
 ---
+
+Today we're excited to announce [Granite 4.0 3B Vision](https://huggingface.co/ibm-granite/granite-4.0-3b-vision), a compact vision-language model (VLM) designed for enterprise document understanding. It’s purpose-built for reliable information extraction from complex documents, forms, and structured visuals. Granite 4.0 3B Vision excels on the following capabilities:
+
+- **Table Extraction**: Accurately parsing complex table structures (e.g., multi-row, multi-column, etc.) from document images
+- **Chart Understanding**: Converting charts and figures into structured machine-readable formats, summaries, or executable code
+- **Semantic Key-Value Pair (KVP) Extraction**: Identifying and grounding semantically meaningful key-value field pairs across diverse document layouts
+
+The model ships as a LoRA adapter on top of [Granite 4.0 Micro](https://huggingface.co/ibm-granite/granite-4.0-micro), our dense language model, keeping vision and language modular for text-only fallbacks and seamless integration into mixed pipelines. It continues to support vision-language tasks such as producing detailed natural-language descriptions from images (e.g., “Describe this image in detail”). The model can be used standalone or in tandem with [Docling](https://github.com/docling-project/docling) to enhance document processing pipelines with deep visual understanding capabilities.
+
+## How Granite 4.0 3B Vision Was Built
+
+Granite 4.0 3B Vision’s performance is the result of three key investments: A purpose-built chart understanding dataset constructed via a novel code-guided data augmentation approach, a novel variant of the [DeepStack architecture](https://arxiv.org/abs/2406.04334) that enables high-detail visual feature injection, and a modular design that keeps the model practical for enterprise deployment.
+
+### ChartNet: Teaching Models to Truly Understand Charts
+
+Charts present a challenge for vision-language models (VLMs) because understanding them requires jointly reasoning over visual patterns, numerical data, and natural language, a combination most VLMs cannot handle well, especially when spatial precision matters—such as reading exact values off a line chart. To close this gap, we’ve developed [ChartNet](https://huggingface.co/datasets/ibm-granite/ChartNet): a million-scale multimodal dataset purpose-built for chart interpretation and reasoning, described in detail in our upcoming [CVPR 2026 paper](https://arxiv.org/abs/2603.27064).
+
+ChartNet uses a code-guided synthesis pipeline to generate 1.7 million diverse chart samples spanning 24 chart types and 6 plotting libraries \[see Figure 1\]. What makes it so distinctive is that each sample consists of five aligned components—plotting code, rendered image, data table, natural language summary, and QA pairs—providing models a deeply cross-modal view of what a chart means, not just what it looks like. The dataset also includes human-annotated and real-world subsets, filtered for visual fidelity, semantic accuracy, and diversity.
+
+The result is a training resource that moves VLMs from merely describing charts to genuinely understanding the structured information they encode—with consistent gains across model sizes, architectures, and tasks.
+
+[![chartnet (1)](https://cdn-uploads.huggingface.co/production/uploads/653fb52cbfd890805461d691/yX68Qg2FjRNRk9AAh4mTi.jpeg)](https://cdn-uploads.huggingface.co/production/uploads/653fb52cbfd890805461d691/yX68Qg2FjRNRk9AAh4mTi.jpeg) *Figure 1: ChartNet’s synthetic data generation pipeline.*
+
+### DeepStack: Smarter Visual Feature Injection
+
+Most VLMs inject visual information into their language model at a single point, which forces the model to handle both high-level semantics and fine-grained spatial detail simultaneously. Granite 4.0 3B Vision takes a different approach with DeepStack Injection: abstract visual features are routed into earlier layers for semantic understanding, while high-resolution spatial features are fed into later layers to preserve detail. The result is a model that understands both what is in a document and where—which is critical for tasks like table extraction, chart understanding, and KVP parsing where layout matters as much as content. For a full technical breakdown, see the [Model Architecture](https://huggingface.co/ibm-granite/granite-4.0-3b-vision#model-architecture) section of the model card.
+
+### Modularity: One Model, Two Modes
+
+Granite 4.0 3B Vision is packaged as a LoRA adapter on top of [Granite 4.0 Micro](https://huggingface.co/ibm-granite/granite-4.0-micro), rather than as a standalone model. In practice, this means the same deployment can serve both multimodal and text-only workloads, automatically falling back to the base model when vision isn’t required. This keeps enterprise integration straightforward without sacrificing performance.
+
+## How It Performs
+
+**Charts**: Evaluated on the human-verified ChartNet benchmark using LLM-as-a-judge, Granite 4.0 3B Vision achieves the highest Chart2Summary (86.4%) score among all evaluated models, including significantly larger ones \[see Figure 2\]. It also ranks second on Chart2CSV (62.1%), behind only Qwen3.5-9B (63.4%), a model more than double its size.
+
+[![image](https://cdn-uploads.huggingface.co/production/uploads/653fb52cbfd890805461d691/CBMcvEZIzDllDWi7I4rrJ.png)](https://cdn-uploads.huggingface.co/production/uploads/653fb52cbfd890805461d691/CBMcvEZIzDllDWi7I4rrJ.png) *Figure 2: Granite 4.0 3B Vision performance on chart2csv and chart2summary, compared against peer vision-language models using LLM-as-a-judge.*
+
+**Tables**: We evaluate table extraction in two settings: cropped tables (isolated regions) and full-page documents (tables embedded in complex layouts) \[see Figure 3\]. The benchmark suite includes [TableVQA-extract](https://arxiv.org/abs/2404.19205) (cropped table images), [OmniDocBench-tables](https://arxiv.org/abs/2412.07626) (full-page documents), and [PubTables-v2](https://arxiv.org/abs/2512.10888) (both cropped and full-page settings). Models are tasked with extracting tables in HTML format and scored using TEDS, a metric that captures both structural and content accuracy. Granite 4.0 3B Vision achieves the strongest performance across benchmarks, leading on PubTablesV2 on both cropped (92.1) and full-page (79.3), OmniDocBench (64.0), and TableVQA (88.1) scores among all evaluated models.
+
+[![Tables](https://cdn-uploads.huggingface.co/production/uploads/653fb52cbfd890805461d691/k4-ExbC0Lnbf-HctVHq4q.png)](https://cdn-uploads.huggingface.co/production/uploads/653fb52cbfd890805461d691/k4-ExbC0Lnbf-HctVHq4q.png) *Figure 3: Granite 4.0 3B Vision’s table extraction performance across cropped and full-page benchmarks (TableVQA-extract, PubTables-v2, OmniDocBench-tables), measured by TEDS.*
+
+**Semantic KVP**: [VAREX](https://arxiv.org/abs/2603.15118) is a benchmark specifically designed to discriminate between small extraction models, comprising 1,777 U.S. government forms spanning simple flat layouts to complex nested and tabular structures. Models are evaluated using exact match (EM), a strict metric that requires the model’s extracted key-value pairs to match the ground truth. Granite 4.0 3B Vision achieves 85.5% EM accuracy zero-shot.
+
+## How to Use It
+
+Granite 4.0 3B Vision can operate either as a stand‑alone visual information extraction engine or as part of a fully automated document‑processing pipeline with Docling. The model is designed to support scalable, accurate extraction across diverse document types and visual formats.
+
+**1\. Stand‑Alone Image Understanding** Granite 4.0 3B Vision can run directly on individual images, making this option useful for applications with existing workflows that need targeted visual extraction without modifying upstream systems. This offers easy integration into existing automation workflows and is suitable for lightweight, task‑specific tools (e.g., form parsers, chart analyzers, etc.).
+
+**2\. Integrated Document Understanding Pipeline With Docling** Granite 4.0 3B Vision can also be integrated seamlessly with Docling to support complete end‑to‑end document understanding. This mode can offer:
+
+- Large‑scale processing of multi‑page PDFs
+- Automated detection, segmentation, and cropping of figures, tables, and other visual elements with Docling and redirection of clean crops to Granite Vision model for fine-grained extraction
+- Efficient workflow with lower overall computational costs and faster throughput
+- Higher accuracy, more reliable extraction, and significantly improved efficiency across large document collections
+
+**Example Use Cases**
+
+- **Form Processing**: Extract structured fields from invoices, forms, and receipts using KVP capabilities or generate natural‑language descriptions of figures using image2text feature (e.g., “Describe this image in detail”).
+- **Financial Report Analysis**: Use Docling to parse reports, detect figures, and crop visual elements. Process charts using Granite Vision’s chart2csv, chart2code, and tables using tables\_json capabilities to convert them into structured, machine‑readable data enabling actionable insights.
+- **Research Document Intelligence**: Utilize Docling to handle OCR and layout parsing across dense academic PDFs, and pass extracted figures to chart2summary and table crops to tables\_html to make visual content discoverable alongside free-form text in a single pipeline.
+
+## Try It Today
+
+Granite 4.0 3B Vision is available now on [HuggingFace](https://huggingface.co/ibm-granite/granite-4.0-3b-vision), released under the Apache 2.0 license. Full technical details, training methodology, and benchmark results are available in the model card. We’d love to hear what you build with it—share your feedback in the [community](https://huggingface.co/ibm-granite/granite-4.0-3b-vision/discussions) tab.

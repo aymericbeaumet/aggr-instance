@@ -1,0 +1,1256 @@
+<div id="readability-page-1" class="page"><div> 
+<p>The Gemma 4 family of multimodal models by Google DeepMind is out on Hugging Face, with support for your favorite agents, inference engines, and fine-tuning libraries 🤗</p>
+<p>These models are the real deal: truly open with Apache 2 licenses, high quality with pareto frontier arena scores, multimodal including audio, and sizes you can use <em>everywhere</em> including on-device. Gemma 4 builds on advances from previous families and makes them click together. In our tests with pre-release checkpoints we have been impressed by their capabilities, to the extent that we struggled to find good fine-tuning examples because they are <em>so good</em> out of the box.</p>
+<p>We collaborated with Google and the community to make them available everywhere: transformers, llama.cpp, MLX, WebGPU, Rust; you name it. This blog post will show you how to build with <a href="https://huggingface.co/collections/google/gemma-4">your favorite tools</a> so let us know what you think!</p>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#what-is-new-with-gemma-4" rel="nofollow">What is New with Gemma 4?</a></li>
+<li><a href="#overview-of-capabilities-and-architecture" rel="nofollow">Overview of Capabilities and Architecture</a><ul>
+<li><a href="#architecture-at-a-glance" rel="nofollow">Architecture at a Glance</a></li>
+<li><a href="#per-layer-embeddings-ple" rel="nofollow">Per-Layer Embeddings (PLE)</a></li>
+<li><a href="#shared-kv-cache" rel="nofollow">Shared KV Cache</a></li>
+</ul>
+</li>
+<li><a href="#multimodal-capabilities" rel="nofollow">Multimodal Capabilities</a></li>
+<li><a href="#deploy-anywhere" rel="nofollow">Deploy Anywhere</a><ul>
+<li><a href="#transformers" rel="nofollow">transformers</a></li>
+<li><a href="#llamacpp" rel="nofollow">Llama.cpp</a></li>
+<li><a href="#Plug-in-your-local-agent" rel="nofollow">Plug in to your local agent</a></li>
+<li><a href="#transformersjs" rel="nofollow">transformers.js</a></li>
+<li><a href="#mlx" rel="nofollow">MLX</a></li>
+<li><a href="#mistralrs" rel="nofollow">Mistral.rs</a></li>
+</ul>
+</li>
+<li><a href="#multi-token-prediction-drafters" rel="nofollow">Multi-Token Prediction Drafters</a></li>
+<li><a href="#diffusiongemma-text-generation-via-diffusion" rel="nofollow">DiffusionGemma: Text Generation via Diffusion</a></li>
+<li><a href="#fine-tuning--demos" rel="nofollow">Fine-tuning &amp; Demos</a><ul>
+<li><a href="#fine-tuning-with-trl" rel="nofollow">Fine-tuning with TRL</a><ul>
+<li><a href="#fine-tuning-with-trl-on-vertex-ai" rel="nofollow">Fine-tuning with TRL on Vertex AI</a></li>
+</ul>
+</li>
+<li><a href="#fine-tuning-with-unsloth-studio" rel="nofollow">Fine-tuning with Unsloth Studio</a></li>
+</ul>
+</li>
+<li><a href="#try-gemma-4" rel="nofollow">Try Gemma 4</a></li>
+<li><a href="#benchmark-results" rel="nofollow">Benchmark Results</a></li>
+<li><a href="#acknowledgements" rel="nofollow">Acknowledgements</a></li>
+</ul>
+<h2>
+	<a id="what-is-new-with-gemma-4" href="#what-is-new-with-gemma-4" rel="nofollow">
+		
+	</a>
+	<span>
+		What is new with Gemma 4?
+	</span>
+</h2>
+<p>Similar to Gemma-3n, Gemma 4 supports image, text, and audio inputs, and generates text responses. The text decoder is based on the Gemma model with support for long context windows. The image encoder is similar to the one from Gemma 3 but with two crucial improvements: variable aspect ratios, and configurable number of image token inputs to find your sweet spot between speed, memory, and quality. All models support images (or video) and text inputs, while the small variants (E2B, E4B) and the 12B Unified model support audio as well.</p>
+<p>Gemma 4 comes in five sizes, all base and instruction fine-tuned:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Parameter Size</th>
+<th>Context Window</th>
+<th>Checkpoints</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Gemma 4 E2B</td>
+<td>2.3B effective, 5.1B with embeddings</td>
+<td>128k</td>
+<td><a href="https://huggingface.co/google/gemma-4-E2B">base</a>, <a href="https://huggingface.co/google/gemma-4-E2B-it">IT</a></td>
+</tr>
+<tr>
+<td>Gemma 4 E4B</td>
+<td>4.5B effective, 8B with embeddings</td>
+<td>128k</td>
+<td><a href="https://huggingface.co/google/gemma-4-E4B">base</a>, <a href="https://huggingface.co/google/gemma-4-E4B-it">IT</a></td>
+</tr>
+<tr>
+<td>Gemma 4 12B Unified</td>
+<td>11.95B dense, encoder-free</td>
+<td>256K</td>
+<td><a href="https://huggingface.co/google/gemma-4-12B">base</a>, <a href="https://huggingface.co/google/gemma-4-12B-it">IT</a></td>
+</tr>
+<tr>
+<td>Gemma 4 31B</td>
+<td>31B dense model</td>
+<td>256K</td>
+<td><a href="https://huggingface.co/google/gemma-4-31B">base</a>, <a href="https://huggingface.co/google/gemma-4-31B-it">IT</a></td>
+</tr>
+<tr>
+<td>Gemma 4 26B A4B</td>
+<td>mixture-of-experts with 4B activated/26B total parameters</td>
+<td>256K</td>
+<td><a href="https://huggingface.co/google/gemma-4-26B-A4B">base</a>, <a href="https://huggingface.co/google/gemma-4-26B-A4B-it">IT</a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="overview-of-capabilities-and-architecture" href="#overview-of-capabilities-and-architecture" rel="nofollow">
+		
+	</a>
+	<span>
+		Overview of Capabilities and Architecture
+	</span>
+</h2>
+<p>Gemma 4 leverages several architecture components used in previous Gemma versions and other open models, and leaves out complex or inconclusive features such as Altup. The combination is a mix designed to be highly compatible across libraries and devices, that can efficiently support long context and agentic use cases, whilst being ideal for quantization.</p>
+<p>As shown in the benchmarks above, this feature mix (combined with the training data and recipe) enables the 31B dense model to achieve an estimated LMArena score (text only) of 1452, while the 26B MoE reaches 1441 with just 4B active parameters 🤯. As we'll see, multimodal operation is comparatively as good as text generation, at least in informal and subjective tests.</p>
+<p>These are the main architecture characteristics in Gemma 4:</p>
+<ul>
+<li>Alternating <strong>local sliding-window</strong> and <strong>global full-context</strong> attention layers. Smaller dense models use sliding windows of 512 tokens while larger models use 1024 tokens.</li>
+<li><strong>Dual RoPE</strong> configurations: standard RoPE for sliding layers, pruned RoPE for global layers, to enable longer context.</li>
+<li><strong>Per-Layer Embeddings (PLE)</strong>: a second embedding table that feeds a small residual signal into every decoder layer.</li>
+<li><strong>Shared KV Cache</strong>: the last N layers of the model reuse key-value states from earlier layers, eliminating redundant KV projections.</li>
+<li><strong>Vision encoder (except 12B)</strong>: uses learned 2D positions and multidimensional RoPE. Preserves the original aspect ratios and can encode images to a few different token budgets (70, 140, 280, 560, 1120).</li>
+<li><strong>Audio encoder (E2B, E4B)</strong>: USM-style conformer with the same base architecture as the one in Gemma-3n.</li>
+<li><strong>Unified encoder-free multimodality (12B only)</strong>: the 12B Unified variant drops the separate vision and audio encoders and projects raw image patches and audio waveforms directly into the LLM's embedding space. See <a href="#unified-multimodal-12b" rel="nofollow">Unified Multimodal (12B)</a>.</li>
+</ul>
+<h4>
+	<a id="per-layer-embeddings-ple" href="#per-layer-embeddings-ple" rel="nofollow">
+		
+	</a>
+	<span>
+		Per-Layer Embeddings (PLE)
+	</span>
+</h4>
+<p>One of the most distinctive features in smaller Gemma 4 models is Per-Layer Embeddings (PLE), which was introduced previously in Gemma-3n. In a standard transformer, each token gets a single embedding vector at input, and the same initial representation is what the residual stream builds on across all layers, forcing the embedding to frontload everything the model might need. PLE adds a parallel, lower-dimensional conditioning pathway alongside the main residual stream. For each token, it produces a small dedicated vector for every layer by combining two signals: a token-identity component (from an embedding lookup) and a context-aware component (from a learned projection of the main embeddings). Each decoder layer then uses its corresponding vector to modulate the hidden states via a lightweight residual block after attention and feed-forward. This gives each layer its own channel to receive token-specific information only when it becomes relevant, rather than requiring everything to be packed into a single upfront embedding. Because the PLE dimension is much smaller than the main hidden size, this adds meaningful per-layer specialization at modest parameter cost. For multimodal inputs (images, audio, video), PLE is computed before soft tokens are merged into the embedding sequence — since PLE relies on token IDs that are lost once multimodal features replace the placeholders. Multimodal positions use the pad token ID, effectively receiving neutral per-layer signals.</p>
+<h4>
+	<a id="shared-kv-cache" href="#shared-kv-cache" rel="nofollow">
+		
+	</a>
+	<span>
+		Shared KV Cache
+	</span>
+</h4>
+<p>The <strong>shared KV cache</strong> is an efficiency optimization that reduces both compute and memory during inference. The last <code>num_kv_shared_layers</code> layers of the model don't compute their own key and value projections. Instead, they <strong>reuse</strong> the K and V tensors from the last non-shared layer of the same attention type (sliding or full).</p>
+<p>In practice, this has a minimal impact on quality while being much more efficient (in terms of both memory and compute) for long context generation and on-device use.</p>
+<h4>
+	<a id="unified-multimodal-12b" href="#unified-multimodal-12b" rel="nofollow">
+		
+	</a>
+	<span>
+		Unified Multimodal (12B)
+	</span>
+</h4>
+<p>The Gemma 4 12B Unified model has no separate vision or audio encoder. Instead, raw image patches and audio waveforms are projected directly into the LLM's embedding space through lightweight linear layers, and all modalities flow into a single decoder-only transformer. This reduces multimodal latency and allows the whole model to be fine-tuned in one pass. The checkpoint size makes it deployment-friendly on consumer hardware.</p>
+<h2>
+	<a id="multimodal-capabilities" href="#multimodal-capabilities" rel="nofollow">
+		
+	</a>
+	<span>
+		Multimodal Capabilities
+	</span>
+</h2>
+<p>We saw in our tests that Gemma 4 supports comprehensive multimodal capabilities out of the box. We don't know what was the training mix, but we had success using it for tasks such as OCR, speech-to-text, object detection, or pointing. It also supports text-only and multimodal function calling, reasoning, code completion and correction.</p>
+<p>Here, we show a few inference examples across different model sizes. You can run them conveniently with <a href="https://github.com/huggingface/huggingface-gemma-recipes/blob/main/notebooks/Gemma4_(E2B)-Multimodal.ipynb" rel="nofollow">this notebook</a>. We encourage you to try the demos and share them below this blog!</p>
+<h3>
+	<a id="multimodal-input-order" href="#multimodal-input-order" rel="nofollow">
+		
+	</a>
+	<span>
+		Multimodal Input Order
+	</span>
+</h3>
+<p>Gemma 4 was trained with a specific convention to interleave input modalities:</p>
+<ul>
+<li><strong>Image content goes <em>before</em> the text</strong> in your prompt.</li>
+<li><strong>Audio content goes <em>after</em> the text</strong> in your prompt.</li>
+</ul>
+<p>To be specific, this is a correct fragment that prepares inputs for the chat template:</p>
+<pre><code data-language="python">image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/0052a70beed5bf71b92610a43a52df6d286cd5f3/diffusers/rabbit.jpg"
+audio_url = "instructions.m4a"      # A recording of "describe this image"
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "image", "image": image_url},
+            {"type": "text", "text": "Answer in French."},
+            {"type": "audio", "audio": audio_url},
+        ]
+    }
+]
+# Cette image montre un personnage anthropomorphe ressemblant à un lapin, vêtu d'un manteau bleu et d'un pantalon beige, se tenant sur un chemin de terre dans un paysage rural idyllique ...
+</code></pre>
+<p>The audio inference snippets in this post don't follow this convention, as they were written before this guidance was confirmed. We are keeping them as originally written so result tables remain reproducible. For your own code, prefer the order above.</p>
+<h3>
+	<a id="object-detection-and-pointing" href="#object-detection-and-pointing" rel="nofollow">
+		
+	</a>
+	<span>
+		Object Detection and Pointing
+	</span>
+</h3>
+<h3>
+	<a id="gui-detection" href="#gui-detection" rel="nofollow">
+		
+	</a>
+	<span>
+		GUI detection
+	</span>
+</h3>
+<p>We test Gemma 4 on GUI element detection and pointing across different sizes, with the following image and text prompt: "What's the bounding box for the "view recipe" element in the image?"</p>
+<p><a href="https://huggingface.co/datasets/merve/vlm_test_images/resolve/main/food_resized.png" rel="nofollow"><img src="https://huggingface.co/datasets/merve/vlm_test_images/resolve/main/food_resized.png" alt="Image"></a></p>
+<p>With this prompt, the model natively responds in JSON format with the detected bounding boxes - no need for specific instructions or grammar-constrained generation. We found the coordinates refer to an image size of 1000x1000, relative to the input dimensions.</p>
+<p>We visualize the outputs below for your convenience. We parse the bounding boxes from the returned JSON: <code>json\n[\n  {"box_2d": [171, 75, 245, 308], "label": "view recipe element"}\n]\n</code></p>
+<div>
+	<table>
+		<thead><tr>
+<th>E2B</th>
+<th>E4B</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/e2b.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/e2b.png" alt="E2B"></a></td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/e4b.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/e4b.png" alt="E4B"></a></td>
+</tr>
+<tr>
+<td>26/A4B</td>
+<td>31B</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/26b.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/26b.png" alt="31B"></a></td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/31b.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/31b.png" alt="31B"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="object-detection" href="#object-detection" rel="nofollow">
+		
+	</a>
+	<span>
+		Object Detection
+	</span>
+</h3>
+<p>We test models to detect everyday objects, here we ask them to detect the bike and compare different model outputs. As in the previous case, we parse the bounding box from the json and translate to image space coordinates.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>E2B</th>
+<th>E4B</th>
+<th>26B/A3B</th>
+<th>31B</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/e2b_bike.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/e2b_bike.png" alt="E2B"></a></td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/bike_e4b.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/bike_e4b.png" alt="E4B"></a></td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/bike_26b.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/bike_26b.png" alt="26B"></a></td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/31b_bike.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/31b_bike.png" alt="31B"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="multimodal-thinking-and-function-calling" href="#multimodal-thinking-and-function-calling" rel="nofollow">
+		
+	</a>
+	<span>
+		Multimodal Thinking and Function Calling
+	</span>
+</h3>
+<p>We asked Gemma 4 to write HTML code to reconstruct a page we made with Gemini 3. Below you can find the code to do this, we enable thinking and ask each model to generate up to 4000 new tokens, to make it foolproof.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Gemini Generated Website (Reference)</th>
+<th>Gemini Reproduced Image</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/landing_page.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/landing_page.png" alt="Reference"></a></td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/page_repro_gemini.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/page_repro_gemini.png" alt="Reference"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<details>
+<summary>Inference code</summary>
+
+<pre><code data-language="py">messages = [
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "image",
+                "image": "https://huggingface.co/datasets/merve/vlm_test_images/resolve/main/landing_page.png",
+            },
+            {"type": "text", "text": "Write HTML code for this page."},
+        ],
+    }
+]
+inputs = processor.apply_chat_template(
+    messages,
+    tokenize=True,
+    return_dict=True,
+    return_tensors="pt",
+    add_generation_prompt=True,
+    enable_thinking=True,
+).to(model.device)
+output = model.generate(**inputs, max_new_tokens=4000)
+input_len = inputs.input_ids.shape[-1]
+generated_text_ids = output[0][input_len:]
+generated_text = processor.decode(generated_text_ids, skip_special_tokens=True)
+result = processor.parse_response(generated_text)
+print(result["content"])
+</code></pre>
+</details>
+
+<div>
+	<table>
+		<thead><tr>
+<th>E2B</th>
+<th>E4B</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/page_e2b.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/page_e2b.png" alt="Reference"></a></td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/page_e4b.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/page_e4b.png" alt="E4B"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<div>
+	<table>
+		<thead><tr>
+<th>31B</th>
+<th>26/A4B</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/page_31b.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/page_31b.png" alt="31B"></a></td>
+<td><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/page_26b.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/g4-blog/page_26b.png" alt="MoE"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="video-understanding" href="#video-understanding" rel="nofollow">
+		
+	</a>
+	<span>
+		Video Understanding
+	</span>
+</h3>
+<p>Smaller Gemma 4 models can take in videos with audio while larger ones can take in videos without audio. While the models are not explicitly post-trained on videos, they can understand videos both with and without audio. The model is particularly strong in audios</p>
+<details>
+<summary>Inference code</summary>
+
+<pre><code data-language="py">messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "video", "url": "https://huggingface.co/datasets/merve/vlm_test_images/resolve/main/concert.mp4"},
+            {"type": "text", "text": "What is happening in the video? What is the song about?"},
+        ],
+    },
+]
+inputs = processor.apply_chat_template(
+    messages,
+    tokenize=True,
+    return_dict=True,
+    return_tensors="pt",
+    add_generation_prompt=True,
+    load_audio_from_video=True, # disable this for larger models
+).to(model.device)
+output = model.generate(**inputs, max_new_tokens=200)
+input_len = inputs.input_ids.shape[-1]
+generated_text_ids = output[0][input_len:]
+generated_text = processor.decode(generated_text_ids, skip_special_tokens=True)
+print(result["content"])
+</code></pre>
+</details>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Output</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>E2B (hallucinated for the audio)</td>
+<td>Based on the video provided, here is an analysis: <strong>What is happening in this video?</strong> The video captures a live musical performance, likely at a large outdoor festival or concert. * <strong>Setting:</strong> The scene is a large stage set up outdoors, indicated by the extensive lighting rig, large speakers, and the audience visible in the foreground. * <strong>Performers:</strong> There are several musicians on stage. The focal point seems to be a lead singer/guitarist in a blue shirt and white pants who is actively performing, playing an acoustic or electric guitar. There are also other musicians, including drummers and bassists, visible in the background. * <strong>Atmosphere:</strong> The atmosphere is energetic and dramatic, characterized by bright stage lights, intense blue and white spotlights, and a significant amount of stage fog/smoke, which adds to the concert mood. * <strong>Audience:</strong> The foreground is filled with the backs of audience members, showing they are close to the stage and engaged in watching the performance. <strong>What is the song about?</strong> The lyrics provided below the video are: &gt; "I don't care 'bout street &gt; From what I cherish &gt; Could it's time to protest</td>
+</tr>
+<tr>
+<td>E4B ✅</td>
+<td>The video captures a live performance of a band on a stage with bright lights and smoke effects, surrounded by an audience. The band performs and sings to the crowd. The song appears to be about the struggles and disillusionment of modern life, specifically the feeling of being stuck and the difficulties in finding one's place in a chaotic and overwhelming world. Lyrics mention themes of the "concrete street," "broken promises," "storm of the day," and the difficulty of finding oneself amidst societal pressures.</td>
+</tr>
+<tr>
+<td>26/A4B (no audio) ✅</td>
+<td>This video shows a live music performance at an outdoor concert or festival at night. A solo male artist, dressed in a blue shirt and white pants, is the central focus. He is playing an acoustic guitar and singing into a microphone on a large, lit stage. The performance is accompanied by a band, including a drummer and other musicians visible in the background and on large video screens. The stage is filled with atmospheric blue lighting, smoke, and bright spotlights. The video captures different perspectives, including shots from the crowd looking up at the stage and close-up views of the performers projected onto large screens. The crowd is visible in the foreground, watching the show. One of the screens also displays the "Estrella Damm" brand name.</td>
+</tr>
+<tr>
+<td>31B (no audio) ✅</td>
+<td>A musician is performing on stage during a concert, playing an acoustic guitar and singing into a microphone. He is wearing a blue shirt and white pants. The stage is filled with atmospheric smoke and illuminated by bright blue and white lights. Other band members, including a drummer and a keyboardist, are also visible on stage. The video shows the musician from the perspective of the audience, with some shots focusing on him and others showing the large screen on the side of the stage, which displays close-ups of the performer and the crowd.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="captioning" href="#captioning" rel="nofollow">
+		
+	</a>
+	<span>
+		Captioning
+	</span>
+</h3>
+<p>We have tested all models on captioning. All checkpoints perform very well and accurately capture nuance in complex scenerios.
+Here's the image we use, with the prompt "Write single detailed caption for this image.".</p>
+<p><a href="https://huggingface.co/datasets/merve/vlm_test_images/resolve/main/bird.png" rel="nofollow"><img src="https://huggingface.co/datasets/merve/vlm_test_images/resolve/main/bird.png" alt="image"></a></p>
+<details>
+<summary>Inference code</summary>
+
+<pre><code data-language="py">messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "image", "url": "https://huggingface.co/datasets/merve/vlm_test_images/resolve/main/bird.png"},
+            {"type": "text", "text": "Write single detailed caption for this image."},
+        ],
+    },
+]
+inputs = processor.apply_chat_template(
+    messages,
+    tokenize=True,
+    return_dict=True,
+    return_tensors="pt",
+    add_generation_prompt=True,
+).to(model.device)
+output = model.generate(**inputs, max_new_tokens=512)
+input_len = inputs.input_ids.shape[-1]
+generated_text_ids = output[0][input_len:]
+generated_text = processor.decode(generated_text_ids, skip_special_tokens=True)
+result = processor.parse_response(generated_text)
+print(result["content"])
+</code></pre>
+</details>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Output</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>E2B ✅</td>
+<td>A medium shot captures a weathered seagull perched atop a stone pedestal in what appears to be a bustling European square, with a grand, classical-style building featuring ornate columns and architectural details dominating the right side of the frame. In the background, a low, light-colored building stretches across the middle ground, flanked by some green foliage, and hints of other structures, including a terracotta-roofed building, are visible. In the foreground, part of a modern bus stop or shelter is visible, with signage indicating routes, and the overall scene is bathed in bright daylight under a pale sky.</td>
+</tr>
+<tr>
+<td>E4B ✅</td>
+<td>A solitary seagull perches atop a grey stone pedestal in a bustling European piazza, with the historical grandeur of a classical building dominating the right side of the frame, contrasting with the more modern, low-rise architecture in the background under a bright, hazy sky.</td>
+</tr>
+<tr>
+<td>26B/A4B ✅</td>
+<td>A full shot shows a white and brown seagull perched on a gray pillar in Venice, Italy. The seagull faces left, its beak pointed towards the edge of the frame. Behind it is a light gray, two-story building with several dark rectangular windows. To the right of the seagull is a large, white building with columns and intricate carvings. The sky is a clear, light blue. The lighting is bright and even, suggesting it is daytime.</td>
+</tr>
+<tr>
+<td>31B ✅</td>
+<td>A high-angle, medium shot shows a white and gray seagull perched on a gray concrete pylon in Venice, Italy. The seagull is facing left, its body angled slightly towards the camera. Its white head, neck, and chest contrast with its gray wings and back. The seagull's orange beak is slightly open. The pylon is a light gray concrete cylinder with a weathered texture. In the background, there are several buildings. To the left is a long, low, white building with a series of small, rectangular windows. In the center is a cluster of green trees. To the right is a red building with a tiled roof and several small, rectangular windows. Further right is a large, ornate, white stone building with several columns and sculptures. The sky is a pale blue, and the light is bright and clear. In the lower-left corner, there is a yellow bus with the word "Ferrovia" printed on it in black letters. There are several people walking in the background, but they are small and out of focus.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="audio-question-answering" href="#audio-question-answering" rel="nofollow">
+		
+	</a>
+	<span>
+		Audio Question Answering
+	</span>
+</h3>
+<p>These models are trained to answer questions about speech in audio. Music and non-speech sounds were not part of the training data.</p>
+<details>
+<summary>Inference code</summary>
+
+<pre><code data-language="py">messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "audio", "url": "https://huggingface.co/datasets/hf-internal-testing/dummy-audio-samples/resolve/main/obama_first_45_secs.mp3"},
+            {"type": "text", "text": "Can you describe this audio in detail?"},
+        ],
+    },
+]
+
+inputs = processor.apply_chat_template(
+    messages,
+    tokenize=True,
+    return_dict=True,
+    return_tensors="pt",
+    add_generation_prompt=True,
+).to(model.device)
+
+output = model.generate(
+    **inputs,
+    max_new_tokens=1000,
+    do_sample=False,
+)
+
+print(processor.decode(output[0], skip_special_tokens=True))
+</code></pre>
+</details>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Output</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>E2B</td>
+<td>This audio is a personal reflection. The speaker is talking about their final farewell address to the nation, which they delivered in Chicago. They express gratitude for the conversations they've had with the American people, noting that despite not having met them face-to-face or even greeted them, these interactions in various settings like living rooms, schools, farms, factory floors, diners, and military outposts have been what has kept them going.</td>
+</tr>
+<tr>
+<td>E4B</td>
+<td>The audio is a speech excerpt where a speaker is delivering a farewell address to the nation from Chicago. The speaker reflects on their time in office, expressing gratitude for the conversations they had with the American people across various settings like living rooms, schools, farms, factories, diners, and military outposts. The tone is reflective and appreciative, highlighting the importance of these interactions in their political journey.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Here is an example if you want to do transcription:</p>
+<details>
+<summary>Inference code</summary>
+
+<pre><code data-language="py">messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "audio", "url": "https://huggingface.co/datasets/hf-internal-testing/dummy-audio-samples/resolve/main/obama_first_45_secs.mp3"},
+            {"type": "text", "text": "Transcribe the audio?"},
+        ],
+    },
+]
+
+inputs = processor.apply_chat_template(
+    messages,
+    tokenize=True,
+    return_dict=True,
+    return_tensors="pt",
+    add_generation_prompt=True,
+).to(model.device)
+
+output = model.generate(
+    **inputs,
+    max_new_tokens=1000,
+    do_sample=False,
+)
+
+print(processor.decode(output[0], skip_special_tokens=True))
+</code></pre>
+</details>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Output</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>E2B</td>
+<td>This week I traveled to Chicago to deliver my final farewell address to the nation following in the tradition of presidents before me It was an opportunity to say thank you whether we've seen eye to eye or rarely agreed at all my conversations with you the American people in living rooms and schools at farms and on factory floors at diners and on distant military outposts all these conversations are what have kept me honest</td>
+</tr>
+<tr>
+<td>E4B</td>
+<td>This week I traveled to Chicago to deliver my final farewell address to the nation following in the tradition of presidents before me. It was an opportunity to say thank you. Whether we've seen eye to eye or rarely agreed at all, my conversations with you, the American people, in living rooms and schools, at farms and on factory floors, at diners and on distant military outposts, all these conversations are what have kept me honest.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="multimodal-function-calling" href="#multimodal-function-calling" rel="nofollow">
+		
+	</a>
+	<span>
+		Multimodal Function Calling
+	</span>
+</h3>
+<p>We test the model by asking to get the weather in the place shown in the image.</p>
+<details>
+<summary>Inference code</summary>
+
+<pre><code data-language="py">import re 
+WEATHER_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "Gets the current weather for a specific location.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "city": {"type": "string", "description": "The city name"},
+            },
+            "required": ["city"],
+        },
+    },
+}
+tools = [WEATHER_TOOL]
+messages = [
+    {"role": "user", "content": [
+          {"type": "text", "text": "What is the city in this image? Check the weather there right now."},
+
+        {"type": "image", "image": "https://huggingface.co/datasets/merve/vlm_test_images/resolve/main/thailand.jpg"},
+    ]},
+]
+inputs = processor.apply_chat_template(
+    messages,
+    tools=[WEATHER_TOOL],
+    tokenize=True,
+    return_dict=True,
+    return_tensors="pt",
+    add_generation_prompt=True,
+    enable_thinking=True,
+).to(model.device)
+output = model.generate(**inputs, max_new_tokens=1000)
+input_len = inputs.input_ids.shape[-1]
+generated_text_ids = output[0][input_len:]
+generated_text = processor.decode(generated_text_ids, skip_special_tokens=True)
+result = processor.parse_response(generated_text)
+print(result["content"])
+</code></pre>
+</details>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Output</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>E2B</td>
+<td><strong>Analyze the Request:</strong> The user has provided an image and asked two questions:\n    *   "What is the city in this image?" *   "Check the weather there right now."\n\n2.  <strong>Analyze the Image:</strong> The image displays a large, ornate, tall structure, characteristic of temple architecture, likely in Southeast Asia (given the style). It appears to be a famous landmark. 3.  <strong>Identify the Landmark/Location (Internal Knowledge/Visual Cues):</strong> The structure strongly resembles the chedis/stupas found in places like Bangkok, Thailand (e.g., Wat Arun or similar structures).\n\n4.  <strong>Determine the City:</strong> Based on the visual evidence, the location is highly likely to be Bangkok, Thailand.\n\n5.  <strong>Check Available Tools:</strong> The available tool is <code>get_weather(city: STRING)</code>. 6.  **Formulate the Plan:**\n    *   Step 1: Identify the city from the image (Bangkok).\n    *   Step 2: Use the <code>get_weather</code> tool with the identified city.\n\n7.  <strong>Construct the Tool Call:</strong> <code>get_weather(city="Bangkok")</code>\n\n8.  <strong>Generate Response:</strong> The model should first state the identified city and then call the tool to get the weather. (Self-correction: The model <em>must</em> call the tool in the correct format if it needs external information.)call:get_weather{city:Bangkok}</td>
+</tr>
+<tr>
+<td>E4B</td>
+<td>'1. <strong>Analyze the Request:</strong> The user has provided an image and asked two things:\n    a. Identify the city in the image.\n    b. Check the weather in that city right now.\n\n2. <strong>Analyze the Image:</strong> The image shows a very distinctive, ornate tower/spire structure, characteristic of Thai architecture (specifically, a chedi or prang).\n\n3. <strong>Determine City Identification (Internal Knowledge/Visual Recognition):</strong> Based on the architectural style, the structure strongly resembles prominent temples in Thailand, such as Wat Arun in Bangkok.\n\n4. <strong>Evaluate Tool Availability:</strong> I have one available tool: <code>get_weather(city: STRING)</code>. This tool requires a city name as input.\n\n5. **Formulate a Plan:**\n    a. I need the city name to use the <code>get_weather</code> tool.\n    b. I must first identify the city from the image.\n    c. Since my internal knowledge suggests Bangkok, I will proceed with that assumption, but I must acknowledge that I cannot <em>definitively</em> prove the location from the image alone.\n\n6. <strong>Execute Step 1 (City Identification):</strong> Assume the city is Bangkok based on the visual evidence of the architecture.\n\n7. <strong>Execute Step 2 (Tool Call Generation):</strong> Use the <code>get_weather</code> tool with "Bangkok" as the <code>city</code> argument.\n\n8. <strong>Construct the Response:</strong> Generate the appropriate tool call in JSON format.', 'answer': '&lt;|tool_call&gt;call:get_weather{city:&lt;|"|&gt;Bangkok&lt;|"|&gt;}&lt;tool_call|&gt;'</td>
+</tr>
+<tr>
+<td>31B</td>
+<td>The user wants to know the city in the image and the current weather there. 1.  <strong>Analyze the image:</strong> The image shows ornate, spire-like structures (prangs) characteristic of Thai temple architecture. Specifically, these look like the prangs at Wat Phra Kaew (Temple of the Emerald Buddha) or Wat Pho in Bangkok, Thailand. The style is very distinctive of Bangkok's royal temple complexes. 2.  <strong>Identify the city:</strong> Based on the architectural style, the city is Bangkok. 3.  <strong>Find the weather:</strong> I need to call the <code>get_weather</code> tool with <code>city="Bangkok"</code>.call:get_weather{city:Bangkok}</td>
+</tr>
+<tr>
+<td>26/A4B</td>
+<td>The image shows several tall, ornate towers (prangs) typical of Thai Buddhist temple architecture. Specifically, these look like the structures within the Grand Palace or Wat Phra Kaew in Bangkok, Thailand. The style is unmistakably Thai. I'll confirm this by looking at the specific towers. These are very iconic.\n2.  <strong>Confirm the location:</strong> The image shows elements of the Grand Palace complex in Bangkok.\n3.  <strong>Get weather information:</strong> Once the city is identified as Bangkok, I will use the <code>get_weather</code> tool with <code>city='Bangkok'</code>.call:get_weather{city:Bangkok}</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="deploy-anywhere" href="#deploy-anywhere" rel="nofollow">
+		
+	</a>
+	<span>
+		Deploy Anywhere
+	</span>
+</h2>
+<p>Gemma 4 comes with day-0 support for many open-source inference engines, and is ideal for tool calling and agents! We also release ONNX checkpoints that can run on many hardware backends, allowing use cases on edge devices or in browser!</p>
+<h2>
+	<a id="transformers" href="#transformers" rel="nofollow">
+		
+	</a>
+	<span>
+		transformers
+	</span>
+</h2>
+<p>Gemma 4 comes with first-class transformers support from the get-go 🤗. This integration allows using the model with other libraries like bitsandbytes, PEFT and TRL. Make sure to install the latest version of transformers.</p>
+<pre><code data-language="bash">pip install -U transformers
+</code></pre>
+<p>The easiest way to infer with the small Gemma 4 models is through the <code>any-to-any</code> pipeline. You can initialize it as follows.</p>
+<pre><code data-language="py">from transformers import pipeline
+pipe = pipeline("any-to-any", model="google/gemma-4-e2b-it")
+</code></pre>
+<p>You can then pass in images and text as follows.</p>
+<pre><code data-language="python">messages = [
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "image",
+                "image": "https://huggingface.co/datasets/merve/vlm_test_images/resolve/main/thailand.jpg",
+            },
+            {"type": "text", "text": "Do you have travel advice going to here?"},
+        ],
+    }
+]
+output = pipe(messages, max_new_tokens=100, return_full_text=False)
+output[0]["generated_text"]
+# Based on the image, which appears to show a magnificent, ornate **Buddhist temple or pagoda**, likely in Southeast Asia (such as Thailand, Myanmar, or Cambodia), here is some general travel advice..
+</code></pre>
+<p>When inferring with videos, you can include the audio track using the <code>load_audio_from_video</code> argument.</p>
+<pre><code data-language="python">messages = [
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "video",
+                "image": "https://huggingface.co/datasets/merve/vlm_test_images/resolve/main/rockets.mp4",
+            },
+            {"type": "text", "text": "What is happening in this video?"},
+        ],
+    }
+]
+pipe(messages, load_audio_from_video=True)
+</code></pre>
+<p>Going a level lower, you can load Gemma 4 using the <code>AutoModelForMultimodalLM</code> class, especially useful for fine-tuning. The built-in chat template takes care of formatting the inputs correctly, please make sure you use it to prevent subtle mistakes when building the prompt manually.</p>
+<details>
+<summary>Inference code</summary>
+
+<pre><code data-language="python">from transformers import AutoModelForMultimodalLM, AutoProcessor
+model = AutoModelForMultimodalLM.from_pretrained("google/gemma-4-E2B-it", device_map="auto")
+processor = AutoProcessor.from_pretrained("google/gemma-4-E2B-it")
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "video",
+                "image": "https://huggingface.co/datasets/merve/vlm_test_images/resolve/main/rockets.mp4",
+            },
+            {"type": "text", "text": "What is happening in this video?"},
+        ],
+    }
+]
+inputs = processor.apply_chat_template(
+    messages,
+    tokenize=True,
+    add_generation_prompt=True,
+    return_dict=True,
+    return_tensors="pt"
+).to(model.device)
+
+generated_ids = model.generate(**inputs, max_new_tokens=128)
+generated_ids_trimmed = [
+    out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+]
+output_text = processor.batch_decode(
+    generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+)
+print(output_text)
+</code></pre>
+</details>
+
+<h2>
+	<a id="llamacpp" href="#llamacpp" rel="nofollow">
+		
+	</a>
+	<span>
+		Llama.cpp
+	</span>
+</h2>
+<p>Gemma 4 models come with image+text support in llama.cpp from the get-go! This unlocks using Gemma 4 with all of your favorite local apps: llama-cpp server, lmstudio, Jan as well as coding agents like Pi across many backends such as Metal and CUDA.</p>
+<p>You can install llama-cpp as follows.</p>
+<pre><code data-language="bash">curl -LsSf https://llama.app/install.sh | sh
+</code></pre>
+<p>You can then start a server compatible with the OpenAI API Replace the quantization scheme at the end of the command with the precision of your choice.</p>
+<pre><code data-language="bash">llama serve -hf ggml-org/gemma-4-E2B-it-GGUF
+</code></pre>
+<p>Check out this link <a href="https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF?local-app=llama.cpp">for more</a> options on combining llama.cpp with different coding agents and local apps. Find all the GGUF checkpoints <a href="https://huggingface.co/collections/ggml-org/gemma-4">in this collection</a>.</p>
+<h2>
+	<a id="plug-in-your-local-agent" href="#plug-in-your-local-agent" rel="nofollow">
+		
+	</a>
+	<span>
+		Plug in your local agent
+	</span>
+</h2>
+<p>We worked on making sure the new models work locally with agents like <strong>openclaw, hermes, pi, and open code</strong>. All thanks to llama.cpp! Run the following to try Gemma 4 right away.</p>
+<p>First, start your local server:</p>
+<pre><code>llama serve -hf ggml-org/gemma-4-26b-a4b-it-GGUF:Q4_K_M
+</code></pre>
+<p>For <strong>hermes:</strong></p>
+<pre><code data-language="shell">hermes model
+</code></pre>
+<p>For <strong>openclaw:</strong></p>
+<pre><code data-language="shell">openclaw onboard
+</code></pre>
+<p>For <strong>pi</strong> define a <code>~/.pi/agent/models.json</code>:</p>
+<pre><code data-language="json">{
+  "providers": {
+    "llama-cpp": {
+      "baseUrl": "http://localhost:8080/v1",	
+      "api": "openai-completions",
+      "apiKey": "none",
+      "models": [
+        {
+          "id": "ggml-org-gemma-4-26b-4b-gguf"
+        }
+      ]
+    }
+  }
+}
+</code></pre>
+<p>For <strong>open code</strong> define a <code>~/.config/opencode/opencode.json</code>:</p>
+<pre><code data-language="json">{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "llama.cpp": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "llama server (local)",
+      "options": {
+        "baseURL": "http://127.0.0.1:8080/v1"
+      },
+      "models": {
+        "gemma-4-26b-4b-it": {
+          "name": "Gemma 4 (local)",
+          "limit": {
+            "context": 128000,
+            "output": 8192
+          }
+        }
+      }
+    }
+  }
+}
+</code></pre>
+<h2>
+	<a id="transformersjs" href="#transformersjs" rel="nofollow">
+		
+	</a>
+	<span>
+		transformers.js
+	</span>
+</h2>
+<p>transformers.js enables running Gemma 4 right inside browser. You can check out the model card to see text-only, image &amp; text, audio &amp; text inference in detail <a href="https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX#transformersjs-javascript">here</a>. We also shipped a demo for you to test the model <a href="https://huggingface.co/spaces/webml-community/Gemma-4-WebGPU">here</a>.</p>
+<h2>
+	<a id="mlx" href="#mlx" rel="nofollow">
+		
+	</a>
+	<span>
+		MLX
+	</span>
+</h2>
+<p>Full multimodal support of Gemma 4 is available using the open-source <a href="https://github.com/Blaizzy/mlx-vlm" rel="nofollow"><code>mlx-vlm</code> library</a>. Here's how to ask the model to describe an image:</p>
+<pre><code data-language="shell">pip install -U mlx-vlm
+</code></pre>
+<pre><code data-language="shell">mlx_vlm.generate \
+--model google/gemma-4-E4B-it \
+--image https://huggingface.co/datasets/huggingface/documentation-images/resolve/0052a70beed5bf71b92610a43a52df6d286cd5f3/diffusers/rabbit.jpg \
+--prompt "Describe this image in detail"
+</code></pre>
+<p>mlx-vlm supports TurboQuant, which delivers the same accuracy as the uncompressed baseline while using ~4x less active memory and running a lot faster end-to-end. This makes long-context inference practical on Apple Silicon without sacrificing quality. Use it like this:</p>
+<pre><code data-language="shell">mlx_vlm.generate \
+--model "mlx-community/gemma-4-26b-a4b-it-4bit" \
+--prompt "Your prompt here" \
+--kv-bits 3.5 \
+--kv-quant-scheme turboquant
+</code></pre>
+<p>For audio examples and more details, please check <a href="https://huggingface.co/collections/mlx-community/gemma-4">the MLX collection</a>.</p>
+<h3>
+	<a id="mistralrs" href="#mistralrs" rel="nofollow">
+		
+	</a>
+	<span>
+		Mistral.rs
+	</span>
+</h3>
+<p><a href="https://github.com/EricLBuehler/mistral.rs" rel="nofollow">mistral.rs</a> is a Rust-native inference engine with day-0 Gemma 4 support across all modalities (text, image, video, audio) and builtin tool-calling and agentic functionality. Install mistral.rs:</p>
+<pre><code data-language="bash">curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/EricLBuehler/mistral.rs/master/install.sh | sh # Linux/macOS
+
+irm https://raw.githubusercontent.com/EricLBuehler/mistral.rs/master/install.ps1 | iex # Windows
+</code></pre>
+<p>You can then start an OpenAI-compatible HTTP server:</p>
+<pre><code data-language="bash">mistralrs serve mistralrs-community/gemma-4-E4B-it-UQFF --from-uqff 8
+</code></pre>
+<p>Or, use interactive mode:</p>
+<pre><code>mistralrs run -m google/gemma-4-E4B-it --isq 8 --image image.png -i "Describe this image in detail."
+
+mistralrs run -m google/gemma-4-E4B-it --isq 8 --audio audio.mp3 -i "Transcribe this fully."
+</code></pre>
+<p>Find all models <a href="https://huggingface.co/mistralrs-community/models">here</a>. Please, follow <a href="https://huggingface.co/mistralrs-community/gemma-4-E2B-it-UQFF#install">the instructions</a> in the model cards for installation and inference guidelines.</p>
+<h2>
+	<a id="multi-token-prediction-drafters" href="#multi-token-prediction-drafters" rel="nofollow">
+		
+	</a>
+	<span>
+		Multi-Token Prediction Drafters
+	</span>
+</h2>
+<p>Google has released Multi-Token Prediction (MTP) drafters for the Gemma 4 family: small <em>assistant</em> models that accelerate inference via speculative decoding. The drafter proposes several future tokens at once, and the target model verifies them in a single forward pass. You get the same outputs as the target model, just faster — no quality loss, no changes to reasoning behaviour. Reported end-to-end speedups go up to ~3x depending on hardware, batch size, and workload.</p>
+<p>Assistants are available for all four Gemma 4 sizes (E2B, E4B, 26B A4B, 31B). They share the KV cache with the target model to avoid recomputing context, and the smaller edge variants additionally use an embedder clustering trick to keep memory and compute low on-device.</p>
+<p>Find the checkpoints in the <a href="https://huggingface.co/collections/google/gemma-4">Gemma 4 collection</a> and the <a href="https://huggingface.co/collections/mlx-community/gemma-4-assistant-mtp">mlx-community collection</a>.</p>
+<h2>
+	<a id="diffusiongemma-text-generation-via-diffusion" href="#diffusiongemma-text-generation-via-diffusion" rel="nofollow">
+		
+	</a>
+	<span>
+		DiffusionGemma: Text Generation via Diffusion
+	</span>
+</h2>
+<p>Alongside the autoregressive Gemma 4 family, Google DeepMind is releasing <a href="https://huggingface.co/google/diffusiongemma-26B-A4B-it"><strong>DiffusionGemma</strong></a>, a multimodal model that generates text using <strong>discrete diffusion</strong> instead of token-by-token autoregression. It's built on the same 26B A4B Mixture-of-Experts foundation (25.2B total / 3.8B active parameters, 8 active experts out of 128 plus 1 shared), takes text and image inputs, generates text, and supports up to 256K context — all under the same Apache 2.0 license.</p>
+<p>Where a standard causal LM emits one token at a time, DiffusionGemma denoises whole blocks of tokens in parallel. The architecture is encoder-decoder: an autoregressive encoder prefills the prompt and builds the KV cache, while a decoder applies <strong>bidirectional attention</strong> over a "canvas" of 256 tokens. During <strong>multi-canvas sampling</strong>, the model iteratively denoises a full canvas with a diffusion sampler; once a canvas is finalized it's encoded and appended to the KV cache, then the next canvas begins. This block-autoregressive approach increases generation speed.</p>
+<p>The headline benefit is <strong>throughput</strong>: parallel denoising generates roughly 15–20 tokens per forward pass, reaching per-user generation speeds <strong>exceeding 1100 tokens/second</strong> at low batch sizes (H100, FP8). Inference compute is adaptive too — simpler prompts and structured tasks like code need fewer denoising steps, so tokens-per-second scales with task complexity. It keeps the broader Gemma 4 toolkit: thinking mode, function calling, long context, native system prompts, and image understanding (OCR, document parsing, object detection, pointing) at variable aspect ratios and resolutions.</p>
+<p>Benchmarks show an expected trade-off between speed and evaluation metrics — DiffusionGemma trails the autoregressive 26B A4B on most tasks (e.g. MMLU Pro 77.6% vs 82.6%, AIME 2026 69.1% vs 88.3%, GPQA Diamond 73.2% vs 82.3%) in exchange for its large speed advantage, while edging ahead on a few (HLE no tools 11.0% vs 8.7%).</p>
+<p>Getting started looks just like the rest of Gemma 4, via the dedicated diffusion class:</p>
+<pre><code data-language="python">from transformers import DiffusionGemmaForBlockDiffusion, AutoProcessor
+
+MODEL_ID = "google/diffusiongemma-26B-A4B-it"
+
+processor = AutoProcessor.from_pretrained(MODEL_ID)
+model = DiffusionGemmaForBlockDiffusion.from_pretrained(
+    MODEL_ID,
+    dtype="auto",
+    device_map="auto",
+)
+
+message = [{"role": "user", "content": "Why is the sky blue?"}]
+input_ids = processor.apply_chat_template(
+    message,
+    tokenize=True,
+    add_generation_prompt=True,
+    return_dict=True,
+    return_tensors="pt",
+).to(model.device)
+output = model.generate(**input_ids, max_new_tokens=512)
+text = processor.decode(output[0], skip_special_tokens=False)
+</code></pre>
+<p>For best results, Google recommends the <strong>Entropy-Bounded (EB) sampler</strong> with adaptive stopping (up to 48 denoising steps, a temperature schedule decaying from 0.8 → 0.4, and an entropy bound of 0.1 for token selection). As with Gemma 4, place image content <strong>before</strong> text in your prompt, and toggle reasoning with the <code>&lt;|think|&gt;</code> control token.</p>
+<h2>
+	<a id="fine-tuning-for-all" href="#fine-tuning-for-all" rel="nofollow">
+		
+	</a>
+	<span>
+		Fine-tuning for all
+	</span>
+</h2>
+<p>Gemma 4 models are ideal for fine-tuning in your favorite tools and platforms and at any budget.</p>
+<h2>
+	<a id="fine-tuning-with-trl" href="#fine-tuning-with-trl" rel="nofollow">
+		
+	</a>
+	<span>
+		Fine-tuning with TRL
+	</span>
+</h2>
+<p>Gemma 4 is fully supported for fine-tuning with TRL. To celebrate, TRL has been upgraded with support for multimodal tool responses when interacting with environments, meaning models can now receive images back from tools during training, not just text.</p>
+<p>To showcase this, we've built an example training script where Gemma 4 learns to drive in the CARLA simulator. The model sees the road through a camera, decides what to do and learns from the outcome. After training, it consistently changes lanes to avoid pedestrians. The same approach works for any task where a model needs to see and act: robotics, web browsing, or other interactive environments.</p>
+<p>Get started:</p>
+<pre><code data-language="shell"># pip install git+https://github.com/huggingface/trl.git
+
+python examples/grpo_carla/carla_vlm_gemma.py \
+    --env-urls https://sergiopaniego-carla-env.hf.space \
+            https://sergiopaniego-carla-env-2.hf.space \
+    --model google/gemma-4-E2B-it
+</code></pre>
+<p>Find the example <a href="https://github.com/huggingface/huggingface-gemma-recipes/blob/main/scripts/carla_vlm_gemma.py" rel="nofollow">here</a>.</p>
+<h3>
+	<a id="fine-tuning-with-trl-on-vertex-ai" href="#fine-tuning-with-trl-on-vertex-ai" rel="nofollow">
+		
+	</a>
+	<span>
+		Fine-tuning with TRL on Vertex AI
+	</span>
+</h3>
+<p>Additionally, we have prepared an example on how to fine-tune Gemma 4 with TRL on Vertex AI using SFT, to showcase how to extend the function calling capabilities, whilst freezing both the vision and audio towers. The examples include how to build a custom Docker container with latest Transformers, TRL, etc. with CUDA support on Google Cloud, and how to run it via Vertex AI Serverless Training Jobs.</p>
+<pre><code data-language="python"># pip install google-cloud-aiplatform --upgrade --quiet
+from google.cloud import aiplatform
+
+aiplatform.init(
+    project="&lt;PROJECT_ID&gt;",
+    location="&lt;LOCATION&gt;",
+    staging_bucket="&lt;BUCKET_URI&gt;",
+)
+
+job = aiplatform.CustomContainerTrainingJob(
+    display_name="gemma-4-fine-tuning",
+    container_uri="&lt;CONTAINER_URI&gt;",
+    command=["python", "/gcs/gemma-4-fine-tuning/train.py"],
+)
+
+job = job.submit(
+    replica_count=1,
+    machine_type="a3-highgpu-1g",
+    accelerator_type="NVIDIA_H100_80GB",
+    accelerator_count=1,
+    base_output_dir="&lt;BUCKET_URI&gt;/output-dir",
+    environment_variables={
+        "MODEL_ID": "google/gemma-4-E2B-it",
+        "HF_TOKEN": &lt;HF_TOKEN&gt;,
+    },
+    boot_disk_size_gb=500,
+)
+</code></pre>
+<p>You can find the complete example in the "Hugging Face on Google Cloud" docs at <a href="https://hf.co/docs/google-cloud/examples/vertex-ai-notebooks-fine-tune-gemma-4" rel="nofollow">https://hf.co/docs/google-cloud/examples/vertex-ai-notebooks-fine-tune-gemma-4</a>.</p>
+<h2>
+	<a id="fine-tuning-with-unsloth-studio" href="#fine-tuning-with-unsloth-studio" rel="nofollow">
+		
+	</a>
+	<span>
+		Fine-tuning with Unsloth Studio
+	</span>
+</h2>
+<p>If you want to fine tune and run a Gemma 4 model in a UI, try out <a href="https://unsloth.ai/docs/new/studio" rel="nofollow">Unsloth Studio</a>. It runs locally or on Google Colab. First, install and start the app:</p>
+<pre><code data-language="shell"># install unsloth studio on MacOS, Linux, WSL
+curl -fsSL https://unsloth.ai/install.sh | sh
+
+# install unsloth studio on Windows
+irm https://unsloth.ai/install.ps1 | iex
+
+# launch unsloth studio
+unsloth studio -H 0.0.0.0 -p 8888
+# Search for for a Gemma 4 model like google/gemma-4-E2B-it
+</code></pre>
+<p>Then select any of the Gemma 4 models from the hub.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/gemma4/unsloth.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/gemma4/unsloth.png" alt="Unsloth Studio"></a></p>
+<h2>
+	<a id="try-gemma-4" href="#try-gemma-4" rel="nofollow">
+		
+	</a>
+	<span>
+		Try Gemma 4
+	</span>
+</h2>
+<p>We have shipped demos for you to try different Gemma 4 models. We include demos based on the transformers implementation for <a href="https://huggingface.co/spaces/huggingface-projects/gemma-4-e4b-it">E4B</a>, <a href="https://huggingface.co/spaces/huggingface-projects/gemma-4-12b-it">12B Unified</a>, <a href="https://huggingface.co/spaces/huggingface-projects/gemma-4-26b-a4b-it">26B/A4B MoE</a>, and <a href="https://huggingface.co/spaces/huggingface-projects/gemma-4-31b-it">31B dense</a> models. There's also a <a href="https://huggingface.co/spaces/webml-community/Gemma-4-WebGPU">WebGPU</a> demo with transformers.js 🚀</p>
+
+
+<h2>
+	<a id="benchmark-results" href="#benchmark-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Benchmark Results
+	</span>
+</h2>
+<p>Gemma 4 models demonstrate exceptional performance across diverse benchmarks, from reasoning and coding to vision and long-context tasks. The graph below shows model performance vs size, with Gemma 4 models forming an impressive Pareto frontier:</p>
+
+
+<p>Source: Google (<a href="https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/" rel="nofollow">blog.google</a>)</p>
+
+<p>Here are detailed benchmark results for the instruction-tuned models:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Benchmark</th>
+<th>Gemma 4 31B</th>
+<th>Gemma 4 26B A4B</th>
+<th>Gemma 4 12B Unified</th>
+<th>Gemma 4 E4B</th>
+<th>Gemma 4 E2B</th>
+<th>Gemma 3 27B (no think)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Reasoning &amp; Knowledge</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>MMLU Pro</td>
+<td><a href="https://huggingface.co/datasets/TIGER-Lab/MMLU-Pro?eval_result=google/gemma-4-31B-it">85.2%</a></td>
+<td><a href="https://huggingface.co/datasets/TIGER-Lab/MMLU-Pro?eval_result=google/gemma-4-26B-A4B-it">82.6%</a></td>
+<td>77.2%</td>
+<td><a href="https://huggingface.co/datasets/TIGER-Lab/MMLU-Pro?eval_result=google/gemma-4-E4B-it">69.4%</a></td>
+<td><a href="https://huggingface.co/datasets/TIGER-Lab/MMLU-Pro?eval_result=google/gemma-4-E2B-it">60.0%</a></td>
+<td>67.6%</td>
+</tr>
+<tr>
+<td>AIME 2026 no tools</td>
+<td><a href="https://huggingface.co/datasets/MathArena/aime_2026?eval_result=google/gemma-4-31B-it">89.2%</a></td>
+<td><a href="https://huggingface.co/datasets/MathArena/aime_2026?eval_result=google/gemma-4-26B-A4B-it">88.3%</a></td>
+<td>77.5%</td>
+<td><a href="https://huggingface.co/datasets/MathArena/aime_2026?eval_result=google/gemma-4-E4B-it">42.5%</a></td>
+<td><a href="https://huggingface.co/datasets/MathArena/aime_2026?eval_result=google/gemma-4-E2B-it">37.5%</a></td>
+<td>20.8%</td>
+</tr>
+<tr>
+<td>GPQA Diamond</td>
+<td><a href="https://huggingface.co/datasets/Idavidrein/gpqa?eval_result=google/gemma-4-31B-it">84.3%</a></td>
+<td><a href="https://huggingface.co/datasets/Idavidrein/gpqa?eval_result=google/gemma-4-26B-A4B-it">82.3%</a></td>
+<td>78.8%</td>
+<td><a href="https://huggingface.co/datasets/Idavidrein/gpqa?eval_result=google/gemma-4-E4B-it">58.6%</a></td>
+<td><a href="https://huggingface.co/datasets/Idavidrein/gpqa?eval_result=google/gemma-4-E2B-it">43.4%</a></td>
+<td>42.4%</td>
+</tr>
+<tr>
+<td>Tau2 (average over 3)</td>
+<td>76.9%</td>
+<td>68.2%</td>
+<td>69.0%</td>
+<td>42.2%</td>
+<td>24.5%</td>
+<td>16.2%</td>
+</tr>
+<tr>
+<td>BigBench Extra Hard</td>
+<td>74.4%</td>
+<td>64.8%</td>
+<td>53.0%</td>
+<td>33.1%</td>
+<td>21.9%</td>
+<td>19.3%</td>
+</tr>
+<tr>
+<td>MMMLU</td>
+<td>88.4%</td>
+<td>86.3%</td>
+<td>83.4%</td>
+<td>76.6%</td>
+<td>67.4%</td>
+<td>70.7%</td>
+</tr>
+<tr>
+<td><strong>Coding</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>LiveCodeBench v6</td>
+<td>80.0%</td>
+<td>77.1%</td>
+<td>72.0%</td>
+<td>52.0%</td>
+<td>44.0%</td>
+<td>29.1%</td>
+</tr>
+<tr>
+<td>Codeforces ELO</td>
+<td>2150</td>
+<td>1718</td>
+<td>1659</td>
+<td>940</td>
+<td>633</td>
+<td>110</td>
+</tr>
+<tr>
+<td>HLE no tools</td>
+<td><a href="https://huggingface.co/datasets/cais/hle?eval_result=google/gemma-4-31B-it">19.5%</a></td>
+<td><a href="https://huggingface.co/datasets/cais/hle?eval_result=google/gemma-4-26B-A4B-it">8.7%</a></td>
+<td>5.2%</td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>HLE with search</td>
+<td><a href="https://huggingface.co/datasets/cais/hle?eval_result=google/gemma-4-31B-it">26.5%</a></td>
+<td><a href="https://huggingface.co/datasets/cais/hle?eval_result=google/gemma-4-26B-A4B-it">17.2%</a></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>Vision</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>MMMU Pro</td>
+<td>76.9%</td>
+<td>73.8%</td>
+<td>69.1%</td>
+<td>52.6%</td>
+<td>44.2%</td>
+<td>49.7%</td>
+</tr>
+<tr>
+<td>OmniDocBench 1.5 (edit distance)</td>
+<td>0.131</td>
+<td>0.149</td>
+<td>0.164</td>
+<td>0.181</td>
+<td>0.290</td>
+<td>0.365</td>
+</tr>
+<tr>
+<td>MATH-Vision</td>
+<td>85.6%</td>
+<td>82.4%</td>
+<td>79.7%</td>
+<td>59.5%</td>
+<td>52.4%</td>
+<td>46.0%</td>
+</tr>
+<tr>
+<td>MedXPertQA MM</td>
+<td>61.3%</td>
+<td>58.1%</td>
+<td>48.7%</td>
+<td>28.7%</td>
+<td>23.5%</td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>Audio</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>CoVoST</td>
+<td>-</td>
+<td>-</td>
+<td>38.5<sup>*</sup></td>
+<td>35.54</td>
+<td>33.47</td>
+<td>-</td>
+</tr>
+<tr>
+<td>FLEURS (lower is better)</td>
+<td>-</td>
+<td>-</td>
+<td>0.069<sup>*</sup></td>
+<td>0.08</td>
+<td>0.09</td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>Long Context</strong></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>MRCR v2 8 needle 128k (average)</td>
+<td>66.4%</td>
+<td>44.1%</td>
+<td>43.4%</td>
+<td>25.4%</td>
+<td>19.1%</td>
+<td>13.5%</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><sup>*</sup>Excluding Chinese language.</p>
+<h2>
+	<a id="acknowledgements" href="#acknowledgements" rel="nofollow">
+		
+	</a>
+	<span>
+		Acknowledgements
+	</span>
+</h2>
+<p>This work wouldn't have been possible without Google's extensive contribution with the model artefact, but also the significant effort contributing the model to transformers in an effort to standardize it. The open-source ecosystem is now more complete, with a very capable, freely-licensed, open-source model.
+The Gemma 4 transformers integration was handled by Cyril, Raushan, Eustache, Arthur, Lysandre. We thank Joshua for the transformers.js integration and demo, Eric for mistral.rs integration, Son for Llama.cpp, Prince for MLX, Quentin, Albert and Kashif for TRL, Adarsh for SGLang transformers backend, and Toshihiro for building several demos.</p>
+</div></div>

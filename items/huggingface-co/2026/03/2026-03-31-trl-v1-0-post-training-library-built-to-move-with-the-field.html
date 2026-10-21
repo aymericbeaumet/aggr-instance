@@ -1,0 +1,482 @@
+<div id="readability-page-1" class="page"><div> 
+<p>We’re releasing TRL v1.0, and it marks a real shift in what TRL is. What started as a research codebase has become a dependable library people build on, with clearer expectations around stability.
+This isn't just a version bump. It reflects the reality that TRL now powers production systems, and embraces that responsibility.</p>
+<p>TRL now implements <a href="https://huggingface.co/docs/trl/en/paper_index">more than 75 post-training methods</a>. But coverage isn’t the goal by itself. What matters is making these methods easy to try, compare, and actually use in practice.
+The design of the library wasn’t decided upfront. It is the result of years of iteration — the first commit goes back more than six years — and it has been shaped by everything the field threw at it: new algorithms, new models, shifting paradigms. Over time, this pressure forced the codebase toward a very specific design. Parts of it might look unusual at first, but like in many evolutionary codebases, they exist for a reason.</p>
+<p>TRL is built for a field that doesn’t sit still. So the question is not how to design the perfect abstraction. It is how to make stable software in a domain that keeps invalidating its own assumptions. This is what we tried to solve in TRL v1.0, and this post explains how.</p>
+<h2>
+	<a id="1-a-moving-target-post-training-as-a-shifting-field" href="#1-a-moving-target-post-training-as-a-shifting-field" rel="nofollow">
+		
+	</a>
+	<span>
+		1. A moving target: post-training as a shifting field
+	</span>
+</h2>
+<p>Post-training has not evolved as a smooth refinement of one recipe. It has moved through successive centers of gravity, each changing not just the objective, but the shape of the stack.</p>
+<p>PPO [<a href="https://huggingface.co/papers/1707.06347">Schulman et al., (2017)</a>; <a href="https://huggingface.co/papers/1909.08593">Ziegler et al., (2019)</a>] made one architecture look canonical: a policy, a reference model, a learned reward model, sampled rollouts, and an RL loop.</p>
+<p>Then DPO-style methods such as the original DPO [<a href="https://huggingface.co/papers/2305.18290">Rafailov et al., (2023)</a>], ORPO [<a href="https://huggingface.co/papers/2403.07691">Hong et al., (2024)</a>], and KTO [<a href="https://huggingface.co/papers/2402.01306">Ethayarajh et al., (2024)</a>] cut through that stack: preference optimization could work without a separate reward model, value model, or any online RL. Components that had looked fundamental suddenly looked optional.</p>
+<p>RLVR-style methods such as GRPO [<a href="https://huggingface.co/papers/2402.03300">Shao et al., (2024)</a>] shifted the center again. On tasks like math, code, and tool use, rewards often come from verifiers or deterministic checks rather than learned reward models. Sampling and rollouts matter again, but the objects in the loop are no longer quite the ones PPO libraries were designed around.</p>
+<p>The lesson is not just that methods change. The definition of the core keeps changing with them. Strong assumptions here have a short half-life. This is probably why no post-training library is really stable yet.</p>
+<h2>
+	<a id="2-from-project-to-library-trl-has-a-chaos-adaptive-design" href="#2-from-project-to-library-trl-has-a-chaos-adaptive-design" rel="nofollow">
+		
+	</a>
+	<span>
+		2. From project to library: TRL has a chaos-adaptive design
+	</span>
+</h2>
+<p>So what does it mean to build a library for a field that won't sit still? The answer is counterintuitive: don't try to capture the essence of what's stable today. Instead, design around what could change. <em>Reward models</em> illustrate why: they looked essential in PPO, became optional in DPO, and came back as <em>verifiers</em> in RLVR methods — structures that could be deterministic functions rather than learned models. Any abstraction built around their original form would have been obsolete twice over by now. The library survives by recognizing that strong assumptions have a short life, and by making that changeability central to how the codebase is organized.</p>
+<p>This is the environment in which TRL is downloaded 3 million times a month, and in which major downstream projects treat it as stable infrastructure. The field keeps shifting the ground, and at the same time, those users need things not to break.</p>
+
+
+<h3>
+	<a id="a-shift-in-nature-from-code-to-contract" href="#a-shift-in-nature-from-code-to-contract" rel="nofollow">
+		
+	</a>
+	<span>
+		A shift in nature: from code to contract
+	</span>
+</h3>
+<p>TRL didn’t make a deliberate decision to become a library. It found out it already was one. Projects like <a href="https://github.com/unslothai/unsloth" rel="nofollow">Unsloth</a> and <a href="https://github.com/axolotl-ai-cloud/axolotl" rel="nofollow">Axolotl</a> — with thousands of users between them — had built directly on top of TRL’s trainers and APIs. A breaking change in TRL propagated instantly into their stacks. A renamed argument, a shifted default, a restructured output — any of these became someone else’s incident. The shift had already happened. v1.0 is the moment TRL acknowledged it explicitly.</p>
+<h3>
+	<a id="stable-and-experimental-under-the-same-roof" href="#stable-and-experimental-under-the-same-roof" rel="nofollow">
+		
+	</a>
+	<span>
+		Stable and experimental, under the same roof
+	</span>
+</h3>
+<p>The unusual thing about TRL’s stability model is not what it guarantees, it is what it tolerates alongside those guarantees. Stable and experimental coexist within the same package, with explicitly different contracts. The stable core follows semantic versioning. The experimental layer makes no such promises — it is where new methods land while they are still being evaluated, and where the API can move fast to keep up with the field.</p>
+<p>This isn’t a compromise. It’s a response to a specific constraint: the field produces new methods faster than any of them can earn stability. Refusing to add immature methods would make TRL irrelevant within months. Adding them all to stable would break every downstream project every time an algorithm turned out not to work as expected.</p>
+<pre><code data-language="python">from trl import SFTTrainer  # ⚖️ stable
+from trl.experimental.orpo import ORPOTrainer  # 🧪 experimental
+</code></pre>
+<p>Promotion from experimental to stable isn’t automatic. What matters is the ratio between maintenance cost and actual usage. Some methods earn their place because the community uses them heavily. Others become viable because we can make them cheap enough to maintain — and the design of the codebase is what makes that possible.</p>
+<p>In practice, the <strong>stable</strong> surface includes trainers for SFT, DPO, Reward modeling, RLOO, and GRPO, along with their close variants. The <strong>experimental</strong> surface is broader and moves faster; for an up-to-date view, the best reference is the <a href="https://huggingface.co/docs/trl">TRL documentation</a>.</p>
+<p>The breaking changes needed to reach v1.0 were distributed deliberately across the 0.x releases. Migration from the last 0.x version is minimal — see the <a href="https://github.com/huggingface/trl/blob/main/MIGRATION.md" rel="nofollow">migration guide</a>.</p>
+<h3>
+	<a id="deliberately-limiting-abstractions" href="#deliberately-limiting-abstractions" rel="nofollow">
+		
+	</a>
+	<span>
+		Deliberately limiting abstractions
+	</span>
+</h3>
+<p>In a domain where patterns keep changing, the temptation is to build flexible abstractions that can accommodate anything. Our answer was the opposite: <strong>limit abstractions to the strict minimum — while recognizing that this “minimum” is almost always overestimated</strong>.</p>
+<p>In practice, this translates into a very local approach to code:</p>
+<ul>
+<li>avoid generic class hierarchies</li>
+<li>favor explicit implementations</li>
+<li>accept, and even encourage, duplication</li>
+</ul>
+<p>The goal is not to eliminate structure altogether — shared utilities still exist — but to avoid imposing abstractions where the domain itself is not yet stable. For instance, rather than defining a common base class for offline trainers, we prefer independent implementations when their future evolution is uncertain.</p>
+<pre><code data-language="python"># ❌ No
+class OfflineTrainer(Trainer):
+    def some_common_method(self): ...
+
+class DPOTrainer(OfflineTrainer): ...
+
+class KTOTrainer(OfflineTrainer): ...
+
+# ✅ Better
+class DPOTrainer(Trainer):
+    def some_common_method(self): ...
+
+class KTOTrainer(Trainer):
+    def some_common_method(self): ...
+</code></pre>
+<p>Another example:</p>
+<pre><code data-language="python"># ❌ No
+# collator.py
+class TRLCollator: ...
+
+# dpo_trainer.py
+class DPOTrainer:
+    def __init__(self, ...):
+        self.collator = TRLCollator(...)
+
+# kto_trainer.py
+class KTOTrainer:
+    def __init__(self, ...):
+        self.collator = TRLCollator(...)
+
+# ✅ Better
+# dpo_trainer.py
+class DataCollatorForPreference: ...
+
+class DPOTrainer:
+    def __init__(self, ...):
+        self.collator = DataCollatorForPreference(...)
+
+# kto_trainer.py
+class DataCollatorForUnpairedPreference: ...
+
+class KTOTrainer:
+    def __init__(self, ...):
+        self.collator = DataCollatorForUnpairedPreference(...)
+</code></pre>
+<p><a href="https://github.com/huggingface/trl/blob/main/trl/experimental/judges/judges.py" rel="nofollow">Judges</a> are a good example of what happens when we don’t follow this principle. Early on, we introduced a <code>Judge</code> abstraction to unify the various ways of evaluating model outputs. It looked reasonable at the time. In practice, it was never really used — the abstraction didn’t match how people actually approached evaluation, and it added indirection without adding value. It still lives in the repo, mostly as legacy. In hindsight, shipping the concrete implementations without the unifying abstraction would have served users better.</p>
+<h3>
+	<a id="more-explicit-but-more-adaptable" href="#more-explicit-but-more-adaptable" rel="nofollow">
+		
+	</a>
+	<span>
+		More explicit, but more adaptable
+	</span>
+</h3>
+<p>This approach favors explicit and modifiable usage over rigid frameworks: less magic, but more control. It comes with an obvious cost: code duplication. While often seen as an anti-pattern, in this context it has proven not only acceptable, but effective. Contrary to intuition, it remains manageable in practice with a small but consistent discipline: keeping deltas between implementations minimal and avoiding unnecessary divergence. Like in the <a href="https://huggingface.co/blog/transformers-design-philosophy#3-machine-learning-is-evolving-at-a-neck-breaking-speed">Transformers design philosophy</a>, we accept duplication and local explicitness by design. The motivations largely coincide, with some nuance in focus.</p>
+<p>This is easier to see than to describe. Compare RLOO and GRPO: large parts of their implementation are duplicated almost line for line. That is not accidental, and it is not dead weight. These methods are close enough that keeping their code paths aligned makes them easier to read, easier to evolve, and cheaper to maintain.</p>
+
+
+<h2>
+	<a id="3-where-trl-fits" href="#3-where-trl-fits" rel="nofollow">
+		
+	</a>
+	<span>
+		3. Where TRL fits
+	</span>
+</h2>
+<p>The goal of this comparison is not to argue that TRL should be judged as best on every axis. It should not. Some systems are built for maximum throughput (like <a href="https://github.com/ServiceNow/PipelineRL" rel="nofollow">PipelineRL</a>), some are optimized for a narrower slice of the problem (like <a href="https://github.com/hiyouga/LLaMA-Factory" rel="nofollow">LLaMA-Factory</a>), and some offer a more opinionated development experience in a specific environment (like <a href="https://github.com/thinking-machines-lab/tinker" rel="nofollow">Tinker</a>). TRL occupies a different place in the ecosystem: it is a general-purpose post-training library that tries to keep the API and the code as simple as the domain allows, while combining broad method coverage, deep Hugging Face integration, a relatively low infrastructure burden, and an explicit stability contract.</p>
+<p>Libraries like <a href="https://github.com/unslothai/unsloth" rel="nofollow">Unsloth</a> and <a href="https://github.com/axolotl-ai-cloud/axolotl" rel="nofollow">Axolotl</a> are not included here because they build on top of TRL rather than sitting beside it in the comparison; in that sense, many of their users are also TRL users indirectly.</p>
+<h3>
+	<a id="ecosystem" href="#ecosystem" rel="nofollow">
+		
+	</a>
+	<span>
+		Ecosystem
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th></th>
+<th><a href="https://github.com/huggingface/trl" rel="nofollow">TRL</a></th>
+<th><a href="https://github.com/OpenRLHF/OpenRLHF" rel="nofollow">OpenRLHF</a></th>
+<th><a href="https://github.com/volcengine/verl" rel="nofollow">veRL</a></th>
+<th><a href="https://github.com/PrimeIntellect-ai/prime-rl" rel="nofollow">PRIME-RL</a></th>
+<th><a href="https://github.com/ServiceNow/PipelineRL" rel="nofollow">PipelineRL</a></th>
+<th><a href="https://github.com/sail-sg/oat" rel="nofollow">OAT</a></th>
+<th><a href="https://github.com/thinking-machines-lab/tinker" rel="nofollow">Tinker</a></th>
+<th><a href="https://github.com/hiyouga/LLaMA-Factory" rel="nofollow">LLaMA-Factory</a></th>
+<th><a href="https://github.com/meta-pytorch/torchtune" rel="nofollow">torchtune</a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Hugging Face Hub integration</td>
+<td>🟢 Full</td>
+<td>🟡 No push</td>
+<td>🟡 Model loading only</td>
+<td>🟡 No push</td>
+<td>🟡 No push</td>
+<td>🟡 No push</td>
+<td>🟡 No dataset loading</td>
+<td>🟢 Full</td>
+<td>🟡 Dataset loading only</td>
+</tr>
+<tr>
+<td>PEFT / LoRA / QLoRA support</td>
+<td>🟢 LoRA + QLoRA</td>
+<td>🟢 LoRA + QLoRA</td>
+<td>🟡 LoRA only (QAT instead of QLoRA)</td>
+<td>🟡 LoRA only</td>
+<td>🔴 Not supported</td>
+<td>🟢 LoRA + QLoRA</td>
+<td>🟡 LoRA only</td>
+<td>🟢 LoRA + QLoRA</td>
+<td>🟢 LoRA + QLoRA (torchao, not bitsandbytes)</td>
+</tr>
+<tr>
+<td>Experiment tracker flexibility</td>
+<td>🟢 Any (via <code>report_to</code>)</td>
+<td>🟡 wandb + tensorboard</td>
+<td>🟢 wandb, mlflow, swanlab, tensorboard</td>
+<td>🔴 wandb only</td>
+<td>🔴 wandb only</td>
+<td>🔴 wandb only</td>
+<td>🟡 DIY (metrics returned via API, no built-in tracker)</td>
+<td>🟢 Any (via <code>report_to</code>) + swanlab</td>
+<td>🟡 wandb + tensorboard (manual config)</td>
+</tr>
+<tr>
+<td>Infrastructure burden</td>
+<td>🟢 Low (single GPU, standard stack)</td>
+<td>🟠 High (Ray required)</td>
+<td>🔴 Very high (Ray + rollout engine)</td>
+<td>🟠 High (separate vLLM server + ZMQ)</td>
+<td>🟠 High (async vLLM pipeline)</td>
+<td>🟡 Medium (vLLM needed for RL)</td>
+<td>🟢 Low (managed cloud service)</td>
+<td>🟢 Low (single script)</td>
+<td>🟢 Low (single script)</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="training-methods" href="#training-methods" rel="nofollow">
+		
+	</a>
+	<span>
+		Training methods
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th></th>
+<th><a href="https://github.com/huggingface/trl" rel="nofollow">TRL</a></th>
+<th><a href="https://github.com/OpenRLHF/OpenRLHF" rel="nofollow">OpenRLHF</a></th>
+<th><a href="https://github.com/volcengine/verl" rel="nofollow">veRL</a></th>
+<th><a href="https://github.com/PrimeIntellect-ai/prime-rl" rel="nofollow">PRIME-RL</a></th>
+<th><a href="https://github.com/ServiceNow/PipelineRL" rel="nofollow">PipelineRL</a></th>
+<th><a href="https://github.com/sail-sg/oat" rel="nofollow">OAT</a></th>
+<th><a href="https://github.com/thinking-machines-lab/tinker" rel="nofollow">Tinker</a></th>
+<th><a href="https://github.com/hiyouga/LLaMA-Factory" rel="nofollow">LLaMA-Factory</a></th>
+<th><a href="https://github.com/meta-pytorch/torchtune" rel="nofollow">torchtune</a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>VLM support</td>
+<td>🟢 Yes (SFT, DPO, GRPO)</td>
+<td>🔴 No</td>
+<td>🟢 Yes (in SFT + PPO trainers)</td>
+<td>🟡 Partial (Qwen3-VL only)</td>
+<td>🟢 Yes (via processor_factory)</td>
+<td>🔴 No</td>
+<td>🔴 No</td>
+<td>🟢 Yes (via mm_plugin)</td>
+<td>🟡 Partial (Llama Vision only)</td>
+</tr>
+<tr>
+<td>Supervised post-training</td>
+<td>🟢 Yes (via SFTTrainer)</td>
+<td>🟢 Yes (via SFTTrainer)</td>
+<td>🟢 Yes (via SFTTrainer)</td>
+<td>🟢 Yes (via SFT entrypoint)</td>
+<td>🔴 No</td>
+<td>🟢 Yes (via SFTLearner)</td>
+<td>🔴 No (low-level primitives only)</td>
+<td>🟢 Yes (via SFT trainer)</td>
+<td>🟢 Yes (via finetune recipes)</td>
+</tr>
+<tr>
+<td>Distillation post-training</td>
+<td>🟢 Yes (GKD, SDFT, SDPO)</td>
+<td>🔴 No</td>
+<td>🟢 Yes (dedicated distillation trainer)</td>
+<td>🟢 Yes (on-policy distillation)</td>
+<td>🔴 No</td>
+<td>🔴 No</td>
+<td>🔴 No (low-level primitives only)</td>
+<td>🔴 No</td>
+<td>🟢 Yes (native KD recipes)</td>
+</tr>
+<tr>
+<td>Preference post-training</td>
+<td>🟢 Yes (DPO, KTO, ORPO, CPO, SimPO, IPO, …)</td>
+<td>🟡 DPO only</td>
+<td>🔴 No</td>
+<td>🔴 No</td>
+<td>🔴 No</td>
+<td>🟢 Yes (DPO, SimPO, IPO, XPO)</td>
+<td>🔴 No (low-level primitives only)</td>
+<td>🟡 DPO, KTO, ORPO (via TRL)</td>
+<td>🟡 DPO only</td>
+</tr>
+<tr>
+<td>RL post-training</td>
+<td>🟢 Yes (PPO, GRPO, RLOO, …)</td>
+<td>🟢 Yes (PPO, REINFORCE++, GRPO, RLOO)</td>
+<td>🟢 Yes (PPO, GRPO, RLOO, REINFORCE++, DAPO, PRIME, …)</td>
+<td>🟢 Yes (async GRPO-style)</td>
+<td>🟢 Yes (GRPO, async)</td>
+<td>🟢 Yes (PPO, GRPO, Online DPO)</td>
+<td>🔴 No (low-level primitives only)</td>
+<td>🟠 PPO only (via TRL)</td>
+<td>🟠 PPO (GRPO in development)</td>
+</tr>
+<tr>
+<td>Agent / environment support</td>
+<td>🟢 Yes (flexible <code>environment_factory</code> in GRPO)</td>
+<td>🟢 Yes (flexible <code>AgentInstance</code> interface)</td>
+<td>🟢 Yes (flexible <code>BaseInteraction</code> interface)</td>
+<td>🟡 Partial (tied to Prime Intellect’s Environments Hub)</td>
+<td>🟡 Partial (built-in domains: fn_calling, miniwob, …)</td>
+<td>🔴 No</td>
+<td>🔴 No (low-level primitives only)</td>
+<td>🔴 No</td>
+<td>🔴 No</td>
+</tr>
+<tr>
+<td>Scalability</td>
+<td>🟡 Multi-node DeepSpeed/FSDP, no native TP</td>
+<td>🟢 Ray + DeepSpeed + vLLM TP at scale</td>
+<td>🟢 Megatron 3D parallelism, tested at 671B</td>
+<td>🟢 FSDP2 + TP/CP/EP, SLURM &amp; K8s</td>
+<td>🟡 DeepSpeed/FSDP, no native training TP</td>
+<td>🔴 DeepSpeed ZeRO only, research-scale</td>
+<td>🟢 Managed service, handles large models</td>
+<td>🟡 FSDP2 + DeepSpeed, no native TP</td>
+<td>🟡 FSDP + PyTorch TP, no PP</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="project-health" href="#project-health" rel="nofollow">
+		
+	</a>
+	<span>
+		Project health
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th></th>
+<th><a href="https://github.com/huggingface/trl" rel="nofollow">TRL</a></th>
+<th><a href="https://github.com/OpenRLHF/OpenRLHF" rel="nofollow">OpenRLHF</a></th>
+<th><a href="https://github.com/volcengine/verl" rel="nofollow">veRL</a></th>
+<th><a href="https://github.com/PrimeIntellect-ai/prime-rl" rel="nofollow">PRIME-RL</a></th>
+<th><a href="https://github.com/ServiceNow/PipelineRL" rel="nofollow">PipelineRL</a></th>
+<th><a href="https://github.com/sail-sg/oat" rel="nofollow">OAT</a></th>
+<th><a href="https://github.com/thinking-machines-lab/tinker" rel="nofollow">Tinker</a></th>
+<th><a href="https://github.com/hiyouga/LLaMA-Factory" rel="nofollow">LLaMA-Factory</a></th>
+<th><a href="https://github.com/meta-pytorch/torchtune" rel="nofollow">torchtune</a></th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Semver stability</td>
+<td>🟢 Yes</td>
+<td>🟡 Partly</td>
+<td>🟡 Partly</td>
+<td>🔴 No</td>
+<td>🔴 No</td>
+<td>🔴 No</td>
+<td>🟡 Partly</td>
+<td>🟡 Partly</td>
+<td>🟡 Partly</td>
+</tr>
+<tr>
+<td>PyPI downloads / month</td>
+<td>3.0M</td>
+<td>3.6k</td>
+<td>101.6k</td>
+<td>N/A</td>
+<td>N/A</td>
+<td>218</td>
+<td>363.3k</td>
+<td>25.6k</td>
+<td>370.9k</td>
+</tr>
+<tr>
+<td>GitHub stars</td>
+<td>17.8k</td>
+<td>9.2k</td>
+<td>20.2k</td>
+<td>1.2k</td>
+<td>0.4k</td>
+<td>0.6k</td>
+<td>3.0k</td>
+<td>69.0k</td>
+<td>5.7k</td>
+</tr>
+<tr>
+<td>Last release</td>
+<td>🟢 today</td>
+<td>🟢 yesterday</td>
+<td>🟡 1 week ago</td>
+<td>🟠 7 weeks ago</td>
+<td>⚫ No release</td>
+<td>🔴 3 months ago</td>
+<td>⚫ No release</td>
+<td>🔴 3 months ago</td>
+<td>🔴 11 months ago</td>
+</tr>
+<tr>
+<td>Last commit</td>
+<td>🟢 yesterday</td>
+<td>🟢 yesterday</td>
+<td>🟢 today</td>
+<td>🟢 today</td>
+<td>🟡 3 weeks ago</td>
+<td>🟠 8 weeks ago</td>
+<td>🟢 yesterday</td>
+<td>🟢 yesterday</td>
+<td>🟡 1 week ago</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Some rows are factual (<code>GitHub stars</code>, <code>Last release</code>, <code>Last commit</code>), others are qualitative judgments (<code>Semver stability</code>).</p>
+<p>Taken together, these comparisons point to a clear role for TRL: a general-purpose library designed to keep breadth, simplicity, integration, and stability in the same place. Its full downstream footprint is hard to measure, since most deployments are private and reverse dependencies are largely invisible, but the available signals already show that TRL operates at a distinctly different scale.</p>
+<h2>
+	<a id="4-whats-next" href="#4-whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		4. What’s next
+	</span>
+</h2>
+<p>By now, the logic of v1.0 should be clear: it is not a claim that post-training has stabilized. On the contrary, it is an acknowledgment that the field will keep shifting, and that we're confident that the library has the right shape to absorb whatever comes next. The question is not what comes <strong>after</strong> v1.0, but what’s next <strong>for</strong> v1.0.</p>
+<h3>
+	<a id="asynchronous-grpo" href="#asynchronous-grpo" rel="nofollow">
+		
+	</a>
+	<span>
+		Asynchronous GRPO
+	</span>
+</h3>
+<p>Today, GRPO in TRL is primarily used through a synchronous loop: generate rollouts, score them, then step the optimizer. That shape is simple and dependable, but it ties throughput to the slowest stage and leaves performance on the table at scale.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/trl-v1/async-grpo.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/trl-v1/async-grpo.png" alt="async-grpo"></a></p>
+<p>The fix is conceptually simple: generation and training don't need to be lock-stepped. We already have an <a href="https://huggingface.co/docs/trl/main/en/async_grpo_trainer">early asynchronous GRPO design</a>, and the next step is to harden it. The core idea is to decouple generation and training, letting generation run continuously on dedicated inference resources while training consumes a steady stream of scored trajectories, with buffering, backpressure, and clear policy-version accounting. This improves utilization and scales across GPUs and nodes. Other libraries already offer forms of asynchronous RL, but bringing it to TRL would make this style of training available through broader integrations, simpler APIs, and a much lower barrier to adoption.</p>
+<h3>
+	<a id="graduating-methods-to-stable" href="#graduating-methods-to-stable" rel="nofollow">
+		
+	</a>
+	<span>
+		Graduating methods to stable
+	</span>
+</h3>
+<p>The next candidates include <a href="https://huggingface.co/docs/trl/main/en/kto_trainer">KTO</a> and newer distillation trainers such as <a href="https://huggingface.co/docs/trl/main/en/sdft_trainer">SDFT</a>, <a href="https://huggingface.co/docs/trl/main/en/sdpo_trainer">SDPO</a>, and possibly <a href="https://huggingface.co/docs/trl/main/en/gold_trainer">GOLD</a> or <a href="https://huggingface.co/docs/trl/main/en/gkd_trainer">GKD</a>. As discussed in Section 2, before moving them to stable, the goal is to minimize code differences across implementations and monitor sustained community interest relative to maintenance cost.</p>
+<h3>
+	<a id="scaling" href="#scaling" rel="nofollow">
+		
+	</a>
+	<span>
+		Scaling
+	</span>
+</h3>
+<p>TRL supports large-scale training, including multi-node runs and larger models; the next step is to make this path significantly more robust and easier to operate in production. That includes stronger guarantees around distributed stability, clearer scaling defaults, and deeper support for Mixture-of-Experts (MoE), especially expert parallelism, where routing, load balancing, and memory behavior become critical.</p>
+<h3>
+	<a id="making-training-legible-to-agents" href="#making-training-legible-to-agents" rel="nofollow">
+		
+	</a>
+	<span>
+		Making training legible to agents
+	</span>
+</h3>
+<p>Training is still too often driven by vibes. Loss curves go down, reward curves go up, a few samples look better than before, and people convince themselves the run is working. When it fails, they scroll through logs, compare runs by eye, and guess. That is already a weak interface for humans. For agents, it is worse: it is barely an interface at all.</p>
+<p>One of the most important directions for TRL is to make training legible to software, not just to people. That means going beyond dashboards and raw metrics to produce explicit signals: is the policy improving, collapsing, over-optimizing the verifier, drifting off-distribution, or plateauing? The goal is for TRL to surface these patterns automatically, explain them clearly, and turn them into actions.</p>
+<p>The plan is to embed heuristics directly into the training loop and emit structured, actionable warnings — the kind a beginner can act on immediately and an agent can parse:</p>
+<pre><code data-language="text">[TRL] WARNING: VRAM utilization at 34%. Consider increasing per_device_train_batch_size from 4 to 16.
+...
+[TRL] WARNING: Group reward std is 0.01 (near zero). Advantage signal has collapsed. Consider revisiting your reward function to ensure it provides sufficient variance for learning.
+...
+[TRL] WARNING: Clip ratio outside [0.8, 1.2] for 43% of updates. Consider reducing the learning rate.
+</code></pre>
+<p>Not just logging what happened — reasoning about what it means and what to do next. Useful for beginners who need guardrails, and for agents that need a training stack they can actually automate.</p>
+<h2>
+	<a id="5-conclusion" href="#5-conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		5. Conclusion
+	</span>
+</h2>
+<p>Post-training doesn't converge. It shifts, and the next shift is already coming.</p>
+<p>v1.0 is not a claim that things have settled. It's an acknowledgment that they haven't yet, and a commitment that the library can be relied on anyway. Six years of evolving alongside the field — and alongside the hundreds of contributors who made it possible — shaped a design we're confident is ready for what comes next, whatever that turns out to be. The community and the downstream projects had already assumed that stability — v1.0 makes it real.</p>
+<pre><code data-language="bash">pip install --upgrade trl
+</code></pre>
+<p>Migration from the last 0.x release is minimal, and the <a href="https://github.com/huggingface/trl/blob/main/MIGRATION.md" rel="nofollow">migration guide</a> covers everything. If you're new, now is a good time to start.</p>
+</div></div>

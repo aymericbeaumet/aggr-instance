@@ -1,0 +1,353 @@
+<div id="readability-page-1" class="page"><div> 
+<p>Many ML practitioners have some intuition about how to make models run fast, but fewer know how to analyze why a model is slow. In Part 1 of this series, you will learn how to systematically analyze inference performance and identify where the time is spent.</p>
+<p>This post starts from scratch and assumes no prior profiling experience. The walkthrough uses AWS Trainium, a purpose-built AI chip for deep learning training and inference workloads, and <a href="https://github.com/aws-neuron/torch-neuronx" rel="nofollow">TorchNeuron</a>, its open source native PyTorch backend. TorchNeuron supports standard PyTorch workflows on Trainium, including eager execution, <code>torch.compile</code>, and standard PyTorch APIs, with minimal code changes. Additionally, TorchNeuron integrates with <a href="https://awsdocs-neuron.readthedocs-hosted.com/en/latest/nki/index.html" rel="nofollow">Neuron Kernel Interface (NKI)</a> to enable custom operators and performance optimization for Trainium hardware. By the end, you should know:</p>
+<ul>
+<li>How to configure <code>torch.profiler</code> with the Neuron backend and capture a clean trace.</li>
+<li>How to read the <code>key_averages()</code> table to identify which operations consume Neuron device time and compare their Self CPU time.</li>
+<li>How to follow one operation through Neuron Explorer, from framework dispatch through runtime scheduling to hardware execution on a NeuronCore.</li>
+<li>How these signals change across three implementations of the same operation.</li>
+</ul>
+<hr>
+<h2>
+	<a id="neuron-as-a-pytorch-backend" href="#neuron-as-a-pytorch-backend" rel="nofollow">
+		
+	</a>
+	<span>
+		Neuron as a PyTorch Backend
+	</span>
+</h2>
+<p>Before you profile a workload, it helps to understand how <a href="https://awsdocs-neuron.readthedocs-hosted.com/en/latest/index.html" rel="nofollow">Neuron</a> integrates with PyTorch.</p>
+<p>The Neuron backend uses PyTorch's <code>PrivateUse1</code> extension point. This mechanism lets an accelerator integrate with the framework without adding a dedicated dispatch key such as <code>cuda</code>. The <code>torch_neuronx</code> package works with upstream PyTorch to register Neuron as a native backend for PyTorch code. For details about this extension mechanism, see <a href="https://docs.pytorch.org/tutorials/advanced/privateuseone.html" rel="nofollow">Facilitating New Backend Integration by PrivateUse1</a>.</p>
+<hr>
+<h2>
+	<a id="set-up-the-profiler" href="#set-up-the-profiler" rel="nofollow">
+		
+	</a>
+	<span>
+		Set Up the Profiler
+	</span>
+</h2>
+<p>You use two objects to profile a Neuron workload:</p>
+<ul>
+<li><code>NeuronConfig</code> controls which Neuron data streams and NeuronCores to capture and where to write the output. You pass it to <code>torch.profiler.profile</code> as <code>experimental_config</code>.</li>
+<li><code>NeuronProfiler</code> takes a <code>NeuronConfig</code> and provides an <code>export_trace</code> callback. The callback writes the framework trace, <code>trace.json</code>, alongside the Neuron system traces.</li>
+</ul>
+<pre><code data-language="python">nc = NeuronConfig(
+    modes=[ProfileMode.DEVICE, ProfileMode.RUNTIME],
+    profile_output_dir=OUTPUT_DIR,
+    capture_enabled_for_nc='0',
+    correlate_device_time=True,
+)
+exporter = NeuronProfiler(nc)
+</code></pre>
+<p>The <code>modes</code> parameter selects the data streams to capture, such as device instructions and runtime traces. The <code>capture_enabled_for_nc</code> parameter selects the NeuronCores to trace. Setting <code>correlate_device_time=True</code> propagates device time from the trace into the <code>key_averages()</code> table, where you can compare CPU and Neuron device time. For the complete parameter reference and available <code>ProfileMode</code> values, see the NeuronConfig <a href="http://awsdocs-neuron.readthedocs-hosted.com/en/latest/tools/neuron-explorer/how-to-profile-workload.html#neuronconfig-profile-modes" rel="nofollow">Profile Modes documentation</a>.</p>
+<hr>
+<h2>
+	<a id="tooling-neuron-explorer" href="#tooling-neuron-explorer" rel="nofollow">
+		
+	</a>
+	<span>
+		Tooling: Neuron Explorer
+	</span>
+</h2>
+<p>Neuron Explorer is a browser-based viewer for the system trace, device timeline, and per-engine breakdown. You can access it through an SSH tunnel or the Visual Studio Code extension. In this post, you use Explorer to confirm what <code>key_averages()</code> reports numerically and inspect what happens between dispatches.</p>
+<p>After profiling, the output directory contains the system trace and, when you capture device data, matched <code>.neff</code> and <code>.ntff</code> files. The Neuron Executable File Format (NEFF) contains the compiled Neuron executable, while the matching NTFF contains its hardware instruction trace. The files share a numeric hash that identifies them as a pair. To open the profile in Neuron Explorer, upload the complete output directory for a system or combined profile. For a device-only profile, upload the matching <code>.neff</code> and <code>.ntff</code> files individually. See <a href="https://awsdocs-neuron.readthedocs-hosted.com/en/latest/tools/neuron-explorer/get-started.html#step-5-upload-your-profile" rel="nofollow">Step 5: Upload your profile</a> for the UI and command-line instructions.</p>
+<hr>
+<h2>
+	<a id="profile-rmsnorm" href="#profile-rmsnorm" rel="nofollow">
+		
+	</a>
+	<span>
+		Profile RMSNorm
+	</span>
+</h2>
+<p>For this first analysis, you profile RMSNorm, a small operation with a clear sequence of arithmetic and reduction operations.</p>
+<p>You profile three implementations of the same operation:</p>
+<ol>
+<li>Naive RMSNorm with individual PyTorch operations: multiply, mean, add, reciprocal square root, and multiply.</li>
+<li><code>torch.rms_norm()</code>, the PyTorch built-in lowered to a single fused Neuron kernel.</li>
+<li>Naive RMSNorm with <code>torch.compile</code>, using the same operations as the first implementation.</li>
+</ol>
+<p>The scripts use the same inputs, profiler configuration, and schedule so the results are directly comparable.</p>
+<p>All scripts to reproduce this work are available in the <code>torch-neuronx</code> <a href="https://github.com/aws-neuron/torch-neuronx/tree/main/examples/hf_profiling_blog_pt1" rel="nofollow">examples directory</a>.</p>
+<hr>
+<h2>
+	<a id="profile-1-naive-pytorch-operations" href="#profile-1-naive-pytorch-operations" rel="nofollow">
+		
+	</a>
+	<span>
+		Profile 1: Naive PyTorch Operations
+	</span>
+</h2>
+<p>Start by writing RMSNorm with individual PyTorch operations. Each line maps to one or more ATen operations and can create intermediate tensors.</p>
+<pre><code data-language="python">device = torch.device('neuron')
+
+x = torch.randn(4, 512, dtype=torch.bfloat16, device=device)
+weight = torch.ones(512, dtype=torch.bfloat16, device=device)
+
+def rms_norm_fn(t):
+    x_sq = t * t                                    # square
+    mean_sq = x_sq.mean(dim=-1, keepdim=True)       # mean of squares
+    rms = torch.rsqrt(mean_sq + 1e-6)               # 1 / sqrt(mean_sq + eps)
+    return t * rms * weight                         # normalize + scale
+</code></pre>
+<p>Call the profiler with two arguments required for the Neuron backend:</p>
+<ol>
+<li>Include <code>ProfilerActivity.PrivateUse1</code> to collect activity from the Neuron device.</li>
+<li>Pass <code>NeuronConfig</code> as <code>experimental_config</code> to enable the Neuron-specific Kineto features.</li>
+</ol>
+<p>The schedule uses <code>wait=2</code>, <code>warmup=1</code>, and <code>active=1</code> across four <code>prof.step()</code> calls. This records one warm iteration without including initial setup overhead.</p>
+<p>Call <code>torch.neuron.synchronize()</code> inside the profiler loop. Without this synchronization, the profiler can export before the device finishes and leave the Neuron time column empty.</p>
+<pre><code data-language="python">with torch.profiler.profile(
+    activities=[ProfilerActivity.CPU, ProfilerActivity.PrivateUse1],
+    experimental_config=nc,
+    record_shapes=False,
+    on_trace_ready=exporter.export_trace,
+    schedule=torch.profiler.schedule(wait=2, warmup=1, active=1),
+) as prof:
+    for step in range(4):
+        with torch.no_grad():
+            _ = rms_norm_fn(x)
+        torch.neuron.synchronize()
+        prof.step()
+</code></pre>
+<p>After profiling finishes, inspect the <code>key_averages()</code> table. Sort by <code>self_privateuse1_time_total</code> to place the operations with the highest device cost first. The table shown here is filtered to the RMSNorm operations that report Neuron device time. The full <code>key_averages()</code> output also includes CPU-side events such as allocations and host-to-device transfers.</p>
+<pre><code data-language="python">print(prof.key_averages().table(sort_by="self_privateuse1_time_total", row_limit=4))
+</code></pre>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/mlyyxfL6i5GfbOgUsyIuL.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/mlyyxfL6i5GfbOgUsyIuL.png" alt="The key averages table shows that three aten::mul calls account for the largest share of Neuron device time."></a></p>
+<p><em>The key averages table shows that three aten::mul calls account for the largest share of Neuron device time.</em></p>
+<p>The table shows which ATen operations ran, how often they ran, and how much time they spent on the CPU and Neuron device. <code>aten::mul</code> has the highest total device time because the function performs three multiplications.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Name</th>
+<th># Calls</th>
+<th>Self CPU</th>
+<th>Self NEURON</th>
+<th>% NEURON</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>aten::mul</td>
+<td>3</td>
+<td>60.9 μs</td>
+<td>1,164.5 μs</td>
+<td>49.5%</td>
+</tr>
+<tr>
+<td>aten::add</td>
+<td>1</td>
+<td>26.6 μs</td>
+<td>434.6 μs</td>
+<td>18.5%</td>
+</tr>
+<tr>
+<td>aten::rsqrt</td>
+<td>1</td>
+<td>15.6 μs</td>
+<td>415.0 μs</td>
+<td>17.6%</td>
+</tr>
+<tr>
+<td>aten::mean</td>
+<td>1</td>
+<td>21.1 μs</td>
+<td>340.8 μs</td>
+<td>14.5%</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><em>Self NEURON total: 2.355 ms</em></p>
+<p>Each row maps directly to the function. <code>aten::mul</code> runs for <code>x * x</code>, <code>x * rms</code>, and the final multiplication by <code>weight</code>. <code>aten::mean</code> reduces the last dimension. <code>aten::add</code> adds the epsilon value and triggers a host-to-device copy because the scalar starts on the CPU. <code>aten::rsqrt</code> computes the reciprocal square root.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/GUGp8s5G4EV7rb09YBDbf.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/GUGp8s5G4EV7rb09YBDbf.png" alt="Neuron Explorer follows an aten::mul operation from framework dispatch through runtime scheduling to execution on the Neuron hardware lanes."></a></p>
+<p><em>Neuron Explorer follows an aten::mul operation from framework dispatch through runtime scheduling to execution on the Neuron hardware lanes.</em></p>
+<h3>
+	<a id="read-the-trace-in-explorer" href="#read-the-trace-in-explorer" rel="nofollow">
+		
+	</a>
+	<span>
+		Read the Trace in Explorer
+	</span>
+</h3>
+<p>In Explorer, time flows from left to right and the event lifecycle flows from top to bottom. Each ATen operation follows the same pattern: creation in the framework lane, scheduling in the runtime lane as <code>nrta_execute_schedule</code>, and device execution in the hardware lane as <code>nc_exec_running</code>.</p>
+<p>The system trace view organizes events into lanes. In the Default grouping mode, labels follow the pattern instance/PID/subsystem/identifier:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Lane</th>
+<th>Label suffix</th>
+<th>What it shows</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Framework dispatch</td>
+<td><code>framework/TID:&lt;id&gt;</code></td>
+<td>Operator dispatch events (PrivateUse1 runtime), grouped by thread ID.</td>
+</tr>
+<tr>
+<td>Framework device</td>
+<td><code>framework/Stream:&lt;n&gt;</code></td>
+<td>Device interaction events (PrivateUse1 driver), grouped by stream number.</td>
+</tr>
+<tr>
+<td>Neuron Runtime</td>
+<td><code>neuron_rt/NC:&lt;n&gt;</code></td>
+<td>Neuron Runtime API calls, grouped by logical NeuronCore.</td>
+</tr>
+<tr>
+<td>Neuron Hardware</td>
+<td><code>neuron_hw/NC&lt;n&gt;:&lt;id&gt;</code></td>
+<td>Hardware execution events, grouped by physical NeuronCore.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>In eager mode, each operation runs independently. Use the dependency chain viewer to follow <code>aten::mul.Tensor</code> from the framework layer through runtime scheduling to device execution.</p>
+<p><a href="https://huggingface.co/datasets/jlongen-aws/blog-assets/resolve/main/hf_profiling_blog_pt1/dependency_chain.gif" rel="nofollow"><img src="https://huggingface.co/datasets/jlongen-aws/blog-assets/resolve/main/hf_profiling_blog_pt1/dependency_chain.gif" alt="The dependency chain viewer highlights the lifecycle of one operation across the framework, runtime, and hardware lanes."></a></p>
+<p><em>The dependency chain viewer highlights the lifecycle of one operation across the framework, runtime, and hardware lanes.</em></p>
+<hr>
+<h2>
+	<a id="profile-2-torchrms_norm" href="#profile-2-torchrms_norm" rel="nofollow">
+		
+	</a>
+	<span>
+		Profile 2: torch.rms_norm
+	</span>
+</h2>
+<p>Replace the individual operations with PyTorch's built-in <code>rms_norm</code> function. Neuron lowers the operation to one fused kernel:</p>
+<pre><code data-language="python">def rms_norm_fn(t):
+    return torch.rms_norm(t, [512], weight)
+</code></pre>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/uYhQmUtuUp1LYPOu8f9bf.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/uYhQmUtuUp1LYPOu8f9bf.png" alt="The fused RMSNorm appears as one device operation in the key averages table."></a></p>
+<p><em>The fused RMSNorm appears as one device operation in the key averages table.</em></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Name</th>
+<th># Calls</th>
+<th>Self CPU</th>
+<th>Self NEURON</th>
+<th>% NEURON</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>aten::_fused_rms_norm</td>
+<td>1</td>
+<td>47.6 μs</td>
+<td>403.3 μs</td>
+<td>100%</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><em>Self NEURON total: 403.3 μs</em></p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/OfM6vRT9iPBG42s8iWK1V.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/OfM6vRT9iPBG42s8iWK1V.png" alt="The fused RMSNorm follows one framework-to-hardware path instead of dispatching each arithmetic operation separately."></a></p>
+<p><em>The fused RMSNorm follows one framework-to-hardware path instead of dispatching each arithmetic operation separately.</em></p>
+<h3>
+	<a id="compare-the-lowering-path" href="#compare-the-lowering-path" rel="nofollow">
+		
+	</a>
+	<span>
+		Compare the Lowering Path
+	</span>
+</h3>
+<p>In the naive implementation, each operation crosses the dispatch boundary independently and follows its own framework-to-runtime-to-hardware path. In the fused implementation, one Python call covers the complete computation. The trace contains one dispatch and one hardware event, with no gaps between component operations.</p>
+<hr>
+<h2>
+	<a id="profile-3-naive-pytorch-with-torchcompile" href="#profile-3-naive-pytorch-with-torchcompile" rel="nofollow">
+		
+	</a>
+	<span>
+		Profile 3: Naive PyTorch with torch.compile
+	</span>
+</h2>
+<p>For the final example, compile the original naive RMSNorm function with <code>torch.compile</code>.</p>
+<p>With <code>@torch.compile(backend="neuron")</code>, TorchDynamo captures the Python bytecode as an FX graph and AOTAutograd lowers it to ATen operations. The Neuron backend receives the complete graph instead of dispatching each operation separately. It fuses the operations, optimizes memory access, and compiles the graph into a single NEFF artifact. The artifact runs as one hardware dispatch.</p>
+<pre><code data-language="python">@torch.compile(backend='neuron', fullgraph=True)
+def naive_compiled(t):
+    x_sq = t * t
+    mean_sq = x_sq.mean(dim=-1, keepdim=True)
+    rms = torch.rsqrt(mean_sq + 1e-6)
+    return t * rms * weight
+</code></pre>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/TSJ2RWScmKPKmSroHCZaI.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/TSJ2RWScmKPKmSroHCZaI.png" alt="The compiled function appears as one Torch-Compiled Region in the key averages table."></a></p>
+<p><em>The compiled function appears as one Torch-Compiled Region in the key averages table.</em></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Name</th>
+<th># Calls</th>
+<th>Self CPU</th>
+<th>Self NEURON</th>
+<th>% NEURON</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Torch-Compiled Region: 0/0</td>
+<td>1</td>
+<td>98.4 μs</td>
+<td>375.5 μs</td>
+<td>100%</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><em>Self NEURON total: 375.5 μs</em></p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/yWIFqisMxCtJHLYb2Rcsh.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6ac67ea29579ea34f1f7e470/yWIFqisMxCtJHLYb2Rcsh.png" alt="The compiled graph follows one path through runtime scheduling and hardware execution."></a></p>
+<p><em>The compiled graph follows one path through runtime scheduling and hardware execution.</em></p>
+<p>The table shows one device execution, as in Profile 2, but the code takes a different path. Instead of calling a purpose-built fused operation, the compiler discovers the fusion from the original Python function. In this run, the Neuron time is comparable to <code>torch.rms_norm</code>, at 375 μs compared with 403 μs.</p>
+<hr>
+<h2>
+	<a id="side-by-side-summary" href="#side-by-side-summary" rel="nofollow">
+		
+	</a>
+	<span>
+		Side-by-Side Summary
+	</span>
+</h2>
+<div>
+	<table>
+		<thead><tr>
+<th>Variant</th>
+<th>NEURON time</th>
+<th>Self CPU time</th>
+<th>Operator calls</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Naive ops</td>
+<td>2,355 µs</td>
+<td>~125 µs</td>
+<td>6</td>
+</tr>
+<tr>
+<td>torch.rms_norm</td>
+<td>403 µs</td>
+<td>~48 µs</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Naive + torch.compile</td>
+<td>376 µs</td>
+<td>~98 µs</td>
+<td>1</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Both <code>torch.rms_norm</code> and <code>torch.compile</code> fuse RMSNorm into one kernel dispatch. In these runs, either approach takes about one-sixth of the naive implementation's device time. Fusion removes the gaps between hardware executions and avoids materializing intermediate values such as <code>x_sq</code> and <code>mean_sq</code> between separately dispatched operations.</p>
+<hr>
+<h2>
+	<a id="conclusion" href="#conclusion" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion
+	</span>
+</h2>
+<p><code>key_averages()</code> shows which operations consume device time, while its full output also reveals CPU-side setup and transfers. Explorer provides the corresponding visual trace. You can follow one operation from framework dispatch through runtime scheduling to hardware execution and see the gaps that fusion removes.</p>
+<p>You can use the same workflow on larger models: find a hotspot in the table, verify it in the trace, and then determine whether a fused operation or <code>torch.compile</code> can reduce its cost.</p>
+<p>In Part 2, we will move into the device-level profile. You open the NEFF, inspect the TensorEngine, VectorEngine, and direct memory access (DMA) breakdown, and place the kernel on the roofline to determine whether it is compute-bound or memory-bound.</p>
+<p>Special thanks to Aritra Roy Gosthipaty for the inspiration to begin this series, and to my peers Pinak Panigrahi, Samir Araujo, Akhil Azhikodan, Esha Lakhotia and the rest for reviewing!</p>
+</div></div>

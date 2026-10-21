@@ -1,0 +1,82 @@
+---
+title: 'Granite Speech 5.0: Transcribe, Translate, and Attribute more Accurately and Faster'
+link: https://huggingface.co/blog/ibm-granite/granite-speech-5
+source: huggingface-co
+published: 2026-10-21T14:58:18Z
+updated: 2026-10-21T14:58:18Z
+first_seen: 2026-10-21T19:14:42.600331207Z
+content: extracted
+html: 2026-10-21-granite-speech-5-0-transcribe-translate-and-attribute-more.html
+remote_preview:
+  url: https://cdn-uploads.huggingface.co/production/uploads/653fb52cbfd890805461d691/M_JJyIOBOWVzHXdy7CVVG.png
+---
+
+We're excited to share three updates to IBM's Granite Speech collection: a new speech-language model, [granite-speech-5.0-2b](https://huggingface.co/ibm-granite/granite-speech-5.0-2b), and revised versions of two models the community already uses, [granite-speech-5.0-470m-turboctc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc) and [granite-speech-4.1-2b-plus](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-plus). Together they cover the full range of enterprise speech work: transcription and translation with high accuracy, extremely fast transcription at the edge, and recordings where who spoke, and when, matter as much as what was said.
+
+| Model                              | Status  | What's new                                                                                                                                                  | Best for                                                 |
+| ---------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `granite-speech-5.0-2b`            | New     | More accurate, noise- and reverb-robust automatic speech recognition (ASR), language-ID prompting, 2,000-term keyword biasing, better long-form translation | High-accuracy multilingual transcription and translation |
+| `granite-speech-5.0-470m-turboctc` | Updated | Multilingual, native punctuation and capitalization, and more robust to noise and reverb                                                                    | High-throughput and on-device transcription              |
+| `granite-speech-4.1-2b-plus`       | Updated | Improved speaker attribution, timestamps, keyword biasing, and long-speech performance                                                                      | Meetings, calls, and other multi-speaker recordings      |
+
+## Granite Speech 5.0 2B: more accurate, more robust, more control
+
+`granite-speech-5.0-2b` is the successor to `granite-speech-4.1-2b` at the same parameter count. It transcribes English, French, German, Spanish, Portuguese, and Japanese, and translates to and from English in those languages, plus English to Italian and Mandarin. It was trained on 390,000 hours of public audio, plus synthetic data built for Japanese ASR, keyword biasing, and translation.
+
+What's new compared with 4.1 2B Speech:
+
+- **More accurate, more robust English ASR:** Higher accuracy on English short-form benchmarks, and better handling of noise, reverberation, and distant-microphone speech.
+- **Language ID prompting:** Name the input language in the prompt to steer multilingual transcription.
+- **Better long-form and conversational translation:** Translation holds up for longer with more natural speech, not just short read sentences.
+- **Keyword lists up to 2,000 terms:** Bias transcription and translation toward product names, people, and acronyms, in every supported language.
+- **Punctuation and capitalization on request:** Ask for formatted output in the prompt; capitalization F1 ranges from 89.7 to 99.5 across our test sets.
+
+The model ships under Apache 2.0 with support in Transformers, vLLM, llama.cpp, and mlx-audio for Apple Silicon.
+
+[![granite-speech-5.0-2b average English WER compared with top open-weight ASR models](https://cdn-uploads.huggingface.co/production/uploads/653fb52cbfd890805461d691/87yRtLq4X2CwMZrDhv0L_.png)](https://cdn-uploads.huggingface.co/production/uploads/653fb52cbfd890805461d691/87yRtLq4X2CwMZrDhv0L_.png)
+
+*Chart 1: granite-speech-5.0-2b ranks #2 among top open-weight ASR models on average English WER (5.06%). Lower is better. Results are unofficial, as of 15 October 2026, and averaged over the Open ASR Leaderboard’s public English short-form test sets.*
+
+## Granite Speech 5.0 Turbo CTC: now multilingual, more robust, and even faster
+
+When we [introduced Turbo CTC in August](https://huggingface.co/blog/ibm-granite/granite-speech-5-0-470m-turboctc), it was an English-only, 470M-parameter encoder built for speed. This revision keeps that footprint and adds the three things users asked for most:
+
+- **Multilingual transcription:** English, Japanese, Spanish, German, French, Italian, and Portuguese.
+- **Native punctuation and capitalization:** Transcripts come out ready to read, with no separate punctuation or truecasing step.
+- **More robust in difficult acoustics:** Training that explicitly targets reverberant audio makes Turbo CTC more robust in echoey rooms and far-field recordings.
+
+It's also faster. By compiling a single Conformer block and reusing its graph across the stack, we cut warmup time and pushed Turbo CTC to 19,870 RTFx on the Open ASR Leaderboard, up from roughly 12,600 RTFx at launch: about 1.6x faster, at the same accuracy level.
+
+*Chart 2: Average WER vs. RTFx on the Open ASR Leaderboard (English short-form, 9 public test sets, as of October 2026). Lower WER and higher RTFx are better; RTFx is on a log scale.*
+
+## Granite Speech 4.1 2B Plus: better at who said what, and when
+
+The updated `granite-speech-4.1-2b-plus` is tuned for the recordings enterprises actually have: meetings, support calls, and interviews with several speakers running long. It keeps the 4.1 name because the architecture, prompt format, and API are unchanged, so it's a drop-in replacement for the current model with improved weights. This revision improves four areas:
+
+- **Speaker attribution:** More accurate labeling of who is speaking. Word diarization error rate (WDER) drops 7%, and speaker-attributed WER (cpWER) drops 7% overall.
+- **Timestamps:** Average timestamp shift (AAS) is cut by more than half, yielding tighter timing in captions, search, and review.
+- **Long-speech performance:** WER on long-form test sets drops 24%.
+- **Keyword biasing:** Errors on biased keywords fall 45% with 20-term keyword lists.
+
+| Capability                     | Metric                         | Previous release | Updated model |
+| ------------------------------ | ------------------------------ | ---------------- | ------------- |
+| Timestamps, all speech         | AAS (average timestamp shift)  | 210.86           | **98.54**     |
+| Timestamps, short speech       | AAS (average timestamp shift)  | 29.27            | **26.20**     |
+| Keyword biasing                | Biased-word WER, 20-term lists | 11.79            | **6.48**      |
+| Long-form speech               | WER, long-form test sets       | 13.53            | **10.22**     |
+| Speaker attribution            | WDER                           | 4.40             | **4.10**      |
+| Speaker-attributed transcripts | cpWER                          | 30.50            | **28.48**     |
+
+*Table 1: All metrics are error rates, so lower is better. For more detailed results, see the [model card](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-plus).*
+
+## Get started
+
+Not sure which model to pick? Start here:
+
+- **Need high transcription accuracy, translation, or keyword biasing?** Use [granite-speech-5.0-2b](https://huggingface.co/ibm-granite/granite-speech-5.0-2b).
+- **Need raw speed or on-device transcription?** Use [granite-speech-5.0-470m-turboctc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc), and try it in the browser with our [WebGPU streaming demo](https://huggingface.co/blog/ibm-granite/DEMO_URL).
+- **Working with meetings or multi-speaker calls?** Use [granite-speech-4.1-2b-plus](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-plus).
+
+These models are all released under an Apache 2.0 license with native support in Transformers. Full evaluation results, architecture details, training data, and usage examples are on each model card. We recommend pairing them with [Granite Guardian](https://huggingface.co/collections/ibm-granite/granite-guardian) for production deployments that need additional risk detection.
+
+Give them a try and let us know what you think!
