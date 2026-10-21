@@ -1,0 +1,373 @@
+<div id="readability-page-1" class="page"><div> 
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/Ww9sOxL-id3EOkLVxKAZX.jpeg" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/Ww9sOxL-id3EOkLVxKAZX.jpeg" alt="blog_image"></a></p>
+<p><em>Authors</em>: <strong><a href="https://huggingface.co/eruedas">Enzo Ruedas</a></strong>, <strong><a href="https://huggingface.co/tboivin">Tess Boivin</a></strong></p>
+<hr>
+<p>Recent advances in Large Language Models have enabled the transition from text-only reasoning to <strong>multimodal systems</strong>. First, with the integration of visual perception in <strong>Vision–Language Models (VLMs)</strong>, and more recently with the generation of robot actions in <strong>Vision–Language–Action (VLA) models</strong>. Deploying these models on <strong>embedded robotic platforms</strong> remains a challenge due to tight constraints in terms of compute, memory, and power, as well as real-time control requirements.</p>
+<p>In synchronous control pipelines, while the VLA is running inference, the arm is idle awaiting commands leading to oscillatory behavior and delayed corrections. To tackle that, <a href="https://huggingface.co/docs/lerobot/async">asynchronous Inference</a> can enable smooth and continuous motion by dissociating generation from execution. However, to be effective, the <strong>end-to-end inference latency must remain shorter than the action execution duration</strong>. This temporal constraint therefore sets an upper limit on the model's throughput.</p>
+<p>Bringing VLA models to embedded platforms is not a matter of model compression, but a complex systems engineering problem requiring <strong>architectural decomposition</strong>, <strong>latency-aware scheduling</strong>, and <strong>hardware-aligned execution</strong>. Addressing these challenges is essential to translate recent advances in multimodal foundation models into practical and deployable embedded robotic systems.</p>
+<p>This guide presents NXP’s hands‑on best practices for recording reliable robotic datasets, fine‑tuning VLA policies (<a href="https://huggingface.co/blog/nxp/bringing-robotics-ai-to-embedded-platforms" rel="nofollow"><strong>ACT</strong></a> and <a href="https://huggingface.co/blog/nxp/bringing-robotics-ai-to-embedded-platforms" rel="nofollow"><strong>SmolVLA</strong></a>), and hightlights the real-time performance that <strong><a href="https://www.nxp.com/products/i.MX95" rel="nofollow">NXP i.MX 95</a></strong> SoC achieves after optimization. </p>
+<hr>
+<h2>
+	<a id="🎥-dataset-recording-what-actually-matters" href="#🎥-dataset-recording-what-actually-matters" rel="nofollow">
+		
+	</a>
+	<span>
+		🎥 Dataset Recording: What Actually Matters
+	</span>
+</h2>
+
+
+<p>High‑quality, <strong>consistent</strong> data beats “more but messy” data. This section turns hard‑earned lessons into concrete checklists and schemas.</p>
+<p>In our case, we recorded a dataset for the task: <em>"Put the tea bag in the mug."</em></p>
+<h3>
+	<a id="1-consistency-first" href="#1-consistency-first" rel="nofollow">
+		
+	</a>
+	<span>
+		1) Consistency First
+	</span>
+</h3>
+<ul>
+<li><strong>Fixed cameras</strong>: Use rigid mounts to avoid pose drift. If during recording or evaluation one or more cameras shift because of the robot's vibrations or the operator resetting the environment, you can observe a severe accuracy loss.</li>
+<li><strong>Controlled lighting</strong>: Set up your environment where you can have as much control as possible on lighting (Fixed light source(s) and far from sunlight that vary during the day).</li>
+<li><strong>Strong contrast</strong>: Avoid training with “white on white” unless that’s your deployment domain. Maximize contrast between the arm, the object and the environment.</li>
+<li><strong>Fixed calibration</strong>: Make sure to have backups of your robot and teleoperator calibrations so you don't have to re-record your previous episodes if the code crashes.</li>
+<li><strong>Do not cheat</strong>: Do not use information the model will not have access to at inference time. During data recording, it is tempting for the operator to rely on direct visual observation of the scene. However, this introduces information that is absent from the dataset. Dataset collection must be restricted to the same camera inputs that will be available to the policy at runtime.</li>
+</ul>
+<h3>
+	<a id="2-use-a-gripper-camera-highly-recommended" href="#2-use-a-gripper-camera-highly-recommended" rel="nofollow">
+		
+	</a>
+	<span>
+		2) Use a Gripper Camera (Highly Recommended)
+	</span>
+</h3>
+<p>Moving from scene‑only views to mixed viewpoints increases the global accuracy, but the more cameras you have the more the latency is impacted. Therefore, you must choose right compromise. In our case that balance was reached with 3 cameras:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Top</th>
+<th>Gripper</th>
+<th>Left</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/Jrr_Whf3DkAx1pG8dPC1d.jpeg" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/Jrr_Whf3DkAx1pG8dPC1d.jpeg" alt="top"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/n8ClsioJ2stBkxMbqcpI2.jpeg" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/n8ClsioJ2stBkxMbqcpI2.jpeg" alt="gripper"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/tDRtQhgd7UFMOCHSzO_Ln.jpeg" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/tDRtQhgd7UFMOCHSzO_Ln.jpeg" alt="left"></a></td>
+</tr>
+<tr>
+<td>The global view of the whole scene.</td>
+<td>The closest view for precise grasps and alignment.</td>
+<td>Complement the top view for height and depth.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<blockquote>
+<p><strong>We strongly recommend using a gripper-mounted camera</strong>. It consistently improves success rates on fine manipulation tasks by providing a close, task-relevant viewpoint. Importantly, it is also the camera that most effectively enforces correct data collection practices, allowing the operator to rely exclusively on the robot’s perception rather than observing the scene directly.</p>
+<p>When installing a gripper camera, we recommend securing the cable with <strong>Velcro or a strain-relief guide</strong> to prevent it from obstructing the field of view or becoming disconnected during motion.</p>
+</blockquote>
+<h3>
+	<a id="3-improve-prehension" href="#3-improve-prehension" rel="nofollow">
+		
+	</a>
+	<span>
+		3) Improve Prehension
+	</span>
+</h3>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/6JGWkDNSokzCqehdJPYU2.jpeg" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/6JGWkDNSokzCqehdJPYU2.jpeg" alt="heat_shrink-tube"></a></p>
+<p>Simple hardware tweaks like <strong>heat‑shrink tubing</strong> over gripper claws increase friction, reduce roughness, reduce slippage during episodes, and increase task success rate (fewer “almost success” episodes), improving policy learning stability.</p>
+<h3>
+	<a id="4-diversity--splits" href="#4-diversity--splits" rel="nofollow">
+		
+	</a>
+	<span>
+		4) Diversity &amp; Splits
+	</span>
+</h3>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/kswpeJYHDRaGhGz7D3Vl8.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/kswpeJYHDRaGhGz7D3Vl8.png" alt="clusters"></a></p>
+<p>When recording a dataset, you should:</p>
+<ul>
+<li><p><strong>Vary episodes distribution</strong>: Divide your workspace into starting-position clusters, and record at least 10 episodes per cluster. Add diversity by changing the object position and rotation.</p>
+<p><em><ins>e.g.</ins> we partitioned the robot arm’s reachable workspace into 11 clusters, each measuring 10 × 10 cm.</em></p>
+</li>
+<li><p><strong>Differentiate training &amp; validation sets</strong>: Policies can easily overfit on the training set, so make sure that the validation set is unseen by the model.</p>
+<p><em><ins>e.g.</ins> we removed cluster 6 from the training set.</em></p>
+</li>
+<li><p><strong>Record the most movements you can</strong>: Small VLA models exhibit limited generalization on unseen motion. Therefore, record episodes that cover the wider ranges of degrees of freedom.</p>
+<p><em><ins>e.g.</ins> we grasped the tea bag either in horizontal or vertical position.</em></p>
+</li>
+<li><p><strong>Anticipate failure</strong>: Sometimes the policy will not reach the object the first time and will have to "go back to it". We noticed that having 20% of all episodes that corresponds to the case of going back to the object help the model improve overall success rate.</p>
+<p><em><ins>e.g.</ins> around 20% of our training set corresponds to <strong>recovery episodes</strong>.</em></p>
+</li>
+</ul>
+<p>This mirrors best practices across VLA papers and community guides. Here are 3 examples of data diversity within the same cluster:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Starting position 1</th>
+<th>Starting position 2</th>
+<th>Recovery episode</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/WZQwbqPToxV3Zl2o_kKS6.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/WZQwbqPToxV3Zl2o_kKS6.png" alt="cluster_10_1"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/8KtWcy51UBuFBOnOtQBUl.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/8KtWcy51UBuFBOnOtQBUl.png" alt="cluster_10_2"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/jtFOSLb5R7B81CUX1dGwT.gif" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/jtFOSLb5R7B81CUX1dGwT.gif" alt="recovery"></a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Starting positions 1 and 2 correspond to different positions within the same cluster. In contrast, during the recovery episode, the robot does not begin in "starting mode"; but is instead already near the mug and should proceed directly to retrieve the tea bag from that location.</p>
+<hr>
+<h2>
+	<a id="🎛️-finetuning-vlas" href="#🎛️-finetuning-vlas" rel="nofollow">
+		
+	</a>
+	<span>
+		🎛️ Fine‑Tuning VLAs
+	</span>
+</h2>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/r8dZynt_xDXS6vLQGf4c_.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/r8dZynt_xDXS6vLQGf4c_.png" alt="act_loss"></a></p>
+<p>What we did in practice:</p>
+<ul>
+<li><strong>Tasks:</strong> "Grab the tea bag and place it in the mug."</li>
+<li><strong>Dataset:</strong><ul>
+<li>120 episodes: 10 clusters x (10 different tea bag starting positions + 2 recovery episodes)</li>
+<li>3 cameras (640x480px, 30fps): Top, Gripper, Left</li>
+<li>Cluster n°6 was removed for validation</li>
+</ul>
+</li>
+<li><strong>Batch size:</strong> 8</li>
+<li><strong>Training:</strong> Model checkpoint with the lowest validation loss after 200k steps was chosen</li>
+</ul>
+<p>The range providing the best trade-off between accuracy, generalization, and motion smoothness across both the training and validation sets was found for ACT (100 actions per chunk) within a 100k-160k training steps.
+For SMolVLA training (50 actions per chunk), the trade‑off appears after many more training steps. We found that continuing training slightly past the point where the model begins to overfit tends to improve overall accuracy.</p>
+<blockquote>
+<p>Rule of thumb: choose final checkpoint by evaluating success on both training and validation set, not by training loss.</p>
+</blockquote>
+<hr>
+<h2>
+	<a id="⚡-optimizing-for-the-nxp-imx-95-applications-processor" href="#⚡-optimizing-for-the-nxp-imx-95-applications-processor" rel="nofollow">
+		
+	</a>
+	<span>
+		⚡ Optimizing for the NXP i.MX 95 Applications processor
+	</span>
+</h2>
+<p>The <strong><a href="https://www.nxp.com/products/i.MX95" rel="nofollow">i.MX 95</a></strong> SoC integrates 6× Arm Cortex‑A55, a Cortex‑M7 and a Cortex M33 MCU, a Mali GPU, a new NXP ISP, and the <strong>eIQ® Neutron NPU</strong>, targeting <strong>efficient, secure edge inference</strong> with multi‑camera support and strong I/O. <a href="https://www.nxp.com/products/i.MX95" rel="nofollow">[nxp.com]</a></p>
+<h3>
+	<a id="1-divide-and-conquer" href="#1-divide-and-conquer" rel="nofollow">
+		
+	</a>
+	<span>
+		1) Divide And Conquer
+	</span>
+</h3>
+<p>Instead of running the models as one monolithic graph, we decompose the VLA graph into logical stages: encoders, decoders, and action experts. Therefore, allowing each component to be optimized, scheduled, and deployed independently.</p>
+<p>In practice, SmolVLA is partitioned into the following sub-blocks:</p>
+<ul>
+<li><strong>Vision</strong>: processes RGB camera frames and produces visual embeddings. </li>
+<li><strong>LLM backbone</strong>: generates actions tokens from visual and textual embeddings.</li>
+<li><strong>Action expert</strong>: applies flow matching to iteratively denoise action samples and outputs final control commands.</li>
+</ul>
+<p>This separation allows per-block optimizations. The impact of each block quantization can be measured to choose the best tradeoff between latency and accuracy. Also, isolating the action expert from the VLM was ideal to run it at lower frequency. </p>
+<h3>
+	<a id="2-quantization" href="#2-quantization" rel="nofollow">
+		
+	</a>
+	<span>
+		2) Quantization
+	</span>
+</h3>
+<p>In order to optimize the inference for i.MX 95 SoC, we explored several quantization techniques on different blocks. We found that quantizing the vision encoder and LLM prefill had limited impact on accuracy, whereas quantization of the denoising flow in the action expert significantly degrades performance.<br>This behaviour is expected, as quantization errors are accumulating across iterative denoising steps.</p>
+<p>That is why we decided to keep this block at higher precision to preserve stability, while on the other blocks, we explored various quantization configurations, from 8-bit mixed precision to 4-bit quantization, depending on the layers.</p>
+<p>In addition, we applied in-house optimization on the different blocks. Results are shown in the below table, referred as <em>optimized models</em>.</p>
+<h3>
+	<a id="3-asynchronous-inference-control-aware-scheduling" href="#3-asynchronous-inference-control-aware-scheduling" rel="nofollow">
+		
+	</a>
+	<span>
+		3) Asynchronous Inference: Control-Aware Scheduling
+	</span>
+</h3>
+<p>In a synchronous control loop, the pipeline operates as:</p>
+<ol>
+<li>Capture observation </li>
+<li>Run full model inference </li>
+<li>Execute generated action</li>
+</ol>
+<p>During step (2), the robot remains idle. If inference latency is non-negligible, this produces:</p>
+<ul>
+<li><strong>Idle gaps</strong> in motion </li>
+<li><strong>Oscillatory corrections</strong> due to stale observations </li>
+<li>Reduced effective control frequency </li>
+<li>Poor recovery behavior</li>
+</ul>
+<p>With <a href="https://huggingface.co/docs/lerobot/async"><strong>Asynchronous Inference</strong></a>, action generation runs in parallel with execution:</p>
+<ul>
+<li>The robot executes the current action chunk</li>
+<li>The next chunk is computed simultaneously</li>
+</ul>
+<p>This increases effective control frequency, reduces observation staleness, and improves recovery behavior.</p>
+<p>On embedded platforms such as the i.MX 95 SoC, asynchronous inference is essential — but only effective if inference latency is kept under the action horizon budget: inference time &lt; execution time</p>
+<div>
+	<table>
+		<thead><tr>
+<th></th>
+<th>Synchronous inference</th>
+<th>Asynchronous inference</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Actions per chunk</strong></td>
+<td>100</td>
+<td>100</td>
+</tr>
+<tr>
+<td><strong>FPS</strong></td>
+<td>60</td>
+<td>60</td>
+</tr>
+<tr>
+<td><strong>Chunk size threshold</strong></td>
+<td>N/A</td>
+<td>0.2</td>
+</tr>
+<tr>
+<td><strong>Aggregate function</strong></td>
+<td>N/A</td>
+<td>weighted_average</td>
+</tr>
+<tr>
+<td><strong>Action queue evolution</strong></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/kUX9Am5NoK6YA_rx8-qPQ.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/kUX9Am5NoK6YA_rx8-qPQ.png" alt="async_g_0"></a></td>
+<td><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/SEWvplGgoBGQCJd53YVl6.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/SEWvplGgoBGQCJd53YVl6.png" alt="async_g_02"></a></td>
+</tr>
+<tr>
+<td><strong>Results</strong></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<hr>
+<h2>
+	<a id="📊-what-we-achieve-on-imx-95-applications-processor" href="#📊-what-we-achieve-on-imx-95-applications-processor" rel="nofollow">
+		
+	</a>
+	<span>
+		📊 What We Achieve on i.MX 95 Applications Processor
+	</span>
+</h2>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/g8zPqeWQyeVTJx5-VjtSL.jpeg" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/652d3409a7275ea70302b30c/g8zPqeWQyeVTJx5-VjtSL.jpeg" alt="imx95"></a></p>
+<p><strong>Setup</strong></p>
+<ul>
+<li><strong>Tasks:</strong> "Grab the tea bag and place it in the mug."</li>
+<li><strong>Test set (20 episodes):</strong> 2 random positions for each cluster.</li>
+<li><strong>Validation set (10 episodes):</strong> all 10 positions in cluster n°6</li>
+</ul>
+<div>
+	<table>
+		<thead><tr>
+<th>Platform (CPU)</th>
+<th>Policy</th>
+<th>Format</th>
+<th>Inference Latency</th>
+<th>Accuracy Test Set (20)</th>
+<th>Accuracy Validation Set (10)</th>
+<th>Global Accuracy (30)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>i.MX 95</td>
+<td>ACT</td>
+<td>ONNX FP32</td>
+<td>2.86 s</td>
+<td>1.00</td>
+<td>0.90</td>
+<td>0.96</td>
+</tr>
+<tr>
+<td>i.MX 95</td>
+<td>ACT</td>
+<td>Optimized</td>
+<td>0.32 s</td>
+<td>1.00</td>
+<td>0.60</td>
+<td>0.89</td>
+</tr>
+<tr>
+<td>i.MX 95</td>
+<td>SmolVLA</td>
+<td>ONNX FP32</td>
+<td>29.1 s</td>
+<td>0.50</td>
+<td>0.40</td>
+<td>0.47</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<hr>
+<h2>
+	<a id="⏩-next-steps" href="#⏩-next-steps" rel="nofollow">
+		
+	</a>
+	<span>
+		⏩ Next Steps
+	</span>
+</h2>
+<p>Our immediate objective is to improve task accuracy with SmolVLA (ONNX FP32). We have already established a baseline and measured an optimized on-board inference latency of <strong>6.15 s</strong>. </p>
+<p>The next phase will focus on deeper optimizations on our NPUs. In parallel, we aim to move from single-task setup toward longer-horizon and more complex scenarios. To do that, we will introduce:</p>
+<ul>
+<li><strong>Simulation environments</strong> for scalable data generation and benchmarking</li>
+<li><strong>Reinforcement Learning (RL)</strong> for policy refinement</li>
+<li><strong>Sim-to-Real transfer</strong> to bridge domain gaps and improve real-world performance</li>
+</ul>
+<p>The goal is to move from a single validated manipulation task toward a reproducible methodology for deploying VLA policies on embedded robotic systems.</p>
+<hr>
+<h2>
+	<a id="✅-checklists-you-can-reuse" href="#✅-checklists-you-can-reuse" rel="nofollow">
+		
+	</a>
+	<span>
+		✅ Checklists You Can Reuse
+	</span>
+</h2>
+<p><strong>Recording</strong></p>
+<ul>
+<li> Fixed mounts verified</li>
+<li> Good cameras focus and illumination</li>
+<li> Good gripper claws prehension</li>
+<li> Calibration files backups saved</li>
+<li> Contrast validated</li>
+</ul>
+<p><strong>Training</strong></p>
+<ul>
+<li> Save/eval checkpoints every 20k steps</li>
+<li> Save also your training parameters to be able to resume training if needed</li>
+<li> Prepare in advance your validation set and your tracking method for accuracy and latency</li>
+</ul>
+<p><strong>Deployment on i.MX 95 SoC</strong></p>
+<ul>
+<li> You are satisfied with your accuracy</li>
+<li> <a href="mailto:voice@nxp.com" rel="nofollow">Contact us</a> to have your model optimized</li>
+</ul>
+<hr>
+<h2>
+	<a id="📚-resources--inspiration" href="#📚-resources--inspiration" rel="nofollow">
+		
+	</a>
+	<span>
+		📚 Resources &amp; Inspiration
+	</span>
+</h2>
+<ul>
+<li><strong>ACT documentation &amp; paper</strong> (core idea, action chunking, low‑demo success). <a href="https://huggingface.co/docs/lerobot/act">[huggingface.co]</a>, <a href="https://arxiv.org/abs/2304.13705" rel="nofollow">[arxiv.org]</a></li>
+<li><strong>SmolVLM/SmolVLA family &amp; repos</strong> (compact multimodal + VLA design). <a href="https://huggingface.co/HuggingFaceTB/SmolVLM-Base">[huggingface.co]</a>, <a href="https://github.com/huggingface/smollm" rel="nofollow">[github.com]</a>, <a href="https://smolvla.net/index_en" rel="nofollow">[smolvla.net]</a></li>
+<li><strong>Sherry Chen’s HF blog</strong> on training ACT on SO‑101 (practical lessons, pitfalls, fixes). <a href="https://huggingface.co/blog/sherryxychen/train-act-on-so-101">[huggingface.co]</a></li>
+</ul>
+</div></div>

@@ -1,0 +1,255 @@
+<div id="readability-page-1" class="page"><div> 
+<p><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/7MUExmr-ed7sgd0D9H6yh.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/wFevAF_ajrLWJxo8qll76.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/2JDkjJN0_FlFab5z6rz0V.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/LZjbLPmMKSTv95T2hHFqs.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/F3uWaHXreakVacTkf6UIN.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/X_XyKCFN1uaFhbz6fDC5f.png">
+
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/vuxXqk1jaAHjDcsaYfzoW.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/8xP_XO-ovK2V7IPPUl4X9.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/GrVwtipSxQPc_7AdX_Cyf.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/bo3AdZb6PFYste4gNI_hS.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/xSKUZg-4oCkY2709PFHJF.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/B3QtNXI5RtqqKorQiPx75.png">
+
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/luwmLyhZgs7h2v2Wx4YRZ.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/Q2zqJoyRe0-OtJxddzu42.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/rAMAI5mNE8PPhG0Lg5ln2.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/nkS6ejpXCCdqqxSnbHQBY.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/drJMVDA36Lu7hYWVsrHaR.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/Ze4BuybUnlDu6bcZoVt-Y.png"></p>
+
+<h2>
+	<a id="introduction" href="#introduction" rel="nofollow">
+		
+	</a>
+	<span>
+		Introduction
+	</span>
+</h2>
+<p>Welcome back 👋</p>
+<p>In the last two posts (<a href="https://huggingface.co/blog/Photoroom/prx-part1-architectures">Part 1</a> and <a href="https://huggingface.co/blog/Photoroom/prx-part2">Part 2</a>), we explored a wide range of architectural and training tricks for diffusion models. We tried to evaluate each idea in isolation, measuring throughput, convergence speed, and final image quality, and tried to understand what actually moves the needle.</p>
+<p>In this post, we want to answer a much more practical question:</p>
+<p><strong>What happens when we combine all the tricks that worked?</strong></p>
+<p>Instead of optimizing one dimension at a time, we’ll stack the most promising ingredients together and see how far we can push performance under a strict compute budget.</p>
+<p>To make things concrete, we’re doing a <strong>24-hour speedrun</strong>:</p>
+<ul>
+<li><strong>32 H200</strong></li>
+<li>~<strong>$1500 total compute budget (2$/hour/GPU)</strong></li>
+</ul>
+<p>This is very far from the early diffusion days, where training competitive models could cost millions of dollars. The goal here is to demonstrate how much the field has evolved and how far careful engineering can take you in just a single day of training.</p>
+<p>This speedrun is not just a fun experiment. It will likely serve as the foundation for our large-scale training recipe going forward.</p>
+<p>Alongside the results, we’re also open-sourcing our code (<a href="https://github.com/Photoroom/PRX" rel="nofollow">Github link</a>), which contains:</p>
+<ul>
+<li>The training code used for this speedrun</li>
+<li>The experimental framework from the previous blog post</li>
+</ul>
+<p>So you can reproduce, modify, and extend everything yourself.</p>
+<hr>
+<h2>
+	<a id="the-training-recipe" href="#the-training-recipe" rel="nofollow">
+		
+	</a>
+	<span>
+		The Training Recipe
+	</span>
+</h2>
+<p>Now let’s walk through what went into this 24h run.</p>
+<h3>
+	<a id="x-prediction-and-training-in-the-pixel-space" href="#x-prediction-and-training-in-the-pixel-space" rel="nofollow">
+		
+	</a>
+	<span>
+		X-prediction and Training in the Pixel Space
+	</span>
+</h3>
+<p>We use the x-prediction formulation from <em>Back to Basics: Let Denoising Generative Models Denoise</em> [<a href="https://arxiv.org/abs/2511.13720" rel="nofollow">Li and He, 2025</a>]. As seen in <a href="https://huggingface.co/blog/Photoroom/prx-part2">Part 2</a>, this enables <strong>training directly in pixel space and eliminates the need for a VAE altogether</strong>.
+We use a patch size of 32 and use a 256-dimensional bottleneck in the initial token projection layer. This design keeps the sequence length under control, making pixel-space training computationally manageable even at higher resolutions.</p>
+
+
+
+
+<p>At 512px, the sequence length is:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mo stretchy="false">(</mo><mn>512</mn><mi mathvariant="normal">/</mi><mn>32</mn><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo>=</mo><mn>256</mn></mrow>
+(512 / 32)^2 = 256
+</math></span></span></span></p>
+<p>At 1024px, the sequence length becomes:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mo stretchy="false">(</mo><mn>1024</mn><mi mathvariant="normal">/</mi><mn>32</mn><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo>=</mo><mn>1024</mn></mrow>
+(1024 / 32)^2 = 1024
+</math></span></span></span></p>
+<p>Instead of following the usual 256px → 512px → 1024px schedule, we start directly at 512px and then fine-tune at 1024px. </p>
+<p>With controlled token counts and modern hardware, pixel-space training is no longer prohibitive. It is simply a cleaner and more direct formulation.</p>
+<hr>
+<h3>
+	<a id="perceptual-losses" href="#perceptual-losses" rel="nofollow">
+		
+	</a>
+	<span>
+		Perceptual Losses
+	</span>
+</h3>
+<p>One very nice side effect of predicting <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><msub><mi>x</mi><mn>0</mn></msub></mrow>x_0</math></span></span> directly in pixel space is that we can reuse a whole toolbox from classical computer vision.</p>
+<p>When your model outputs latents, perceptual supervision becomes awkward. You either have to decode back to pixels or define losses in a learned latent space that may or may not align with human perception. Once you predict pixels directly, everything becomes straightforward again. You can plug in perceptual losses exactly as they were originally designed.</p>
+<p>We take inspiration from the paper <em>PixelGen: Pixel Diffusion Beats Latent Diffusion with Perceptual Loss</em> [<a href="https://arxiv.org/abs/2602.02493" rel="nofollow">Ma et al.</a>], where the authors introduce additional perceptual objectives on top of the diffusion loss. They show that adding perceptual signals can noticeably improve convergence speed and final visual quality.</p>
+<p>For this 24h run, we add two auxiliary losses:</p>
+<ul>
+<li><strong>LPIPS</strong> ([<a href="https://arxiv.org/abs/1801.03924" rel="nofollow">Zhang et al.</a>])</li>
+<li>A <strong>DINO-based perceptual loss</strong> (we use DINOv2 [<a href="https://arxiv.org/abs/2304.07193" rel="nofollow">Oquab et al.</a>])</li>
+</ul>
+<p>The idea is simple: In addition to the standard flow matching objective, we encourage the predicted clean image to match the target image in a perceptual feature space. LPIPS captures low-level perceptual similarity, while DINO features provide a stronger semantic signal.</p>
+<p>We keep the same overall idea as the paper, but we tweaked a few details. In our experiments, we empirically found that it worked better to:</p>
+<ul>
+<li>apply the perceptual losses on pooled full images instead of patch-wise features</li>
+<li>apply them at all noise levels</li>
+</ul>
+<p>These are small implementation details, but in our setting they consistently gave better results.</p>
+<p>We used a weight of <strong>0.1</strong> for the LPIPS loss and <strong>0.01</strong> for the DINO perceptual loss, matching the values recommended in the original paper.</p>
+<p>These losses are lightweight compared to the main transformer forward pass, and in our setup they add only a small overhead while providing a consistent quality boost.</p>
+<h3>
+	<a id="token-routing-with-tread" href="#token-routing-with-tread" rel="nofollow">
+		
+	</a>
+	<span>
+		Token Routing with TREAD
+	</span>
+</h3>
+<p>To make each step cheaper, we use token routing with <em>TREAD</em> [<a href="https://openaccess.thecvf.com/content/ICCV2025/papers/Krause_TREAD_Token_Routing_for_Efficient_Architecture-agnostic_Diffusion_Training_ICCV_2025_paper.pdf" rel="nofollow">Krause et al., 2025</a>]), which randomly selects a fraction of tokens and lets them bypass a contiguous chunk of transformer blocks, then re-injects them later so nothing is dropped. </p>
+<p>We picked TREAD over SPRINT (<a href="https://arxiv.org/pdf/2510.21986" rel="nofollow">Park et al., 2025</a>) mostly for simplicity, and because the extra complexity of SPRINT did not feel worth the fairly small additional compute savings in our setting (sequence length 64 vs. 128 with TREAD at 512px).</p>
+<p>Following the TREAD recipe, we route <strong>50% of the tokens</strong> from the <strong>2nd block</strong> to the <strong>penultimate block</strong> of the transformer.</p>
+<p>Routed models can look worse under vanilla CFG, especially when undertrained, so we implemented a simple self-guidance scheme inspired by Guiding Token-Sparse Diffusion Models (<a href="https://arxiv.org/abs/2601.01608" rel="nofollow">Krause et al., 2025</a>), which guides using a dense vs. routed conditional prediction instead of relying on an unconditional branch. </p>
+<h3>
+	<a id="representation-alignment-with-repa-and-dinov3" href="#representation-alignment-with-repa-and-dinov3" rel="nofollow">
+		
+	</a>
+	<span>
+		Representation Alignment with REPA and DINOv3
+	</span>
+</h3>
+<p>We used <strong>REPA</strong> [<a href="https://arxiv.org/abs/2410.06940" rel="nofollow">Yu et al., 2024</a>] for representation alignment.</p>
+<p>For the teacher, we went with <strong>DINOv3</strong> [<a href="https://arxiv.org/abs/2508.10104" rel="nofollow">Siméoni et al. 2025</a>] since it gave the best quality improvements in our previous experiments.</p>
+<p>Concretely, we apply the alignment loss once,at the <strong>8th transformer block</strong> with a loss weight of <strong>0.5</strong>.</p>
+<p>Since we combine <strong>REPA</strong> with <strong>TREAD</strong> routing, we only compute the alignment loss on the <strong>non-routed tokens</strong>, meaning the tokens that actually go through the blocks where we apply the loss. This keeps the REPA signal consistent and avoids comparing features for tokens that skipped the computation path.</p>
+<hr>
+<h3>
+	<a id="optimizer-muon" href="#optimizer-muon" rel="nofollow">
+		
+	</a>
+	<span>
+		Optimizer: Muon
+	</span>
+</h3>
+<p>We used the <strong>Muon</strong> optimizer, using the FSDP implementation from <a href="https://github.com/samsja/muon_fsdp_2" rel="nofollow">muon_fsdp_2</a>, since it showed a clear improvement over Adam in our previous runs.</p>
+<p>Muon is only applied to <strong>2D parameters</strong> (basically matrices). Everything else (biases, norms, embeddings, etc.) is optimized with Adam, which is why the config has two parameter groups.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Group</th>
+<th>What it applies to</th>
+<th>Key params we used</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Muon</strong></td>
+<td>2D parameters</td>
+<td><code>lr=1e-4</code>, <code>momentum=0.95</code>, <code>nesterov=true</code>, <code>ns_steps=5</code></td>
+</tr>
+<tr>
+<td><strong>Adam</strong></td>
+<td>all non-2D parameters</td>
+<td><code>lr=1e-4</code>, <code>betas=(0.9, 0.95)</code>, <code>eps=1e-8</code></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="training-settings" href="#training-settings" rel="nofollow">
+		
+	</a>
+	<span>
+		Training Settings
+	</span>
+</h2>
+<p>We trained on three publicly available synthetic datasets:</p>
+<ul>
+<li><strong>Flux generated</strong> (1.7M), <a href="https://huggingface.co/datasets/lehduong/flux_generated">lehduong/flux_generated</a>  </li>
+<li><strong>FLUX-Reason-6M</strong> (6M), <a href="https://huggingface.co/datasets/LucasFang/FLUX-Reason-6M">LucasFang/FLUX-Reason-6M</a>  </li>
+<li><strong>midjourney-v6-llava</strong> (1M), <a href="https://huggingface.co/datasets/brivangl/midjourney-v6-llava">brivangl/midjourney-v6-llava</a> which we re-captioned with <strong>Gemini 1.5</strong> to make prompts more consistent and cut down caption noise.</li>
+</ul>
+<p>The schedule is basically: go fast at 512, then sharpen at 1024:</p>
+<ul>
+<li><strong>512px</strong> for <strong>100k steps</strong> with <strong>batch size 1024</strong></li>
+<li><strong>1024px</strong> for <strong>20k steps</strong> with <strong>batch size 512</strong> without <strong>REPA</strong>.</li>
+</ul>
+
+
+<p>We also keep an <strong>EMA</strong> of the weights for sampling and eval:</p>
+<ul>
+<li><code>smoothing = 0.999</code></li>
+<li><code>update_interval = 10ba</code></li>
+<li><code>ema_start = 0ba</code></li>
+</ul>
+<h2>
+	<a id="results-and-closing-thoughts" href="#results-and-closing-thoughts" rel="nofollow">
+		
+	</a>
+	<span>
+		Results and Closing Thoughts
+	</span>
+</h2>
+<p>Below are the evaluation curves we tracked throughout the run and a few sample grids from the final checkpoint:</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/s2-rKg3fqtGefcBXmNFHJ.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/s2-rKg3fqtGefcBXmNFHJ.png" alt="image"></a></p>
+
+
+<p><img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/c5iZ9AQQ_wB7UONOiZaWs.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/f_KZ7Xdmx1aqLv1aWtHld.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/TNvYw9hHJ_87TiDYVdLuF.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/wsWk2O4X4SZdEzuqdkxOI.png">
+
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/RcnVYOwKjSciNdC_Ok4zW.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/D1OUz7HPERstZe6r-x2Ji.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/3SKgSXkcBGnJATwG_wOH_.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/F1lIaKaZKnTGpyNO3rzAX.png">
+
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/44VXfW9Sw1iBpGFDL7r3x.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/VNQHVh2m1k6IcuxnxkLn-.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/1KwDxBoDcCkFAj2gXMJzU.png">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/68e529af513e724edd8702f6/zRiDsNZFnV4zDQopDMNBv.png"></p>
+
+
+<p>For a one day training run, this is already a pretty solid place to be. The model is not flawless yet (you can still spot some texture glitches, occasional weird anatomy, and it can get a bit shaky on very hard prompts), but it is clearly usable. Prompt following is strong, the overall aesthetic is consistent, and the 1024 stage mostly does what we want: sharpen details without breaking composition.</p>
+<p>The key takeaway is that we're very close. The remaining issues look more like undertraining artifacts and limited data diversity than signs of a structural flaw in the recipe. The failure modes are consistent with what you’d expect from a model that simply hasn’t seen enough varied data yet. With more compute and broader coverage, this exact setup should continue improving in a fairly predictable way.</p>
+<p>Zooming out, this speed run also highlights how far diffusion training has come. By combining pixel-space training, efficient routing, representation alignment, and lightweight perceptual guidance, you can now get a meaningful model in about a day on a budget that would have sounded unrealistic not that long ago.</p>
+<h2>
+	<a id="whats-next" href="#whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		What’s next?
+	</span>
+</h2>
+<p>This 24h run is just a starting point, not the finish line. Next, we will keep pushing the same recipe with a bit more scale and iterate on the dataset mix and captioning.</p>
+<p>All the code and configs behind this speedrun, as well as the full experimental framework used throughout <a href="https://huggingface.co/blog/Photoroom/prx-part1-architectures">Part 1</a> and <a href="https://huggingface.co/blog/Photoroom/prx-part2">Part 2</a>, are available in the PRX repository: <a href="https://github.com/Photoroom/PRX" rel="nofollow">https://github.com/Photoroom/PRX</a>.</p>
+<p>While we don’t redistribute the exact training datasets used in this run, the pipeline is fully configurable and designed to be easily adapted to your own data. You can plug in different datasets, tweak individual components (TREAD, REPA, perceptual losses, Muon, etc.), and run controlled experiments with minimal friction. Our goal is to make this a practical playground for fast diffusion research, and we hope the community will use it to explore, benchmark, and iterate on these techniques in their own setups.</p>
+<p>If you made it this far, thank you for reading. We would also love to have you join our <a href="https://discord.gg/ZRwdpBSyyC" rel="nofollow">Discord</a> community, where we share PRX progress and results, and discuss anything diffusion and text-to-image related.</p>
+<p>Goodbye for now, and stay tuned for the next round of experiments! 🚀</p>
+<h2>
+	<a id="acknowledgements" href="#acknowledgements" rel="nofollow">
+		
+	</a>
+	<span>
+		Acknowledgements.
+	</span>
+</h2>
+<p>This speedrun was inspired by several recent efforts exploring fast and low-cost training of diffusion models. If you're interested in speedrunning text-to-image models, we encourage you to check out the following works:</p>
+<ul>
+<li>Haridas, A., Shen, T., Yu, J. <em>Nitro-T: Training a Text-to-Image Diffusion Model from Scratch in 1 Day.</em> 
+ <a href="https://rocm.blogs.amd.com/artificial-intelligence/nitro-t-diffusion/README.html" rel="nofollow">https://rocm.blogs.amd.com/artificial-intelligence/nitro-t-diffusion/README.html</a></li>
+<li>Bhanded, S. <em>Speedrunning ImageNet Diffusion.</em> 
+ <a href="https://arxiv.org/abs/2512.12386" rel="nofollow">https://arxiv.org/abs/2512.12386</a></li>
+<li>Sehwag, V., Kong, X., Li, J., Spranger, M., Lyu, L. <em>Stretching Each Dollar: Diffusion Training from Scratch on a Micro-Budget.</em> 
+ <a href="https://arxiv.org/abs/2407.15811" rel="nofollow">https://arxiv.org/abs/2407.15811</a></li>
+<li>Yeh, S.-Y. <em>Home-made Diffusion Model from Scratch to Hatch.</em> 
+ <a href="https://arxiv.org/abs/2509.06068" rel="nofollow">https://arxiv.org/abs/2509.06068</a></li>
+</ul>
+</div></div>
