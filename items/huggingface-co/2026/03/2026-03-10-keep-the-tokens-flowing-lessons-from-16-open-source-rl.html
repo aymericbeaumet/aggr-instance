@@ -1,0 +1,1388 @@
+<div id="readability-page-1" class="page"><div> 
+<blockquote>
+<p><strong>TL;DR</strong> -- For those of you who don't have time to read 5,000 words about async RL plumbing (we get it, you have models to train):</p>
+<ul>
+<li><strong>The problem:</strong> In synchronous RL (reinforcement learning) training, data generation (model inference to create data samples) dominates wall-clock time -- a single batch of 32K-token rollouts on a 32B (32-billion parameter) model can take <em>hours,</em> while the GPUs used for training remain idle.</li>
+<li><strong>The solution everyone converged on:</strong> Disaggregate (separate) inference and training onto different GPU pools, connect them with a rollout buffer (temporary storage for model outputs), and transfer weights asynchronously (without waiting), so neither side waits for the other.</li>
+<li><strong>We surveyed 16 open-source libraries</strong> that implement this pattern and compared them across 7 axes: orchestration primitives, buffer design, weight sync protocols, staleness management, partial rollout handling, LoRA support, and distributed training backends.</li>
+<li><strong>Key findings:</strong> Ray dominates orchestration (8/16 surveyed distributed computing libraries). The NCCL (NVIDIA Collective Communications Library) broadcast is the default method for transferring model weights. Staleness management refers to how outdated data samples are handled, ranging from simply dropping old samples to using advanced importance-sampling correction. LoRA (Low-Rank Adaptation) training is sparsely supported. Distributed MoE (Mixture of Experts) support is the emerging differentiator.</li>
+</ul>
+<p>If you'd rather skip straight to the good part, <a href="#4-global-overview-sixteen-libraries-at-a-glance" rel="nofollow">here's the full comparison table</a> (no reading required, we won't judge).</p>
+<p>But seriously, if you stick around, you might learn a thing or two about why your GPUs are idle 60% of the time.</p>
+</blockquote>
+<hr>
+<details>
+<summary><b>Click to expand Table of Contents</b></summary>
+
+<ul>
+<li><a href="#1-motivation-from-synchronous-rl-training-to-async-architectures" rel="nofollow">1. Motivation: From synchronous RL training to async architectures</a><ul>
+<li><a href="#11-how-trl-does-rl-training-today" rel="nofollow">1.1 How TRL Does RL Training Today</a></li>
+<li><a href="#12-colocated-vs-disaggregated-training" rel="nofollow">1.2 Colocated vs. Disaggregated Training</a></li>
+<li><a href="#13-the-generation-bottleneck" rel="nofollow">1.3 The Generation Bottleneck</a></li>
+<li><a href="#14-the-core-insight" rel="nofollow">1.4 The Core Insight</a></li>
+</ul>
+</li>
+<li><a href="#2-libraries-surveyed" rel="nofollow">2. Libraries Surveyed</a></li>
+<li><a href="#3-the-comparison-framework-seven-axes" rel="nofollow">3. The Comparison Framework: Seven Axes</a><ul>
+<li><a href="#axis-1-orchestration--concurrency-primitive" rel="nofollow">Axis 1: Orchestration &amp; Concurrency Primitive</a></li>
+<li><a href="#axis-2-rollout-buffer-design" rel="nofollow">Axis 2: Rollout Buffer Design</a></li>
+<li><a href="#axis-3-weight-synchronisation-protocol" rel="nofollow">Axis 3: Weight Synchronisation Protocol</a></li>
+<li><a href="#axis-4-staleness-management" rel="nofollow">Axis 4: Staleness Management</a></li>
+<li><a href="#axis-5-partial-rollout-handling" rel="nofollow">Axis 5: Partial Rollout Handling</a></li>
+<li><a href="#axis-6-lora-training-support" rel="nofollow">Axis 6: LoRA Training Support</a></li>
+<li><a href="#axis-7-distributed-training-backend--parallelism" rel="nofollow">Axis 7: Distributed Training Backend &amp; Parallelism</a></li>
+</ul>
+</li>
+<li><a href="#4-global-overview-sixteen-libraries-at-a-glance" rel="nofollow">4. Global Overview: Sixteen Libraries at a Glance</a></li>
+<li><a href="#5-the-next-wave-design-implications" rel="nofollow">5. The Next Wave: Design Implications</a><ul>
+<li><a href="#51-critic-free-algorithms-memory-freed-but-weight-sync-pressure-increases" rel="nofollow">5.1 Critic-Free Algorithms: Memory Freed, But Weight Sync Pressure Increases</a></li>
+<li><a href="#52-process-rewards-a-new-synchronisation-barrier" rel="nofollow">5.2 Process Rewards: A New Synchronisation Barrier</a></li>
+<li><a href="#53-multi-agent-co-evolution-the-straggler-problem-compounds" rel="nofollow">5.3 Multi-Agent Co-Evolution: The Straggler Problem Compounds</a></li>
+<li><a href="#54-training-inference-mismatch-the-deepseek-v32-moe-case-study" rel="nofollow">5.4 Training-Inference Mismatch: The Deepseek v3.2 MoE Case Study</a></li>
+<li><a href="#55-distillation-the-same-async-problem-under-a-different-name" rel="nofollow">5.5 Distillation: The Same Async Problem Under a Different Name</a></li>
+</ul>
+</li>
+<li><a href="#6-design-choices-for-trls-async-trainer" rel="nofollow">6. Design Choices for TRL's Async Trainer</a><ul>
+<li><a href="#design-principle-keep-orchestration-lightweight" rel="nofollow">Design Principle: Keep Orchestration Lightweight</a></li>
+<li><a href="#1-bounded-queue-with-per-token-model_version-no-double-buffering" rel="nofollow">1. Bounded Queue with Per-Token <code>model_version</code> (No Double-Buffering)</a></li>
+<li><a href="#2-nccl-weight-sync-with-packed-transfers" rel="nofollow">2. NCCL Weight Sync with Packed Transfers</a></li>
+<li><a href="#3-partial-rollout-support-for-agentic-workloads" rel="nofollow">3. Partial Rollout Support for Agentic Workloads</a></li></ul></li></ul></details>
+
+
+
+<h2>
+	<a id="1-motivation-from-synchronous-rl-training-to-async-architectures" href="#1-motivation-from-synchronous-rl-training-to-async-architectures" rel="nofollow">
+		
+	</a>
+	<span>
+		1. Motivation: From synchronous RL training to async architectures
+	</span>
+</h2>
+<p>Async RL training has emerged as the dominant paradigm for post-training at scale. Several trends in modern post-training have made synchronous training loops nearly impossible to scale:</p>
+<ul>
+<li><strong>Long rollouts from reasoning models.</strong> Chain-of-thought training produces very long rollouts, and a single synchronous generation batch can take hours to complete on a single GPU. During all of that time, training GPUs sit completely idle.</li>
+<li><strong>Value-function-free trainers like GRPO</strong> use group-relative advantages. This means generating up to G times more rollouts per prompt, and the entire batch is gated by the slowest completion in the group.</li>
+<li><strong>The rise of agentic RL training.</strong> When models interact with tools, sandboxes, and external environments across multi-turn trajectories, rollout lengths and latencies become highly variable. A simple API call might return in seconds, while a complex reasoning chain with tool use can run for minutes or hours. MiniMax's <a href="https://www.minimax.io/news/forge-scalable-agent-rl-framework-and-algorithm" rel="nofollow">Forge</a> framework, used to train MiniMax-M2.5, illustrates the scale this reaches in practice: context lengths up to 200K tokens, over a hundred thousand distinct agent scaffolds and environments, and daily throughput on the order of millions of samples. At this scale, any synchronous barrier between generation and training becomes a severe bottleneck. The straggler problem alone (where a handful of slow rollouts block an entire batch) can idle hundreds of GPUs.</li>
+</ul>
+<p>The open-source ecosystem has converged on a common architectural response: disaggregate inference from training onto separate GPU pools, connect them with a rollout buffer, and let both sides run concurrently.</p>
+<p>We are developing a new async trainer for <a href="https://github.com/huggingface/trl" rel="nofollow">TRL</a>, one of the most widely used libraries for model post-training. To guide our design, we surveyed <strong>sixteen open-source libraries</strong> that were built from the ground up around asynchronous training and compared them across <strong>seven axes</strong>: orchestration primitives, buffer design, weight sync protocols, staleness management, partial rollout handling, LoRA support, and distributed training backends. This article distills the design principles we extracted from that survey.</p>
+<p>Beyond RL, the need for async infrastructure is increasingly evident. For example, <strong>on-policy distillation</strong>, where a student generates sequences and a teacher scores them, mirrors GRPO but swaps the reward function for a teacher forward pass. Recognizing this structural similarity, everything in this survey applies equally to async distillation. We'll return to this broader point in Section 5.</p>
+<h3>
+	<a id="11-how-trl-does-rl-training-today" href="#11-how-trl-does-rl-training-today" rel="nofollow">
+		
+	</a>
+	<span>
+		1.1 How TRL Does RL Training Today
+	</span>
+</h3>
+<p>TRL's current <code>GRPOTrainer</code> implements the full GRPO loop (prompt sampling, generation, reward scoring, advantage computation, gradient update, and weight sync) in a single synchronous <code>training_step()</code> call. This design is simple and correct, but it cannot overlap generation with training, leaving significant GPU utilisation on the table.</p>
+<p>Looking at the <code>GRPOTrainer</code>, we have the following phases sequentially within each training step:</p>
+<ol>
+<li><strong>Prompt sampling:</strong> draw a batch of prompts from the dataset. Nothing crazy here, let's continue.</li>
+<li><strong>Generation</strong>, calls <code>model.generate()</code> (or forward requests to a vLLM server) to produce G completions per prompt. This is autoregressive and dominates wall-clock time.</li>
+<li><strong>Reward scoring:</strong> evaluate each completion against one or many reward functions.</li>
+<li><strong>Advantage computation</strong></li>
+<li><strong>Forward and backward passes:</strong> compute the clipped policy gradient loss and backpropagate.</li>
+<li><strong>Optimizer step</strong>, update model weights.</li>
+<li><strong>Weight sync</strong>, push updated weights to the inference engine (vLLM) so the next generation uses the new policy.</li>
+</ol>
+<p>Each phase <strong>blocks</strong> until completion before the next begins. The timeline looks like this:</p>
+<figure>
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/69a5684704dd904ad8fdf1c6/TxWJ3tSZOQ0uRVwG_lldN.png" alt="Synchronous TRL training timeline">
+</figure>
+
+<p>TRL offers the <code>steps_per_generation</code> config option to reuse a single set of rollouts across multiple gradient steps (temporal reuse), amortizing the generation cost. But the generation call itself remains fully synchronous and blocking; the trainer cannot begin gradient computation until every completion in the batch has finished.</p>
+<p>The library also supports running vLLM in <code>server</code> mode as a separate process. It frees the training GPU during generation, but two hard synchronisation barriers remain: the <strong>HTTP calls until all completions return</strong>, and the weight sync blocks both the trainer and vLLM during the transfer.</p>
+<h3>
+	<a id="12-colocated-vs-disaggregated-training" href="#12-colocated-vs-disaggregated-training" rel="nofollow">
+		
+	</a>
+	<span>
+		1.2 Colocated vs. Disaggregated Training
+	</span>
+</h3>
+<p>Before discussing async training, it is essential to understand the two deployment topologies for RL training with a separate inference engine:</p>
+<ul>
+<li><strong>Colocated mode</strong> places inference and training on the <strong>same set of GPUs</strong>. A single GPU (or TP group) holds both the training model (under FSDP or ZeRO) and the inference engine (vLLM or SGLang). Only one role is active at a time: during generation, the training model's parameters may be offloaded or resharded into an inference-friendly layout (e.g., from FSDP shards to vLLM's tensor-parallel layout); during training, the inference engine is paused or put to sleep. Weight "sync" is essentially free; it is at most an in-place resharding on the same GPU, not a network transfer. The advantage of the colocated mode is simplicity and cost; you need fewer total GPUs. The fundamental limitation is that <strong>inference and training cannot overlap</strong>. For example, here is the Trl with vllm in <code>colocate_mode</code>:</li>
+</ul>
+<figure>
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/69a5684704dd904ad8fdf1c6/sbOsV__Ji122HdJs0JxbV.png" alt="TRL with vLLM in colocate mode">
+</figure>
+
+<ul>
+<li><strong>Disaggregated mode</strong> places inference and training on <strong>separate GPU pools</strong>. The inference pool runs vLLM or SGLang continuously; the training pool runs the optimizer continuously. The two pools communicate via a weight synchronisation protocol (NCCL broadcast, filesystem checkpoint, HTTP, etc.) and a data transfer mechanism (Ray object store, Redis streams, shared memory, etc.)</li>
+</ul>
+<p>The biggest advantage of the disaggregated mode is that <strong>inference and training can run concurrently</strong>. While the trainer computes gradients on batch N, the inference pool is already generating rollouts for batch N+K, enabling async training. However, this benefit comes at a cost: additional GPUs are required.</p>
+<p>Concurrency, asynchronicity, and parallelism are distinct concepts that often get conflated. In this article, when we say "<strong>async training,</strong>" we mean something specific: <strong>generation and training running in parallel, with effective overlap</strong>; the inference pool is producing the next batch of rollouts while the training pool is computing gradients on the current batch. This is fundamentally a disaggregated-mode capability. Colocated mode can benefit from optimisations like sleep/wake memory management or fast in-place resharding to speed up inference, but it cannot achieve true simultaneous overlap; inference and training still take turns on the same GPUs. Every library in this survey that implements meaningful async overlap uses disaggregated mode as the foundation.</p>
+<h3>
+	<a id="13-the-generation-bottleneck" href="#13-the-generation-bottleneck" rel="nofollow">
+		
+	</a>
+	<span>
+		1.3 The Generation Bottleneck
+	</span>
+</h3>
+<p>In RL training for reasoning models, <strong>autoregressive generation dominates wall-clock time</strong>. A single rollout for a math or coding task can produce 8K–64K tokens of chain-of-thought reasoning (see <a href="https://huggingface.co/spaces/lm-provers/qed-nano-blogpost#outcome-reward-rl-with-long-response-lengths">QED-Nano rollout lengths</a>).</p>
+<p>To ground this concretely, consider <a href="https://www.databasemart.com/blog/vllm-gpu-benchmark-h100" rel="nofollow">vLLM benchmarks on a single H100 80GB GPU</a> (bf16, no quantisation, offline throughput mode). A <strong>7B model</strong> (DeepSeek-R1-Distill-Qwen-7B) achieves ~6,300 output tokens/s aggregate throughput; a <strong>32B model</strong> (DeepSeek-R1-Distill-Qwen-32B) drops to ~1,200 output tokens/s. These are <em>total</em> throughput across all concurrent requests, the number the inference engine can push through per second, regardless of how many sequences share the GPU.</p>
+<p>Now consider a typical GRPO training step: <strong>G=8 completions per prompt × 64 prompts/batch = 512 rollouts</strong>. How long does generation take?</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Output length per rollout</th>
+<th>Total output tokens (512 rollouts)</th>
+<th>Time on 1×H100 (7B @ ~6K tok/s)</th>
+<th>Time on 1×H100 (32B @ ~1.2K tok/s)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>2K tokens (short CoT)</td>
+<td>~1M tokens</td>
+<td><strong>~3 min</strong></td>
+<td><strong>~14 min</strong></td>
+</tr>
+<tr>
+<td>8K tokens (medium CoT)</td>
+<td>~4M tokens</td>
+<td><strong>~11 min</strong></td>
+<td><strong>~56 min</strong></td>
+</tr>
+<tr>
+<td>32K tokens (long CoT)</td>
+<td>~16M tokens</td>
+<td><strong>~45 min</strong></td>
+<td><strong>~3.7 hours</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Even at the short end (2K tokens generated with a 7B model), generation alone consumes several minutes per training step. At the long end, where frontier reasoning models increasingly operate, a single generation phase can take <em>hours</em> on one GPU. Scaling to 8 inference GPUs divides these times by roughly 8× (assuming linear throughput scaling), but even then, 32K-token rollouts on a 32B model still take ~28 minutes per step.</p>
+<p>The <strong>straggler problem</strong> compounds this further. In group-based algorithms like GRPO, you sample G completions per prompt. The batch cannot proceed until the <em>slowest</em> completion finishes. Chain-of-thought output lengths are highly variable; a single prompt might produce completions ranging from 1K to 32K tokens. The batch is gated by the longest completion, and continuous batching only partially mitigates this: shorter sequences free up slots for new work, but the <em>last</em> sequence in a GRPO group still blocks the group's reward computation and training step.</p>
+<h3>
+	<a id="14-the-core-insight" href="#14-the-core-insight" rel="nofollow">
+		
+	</a>
+	<span>
+		1.4 The Core Insight
+	</span>
+</h3>
+<p>Every library in this survey has independently converged on the same architectural principle: <strong>physically separate inference GPUs from training GPUs, and push weights asynchronously</strong>, so generation never stops and training never waits.</p>
+<p>The inference pool runs continuously, feeding completed rollouts into a buffer. The training pool pulls from the buffer, computes gradient updates, and periodically pushes new weights back to the inference pool to keep it in sync. The two loops run at their own pace, decoupled by the buffer.</p>
+<p>This setup is highly scalable, but it introduces a new class of problems: staleness (rollouts generated under an old policy), weight synchronisation overhead, partial rollout handling, etc. The rest of this article dissects in detail how current open-source libraries address these issues.</p>
+<hr>
+<h2>
+	<a id="2-libraries-surveyed" href="#2-libraries-surveyed" rel="nofollow">
+		
+	</a>
+	<span>
+		2. Libraries Surveyed
+	</span>
+</h2>
+<div>
+	<table>
+		<thead><tr>
+<th>Library</th>
+<th>Organisation</th>
+<th>Repo</th>
+<th>GitHub ⭐ (Mar. '26)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>AReaL</strong></td>
+<td>inclusionAI/Ant Group</td>
+<td><a href="https://github.com/inclusionAI/AReaL" rel="nofollow">github.com/inclusionAI/AReaL</a></td>
+<td>4,338</td>
+</tr>
+<tr>
+<td><strong>ART</strong></td>
+<td>CoreWeave</td>
+<td><a href="https://github.com/OpenPipe/ART" rel="nofollow">github.com/OpenPipe/ART</a></td>
+<td>8,952</td>
+</tr>
+<tr>
+<td><strong>Atropos</strong></td>
+<td>NousResearch</td>
+<td><a href="https://github.com/NousResearch/atropos" rel="nofollow">github.com/NousResearch/atropos</a></td>
+<td>878</td>
+</tr>
+<tr>
+<td><strong>MILES</strong></td>
+<td>radixark</td>
+<td><a href="https://github.com/radixark/miles" rel="nofollow">github.com/radixark/miles</a></td>
+<td>950</td>
+</tr>
+<tr>
+<td><strong>NeMo-RL</strong></td>
+<td>NVIDIA</td>
+<td><a href="https://github.com/NVIDIA-NeMo/RL" rel="nofollow">github.com/NVIDIA-NeMo/RL</a></td>
+<td>1,383</td>
+</tr>
+<tr>
+<td><strong>OAT</strong></td>
+<td>SAIL-SG</td>
+<td><a href="https://github.com/sail-sg/oat" rel="nofollow">github.com/sail-sg/oat</a></td>
+<td>637</td>
+</tr>
+<tr>
+<td><strong>open-instruct</strong></td>
+<td>AI2 (AllenAI)</td>
+<td><a href="https://github.com/allenai/open-instruct" rel="nofollow">github.com/allenai/open-instruct</a></td>
+<td>3,611</td>
+</tr>
+<tr>
+<td><strong>PipelineRL</strong></td>
+<td>ServiceNow</td>
+<td><a href="https://github.com/ServiceNow/PipelineRL" rel="nofollow">github.com/ServiceNow/PipelineRL</a></td>
+<td>374</td>
+</tr>
+<tr>
+<td><strong>PRIME-RL</strong></td>
+<td>PrimeIntellect</td>
+<td><a href="https://github.com/PrimeIntellect-ai/prime-rl" rel="nofollow">github.com/PrimeIntellect-ai/prime-rl</a></td>
+<td>1,114</td>
+</tr>
+<tr>
+<td><strong>ROLL</strong></td>
+<td>Alibaba</td>
+<td><a href="https://github.com/alibaba/ROLL" rel="nofollow">github.com/alibaba/ROLL</a></td>
+<td>2,921</td>
+</tr>
+<tr>
+<td><strong>SkyRL</strong></td>
+<td>NovaSky-AI</td>
+<td><a href="https://github.com/NovaSky-AI/SkyRL" rel="nofollow">github.com/NovaSky-AI/SkyRL</a></td>
+<td>1,664</td>
+</tr>
+<tr>
+<td><strong>SLIME</strong></td>
+<td>THUDM</td>
+<td><a href="https://github.com/THUDM/slime" rel="nofollow">github.com/THUDM/slime</a></td>
+<td>4,595</td>
+</tr>
+<tr>
+<td><strong>TorchForge</strong></td>
+<td>Meta</td>
+<td><a href="https://github.com/meta-pytorch/torchforge" rel="nofollow">github.com/meta-pytorch/torchforge</a></td>
+<td>632</td>
+</tr>
+<tr>
+<td><strong>Tunix</strong></td>
+<td>Google</td>
+<td><a href="https://github.com/google/tunix" rel="nofollow">github.com/google/tunix</a></td>
+<td>2,175</td>
+</tr>
+<tr>
+<td><strong>verl</strong></td>
+<td>ByteDance</td>
+<td><a href="https://github.com/verl-project/verl" rel="nofollow">github.com/verl-project/verl</a></td>
+<td>19,673</td>
+</tr>
+<tr>
+<td><strong>verifiers-rl</strong></td>
+<td>PrimeIntellect</td>
+<td><a href="https://github.com/PrimeIntellect-ai/verifiers" rel="nofollow">github.com/PrimeIntellect-ai/verifiers</a></td>
+<td>3,876</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<hr>
+<h2>
+	<a id="3-the-comparison-framework-seven-axes" href="#3-the-comparison-framework-seven-axes" rel="nofollow">
+		
+	</a>
+	<span>
+		3. The Comparison Framework: Seven Axes
+	</span>
+</h2>
+<p>To make sense of the rapidly expanding ecosystem of async RL libraries, we propose seven orthogonal axes of comparison. Each axis captures a fundamental design decision that shapes the library's performance, complexity, and trade-offs.</p>
+<ul>
+<li><strong>Axis 1 – Orchestration &amp; Concurrency Primitive:</strong> how distributed components are coordinated (Ray actors, asyncio, pub/sub, HTTP).</li>
+<li><strong>Axis 2 – Rollout Buffer Design:</strong> how rollouts flow from inference to training.</li>
+<li><strong>Axis 3 – Weight Synchronisation Protocol:</strong> how updated weights reach inference servers, and whether the system must pause to accept them or continue generating.</li>
+<li><strong>Axis 4 – Staleness Management:</strong> how off-policy rollouts are handled: version rejection, depth bounding, or importance-sampling correction.</li>
+<li><strong>Axis 5 – Partial Rollout Handling:</strong> what happens to in-flight generations when a weight update arrives mid-sequence.</li>
+<li><strong>Axis 6 – LoRA Training Support:</strong> General LoRA support and whether adapter-only parameters can be trained and synced, enabling sub-millisecond weight transfers.</li>
+<li><strong>Axis 7 – Distributed Training Backend &amp; Parallelism:</strong> what parallelism strategy is used for training, constraining max model size.</li>
+</ul>
+<h3>
+	<a id="axis-1-orchestration--concurrency-primitive" href="#axis-1-orchestration--concurrency-primitive" rel="nofollow">
+		
+	</a>
+	<span>
+		Axis 1: Orchestration &amp; Concurrency Primitive
+	</span>
+</h3>
+<p><em>How does the system coordinate its distributed components?</em></p>
+<p>The choice of orchestration framework determines the programming model, failure semantics, and scalability ceiling. Rather than listing per-library implementation details, the landscape decomposes cleanly into four <strong>orchestration types</strong>, fundamental coordination paradigms that differ in abstraction level, failure model, and deployment requirements:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Orchestration Type</th>
+<th>What It Is</th>
+<th>Libraries</th>
+<th>Trade-offs</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Distributed Actor Model</strong></td>
+<td>Components are <em>actors</em>, isolated stateful processes with mailboxes, managed by a runtime that handles scheduling, resource placement, fault tolerance, and object transfer. Communication is via asynchronous RPC / futures / object store.</td>
+<td><strong>Ray:</strong> verl, SkyRL, NeMo-RL, SLIME, MILES, ROLL, OAT, open-instruct. <strong>Monarch:</strong> TorchForge.</td>
+<td>Richest abstraction; solves scheduling and fault tolerance out-of-the-box. Adds a non-trivial runtime dependency and framework-specific debugging overhead.</td>
+</tr>
+<tr>
+<td><strong>Native Python Concurrency</strong></td>
+<td>Components are threads, coroutines (<code>asyncio</code>), <code>threading</code> primitives, <code>multiprocessing</code> child processes, and queues. No external orchestration runtime.</td>
+<td>verifiers-rl, PipelineRL (intra-pool), ART (<code>asyncio</code> + child-process proxies), AReaL (<code>asyncio</code>-based event loop)</td>
+<td>Minimal dependencies, easy to debug, full control. Limited to single-node unless paired with additional IPC (Redis, HTTP, NCCL) for multi-node communication.</td>
+</tr>
+<tr>
+<td><strong>Pub/Sub Message Bus</strong></td>
+<td>Components are decoupled producers and consumers communicating through append-only streams or message queues. Not orchestration per se, a <em>data transport layer</em> between independently running pools.</td>
+<td>PipelineRL (inter-pool: Redis <code>XADD</code>/<code>XREAD</code> streams for multi-node, append-only JSONL files for single-node)</td>
+<td>Clean decoupling across pool boundaries without RPC. Does not manage process lifecycle, scheduling, or fault recovery; must be paired with another orchestration type.</td>
+</tr>
+<tr>
+<td><strong>HTTP Microservices</strong></td>
+<td>Components are independent services communicating via REST APIs. Language-agnostic, maximum decoupling.</td>
+<td>Atropos</td>
+<td>Any inference server, any language, zero shared state. Highest latency (if NCCL); no shared object store; fault tolerance is the user's responsibility.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<blockquote>
+<p><strong>Note on Tunix:</strong> Tunix (Google) uses a JAX-native mesh model with <code>ThreadPoolExecutor</code> for async overlap and <code>jax.device_put</code> for cross-mesh weight transfer. It is architecturally distinct enough from the PyTorch ecosystem that direct comparison on orchestration is not meaningful; it lives in the XLA/TPU world with its own coordination primitives.</p>
+</blockquote>
+<p>The table above reveals a striking pattern: <strong>eight of the sixteen libraries surveyed use Ray as their orchestration backbone</strong>. This is not a coincidence; it reflects a deep architectural fit between the actor model and the structure of RL training. A <a href="https://www.anyscale.com/blog/open-source-rl-libraries-for-llms" rel="nofollow">survey by Anyscale</a> (the company behind Ray) of open-source RL libraries for LLMs confirms this convergence. RL training at large scales involves fundamentally heterogeneous components (inference engines, training engines, environments, reward models) that must be orchestrated across a cluster, often on different hardware types, with different scaling requirements and failure modes. Ray's actor model maps directly onto this:</p>
+<ol>
+<li><p><strong>Actor isolation and heterogeneous resources.</strong> Each RL component (vLLM inference server, FSDP trainer, reward model, environment pool) becomes a Ray actor with its own resource requirements (<code>num_gpus</code>, <code>num_cpus</code>, <code>memory</code>). Placement groups give fine-grained control over GPU affinity without manual SSH/torchrun orchestration.</p>
+</li>
+<li><p><strong>Scheduling and autoscaling.</strong> Ray's scheduler handles the combinatorial problem of placing heterogeneous actors across a cluster. When generation requires 8× more GPU-hours than training, you can just tell Ray to scale your inference actors independently.</p>
+</li>
+<li><p><strong>Fault tolerance.</strong> Long RL training runs (days to weeks) are vulnerable to GPU failures, OOM kills, and network partitions. Ray's actor restart policies and object store replication provide resilience that would require significant custom infrastructure with raw <code>asyncio</code> and <code>multiprocessing</code>. Concrete example of the fault tolerance: <code>open-instruct</code>, for example, relies on Ray's actor supervision to recover from vLLM engine crashes mid-rollout.</p>
+</li>
+<li><p><strong>Object store for zero-copy data transfer.</strong> Rollout data can be large, tens of GB per batch for very long-context reasoning. Ray's shared-memory object store enables zero-copy transfer between actors on the same node, avoiding serialization overhead that usually comes with <code>multiprocessing.Queue</code> approaches.</p>
+</li>
+<li><p><strong>Ecosystem maturity.</strong> Ray has been battle-tested at scale since 2017, with production deployments on thousands of GPUs. The debugging overhead is real (Ray Dashboard, distributed stack traces, placement group failures), but the alternative, building equivalent coordination from scratch, is worse at the multi-node scale. That said, Ray is a heavy dependency: it pulls in its own scheduler, object store, and dashboard, adding operational complexity that not every team needs. This is exactly why libraries like PRIME-RL, PipelineRL, and AReaL opted for lightweight native-Python coordination (asyncio, threading, Redis streams) instead --- when you control the full stack and your deployment topology is fixed, the simplicity and debuggability of vanilla Python often outweigh the conveniences Ray provides.</p>
+</li>
+</ol>
+<p>The cost is a hard dependency on a non-trivial runtime. This trade-off can be worthwhile, especially for production-scale training (64+ GPUs, multi-day runs, complicated reward computation).</p>
+<p>While Ray's actor model is the main player on the field, <a href="https://github.com/meta-pytorch/monarch" rel="nofollow">Monarch</a> emerged as a new PyTorch-native distributed actor framework from Meta, purpose-built for GPU workloads. Like Ray, Monarch is based on the actor model; components are independent actors with mailboxes communicating via messages, but it is designed from the ground up for the PyTorch/CUDA ecosystem rather than being a general-purpose distributed runtime.</p>
+<p>Monarch offers several capabilities particularly relevant to async RL. An <a href="https://allenwang28.github.io/monarch-gpu-mode/05_rl_intro.html" rel="nofollow">example implementation of async RL with Monarch</a> (from the GPU Mode lecture series) demonstrates the architecture: generators, a replay buffer, and a trainer are modelled as Monarch actors, with the replay buffer absorbing latency variance from straggler rollouts and RDMA weight sync pushing updated parameters to generators without blocking training. The pattern is structurally identical to Ray-based designs (verl, SkyRL, open-instruct) but implemented with pure PyTorch-native primitives.</p>
+<h3>
+	<a id="axis-2-rollout-buffer-design" href="#axis-2-rollout-buffer-design" rel="nofollow">
+		
+	</a>
+	<span>
+		Axis 2: Rollout Buffer Design
+	</span>
+</h3>
+<p><em>How do generated rollouts flow from inference to training, and how deep is the pipeline?</em></p>
+<p>The buffer is the data structure sitting between generation and training. Its depth controls the maximum degree of asynchrony, and therefore the maximum staleness.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Pattern</th>
+<th>Depth</th>
+<th>Libraries</th>
+<th>Characteristic</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>No buffer</strong> (synchronous)</td>
+<td>0</td>
+<td>TRL (current), <strong>ART</strong> (gather-all-then-train)</td>
+<td>Generation and training alternate strictly; zero staleness, maximum idle time</td>
+</tr>
+<tr>
+<td><strong>Double-buffer</strong> (one-step-ahead)</td>
+<td>1</td>
+<td>verifiers-rl, SLIME (async mode), MILES, OAT</td>
+<td>Submit generation N+1 at the start of training step N; overlap exactly one batch</td>
+</tr>
+<tr>
+<td><strong>Bounded async queue</strong></td>
+<td>2–K</td>
+<td>SkyRL, verl (fully async), NeMo-RL, ROLL, PRIME-RL, TorchForge, Tunix, <strong>open-instruct</strong> (<code>async_steps</code>), <strong>AReaL</strong> (<code>max_head_offpolicyness</code>)</td>
+<td>Multiple batches in flight; staleness bounded by queue capacity</td>
+</tr>
+<tr>
+<td><strong>Unbounded / stream</strong></td>
+<td>Unlimited</td>
+<td>PipelineRL (Redis streams), SLIME (fully async mode), Atropos</td>
+<td>Continuous generation; staleness bounded only by explicit version control</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The <a href="https://en.wikipedia.org/wiki/Multiple_buffering" rel="nofollow">double-buffer pattern</a> is the simplest upgrade from synchronous to asynchronous training: it overlaps exactly one generation with one training step and introduces at most one step of policy lag !</p>
+<p>Deeper queues, on the other hand, improve throughput but require staleness management.</p>
+<p>The buffer controls how much data is in flight. But data is only half the equation. The other half is getting updated weights <em>back</em> to the inference servers before those rollouts go stale. That's where weight sync comes in!</p>
+<h3>
+	<a id="axis-3-weight-synchronisation-protocol" href="#axis-3-weight-synchronisation-protocol" rel="nofollow">
+		
+	</a>
+	<span>
+		Axis 3: Weight Synchronisation Protocol
+	</span>
+</h3>
+<p><em>How do new model weights reach the inference servers after a gradient update?</em></p>
+<blockquote>
+<p><strong>Scope note:</strong> This axis focuses on <strong>disaggregated mode</strong>, where inference and training run on separate GPU pools, since that is the deployment topology where async overlap (and therefore weight sync design) actually matters. Colocated setups (same GPUs for both roles) are inherently synchronous and do not face the transport/interrupt trade-offs discussed below.</p>
+</blockquote>
+<p>This is the most architecturally consequential axis. The protocol determines sync latency, interrupt granularity, and whether partial rollouts are possible.</p>
+<p>There is a critical distinction to make here: the <strong>transport mechanism</strong> and the <strong>interrupt model</strong>. Most libraries pause generation at a coarse boundary, an HTTP request, a full batch, or even a full training step, before initiating weight transfer. PipelineRL is the outlier: it never stops generating at all.</p>
+<p><strong>Transport mechanism:</strong></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Mechanism</th>
+<th>Latency</th>
+<th>Libraries</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>NCCL Broadcast</strong></td>
+<td>~100–500ms</td>
+<td>PipelineRL, SkyRL, SLIME, MILES, ROLL, OAT, NeMo-RL, PRIME-RL, open-instruct, AReaL</td>
+</tr>
+<tr>
+<td><strong>NCCL + Bucketing</strong></td>
+<td>~20ms</td>
+<td>verl</td>
+</tr>
+<tr>
+<td><strong>KV + Shared Memory</strong></td>
+<td>Low</td>
+<td>TorchForge</td>
+</tr>
+<tr>
+<td><strong>Filesystem + HTTP</strong></td>
+<td>Medium</td>
+<td>PRIME-RL, AReaL, ART</td>
+</tr>
+<tr>
+<td><strong>CUDA IPC (Zero-copy)</strong></td>
+<td>Very Low</td>
+<td>NeMo-RL, MILES</td>
+</tr>
+<tr>
+<td><strong>JAX Cross-mesh</strong></td>
+<td>Low</td>
+<td>Tunix</td>
+</tr>
+<tr>
+<td><strong>HTTP PUT</strong></td>
+<td>High</td>
+<td>verifiers-rl</td>
+</tr>
+<tr>
+<td><strong>Filesystem + Restart</strong></td>
+<td>Very High</td>
+<td>Atropos</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><strong>In the interrupt model, when does the generation pause to accept new weights?</strong></p>
+<p>This is where PipelineRL fundamentally diverges from every other library. Rather than listing each library individually, the landscape collapses into five conceptual tiers, ordered from finest to coarsest interrupt granularity:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Interrupt Granularity</th>
+<th>What Happens</th>
+<th>Libraries</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Never</strong> (In-flight per-forward-pass)</td>
+<td>Sequences never stop. The weight swap happens between token decode steps (~1-10ms gap). Running sequences seamlessly continue with new weights.</td>
+<td>PipelineRL, open-instruct (opt-in)</td>
+</tr>
+<tr>
+<td><strong>Per HTTP Request</strong> (Abort + Resync)</td>
+<td>In-flight HTTP requests are aborted. Partial tokens are resubmitted with a prefix-resume mechanism or recycled for retry.</td>
+<td>SkyRL, SLIME, MILES</td>
+</tr>
+<tr>
+<td><strong>Soft Pause</strong> (Drain in-flight)</td>
+<td>No new generation requests are accepted while in-progress ones finish naturally. Once drained, weights are synced and generation resumes.</td>
+<td>PRIME-RL, AReaL, open-instruct (default), verl (async)</td>
+</tr>
+<tr>
+<td><strong>Per Training Step / Batch</strong> (Blocking)</td>
+<td>Generation must fully complete. The trainer and inference engine take turns blocking each other.</td>
+<td>NeMo-RL, ROLL, OAT, TorchForge, Tunix, verifiers-rl, Atropos</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The "never-stop" tier is qualitatively different from all others: PipelineRL, for example, hooks into the inference engine so that the lock is acquired and released <em>per transformer forward pass</em> (one token step for one sequence). A weight update waits at most one forward pass (~few ms), swaps all parameters, and generation resumes immediately. Every other library stops generation at a coarser boundary, from one HTTP request (~hundreds of ms) up to a full batch boundary (~seconds).</p>
+<p>Weight sync controls <em>when</em> new weights arrive. But async training means rollouts are always being generated under <em>some</em> policy version, and that <em>generating</em> policy might be several gradient steps behind the trainer. How libraries handle this policy lag is staleness management.</p>
+<h3>
+	<a id="axis-4-staleness-management" href="#axis-4-staleness-management" rel="nofollow">
+		
+	</a>
+	<span>
+		Axis 4: Staleness Management
+	</span>
+</h3>
+<p><em>How does the system handle the fact that generated rollouts may come from an older policy than the one being trained?</em></p>
+<p>Once generation and training overlap, samples become off-policy. Three <strong>orthogonal</strong> strategies have emerged for managing this staleness, and most production systems combine more than one:</p>
+<p><strong>Strategy 1: Per-sample version rejection.</strong> Every sample is tagged with the integer policy version that generated it. At training time, samples whose version falls behind the current policy by more than a threshold are hard-dropped before entering the loss computation. Simple and correct, but wastes the precious compute spent generating discarded samples.</p>
+<p><strong>Strategy 2, Depth Bounding.</strong> The queue or buffer between generation and training has a bounded capacity (or an explicit staleness gate), which architecturally limits how far behind any sample can be. This ranges from depth=1 (one-step-ahead double buffering, where staleness is impossible by construction) to explicit capacity formulas tied to version gaps. No per-sample version tracking is required; the bound is enforced by the system's pipeline depth.</p>
+<p><strong>Strategy 3, IS-weighted loss correction.</strong> Stale samples that reach the trainer are reweighted by the importance sampling ratio <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mfrac><mrow><mi>π</mi><mo>∗</mo><mi>θ</mi><mo stretchy="false">(</mo><mi>a</mi><mo>∣</mo><mi>s</mi><mo stretchy="false">)</mo></mrow><mrow><mi>π</mi><mo>∗</mo><mtext>old</mtext><mo stretchy="false">(</mo><mi>a</mi><mo>∣</mo><mi>s</mi><mo stretchy="false">)</mo></mrow></mfrac></mrow>\frac{\pi*{\theta}(a \mid s)}{\pi*{\text{old}}(a \mid s)}</math></span></span>, typically clipped (Truncated IS). Some libraries also apply OPSM (zero-out loss for off-policy samples with negative advantage). This preserves throughput; no samples are discarded, but there is a cost in gradient variance from the IS ratios.</p>
+<p>These strategies are orthogonal: a system can use version rejection alone, depth bounding alone, IS correction alone, or any combination of them. Synchronous systems avoid the problem entirely by never overlapping generation and training.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Library</th>
+<th>Version Rejection</th>
+<th>Depth Bounding</th>
+<th>IS Correction</th>
+<th>Key Config / Notes</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>AReaL</strong></td>
+<td>❌</td>
+<td>✅</td>
+<td>⚠️</td>
+<td><code>max_head_offpolicyness</code> capacity formula; optional <code>use_decoupled_loss</code> adds IS weight capped at 5.0</td>
+</tr>
+<tr>
+<td><strong>ART</strong></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>Synchronous; all rollouts collected before training; no staleness by design</td>
+</tr>
+<tr>
+<td><strong>Atropos</strong></td>
+<td>❌</td>
+<td>✅</td>
+<td>❌</td>
+<td><code>max_batches_offpolicy</code>, ceiling on buffered batches</td>
+</tr>
+<tr>
+<td><strong>MILES</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+<td>TIS + OPSM</td>
+</tr>
+<tr>
+<td><strong>NeMo-RL</strong></td>
+<td>✅</td>
+<td>❌</td>
+<td>❌</td>
+<td><code>max_trajectory_age_steps</code>, per-sample version drop</td>
+</tr>
+<tr>
+<td><strong>OAT</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+<td>Clipped TIS ratio</td>
+</tr>
+<tr>
+<td><strong>open-instruct</strong></td>
+<td>❌</td>
+<td>✅</td>
+<td>⚠️</td>
+<td><code>async_steps</code> cap (default 1, production 8); optional <code>--truncated_importance_sampling_ratio_cap ρ</code> adds clipped TIS</td>
+</tr>
+<tr>
+<td><strong>PipelineRL</strong></td>
+<td>✅</td>
+<td>❌</td>
+<td>❌</td>
+<td><code>max_lag</code>, integer version tag per sample; drop if age exceeds threshold</td>
+</tr>
+<tr>
+<td><strong>PRIME-RL</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>Full hybrid: <code>max_async_level</code> version gap + <code>max_off_policy_steps</code> cancellation + IPO trust-region IS</td>
+</tr>
+<tr>
+<td><strong>ROLL</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+<td>Richest IS suite: TIS, TOPR, CISPO, Kimi15, six off-policy loss variants</td>
+</tr>
+<tr>
+<td><strong>SkyRL</strong></td>
+<td>❌</td>
+<td>✅</td>
+<td>❌</td>
+<td><code>max_staleness_steps</code>, capacity gate blocks new rollouts when exceeded</td>
+</tr>
+<tr>
+<td><strong>SLIME</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+<td>TIS + OPSM (off-policy masking for partial rollouts)</td>
+</tr>
+<tr>
+<td><strong>TorchForge</strong></td>
+<td>✅</td>
+<td>❌</td>
+<td>❌</td>
+<td><code>max_policy_age</code>, per-sample version tag; hard drop</td>
+</tr>
+<tr>
+<td><strong>Tunix</strong></td>
+<td>❌</td>
+<td>✅</td>
+<td>❌</td>
+<td>Bounded queue + sync per step; staleness structurally limited</td>
+</tr>
+<tr>
+<td><strong>verl</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+<td>Clipped TIS ratio; optional OPSM</td>
+</tr>
+<tr>
+<td><strong>verifiers-rl</strong></td>
+<td>❌</td>
+<td>✅</td>
+<td>❌</td>
+<td>Depth=1 FIFO + sync every step; staleness impossible by construction</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<blockquote>
+<p>✅ = yes, ❌ = no, ⚠️ = optional / configurable, — = not applicable (synchronous)</p>
+</blockquote>
+<ul>
+<li><strong>Version rejection</strong> is simple and correct, but wastes compute when many samples are discarded.</li>
+<li><strong>IS correction</strong> preserves throughput at the cost of gradient variance.</li>
+<li><strong>Depth bounding</strong> is the coarsest mechanism, but it avoids per-sample bookkeeping entirely.</li>
+</ul>
+<p>The trend in production systems (PRIME-RL, AReaL, open-instruct) is toward <strong>hybrid approaches</strong> that combine depth bounding with optional IS correction, getting the architectural simplicity of bounded queues with the loss-level safety net of importance weighting for stable training.</p>
+<p>Staleness management handles data that was generated under an old policy. But what about data that's <em>still being generated</em> when a weight update lands?</p>
+<h3>
+	<a id="axis-5-partial-rollout-handling" href="#axis-5-partial-rollout-handling" rel="nofollow">
+		
+	</a>
+	<span>
+		Axis 5: Partial Rollout Handling
+	</span>
+</h3>
+<p><em>What happens to a generation in progress when a weight update arrives?</em></p>
+<p>This is critical for long-context tasks where a single rollout can take minutes. Four strategies:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Strategy</th>
+<th>Libraries</th>
+<th>Description</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Implicit continuation</strong></td>
+<td>PipelineRL</td>
+<td>Sequences are never interrupted. Weights swap between forward passes; the sequence simply continues with new weights. Stored logprobs remain valid because training uses the <em>recorded</em> <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>π</mi><mi mathvariant="normal">_</mi><mtext>old</mtext></mrow>\pi\_{\text{old}}</math></span></span>, not recomputed.</td>
+</tr>
+<tr>
+<td><strong>Abort + retry with prefix</strong></td>
+<td>SkyRL, SLIME</td>
+<td>Active sequences are aborted. Partial tokens are accumulated, then resubmitted with a prefix-resume mechanism using the new weights.</td>
+</tr>
+<tr>
+<td><strong>Explicit save/resume</strong></td>
+<td>verl (fully async)</td>
+<td>The rollout worker saves partial token IDs and logprobs to a buffer, waits for sync, then resumes from the saved prefix.</td>
+</tr>
+<tr>
+<td><strong>Group cancellation (generation continues)</strong></td>
+<td>PRIME-RL</td>
+<td>Stale rollout groups have their async tasks cancelled; the inference server continues serving in-flight HTTP requests whose results are discarded. Weight sync triggers between HTTP requests without interrupting mid-request generation.</td>
+</tr>
+<tr>
+<td><strong>No partial rollout support</strong></td>
+<td>verifiers-rl, OAT, Atropos, Tunix</td>
+<td>Weight sync only happens at batch boundaries. In-flight generations must complete before sync begins.</td>
+</tr>
+<tr>
+<td><strong>Soft pause, in-flight sequences complete</strong></td>
+<td><strong>AReaL</strong></td>
+<td>A pause signal blocks new KV-cache allocations but does not abort in-progress sequences. The task dispatcher stops submitting new tasks; running tasks run to completion. After weight sync, generation dispatch resumes.</td>
+</tr>
+<tr>
+<td><strong>Full sleep, no in-flight at sync time</strong></td>
+<td><strong>ART</strong></td>
+<td>By design, training only begins after all rollouts are collected. There are never in-progress sequences when sleep is triggered. Level-1 sleep (in-progress requests exist) offloads KV cache to CPU; level-2 sleep discards it entirely.</td>
+</tr>
+<tr>
+<td><strong>Drain-or-inflight (configurable)</strong></td>
+<td><strong>open-instruct</strong></td>
+<td>Default: a stop flag gates new prefetching; weight update waits for active tasks to drain. With in-flight updates enabled, drain is bypassed and weights broadcast while tokens are still being generated; sequences in progress continue with a mix of old and new weights.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>So far, every axis has assumed full-parameter training. But in LoRA training, you're only training a few million adapter parameters instead of billions, the weight sync problem nearly disappears. Let's look at how these libraries support LoRA training.</p>
+<h3>
+	<a id="axis-6-lora-training-support" href="#axis-6-lora-training-support" rel="nofollow">
+		
+	</a>
+	<span>
+		Axis 6: LoRA Training Support
+	</span>
+</h3>
+<p><em>Does the library support parameter-efficient training via LoRA adapters, in what modes, and does it exploit adapter-only weight sync?</em></p>
+<p>LoRA is arguably the most practically consequential axis for teams with limited GPU budgets. It reduces the trainable parameter count by 99%+, halves peak activation memory, and, when the inference server is LoRA-aware, enables <em>adapter-only weight sync</em>: instead of broadcasting every parameter of a 7B+ model (~100–500ms NCCL), only the adapter deltas are pushed to vLLM, which at rank 32 amounts to ~50 MB, a sub-millisecond transfer.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Library</th>
+<th>LoRA Supported</th>
+<th>Mode Restriction</th>
+<th>LoRA Backend</th>
+<th>Adapter-Only Sync</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>AReaL</strong></td>
+<td>✅ Yes</td>
+<td>FSDP2 only (not Megatron/Archon)</td>
+<td>HF <code>peft</code></td>
+<td>✅ Yes (disk-based sync; only trainable params transferred; vLLM adapter hot-swap)</td>
+</tr>
+<tr>
+<td><strong>ART</strong></td>
+<td>✅ Yes (primary design)</td>
+<td>Both (shared + dedicated GPU)</td>
+<td>Unsloth/<code>peft</code> (default); custom Megatron LoRA</td>
+<td>✅ Yes (only adapter saved/loaded; in-process or HTTP adapter hot-swap; base weights never moved)</td>
+</tr>
+<tr>
+<td><strong>Atropos</strong></td>
+<td>✅ Yes</td>
+<td>Disaggregated</td>
+<td>HF <code>peft</code></td>
+<td>✅ Yes (<code>lora_only</code> / <code>lora_restart</code> modes)</td>
+</tr>
+<tr>
+<td><strong>MILES</strong></td>
+<td>✅ Yes</td>
+<td>Both (colocated + disaggregated)</td>
+<td>Megatron-Bridge</td>
+<td>✅ Yes (adapter sync config for SGLang)</td>
+</tr>
+<tr>
+<td><strong>NeMo-RL</strong></td>
+<td>✅ Partial*</td>
+<td>Both</td>
+<td>Custom (not <code>peft</code>)</td>
+<td>❌ No evidence</td>
+</tr>
+<tr>
+<td><strong>OAT</strong></td>
+<td>✅ Yes</td>
+<td>Both</td>
+<td>HF <code>peft</code></td>
+<td>✅ Yes (LoRA-only sync mode)</td>
+</tr>
+<tr>
+<td><strong>open-instruct</strong></td>
+<td>⚠️ Code exists, not wired‡</td>
+<td>—</td>
+<td>HF <code>peft</code> (SFT/DPO only)</td>
+<td>❌ No (LoRA not applied in the RL trainer)</td>
+</tr>
+<tr>
+<td><strong>PipelineRL</strong></td>
+<td>✅ Yes</td>
+<td>Non-colocated</td>
+<td>HF <code>peft</code></td>
+<td>❌ No (full NCCL broadcast)</td>
+</tr>
+<tr>
+<td><strong>PRIME-RL</strong></td>
+<td>✅ Yes</td>
+<td>Disaggregated</td>
+<td>Custom MultiLoRA (not <code>peft</code>)</td>
+<td>✅ Yes (adapter-only state dict extraction)</td>
+</tr>
+<tr>
+<td><strong>ROLL</strong></td>
+<td>✅ Partial†</td>
+<td>DeepSpeed backend only</td>
+<td>HF <code>peft</code> / TRL</td>
+<td>❌ No evidence</td>
+</tr>
+<tr>
+<td><strong>SkyRL</strong></td>
+<td>✅ Yes</td>
+<td>Both</td>
+<td><code>peft</code> (FSDP) / Megatron-Bridge (Megatron)</td>
+<td>✅ Yes (filesystem-based adapter sync)</td>
+</tr>
+<tr>
+<td><strong>SLIME</strong></td>
+<td>❌ No</td>
+<td>—</td>
+<td>—</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><strong>TorchForge</strong></td>
+<td>❌ No</td>
+<td>—</td>
+<td>—</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><strong>Tunix</strong></td>
+<td>✅ Yes</td>
+<td>Both</td>
+<td>qwix (JAX-native)</td>
+<td>✅ Yes (auto-detected)</td>
+</tr>
+<tr>
+<td><strong>verl</strong></td>
+<td>✅ Yes (most complete)</td>
+<td>Both</td>
+<td><code>peft</code> (FSDP) / Megatron-Bridge (Megatron)</td>
+<td>✅ Yes (unmerged adapter sync)</td>
+</tr>
+<tr>
+<td><strong>verifiers-rl</strong></td>
+<td>✅ Yes (via prime-rl)</td>
+<td>Disaggregated</td>
+<td>HF <code>peft</code> + FSDP2 + vLLM</td>
+<td>✅ Yes (vLLM LoRA serving)</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>* NeMo-RL: LoRA for GRPO and DPO is supported only on the DTensor backend; the Megatron Core backend is SFT-only (RL LoRA listed as "coming soon"). Uses a custom DTensor-compatible LoRA module (not <code>peft</code>), optionally with Triton kernels.</p>
+<p>† ROLL: LoRA is officially supported with the DeepSpeed training backend only. Megatron-backend LoRA appeared in the Feb 2026 changelog but remains experimental.</p>
+<p>‡ open-instruct: The model config exposes LoRA-related fields (<code>use_peft</code>, <code>lora_r</code>, <code>lora_alpha</code>), and adapter saving is handled in the checkpoint logic. However, the <code>peft</code> model is never initialised in the RL training path; LoRA remains an SFT/DPO-only feature for the RL trainer as of March 2026.</p>
+<p><strong>Three LoRA implementation families:</strong></p>
+<ol>
+<li><p><strong>HuggingFace <code>peft</code></strong> (PipelineRL, SkyRL/FSDP, verifiers-rl, ROLL, OAT, Atropos): The most common choice. Standard checkpoint format (<code>adapter_model.safetensors</code>), compatible with any HF Transformers training loop. ZeRO-3 interactions require care: OAT, for example, needs to disable the fused LM head; ROLL must disable gradient checkpointing entirely.</p>
+</li>
+<li><p><strong>Megatron-Bridge</strong> (verl/Megatron, SkyRL/Megatron, MILES): Required for 3D-parallel training (TP × PP × DP). Supports multiple LoRA types: <code>lora</code>, <code>canonical_lora</code> (splits merged QKV → separate Q/K/V adapters), <code>vlm_lora</code>, and <code>dora</code>. The <code>canonical_lora</code> variant avoids the QKV merge, thereby improving training stability. MILES saves checkpoints in both HF <code>peft</code> format and Megatron-native per-rank format.</p>
+</li>
+<li><p><strong>Custom implementations</strong> (NeMo-RL, PRIME-RL, Tunix/qwix): Library-specific LoRA modules not interoperable with <code>peft</code> checkpoints. PRIME-RL uniquely supports multiple simultaneous adapters in a single run for multi-experiment parallelism. Tunix uses Google's <code>qwix</code> JAX library, which adds built-in QLoRA (NF4 quantization) and TPU-native gradient routing. NeMo-RL uses a custom DTensor-compatible module with an optional Triton fused kernel.</p>
+</li>
+</ol>
+<p><strong>The adapter-only weight sync opportunity (interaction with Axis 3):</strong></p>
+<p>Eight of the thirteen libraries support pushing <strong>only the LoRA adapter deltas</strong> to the inference server. This changes the character of the weight sync problem (Axis 3) entirely. When using full-parameter training, the interrupt model (per-forward-pass lock vs. per-request abort vs. per-batch pause) determines how much generation is wasted during an NCCL broadcast. When using LoRA with adapter-only sync, the transfer is so small that nearly any interrupt model delivers equivalent throughput! Even Atropos's brute-force HTTP hot-swap becomes viable.</p>
+<hr>
+<h3>
+	<a id="axis-7-distributed-training-backend--parallelism" href="#axis-7-distributed-training-backend--parallelism" rel="nofollow">
+		
+	</a>
+	<span>
+		Axis 7: Distributed Training Backend &amp; Parallelism
+	</span>
+</h3>
+<p><em>What parallelism strategy does the library use for training, and how does this constrain or enable the async architecture?</em></p>
+<p>This axis cuts across every other axis. The choice of training backend determines how large a model can fit per GPU, how many collective operations are needed to gather weights before broadcasting to inference servers, and which model architectures can be trained at all. It is the single most consequential decision for teams scaling beyond 30B parameters or moving from dense to Mixture-of-Experts models.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Library</th>
+<th>Training Backend</th>
+<th>Parallelism</th>
+<th>HF Model Loading</th>
+<th>MoE / EP Support</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>AReaL</strong></td>
+<td>FSDP2, Megatron, Archon</td>
+<td>DP, SP, TP, PP, CP, EP</td>
+<td>✅ Direct / Convert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>ART</strong></td>
+<td>Unsloth, Megatron</td>
+<td>DP, TP, EP</td>
+<td>✅ Direct / Convert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Atropos</strong></td>
+<td>PyTorch Native, TRL</td>
+<td>DP</td>
+<td>✅ Direct</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>MILES</strong></td>
+<td>Megatron, FSDP2</td>
+<td>DP, TP, PP</td>
+<td>🔄 Convert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>NeMo-RL</strong></td>
+<td>FSDP2, Megatron</td>
+<td>DP, SP, TP, PP, CP, EP</td>
+<td>✅ Direct / Convert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>OAT</strong></td>
+<td>DeepSpeed</td>
+<td>DP, TP</td>
+<td>✅ Direct</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>open-instruct</strong></td>
+<td>DeepSpeed</td>
+<td>DP, SP</td>
+<td>✅ Direct</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>PipelineRL</strong></td>
+<td>DeepSpeed</td>
+<td>DP, SP</td>
+<td>✅ Direct</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>PRIME-RL</strong></td>
+<td>FSDP2</td>
+<td>DP, TP, CP, EP</td>
+<td>✅ Direct</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>ROLL</strong></td>
+<td>DeepSpeed, Megatron, FSDP2</td>
+<td>DP, SP, TP, PP, CP, EP</td>
+<td>✅ Direct / Convert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>SkyRL</strong></td>
+<td>FSDP, Megatron</td>
+<td>DP, SP, TP, PP, EP</td>
+<td>✅ Direct / Convert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>SLIME</strong></td>
+<td>Megatron</td>
+<td>DP, TP, PP, SP</td>
+<td>🔄 Convert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>TorchForge</strong></td>
+<td>FSDP2</td>
+<td>DP, TP, CP</td>
+<td>✅ via TorchTitan</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>Tunix</strong></td>
+<td>JAX/XLA</td>
+<td>DP, TP</td>
+<td>❌ Custom Flax</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>verl</strong></td>
+<td>FSDP, Megatron</td>
+<td>DP, SP, TP, PP, CP, EP</td>
+<td>✅ Direct / Convert</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>verifiers-rl</strong></td>
+<td>DeepSpeed</td>
+<td>DP</td>
+<td>✅ Direct</td>
+<td>❌</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The training backend creates direct implications for async RL library design:</p>
+<p><strong>Weight sync speed is a direct function of the training backend, and faster sync means less staleness.</strong></p>
+<p>In a disaggregated async setup, weight sync does <em>not</em> necessarily stall inference. The key design decision is <strong>how the weight update interacts with in-flight generation</strong>; four strategies exist, ordered from least to most disruptive:</p>
+<ul>
+<li><strong>Atomic swap, no interruption.</strong> The full weight update is dispatched as a single blocking RPC to the inference engine. Each forward pass sees either all old or all new weights, never a mix. Generation pauses for at most one forward-pass gap (~few ms). (PipelineRL)</li>
+<li><strong>Per-parameter streaming, no interruption.</strong> Each parameter is sent as a separate RPC + NCCL broadcast. Forward passes interleave between individual parameter updates, so in-flight sequences genuinely see a mix of old and new weights across layers. Maximum overlap, but weakest consistency. (open-instruct, inflight mode)</li>
+<li><strong>Dispatch gate, drain in-flight, then sync.</strong> New requests are held back while in-progress sequences complete naturally; weights are broadcast only after the pipeline drains. No wasted tokens, but a sync bubble proportional to the longest in-flight sequence. (PRIME-RL, AReaL, open-instruct default, verl fully-async)</li>
+<li><strong>Hard pause or abort.</strong> Inference is paused, or in-flight requests are aborted before weight transfer begins. Cleanest consistency, highest wasted compute. (verl, SkyRL)</li>
+</ul>
+<p>But even in libraries where inference continues, <strong>slower sync means longer periods where inference runs on stale weights</strong>. The policy version gap between the trainer and the inference pool grows with sync duration. Something to take into account.</p>
+<p>**MoE support is an increasingly important differentiator as the field moves toward sparse models.**<br>The trend is clear: frontier models are sparse (DeepSeek-V3, Qwen3-MoE, Mixtral, DBRX), and open-weight MoEs are becoming the default starting point for post-training. Training these models requires Expert Parallelism (EP), distributing different experts to different ranks, which most async RL libraries do not support. Only Megatron-backed libraries (verl, SLIME, MILES, ROLL, NeMo-RL) and PRIME-RL's FSDP2+EP path handle EP correctly. ZeRO-based libraries (PipelineRL, verifiers-rl, OAT, open-instruct) can <em>load</em> MoE HuggingFace model classes, but without EP each expert is sharded across all ZeRO-3 ranks rather than being placed on a dedicated rank; every forward pass AllGathers every expert, negating the sparsity advantage entirely. EP also complicates weight sync: before broadcasting to vLLM/SGLang (which typically serves all experts from a single TP group), the trainer must AllGather expert parameters from every EP rank, an <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>N</mi><mo>∗</mo><mtext>experts</mtext><mo>×</mo><mi>E</mi><mo>∗</mo><mtext>size</mtext><mo stretchy="false">)</mo></mrow> O(N*{\text{experts}} \times E*{\text{size}}) </math></span></span> communication (where <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>E</mi><mi mathvariant="normal">_</mi><mtext>size</mtext></mrow> E\_{\text{size}} </math></span></span> is the parameter count per expert) that does not exist for dense models. For a 235B MoE with 256 experts, this is a substantial sync cost. Libraries that want to remain relevant for post-training on the next generation of open MoE models need EP-aware training *and* EP-aware weight sync.</p>
+<p>**MoE LoRA is an emerging requirement, and a tricky one.**<br>LoRA on dense models is well-understood (Axis 6): attach adapters to attention projections, train them, sync only the adapter deltas. MoE LoRA is harder because the natural target is the <em>expert FFN layers</em>, meaning each expert gets its own adapter. For a model with 64 experts and rank-32 LoRA on each expert's gate/up/down projections, the adapter count jumps from ~20 (dense) to ~200+ (MoE), and the adapters are distributed across EP ranks. Weight sync must gather adapters from every EP rank before pushing them to the inference server, a coordination problem that does not exist for dense LoRA. On the training side, <strong>ART</strong> explicitly implements MoE expert LoRA layers (Megatron EP path with per-expert LoRA and manual allreduce), <strong>MILES</strong> supports LoRA via Megatron-Bridge which can target expert layers, and <strong>PRIME-RL</strong> also supports <a href="https://github.com/PrimeIntellect-ai/prime-rl/blob/main/src/prime_rl/trainer/models/layers/lora/multi_moe.py" rel="nofollow">MoE LoRA via a custom <code>MultiMoELoRA</code> module</a>. verl's Megatron-Bridge path supports LoRA types including <code>vlm_lora</code>, but MoE-specific expert LoRA is not documented. On the inference side, <strong>vLLM</strong> has supported <a href="https://github.com/vllm-project/vllm/blob/2488a82f89b15ad2ebed12160dcc423d44210db2/vllm/lora/ops/triton_ops/fused_moe_lora_op.py#L158" rel="nofollow">per-expert LoRA loading and serving for MoEs</a> via fused Triton kernels for several releases, while <strong>SGLang</strong> has an <a href="https://github.com/sgl-project/sglang/pull/14105" rel="nofollow">open PR to add MoE LoRA support</a>. Support for expert parallel inference with MoE LoRAs is currently in the works for both vLLM and SGLang. As MoE models become the default for post-training, MoE LoRA with efficient adapter-only sync will be a key capability gap to close.</p>
+<p>That covers the seven axes, each captures a different facet of the same underlying problem. Together, they give us a complete lens for comparing libraries. Time to put it all on one page.</p>
+<hr>
+<h2>
+	<a id="4-global-overview-sixteen-libraries-at-a-glance" href="#4-global-overview-sixteen-libraries-at-a-glance" rel="nofollow">
+		
+	</a>
+	<span>
+		4. Global Overview: Sixteen Libraries at a Glance
+	</span>
+</h2>
+<blockquote>
+<p><strong>Note:</strong> This overview reflects the state of these libraries as of March 2026. The ecosystem is evolving rapidly; specific features, backends, and integrations may change in the near future.</p>
+</blockquote>
+<div>
+	<table>
+		<thead><tr>
+<th>Library</th>
+<th>Org</th>
+<th>Orchestration Type</th>
+<th>Inference Server</th>
+<th>Weight Sync</th>
+<th>Staleness Management</th>
+<th>Partial Rollout</th>
+<th>Training Backend</th>
+<th>Dist. Parallelism</th>
+<th>LoRA Support</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>AReaL</strong></td>
+<td>inclusionAI</td>
+<td>Native Python (asyncio + HTTP RPC); pluggable Ray/Slurm</td>
+<td>vLLM, SGLang</td>
+<td>NCCL chunked OR filesystem safetensors</td>
+<td>Depth + IS (optional)</td>
+<td>🟧 Soft pause (in-flight complete)</td>
+<td>FSDP2 or Megatron-LM or Archon</td>
+<td>FSDP2: DP+SP+TP; Megatron: TP+SP+PP+CP+EP; Archon: FSDP2+TP+SP+PP+EP</td>
+<td>✅ <code>peft</code> (Adapter-only)</td>
+</tr>
+<tr>
+<td><strong>ART</strong></td>
+<td>OpenPipe</td>
+<td>Native Python (asyncio + mp child processes)</td>
+<td>vLLM</td>
+<td>LoRA adapter swap (no full weight transfer)</td>
+<td>Synchronous (none)</td>
+<td>❌ No</td>
+<td>Unsloth (single-GPU); Megatron-LM</td>
+<td>None (Unsloth); TP×EP×DP (Megatron)</td>
+<td>✅ <code>peft</code> / Megatron LoRA (Adapter-only)</td>
+</tr>
+<tr>
+<td><strong>Atropos</strong></td>
+<td>NousResearch</td>
+<td>HTTP Microservices (FastAPI)</td>
+<td>vLLM, SGLang, OpenAI</td>
+<td>FS checkpoint + vLLM restart</td>
+<td>Depth bounding</td>
+<td>❌ No</td>
+<td>Single-GPU PyTorch; TRL/Accelerate</td>
+<td>None (native); FSDP/ZeRO via TRL adapter</td>
+<td>✅ <code>peft</code> (Adapter-only)</td>
+</tr>
+<tr>
+<td><strong>MILES</strong></td>
+<td>radixark</td>
+<td>Distributed Actor (Ray)</td>
+<td>SGLang</td>
+<td>NCCL OR CUDA IPC</td>
+<td>IS correction</td>
+<td>🟧 Abort + recycle to buffer</td>
+<td>Megatron-LM (primary); FSDP2</td>
+<td>Megatron: TP×PP×DP; FSDP2 available; colocated CUDA IPC</td>
+<td>✅ Megatron-Bridge (Adapter-only)</td>
+</tr>
+<tr>
+<td><strong>NeMo-RL</strong></td>
+<td>NVIDIA</td>
+<td>Distributed Actor (Ray)</td>
+<td>vLLM, SGLang, Megatron</td>
+<td>NCCL OR CUDA IPC-ZMQ OR HTTP</td>
+<td>Version rejection</td>
+<td>✅ In-flight continuation</td>
+<td>DTensor (FSDP2+TP) or Megatron-Bridge</td>
+<td>DTensor: TP+SP+CP+FSDP2; Megatron: TP×PP×CP×EP×ETP + FSDP2</td>
+<td>🟧 Custom (No adapter-only sync)</td>
+</tr>
+<tr>
+<td><strong>OAT</strong></td>
+<td>SAIL-SG</td>
+<td>Distributed Actor (Ray)</td>
+<td>vLLM</td>
+<td>NCCL per-param + ZeRO-3 gather</td>
+<td>IS correction</td>
+<td>❌ No</td>
+<td>DeepSpeed ZeRO-2/3</td>
+<td>ZeRO-2 / ZeRO-3 DP; AutoTP</td>
+<td>✅ <code>peft</code> (Adapter-only)</td>
+</tr>
+<tr>
+<td><strong>open-instruct</strong></td>
+<td>AI2 (AllenAI)</td>
+<td>Distributed Actor (Ray)</td>
+<td>vLLM</td>
+<td>NCCL broadcast; optional in-flight updates</td>
+<td>Depth + IS (optional)</td>
+<td>🟧 Drain-or-inflight (configurable)</td>
+<td>DeepSpeed ZeRO-0/2/3</td>
+<td>ZeRO-3 DP + Ulysses SP; vLLM TP (inference only)</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><strong>PipelineRL</strong></td>
+<td>ServiceNow</td>
+<td>Native Python + Pub/Sub (asyncio + Redis/JSONL)</td>
+<td>vLLM</td>
+<td>NCCL pg + HTTP notify</td>
+<td>Version rejection</td>
+<td>✅ Implicit continuation</td>
+<td>DeepSpeed ZeRO-3</td>
+<td>ZeRO-3 DP + Ring SP; ZeRO++ available</td>
+<td>✅ <code>peft</code> (Full sync)</td>
+</tr>
+<tr>
+<td><strong>PRIME-RL</strong></td>
+<td>PrimeIntellect</td>
+<td>Native Python (asyncio + FS/ZMQ)</td>
+<td>vLLM</td>
+<td>Filesystem safetensors + HTTP OR NCCL</td>
+<td>Version + depth + IS</td>
+<td>🟧 Group cancellation</td>
+<td>FSDP2 (exclusively)</td>
+<td>FSDP2 per-block + TP + CP + EP; pp=1</td>
+<td>✅ Custom MultiLoRA (Adapter-only)</td>
+</tr>
+<tr>
+<td><strong>ROLL</strong></td>
+<td>Alibaba</td>
+<td>Distributed Actor (Ray)</td>
+<td>vLLM, SGLang</td>
+<td>NCCL via dedicated update group</td>
+<td>IS correction</td>
+<td>❌ No</td>
+<td>DeepSpeed ZeRO or Megatron or FSDP2</td>
+<td>DS: ZeRO+Ulysses SP; Megatron: TP×PP×CP×EP; FSDP2: HSDP+Ulysses</td>
+<td>🟧 <code>peft</code> (DeepSpeed only)</td>
+</tr>
+<tr>
+<td><strong>SkyRL</strong></td>
+<td>NovaSky-AI</td>
+<td>Distributed Actor (Ray) + Native Python</td>
+<td>vLLM, SGLang</td>
+<td>NCCL pg</td>
+<td>Depth bounding</td>
+<td>🟧 Abort + retry with prefix</td>
+<td>FSDP/FSDP2 or Megatron-Bridge</td>
+<td>FSDP: ZeRO shard + Ulysses SP; Megatron: full 5D via bridge; JAX backend</td>
+<td>✅ <code>peft</code> / Megatron-Bridge (Adapter-only)</td>
+</tr>
+<tr>
+<td><strong>SLIME</strong></td>
+<td>THUDM</td>
+<td>Distributed Actor (Ray)</td>
+<td>SGLang</td>
+<td>NCCL pg, bucketed</td>
+<td>IS correction</td>
+<td>🟧 Abort + recycle to buffer</td>
+<td>Megatron-LM</td>
+<td>TP×PP×DP; Megatron→HF conversion; MoE EP all-gather</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><strong>TorchForge</strong></td>
+<td>Meta</td>
+<td>Distributed Actor (Monarch)</td>
+<td>vLLM</td>
+<td>torchstore + shared memory prefetch</td>
+<td>Version rejection</td>
+<td>❌ No</td>
+<td>FSDP2 via TorchTitan</td>
+<td>FSDP2 + TP; CP partial; PP not yet implemented</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><strong>Tunix</strong></td>
+<td>Google</td>
+<td>Native Python (ThreadPoolExecutor + asyncio); JAX-native</td>
+<td>vLLM, SGLang, JAX</td>
+<td>Cross-mesh reshard</td>
+<td>Depth bounding</td>
+<td>❌ No</td>
+<td>JAX/XLA 2D mesh</td>
+<td>2D JAX mesh: FSDP + TP; no PP; TPU-primary</td>
+<td>✅ qwix / QLoRA (Adapter-only)</td>
+</tr>
+<tr>
+<td><strong>verl</strong></td>
+<td>ByteDance</td>
+<td>Distributed Actor (Ray)</td>
+<td>vLLM, SGLang</td>
+<td>NCCL + checkpoint-engine buckets</td>
+<td>IS correction</td>
+<td>✅ Explicit save/resume</td>
+<td>FSDP1/FSDP2 or Megatron-Core</td>
+<td>FSDP: ZeRO-2/3/HSDP + Ulysses SP; Megatron: TP×PP×VPP×CP×EP×ETP</td>
+<td>✅ <code>peft</code> / Megatron-Bridge (Adapter-only)</td>
+</tr>
+<tr>
+<td><strong>verifiers-rl</strong></td>
+<td>PrimeIntellect</td>
+<td>Native Python (threading + asyncio)</td>
+<td>vLLM</td>
+<td>PyNCCL broadcast</td>
+<td>Depth bounding (depth=1)</td>
+<td>❌ No</td>
+<td>DeepSpeed ZeRO-3 (Accelerate)</td>
+<td>ZeRO-3 DP only; no TP/PP</td>
+<td>✅ <code>peft</code> (Adapter-only)</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>That's the current state of play. But the field is moving fast, and several emerging trends are about to stress-test these architectures in ways their designers may not have anticipated.</p>
+<hr>
+<h2>
+	<a id="5-the-next-wave-design-implications" href="#5-the-next-wave-design-implications" rel="nofollow">
+		
+	</a>
+	<span>
+		5. The Next Wave: Design Implications
+	</span>
+</h2>
+<p>The trends below are not a catalogue of new techniques; each one creates concrete pressure on the infrastructure and algorithmic choices made today. The question is not "what is the frontier?" but "if this trend wins, what breaks in my current stack?"</p>
+<h3>
+	<a id="51-critic-free-algorithms-memory-freed-but-weight-sync-pressure-increases" href="#51-critic-free-algorithms-memory-freed-but-weight-sync-pressure-increases" rel="nofollow">
+		
+	</a>
+	<span>
+		5.1 Critic-Free Algorithms: Memory Freed, But Weight Sync Pressure Increases
+	</span>
+</h3>
+<p>PPO's value network doubles the memory footprint of any training node. The field is converging on critic-free variants (GRPO, REINFORCE++, Online DPO) precisely because long CoT reasoning makes this overhead prohibitive at 8K–64K context lengths.</p>
+<p><strong>What this unlocks:</strong> Eliminating the critic frees ~50% of training GPU memory. This slack can be reallocated to: (a) larger rollout batches, directly reducing the straggler variance problem, or (b) co-locating inference and training on the same GPUs, which eliminates the need for a separate NCCL weight sync process group entirely.</p>
+<p><strong>What it does not solve:</strong> Critic-free methods still require frequent weight pushes to inference servers. In fact, they can <em>increase</em> sync pressure: without a value network to provide a stable baseline, GRPO-style algorithms require larger group sizes (G=8–32) to get low-variance advantage estimates, which means more rollouts per step and faster policy drift. Libraries that sync only at coarse boundaries (per training step or per K steps) will see staleness grow faster under critic-free training.</p>
+<p><strong>Asymmetric trajectory filtering</strong> (GRPO-RoC: oversample rollouts, strictly filter positives, uniformly downsample negatives; CISPO/DAPO-style asymmetric clipping in DeepSeek-V3.2 and MiniMax-M1) has a subtler impact on staleness. The issue is not the batch shrinking per se; it is the <em>composition</em> of the surviving batch. Positive trajectories (correct solutions to easy prompts) converge faster and are retained preferentially; harder prompts yield mostly negative trajectories that are discarded. The result: the samples that survive filtering are systematically <em>older</em> than the average rollout in the buffer, because the easy prompts they solve were issued earlier in training. A buffer full of nominally "fresh" rollouts can contain surviving positives spanning a wide range of policy versions. Admission control that tracks staleness at the batch level (e.g., SkyRL's <code>max_staleness_steps</code> capacity gate, Atropos's <code>max_batches_offpolicy</code>) cannot detect this intra-batch version spread. Per-sample version tagging (Axis 4) is not optional in this regime; the trainer must be able to reject or IS-correct individual samples whose policy version diverges too far, even if the batch they belong to was admitted recently.</p>
+<p>Critic-free methods simplify the training side. But the <em>scoring</em> side is about to get more expensive: process reward models score intermediate reasoning steps, not just final answers, and that introduces a whole new synchronisation bottleneck.</p>
+<h3>
+	<a id="52-process-rewards-a-new-synchronisation-barrier" href="#52-process-rewards-a-new-synchronisation-barrier" rel="nofollow">
+		
+	</a>
+	<span>
+		5.2 Process Rewards: A New Synchronisation Barrier
+	</span>
+</h3>
+<p>Outcome reward is scalar and cheap, one call to a verifier at the end of a rollout. Process reward models (PRMs) score intermediate steps, which require either (a) a separate PRM forward pass over the full reasoning trace, or (b) an online utility function computed token-by-token during generation.</p>
+<p><strong>PRPO</strong> (entropy-spike segmentation with PRM scoring per segment) and <strong>DEEP-GRPO</strong> (pivot identification via online utility) both incur computational overhead <em>between generation and training</em>. In the current library landscape, this phase maps awkwardly onto the preprocessor pool (PipelineRL) or requires an additional Ray actor (verl, NeMo-RL). Neither is designed for it.</p>
+<p><strong>The key implication:</strong> PRM-based credit assignment breaks the assumption that rewards are cheap to compute. A PRM forward pass over a 32K-token reasoning trace from a 7B model can be very costly. At G=8 completions per prompt, the reward computation could consume non-negligible wall time relative to the generation itself. Two consequences:</p>
+<ol>
+<li><strong>Async reward pipelines become necessary.</strong> PRIME-RL runs reward scoring concurrently with training as part of its fully async Orchestrator-Trainer pipeline; the Orchestrator handles scoring while the Trainer performs backward and optimizer steps independently. For PRM-based methods, this pipelined reward computation is not optional; synchronous reward scoring will dominate training wall time.</li>
+<li><strong>The separate preprocessor pool becomes necessary</strong>. Running reference logprobs computation and PRM scoring on a dedicated GPU tier, for example, pipelined between generation and training, is the correct architecture for dense credit assignment.</li>
+</ol>
+<p><strong>DEEP-GRPO's pivot resampling</strong> introduces a third-generation pattern alongside standard rollouts and partial rollout resumes: <em>local resampling from a mid-sequence state</em>. This requires saving KV cache state at pivot points, which <strong>no current async library supports out of the box</strong>. Weight sync at pivot boundaries could be a new correctness requirement: if weights change between the pivot generation and the local resample, the advantage estimate is corrupted. We can, of course, recompute the KV-cache in a single prefill, but it could waste precious compute in our training.</p>
+<h3>
+	<a id="53-multi-agent-co-evolution-the-straggler-problem-compounds" href="#53-multi-agent-co-evolution-the-straggler-problem-compounds" rel="nofollow">
+		
+	</a>
+	<span>
+		5.3 Multi-Agent Co-Evolution: The Straggler Problem Compounds
+	</span>
+</h3>
+<p>Single-agent GRPO trains one policy generating G completions per prompt. Emerging, multi-agent self-play means the effective "group" spans multiple model invocations sequentially chained. The reward is only available after all models in the chain are complete.</p>
+<p><strong>Straggler dynamics change qualitatively.</strong> In single-agent GRPO, the straggler is the longest completion in a group, a tail event in a unimodal length distribution. In multi-agent pipelines, the straggler is the <em>product</em> of two or more length distributions. In a Proposer/Solver multi-agent architecture, if each has a 90th percentile completion time (5× the median), the joint 90th percentile is roughly 25× the median.</p>
+<p><strong>RL on swarms of agents implies a new unit of work.</strong> Today, the atomic unit in every library is a single (prompt, completion, reward) triple. In multi-agent training, the atomic unit becomes an <em>episode</em>, a directed graph of turns, tool calls, and inter-agent messages. Buffer design, staleness tracking, and advantage computation all need to operate over episodes. Replaying or forking episodes could also be necessary.</p>
+<p>Straggler problems across agents are bad enough when the model is at least internally consistent. With MoE architectures, even a single model can disagree with itself across inference and training frameworks and this raises a new set of emerging problems in RL training.</p>
+<h3>
+	<a id="54-training-inference-mismatch-the-deepseek-v32-moe-case-study" href="#54-training-inference-mismatch-the-deepseek-v32-moe-case-study" rel="nofollow">
+		
+	</a>
+	<span>
+		5.4 Training-Inference Mismatch: The Deepseek v3.2 MoE Case Study
+	</span>
+</h3>
+<p>The training-inference mismatch problem is endemic in async RL; anytime rollout data is generated under policy <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>π</mi><mo>∗</mo><mtext>old</mtext></mrow>\pi*{\text{old}}</math></span></span> and gradient updates are computed under <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>π</mi><mo>∗</mo><mi>θ</mi></mrow>\pi*{\theta}</math></span></span>, the two policies diverge. Most libraries address this with IS correction or hard version rejection. But DeepSeek-V3.2's production experience reveals two <strong>structural</strong> sources of mismatch that IS correction cannot fix.</p>
+<p><strong>Source 1: MoE expert routing inconsistency.</strong> Mixture-of-Experts models activate a sparse subset of experts per token. Inference frameworks (vLLM, SGLang) and training frameworks (Megatron, FSDP) implement the router independently, and differences in floating-point rounding in the gating function can lead to <em>different expert selections for identical inputs</em>. When expert routing diverges, the active parameter subspace shifts discontinuously; a gradient step computed assuming Expert A was active is applied to weights that are active under Expert B. DeepSeek-V3.2 found this "induces abrupt shifts in the active parameter subspace, which destabilizes optimization and exacerbates off-policy issues."</p>
+<p>Their solution, <strong>Keep Routing</strong>, preserves the exact expert routing paths used during sampling (inference) and enforces those paths during the training forward pass. This requires the inference framework to record and return routing decisions alongside token logprobs, and the training framework to accept and enforce them. No current open-source async RL library implements this. For any team training MoE models (DeepSeek-V3 class, Mixtral, future open MoEs), this is a correctness issue, not a performance issue.</p>
+<p><strong>Source 2: Sampling truncation mask mismatch.</strong> Top-p and top-k sampling truncate the vocabulary at generation time, excluding low-probability tokens from the sampling distribution. During training, the full vocabulary is visible to <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>π</mi><mo>∗</mo><mi>θ</mi></mrow>\pi*{\theta}</math></span></span>. This violates the importance sampling identity: the action spaces of <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>π</mi><mo>∗</mo><mtext>old</mtext></mrow>\pi*{\text{old}}</math></span></span> (truncated) and <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>π</mi><mo>∗</mo><mi>θ</mi></mrow>\pi*{\theta}</math></span></span> (full) differ, so the IS ratio <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>π</mi><mo>∗</mo><mi>θ</mi><mo stretchy="false">(</mo><mi>o</mi><mo>∗</mo><mi>t</mi><mo stretchy="false">)</mo><mi mathvariant="normal">/</mi><mi>π</mi><mo>∗</mo><mtext>old</mtext><mo stretchy="false">(</mo><msub><mi>o</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow>\pi*{\theta}(o*t) / \pi*{\text{old}}(o_t)</math></span></span> is undefined for tokens that were masked during sampling.</p>
+<p>DeepSeek-V3.2's <strong>Keep Sampling Mask</strong> solution: record the truncation mask during sampling and apply it to <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>π</mi><mi mathvariant="normal">_</mi><mi>θ</mi></mrow>\pi\_{\theta}</math></span></span> during the training forward pass, so both policies operate over the same vocabulary subset. This requires passing the mask back from the inference server to the trainer, which is again something no current library infrastructure supports.</p>
+<p><strong>Implications for library design:</strong> Both Keep Routing and Keep Sampling Mask require the inference server to return <em>additional metadata</em> alongside token logprobs, routing decisions, and sampling masks. The current API contract between inference servers (vLLM, SGLang) and trainers is <code>(token_ids, logprobs, finish_reason)</code>. Extending this to <code>(token_ids, logprobs, finish_reason, expert_routing, sampling_mask)</code> is a breaking change to every library's data flow.</p>
+<h3>
+	<a id="55-distillation-the-same-async-problem-under-a-different-name" href="#55-distillation-the-same-async-problem-under-a-different-name" rel="nofollow">
+		
+	</a>
+	<span>
+		5.5 Distillation: The Same Async Problem Under a Different Name
+	</span>
+</h3>
+<p>On-policy distillation, where a student model generates sequences, and a teacher model scores them with token-level logprobs, is structurally the same as the async coordination problem in GRPO.</p>
+<p>Every design axis in this survey, rollout buffers, weight sync protocols, staleness management, and partial rollout handling, applies identically to distillation. The generation pool produces student rollouts, the teacher scores them (replacing the verifier), and the trainer computes a backward pass with either an advantage-modified GRPO loss or a standalone KL objective. Self-distillation adds one more coordination requirement: the teacher is a frozen snapshot of the student from step <em>N−k</em>, so the system must periodically checkpoint the policy and hot-swap the teacher server without disrupting the pipeline, a primitive that no library has fully automated.</p>
+<p><strong>The practical implication for library design is that async RL infrastructure should not be built as a GRPO-specific system</strong>. The generation--scoring--training pipeline is a general pattern that covers RL with outcome rewards, RL with process rewards, on-policy distillation, and self-distillation. Libraries like <strong>SLIME, MILES, PRIME-RL, AReaL, and NeMo-RL</strong> already support both GRPO and on-policy distillation precisely because their async scaffolding treats the reward/scoring phase as a pluggable component rather than a hardcoded verifier call. Any async trainer that aspires to generality should do the same: define the scoring phase as an interface (an HTTP endpoint, a Ray actor, or a co-located forward pass), and let the buffer, staleness, and weight-sync machinery operate identically regardless of what fills it.</p>
+<hr>
+<h2>
+	<a id="6-design-choices-for-trls-async-trainer" href="#6-design-choices-for-trls-async-trainer" rel="nofollow">
+		
+	</a>
+	<span>
+		6. Design Choices for TRL's Async Trainer
+	</span>
+</h2>
+<p>Having surveyed the full landscape, orchestration models, buffer designs, weight sync protocols, staleness strategies, and partial rollout handling, we can now lay out concrete design choices for an async trainer in TRL, along with the future-proof directions we intend to explore.</p>
+<h3>
+	<a id="design-principle-keep-orchestration-lightweight" href="#design-principle-keep-orchestration-lightweight" rel="nofollow">
+		
+	</a>
+	<span>
+		Design Principle: Keep Orchestration Lightweight
+	</span>
+</h3>
+<p>One of the strengths of the current TRL implementation is that it does not depend on a heavy orchestrator system to manage the training lifecycle. Data inside the library remains native Python objects without external-library coloring. We want to preserve this: orchestration should stay as simple as possible, with no dependency on heavyweight external frameworks.</p>
+<h3>
+	<a id="1-bounded-queue-with-per-token-model_version-no-double-buffering" href="#1-bounded-queue-with-per-token-model_version-no-double-buffering" rel="nofollow">
+		
+	</a>
+	<span>
+		1. Bounded Queue with Per-Token <code>model_version</code> (No Double-Buffering)
+	</span>
+</h3>
+<p>Rather than starting with double-buffering and graduating to something more granular, we go straight to a <strong>bounded queue where every token is tagged with the <code>model_version</code> that produced it</strong>. This is the lowest possible granularity from the start; it enables importance-sampling correction at the token level, supports simple admission gating (drop or down-weight tokens beyond a staleness threshold), and avoids the architectural debt of retrofitting token-level provenance onto a batch-level buffer later.</p>
+<h3>
+	<a id="2-nccl-weight-sync-with-packed-transfers" href="#2-nccl-weight-sync-with-packed-transfers" rel="nofollow">
+		
+	</a>
+	<span>
+		2. NCCL Weight Sync with Packed Transfers
+	</span>
+</h3>
+<p>NCCL process groups are a necessity, and we already use them. Adding bucketing should be the next step as vLLM's <a href="https://github.com/vllm-project/vllm/blob/f3c6c9c9d794fac5e74b59bc75da6e9d1921eeac/vllm/distributed/weight_transfer/nccl_engine.py" rel="nofollow"><code>NCCLWeightTransferEngine</code></a> with <code>packed=True</code> directly supports bucketed broadcast: it packs parameters into configurable-size <code>uint8</code> buffers (default 1 GB, double-buffered across CUDA streams) and broadcasts them via a dedicated NCCL communicator separate from the training process group. This eliminates the per-parameter call overhead that dominates naive broadcast, yielding a massive sync speedup.</p>
+<p>Beyond vLLM's built-in engine, we will explore high-performance weight packing libraries for more demanding scenarios:</p>
+<ul>
+<li><p><strong><a href="https://github.com/inclusionAI/asystem-awex" rel="nofollow">Awex</a></strong> (inclusionAI), a dedicated weight synchronization framework for RL training that handles the hard problem of cross-engine transfer: training engines (Megatron, DeepSpeed) and inference engines (SGLang, vLLM) use completely different parallelism strategies and tensor layouts. Awex abstracts this behind a unified conversion layer and deterministic P2P transfer plans. It supports both separated-GPU and co-located (CUDA IPC) modes.</p>
+</li>
+<li><p><strong><a href="https://github.com/kvcache-ai/Mooncake" rel="nofollow">Mooncake Transfer Engine</a></strong>, SGLang has moved toward integrating the Mooncake Transfer Engine as its high-performance transport layer, with integrations spanning PD disaggregation, hierarchical KV caching, and elastic expert parallelism. For weight sync specifically, the companion <strong><a href="https://github.com/MoonshotAI/checkpoint-engine" rel="nofollow">checkpoint-engine</a></strong> project uses Mooncake's RDMA-backed P2P transfers to update trillion-parameter models (Kimi-K2, 256×H20 GPUs) in ~16–17 seconds. Mooncake is now part of the PyTorch Ecosystem and also serves as a backend plugin for <a href="https://github.com/ai-dynamo/nixl" rel="nofollow">NVIDIA's NIXL transfer library</a>.</p>
+</li>
+</ul>
+<h3>
+	<a id="3-partial-rollout-support-for-agentic-workloads" href="#3-partial-rollout-support-for-agentic-workloads" rel="nofollow">
+		
+	</a>
+	<span>
+		3. Partial Rollout Support for Agentic Workloads
+	</span>
+</h3>
+<p>Multi-turn tool-use tasks in complex environments can take minutes per rollout. Without a mechanism to handle in-flight rollouts during weight updates, sync windows become pipeline stalls. We will probably explore two strategies experimentally:</p>
+<ul>
+<li><strong>Prefix-resume</strong>: when weights update mid-rollout, save the KV cache prefix and resume generation from the checkpoint under the new policy. This preserves partial work but requires support from the inference engine for mid-sequence weight swaps.</li>
+<li><strong>Abort-and-retry</strong>: discard in-flight rollouts that exceed a staleness threshold and re-queue the prompt. Simpler to implement, but wastes compute proportional to the average rollout length at the time of abort.</li>
+</ul>
+<p>That's the map, stay tuned, we are working on a concrete async GRPO trainer in TRL, and we'll announce it shortly 🧑‍🍳!</p>
+</div></div>

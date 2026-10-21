@@ -1,0 +1,180 @@
+<div id="readability-page-1" class="page"><div> 
+<p>Hugging Face Models and Datasets repos are great for publishing final artifacts. But production ML generates a constant stream of intermediate files (checkpoints, optimizer states, processed shards, logs, traces, etc.) that change often, arrive from many jobs at once, and rarely need version control.</p>
+<p><strong>Storage Buckets</strong> are built exactly for this: mutable, S3-like object storage you can browse on the Hub, script from Python, or manage with the <code>hf</code> CLI. And because they are backed by <a href="https://huggingface.co/docs/hub/en/xet">Xet</a>, they are especially efficient for ML artifacts that share content across files.</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/hub/buckets/buckets-annoucement.png"></p>
+
+<h2>
+	<a id="why-we-built-buckets" href="#why-we-built-buckets" rel="nofollow">
+		
+	</a>
+	<span>
+		Why we built Buckets
+	</span>
+</h2>
+<p>Git starts to feel like the wrong abstraction pretty quickly when you're dealing with:</p>
+<ul>
+<li>Training clusters writing checkpoints and optimizer states throughout a run</li>
+<li>Data pipelines processing raw datasets iteratively</li>
+<li>Agents storing traces, memory, and shared knowledge graphs</li>
+</ul>
+<p>The storage need in all these cases is the same: write fast, overwrite when needed, sync directories, remove stale files, and keep things moving.</p>
+<p>A Bucket is a non-versioned storage container on the Hub. It lives under a user or organization namespace, has standard Hugging Face permissions, can be private or public, has a page you can open in your browser, and can be addressed programmatically with a handle like <code>hf://buckets/username/my-training-bucket</code>.</p>
+<h2>
+	<a id="why-xet-matters" href="#why-xet-matters" rel="nofollow">
+		
+	</a>
+	<span>
+		Why Xet matters
+	</span>
+</h2>
+<p>Buckets are built on <a href="https://huggingface.co/docs/hub/en/xet">Xet</a>, Hugging Face’s chunk-based storage backend, and this matters more than it might seem.</p>
+<p>Instead of treating files as monolithic blobs, Xet breaks content into chunks and deduplicates across them. Upload a processed dataset that’s mostly similar to the raw one? Many chunks already exist. Store successive checkpoints where large parts of the model are frozen? Same story. Buckets skip the bytes that are already there, which means less bandwidth, faster transfers, and more efficient storage.</p>
+<p>This is a natural fit for ML workloads. Training pipelines constantly produce families of related artifacts — raw and processed data, successive checkpoints, Agent traces and derived summaries — and Xet is designed to take advantage of that overlap.</p>
+<p>For Enterprise customers, billing is based on deduplicated storage, so shared chunks directly reduce the billed footprint. Deduplication helps with both speed and cost.</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/hub/buckets/buckets-xet-dedup.png"></p>
+
+<h2>
+	<a id="pre-warming-bringing-data-close-to-compute" href="#pre-warming-bringing-data-close-to-compute" rel="nofollow">
+		
+	</a>
+	<span>
+		Pre-warming: bringing data close to compute
+	</span>
+</h2>
+<p>Buckets live on the Hub, which means global storage by default. But not every workload can afford to pull data from wherever it happens to live, for distributed training and large-scale pipelines, storage location directly affects throughput.</p>
+<p>Pre-warming lets you bring hot data closer to the cloud provider and region where your compute runs. Instead of data traveling across regions on every read, you declare where you need it and Buckets make sure it's already there when your jobs start. This is especially useful for training clusters that need fast access to large datasets or checkpoints, and for multi-region setups where different parts of a pipeline run in different clouds.</p>
+<p>We are partnering with AWS and GCP to start with, more more cloud providers coming in the future.</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/hub/buckets/buckets-cdn-prewarm.png"></p>
+
+<h2>
+	<a id="getting-started" href="#getting-started" rel="nofollow">
+		
+	</a>
+	<span>
+		Getting started
+	</span>
+</h2>
+<p>You can get a bucket up and running in under 2 minutes with the <code>hf</code> CLI. First thing is to install it and log in:</p>
+<pre><code data-language="bash">curl -LsSf https://hf.co/cli/install.sh | bash
+hf auth login
+</code></pre>
+<p>Create a bucket for your project:</p>
+<pre><code data-language="bash">hf buckets create my-training-bucket --private
+</code></pre>
+<p>Say your training job is writing checkpoints locally to <code>./checkpoints</code>. Sync that directory into the Bucket:</p>
+<pre><code data-language="bash">hf buckets sync ./checkpoints hf://buckets/username/my-training-bucket/checkpoints
+</code></pre>
+<p>For large transfers, you might want to see what will happen before anything moves. <code>--dry-run</code> prints the plan without executing anything:</p>
+<pre><code data-language="bash">hf buckets sync ./checkpoints hf://buckets/username/my-training-bucket/checkpoints --dry-run
+</code></pre>
+<p>You can also save the plan to a file for review and apply it later:</p>
+<pre><code data-language="bash">hf buckets sync ./checkpoints hf://buckets/username/my-training-bucket/checkpoints --plan sync-plan.jsonl
+hf buckets sync --apply sync-plan.jsonl
+</code></pre>
+<p>Once done, inspect the Bucket from the CLI:</p>
+<pre><code data-language="bash">hf buckets list username/my-training-bucket -h
+</code></pre>
+<p>or browse it directly on the Hub at <code>https://huggingface.co/buckets/username/my-training-bucket</code>.</p>
+<p>That is the whole loop. Create a bucket, sync your working data into it, check on it when you need to, and save the versioned repo for when something is worth publishing. For one-off operations, <code>hf buckets cp</code> copies individual files and <code>hf buckets remove</code> cleans up stale objects.</p>
+<h2>
+	<a id="using-buckets-from-python" href="#using-buckets-from-python" rel="nofollow">
+		
+	</a>
+	<span>
+		Using Buckets from Python
+	</span>
+</h2>
+<p>Everything above also works from Python via <a href="https://github.com/huggingface/huggingface_hub" rel="nofollow"><code>huggingface_hub</code></a> (available since <a href="https://github.com/huggingface/huggingface_hub/releases/tag/v1.5.0" rel="nofollow">v1.5.0</a>). The API follows the same pattern: create, sync, inspect.</p>
+<pre><code data-language="python">from huggingface_hub import create_bucket, list_bucket_tree, sync_bucket
+
+create_bucket("my-training-bucket", private=True, exist_ok=True)
+
+sync_bucket(
+    "./checkpoints",
+    "hf://buckets/username/my-training-bucket/checkpoints",
+)
+
+for item in list_bucket_tree(
+    "username/my-training-bucket",
+    prefix="checkpoints",
+    recursive=True,
+):
+    print(item.path, item.size)
+</code></pre>
+<p>This makes it straightforward to integrate Buckets into training scripts, data pipelines, or any service that manages artifacts programmatically. The Python client also supports batch uploads, selective downloads, deletes, and bucket moves for when you need finer control.</p>
+<p>Bucket support is also available in JavaScript via <a href="https://www.npmjs.com/package/@huggingface/hub" rel="nofollow"><code>@huggingface/hub</code></a> (since v2.10.5), so you can integrate Buckets into Node.js services and web applications as well.</p>
+<h2>
+	<a id="filesystem-integration" href="#filesystem-integration" rel="nofollow">
+		
+	</a>
+	<span>
+		Filesystem integration
+	</span>
+</h2>
+<p>Buckets also work through <code>HfFileSystem</code>, the <a href="https://filesystem-spec.readthedocs.io/" rel="nofollow">fsspec</a>-compatible filesystem in <code>huggingface_hub</code>. This means you can list, read, write, and glob Bucket contents using standard filesystem operations — and any library that supports fsspec can access Buckets directly.</p>
+<pre><code data-language="python">from huggingface_hub import hffs
+
+# List files in a bucket directory
+hffs.ls("buckets/username/my-training-bucket/checkpoints", detail=False)
+
+# Glob for specific files
+hffs.glob("buckets/username/my-training-bucket/**/*.parquet")
+
+# Read a file directly
+with hffs.open("buckets/username/my-training-bucket/config.yaml", "r") as f:
+    print(f.read())
+</code></pre>
+<p>Because fsspec is the standard Python interface for remote filesystems, libraries like pandas, Polars, and Dask can read from and write to Buckets using <code>hf://</code> paths with no extra setup:</p>
+<pre><code data-language="python">import pandas as pd
+
+# Read a CSV directly from a Bucket
+df = pd.read_csv("hf://buckets/username/my-training-bucket/results.csv")
+
+# Write results back
+df.to_csv("hf://buckets/username/my-training-bucket/summary.csv")
+</code></pre>
+<p>This makes it easy to plug Buckets into existing data workflows without changing how your code reads or writes files.</p>
+<h2>
+	<a id="from-buckets-to-versioned-repos" href="#from-buckets-to-versioned-repos" rel="nofollow">
+		
+	</a>
+	<span>
+		From Buckets to versioned repos
+	</span>
+</h2>
+<p>Buckets are the fast, mutable place where artifacts live while they are still in motion. Once something becomes a stable deliverable, it usually belongs to a versioned model or dataset repo.</p>
+<p>On the roadmap, we plan to support direct transfers between Buckets and repos in both directions: promote final checkpoint weights into a model repo, or commit processed shards into a dataset repo once a pipeline completes. The working layer and the publishing layer stay separate, but fit into one continuous Hub-native workflow.</p>
+<h2>
+	<a id="trusted-by-launch-partners" href="#trusted-by-launch-partners" rel="nofollow">
+		
+	</a>
+	<span>
+		Trusted by launch partners
+	</span>
+</h2>
+<p>Before opening Buckets to everyone, we ran a private beta with a small group of launch partners.</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/hub/buckets/buckets-launch-partners.png"></p>
+
+<p>A huge thank you to Jasper, Arcee, IBM, and PixAI for testing early versions, surfacing bugs, and sharing feedback that directly shaped this feature.</p>
+<h2>
+	<a id="conclusion-and-resources" href="#conclusion-and-resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Conclusion and resources
+	</span>
+</h2>
+<p>Storage Buckets bring a missing storage layer to the Hub. They give you a Hub-native place for the mutable, high-throughput side of ML: checkpoints, processed data, Agent traces, logs, and everything else that is useful before it becomes final.</p>
+<p>Because they are built on Xet, Buckets are not just easier to use than forcing everything through Git. They are also more efficient for the kinds of related artifacts AI systems produce all the time. That means faster transfers, better deduplication, and on Enterprise plans, billing that benefits from the deduplicated footprint.</p>
+<p>If you already use the Hub, Buckets let you keep more of your workflow in one place. If you come from S3-style storage, they give you a familiar model with better alignment to AI artifacts and a clear path toward final publication on the Hub.</p>
+<p>Buckets are included in existing <a href="https://huggingface.co/docs/hub/en/storage-limits#storage-plans">Hub storage plans</a>. Free accounts come with storage to get started, and PRO and Enterprise plans offer higher limits. See the <a href="https://huggingface.co/storage">storage page</a> for details.</p>
+<p>Read more and try it yourself:</p>
+<ul>
+<li><a href="https://huggingface.co/docs/huggingface_hub/en/guides/buckets">Buckets guide</a></li>
+<li><a href="https://huggingface.co/docs/hub/storage-buckets">Hub documentation</a></li>
+<li>CLI <a href="https://huggingface.co/docs/huggingface_hub/en/installation">Installation guide</a></li>
+<li>CLI <a href="https://huggingface.co/docs/huggingface_hub/en/guides/cli">guide</a> and <a href="https://huggingface.co/docs/huggingface_hub/en/package_reference/cli">reference</a></li>
+<li><a href="https://huggingface.co/buckets/julien-c/my-training-bucket">Example Bucket on the Hub</a></li>
+<li><a href="https://huggingface.co/pricing#storage">Storage pricing</a></li>
+</ul>
+</div></div>

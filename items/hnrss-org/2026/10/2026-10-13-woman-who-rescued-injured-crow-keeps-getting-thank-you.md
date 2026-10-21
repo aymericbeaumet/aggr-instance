@@ -7,7 +7,7 @@ updated: 2026-10-13T02:32:53Z
 first_seen: 2026-10-16T09:40:32.304738087Z
 authors:
 - johnnyApplePRNG
-content: feed
+content: extracted
 html: 2026-10-13-woman-who-rescued-injured-crow-keeps-getting-thank-you.html
 remote_preview:
   url: https://i.ytimg.com/vi/sjNpfz4UzqU/hqdefault.jpg

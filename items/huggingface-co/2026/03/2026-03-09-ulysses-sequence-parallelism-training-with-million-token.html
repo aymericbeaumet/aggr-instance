@@ -1,0 +1,950 @@
+<div id="readability-page-1" class="page"><div> 
+<p>Training large language models on long sequences has become essential for building capable AI systems. As models are increasingly used for tasks like document analysis, code understanding, complex reasoning, and RAG workloads, the need to process sequences of hundreds of thousands—or even millions—of tokens has grown dramatically. To put this in perspective, an average book is roughly 250k tokens, so training on multi-document contexts or book-length inputs requires handling sequences well beyond what fits on a single GPU. However, training with such long contexts presents significant memory challenges: the attention computation scales quadratically with sequence length, quickly exceeding GPU memory for contexts beyond tens of thousands of tokens.</p>
+<p>Ulysses Sequence Parallelism (part of the <a href="https://huggingface.co/papers/2506.13996">Arctic Long Sequence Training (ALST) protocol</a> from Snowflake AI Research) provides an elegant solution by distributing the attention computation across multiple GPUs through attention head parallelism. In this post, we'll explore how Ulysses works and how it's been integrated across the Hugging Face ecosystem—from Accelerate to the Transformers Trainer and TRL's SFTTrainer.</p>
+<h2>
+	<a id="contents" href="#contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#the-challenge-of-long-sequence-training" rel="nofollow">The Challenge of Long Sequence Training</a></li>
+<li><a href="#how-ulysses-works" rel="nofollow">How Ulysses Works</a></li>
+<li><a href="#integration-with-accelerate" rel="nofollow">Integration with Accelerate</a></li>
+<li><a href="#integration-with-transformers-trainer" rel="nofollow">Integration with Transformers Trainer</a></li>
+<li><a href="#integration-with-trl-sfttrainer" rel="nofollow">Integration with TRL's SFTTrainer</a></li>
+<li><a href="#comparing-ulysses-and-ring-attention" rel="nofollow">Comparing Ulysses and Ring Attention</a></li>
+<li><a href="#best-practices" rel="nofollow">Best Practices</a></li>
+<li><a href="#benchmarks" rel="nofollow">Benchmarks</a></li>
+<li><a href="#resources" rel="nofollow">Resources</a></li>
+</ul>
+<h2>
+	<a id="the-challenge-of-long-sequence-training" href="#the-challenge-of-long-sequence-training" rel="nofollow">
+		
+	</a>
+	<span>
+		The Challenge of Long Sequence Training
+	</span>
+</h2>
+<p>The attention mechanism in transformers scales quadratically with sequence length. For a sequence of length  <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>n</mi></mrow> n </math></span></span>, standard attention requires  <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow> O(n^2) </math></span></span> FLOPs and  <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow> O(n^2) </math></span></span> memory to compute and store the attention score matrix. Optimized implementations like <a href="https://huggingface.co/papers/2205.14135">FlashAttention</a> reduce the <strong>memory</strong> to  <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">)</mo></mrow> O(n) </math></span></span> by tiling the computation and never materializing the full attention matrix—but the  <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow> O(n^2) </math></span></span> compute remains. For very long sequences (32k+ tokens), even with FlashAttention, training still pushes the limits of single-GPU memory.</p>
+<p>Consider these scenarios where long-context training is essential:</p>
+<ul>
+<li><strong>Document understanding</strong>: Processing entire books, legal documents, or research papers</li>
+<li><strong>Code analysis</strong>: Understanding large codebases with multiple interconnected files</li>
+<li><strong>Reasoning tasks</strong>: Models that "think" step-by-step may generate thousands of tokens during inference</li>
+<li><strong>Retrieval-augmented generation</strong>: Incorporating many retrieved passages into the context</li>
+</ul>
+<p>Traditional data parallelism doesn't help here—each GPU still needs to process the full sequence inside the attention block. We need a way to split the sequence itself across multiple devices.</p>
+<h2>
+	<a id="how-ulysses-works" href="#how-ulysses-works" rel="nofollow">
+		
+	</a>
+	<span>
+		How Ulysses Works
+	</span>
+</h2>
+<p>Ulysses Sequence Parallelism (SP), introduced in the <a href="https://huggingface.co/papers/2309.14509">DeepSpeed Ulysses paper</a>, takes a clever approach: in addition to splitting on the sequence dimension, it also partitions the attention heads across GPUs.</p>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ulysses/ulysses_overview.png" alt="Ulysses Sequence Parallelism Overview">
+  <figcaption>Ulysses splits input sequences along the sequence dimension and uses all-to-all communication to exchange key-value pairs, enabling each GPU to compute a subset of attention heads. (<b><i>Source: <a href="https://www.snowflake.com/en/engineering-blog/ulysses-low-latency-llm-inference/" rel="nofollow">Snowflake Engineering Blog</a></i></b>)</figcaption>
+</figure>
+
+<p>Here's how it works:</p>
+<ol>
+<li><p><strong>Sequence Sharding</strong>: The input sequence is split along the sequence dimension across  <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>P</mi></mrow> P </math></span></span> GPUs. Each GPU  <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>i</mi></mrow> i </math></span></span> holds tokens  <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mo stretchy="false">[</mo><mi>i</mi><mo>⋅</mo><mi>n</mi><mi mathvariant="normal">/</mi><mi>P</mi><mo separator="true">,</mo><mo stretchy="false">(</mo><mi>i</mi><mo>+</mo><mn>1</mn><mo stretchy="false">)</mo><mo>⋅</mo><mi>n</mi><mi mathvariant="normal">/</mi><mi>P</mi><mo stretchy="false">)</mo></mrow> [i \cdot n/P, (i+1) \cdot n/P) </math></span></span>.</p>
+</li>
+<li><p><strong>QKV Projection</strong>: Each GPU computes the query, key, and value projections for its local sequence chunk.</p>
+</li>
+<li><p><strong>All-to-All Communication</strong>: An all-to-all collective operation redistributes the data so that each GPU holds <em>all</em> sequence positions after the projections, but only for a subset of attention heads.</p>
+</li>
+<li><p><strong>Local Attention</strong>: Each GPU computes attention for its assigned heads using standard attention mechanisms (FlashAttention or SDPA).</p>
+</li>
+<li><p><strong>All-to-All Communication</strong>: Another all-to-all operation reverses the redistribution, returning to sequence-sharded format.</p>
+</li>
+<li><p><strong>Output Projection</strong>: Each GPU computes the output projection for its local sequence chunk.</p>
+</li>
+</ol>
+<p>The key insight is that attention heads are independent—each head can be computed separately. By trading sequence locality for head locality, Ulysses enables efficient parallelization with relatively low communication overhead.</p>
+<h3>
+	<a id="communication-complexity" href="#communication-complexity" rel="nofollow">
+		
+	</a>
+	<span>
+		Communication Complexity
+	</span>
+</h3>
+<p>Ulysses requires two all-to-all operations per attention layer, with total communication volume of <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mo>⋅</mo><mi>d</mi><mi mathvariant="normal">/</mi><mi>P</mi><mo stretchy="false">)</mo></mrow> O(n \cdot d / P) </math></span></span> per GPU, where:</p>
+<ul>
+<li><span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>n</mi></mrow> n </math></span></span> is the sequence length</li>
+<li><span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>d</mi></mrow> d </math></span></span> is the hidden dimension</li>
+<li><span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>P</mi></mrow> P </math></span></span> is the parallelism degree</li>
+</ul>
+<p>Ring Attention communicates <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mo>⋅</mo><mi>d</mi><mo stretchy="false">)</mo></mrow> O(n \cdot d) </math></span></span> per GPU — a factor of <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>P</mi></mrow> P </math></span></span> more — via <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>P</mi><mo>−</mo><mn>1</mn></mrow> P-1 </math></span></span> sequential point-to-point transfers around the ring. Ulysses also benefits from lower latency because all-to-all can exploit full bisectional bandwidth in a single collective step, whereas Ring Attention serializes over <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>P</mi><mo>−</mo><mn>1</mn></mrow> P-1 </math></span></span> hops.</p>
+<h2>
+	<a id="integration-with-accelerate" href="#integration-with-accelerate" rel="nofollow">
+		
+	</a>
+	<span>
+		Integration with Accelerate
+	</span>
+</h2>
+<p>Accelerate provides the foundation for Ulysses sequence parallelism through its <a href="https://huggingface.co/docs/accelerate/concept_guides/sequence_parallelism#alstulysses-sp-backend-configuration"><code>ParallelismConfig</code></a> class and DeepSpeed integration.</p>
+<h3>
+	<a id="configuration" href="#configuration" rel="nofollow">
+		
+	</a>
+	<span>
+		Configuration
+	</span>
+</h3>
+<pre><code data-language="python">from accelerate import Accelerator
+from accelerate.utils import ParallelismConfig, DeepSpeedSequenceParallelConfig
+
+parallelism_config = ParallelismConfig(
+    sp_backend="deepspeed",
+    sp_size=4,  # Split across 4 GPUs
+    dp_shard_size=1,  # Must satisfy: dp_replicate × dp_shard × sp_size = num_processes
+    sp_handler=DeepSpeedSequenceParallelConfig(
+        sp_seq_length=None,  # None for variable-length sequences
+        sp_seq_length_is_variable=True,
+        sp_attn_implementation="flash_attention_2",  # or "sdpa"
+    ),
+)
+
+accelerator = Accelerator(parallelism_config=parallelism_config)
+</code></pre>
+<h3>
+	<a id="key-parameters" href="#key-parameters" rel="nofollow">
+		
+	</a>
+	<span>
+		Key Parameters
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>sp_size</code></td>
+<td>Number of GPUs for sequence parallelism</td>
+</tr>
+<tr>
+<td><code>sp_backend</code></td>
+<td>Must be <code>"deepspeed"</code> for Ulysses</td>
+</tr>
+<tr>
+<td><code>sp_seq_length_is_variable</code></td>
+<td>Set to <code>True</code> for varying sequence lengths across batches</td>
+</tr>
+<tr>
+<td><code>sp_attn_implementation</code></td>
+<td><code>"flash_attention_2"</code>, <code>"flash_attention_3"</code>, or <code>"sdpa"</code></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="using-the-accelerator" href="#using-the-accelerator" rel="nofollow">
+		
+	</a>
+	<span>
+		Using the Accelerator
+	</span>
+</h3>
+<p>When you call <code>accelerator.prepare()</code>, Ulysses is automatically set up:</p>
+<pre><code data-language="python">from transformers import AutoModelForCausalLM
+
+model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.1-8B")
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
+
+# This registers the model with Ulysses and wraps the dataloader
+model, optimizer, dataloader = accelerator.prepare(model, optimizer, dataloader)
+</code></pre>
+<p>The <code>prepare()</code> call:</p>
+<ol>
+<li>Registers the model with DeepSpeed's <code>UlyssesSPAttentionHF</code></li>
+<li>Wraps the dataloader with <code>UlyssesSPDataLoaderAdapter</code> to handle sequence sharding</li>
+<li>Automatically injects <code>shift_labels</code> for correct loss computation</li>
+</ol>
+<h3>
+	<a id="loss-aggregation" href="#loss-aggregation" rel="nofollow">
+		
+	</a>
+	<span>
+		Loss Aggregation
+	</span>
+</h3>
+<p>With Ulysses, each GPU computes loss on different parts of the sequence. The losses must be aggregated properly, weighted by the number of valid tokens per rank. If you're using the Transformers <code>Trainer</code> or TRL's <code>SFTTrainer</code>, this is handled automatically—the code below is only needed when writing a custom Accelerate training loop:</p>
+<pre><code data-language="python">sp_size = parallelism_config.sp_size
+if sp_size &gt; 1:
+    from deepspeed.utils import groups
+
+    sp_group = groups._get_sequence_parallel_group()
+
+    # Gather losses and token counts from all SP ranks
+    losses_per_rank = torch.distributed.nn.functional.all_gather(loss, group=sp_group)
+    good_tokens = (batch["shift_labels"] != -100).view(-1).sum()
+    good_tokens_per_rank = torch.distributed.nn.functional.all_gather(good_tokens, group=sp_group)
+
+    # Weighted aggregation
+    total_loss = sum(
+        losses_per_rank[i] * good_tokens_per_rank[i]
+        for i in range(sp_size)
+        if good_tokens_per_rank[i] &gt; 0
+    )
+    loss = total_loss / max(sum(good_tokens_per_rank), 1)
+
+accelerator.backward(loss)
+</code></pre>
+<blockquote>
+<p>The weighted loss aggregation ensures correct gradients when tokens are unevenly distributed across ranks (e.g., when some ranks contain only padding or masked out prompt tokens).</p>
+</blockquote>
+<blockquote>
+<p>Both Ulysses and Ring Attention use <code>position_ids</code> instead of <code>attention_mask</code> for causal masking during training. A 4D attention mask at these sequence lengths would be just as prohibitive as the attention scores themselves—at 128k tokens, that's another ~1TB tensor. Position IDs achieve the same causal behavior with  <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>O</mi><mo stretchy="false">(</mo><mi>n</mi><mo stretchy="false">)</mo></mrow> O(n) </math></span></span> memory instead of  <span><span><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>O</mi><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow> O(n^2) </math></span></span>. During evaluation/inference, DeepSpeed's SP attention layer can bypass the SP operations entirely (via <code>disable_in_eval</code>) and fall back to the model's default attention implementation.</p>
+</blockquote>
+<h2>
+	<a id="integration-with-transformers-trainer" href="#integration-with-transformers-trainer" rel="nofollow">
+		
+	</a>
+	<span>
+		Integration with Transformers Trainer
+	</span>
+</h2>
+<p>The Transformers <a href="https://huggingface.co/docs/transformers/main_classes/trainer"><code>Trainer</code></a> provides seamless Ulysses integration through <a href="https://huggingface.co/docs/transformers/main_classes/trainer#transformers.TrainingArguments.parallelism_config"><code>TrainingArguments.parallelism_config</code></a>. It handles all the SP-specific details automatically—dataloader wrapping, sequence sharding, and loss aggregation—so you don't need to write any of the custom loss code shown above.</p>
+<h3>
+	<a id="configuration-1" href="#configuration-1" rel="nofollow">
+		
+	</a>
+	<span>
+		Configuration
+	</span>
+</h3>
+<p>Just pass the same <code>parallelism_config</code> from above into <code>TrainingArguments</code>:</p>
+<pre><code data-language="python">from transformers import TrainingArguments
+
+training_args = TrainingArguments(
+    parallelism_config=parallelism_config,  # same ParallelismConfig as above
+    per_device_train_batch_size=1,
+)
+</code></pre>
+<h3>
+	<a id="what-the-trainer-handles-automatically" href="#what-the-trainer-handles-automatically" rel="nofollow">
+		
+	</a>
+	<span>
+		What the Trainer Handles Automatically
+	</span>
+</h3>
+<ol>
+<li><p><strong>Dataloader Wrapping</strong>: After model preparation, the Trainer wraps the dataloader with <code>UlyssesSPDataLoaderAdapter</code></p>
+</li>
+<li><p><strong>Loss Computation</strong>: The <code>compute_loss</code> method detects SP mode and routes to specialized <code>_deepspeed_sp_compute_loss</code> which handles:</p>
+<ul>
+<li>Gathering losses across SP ranks</li>
+<li>Computing valid token counts per rank</li>
+<li>Weighted loss aggregation</li>
+</ul>
+</li>
+<li><p><strong>Batch Size Calculation</strong>: The effective data parallel world size accounts for SP:</p>
+<pre><code data-language="python">dp_world_size = world_size // sp_size
+</code></pre>
+</li>
+<li><p><strong>Dataloader Length Adjustment</strong>: Training step calculations are adjusted for SP's effect on iteration count</p>
+</li>
+</ol>
+<h3>
+	<a id="launch-command" href="#launch-command" rel="nofollow">
+		
+	</a>
+	<span>
+		Launch Command
+	</span>
+</h3>
+<p>Use an accelerate config file or command-line arguments:</p>
+<pre><code data-language="bash">accelerate launch \
+    --config_file deepspeed_ulysses.yaml \
+    train.py \
+    --per_device_train_batch_size 1
+</code></pre>
+<h2>
+	<a id="integration-with-trl-sfttrainer" href="#integration-with-trl-sfttrainer" rel="nofollow">
+		
+	</a>
+	<span>
+		Integration with TRL SFTTrainer
+	</span>
+</h2>
+<p>TRL's <a href="https://huggingface.co/docs/trl/sft_trainer"><code>SFTTrainer</code></a> builds on the Transformers Trainer and adds specific optimizations for supervised fine-tuning with long sequences.</p>
+<h3>
+	<a id="configuration-2" href="#configuration-2" rel="nofollow">
+		
+	</a>
+	<span>
+		Configuration
+	</span>
+</h3>
+<pre><code data-language="python">from trl import SFTConfig, SFTTrainer
+from accelerate.utils import ParallelismConfig, DeepSpeedSequenceParallelConfig
+
+parallelism_config = ParallelismConfig(
+    sp_backend="deepspeed",
+    sp_size=2,
+    dp_shard_size=2,  # 2D parallelism: SP × DP = 4 GPUs
+    sp_handler=DeepSpeedSequenceParallelConfig(
+        sp_seq_length_is_variable=True,
+        sp_attn_implementation="flash_attention_2",
+    ),
+)
+
+training_args = SFTConfig(
+    ...,
+    parallelism_config=parallelism_config,
+    max_length=32768,
+    pad_to_multiple_of=2,  # Must equal sp_size
+    per_device_train_batch_size=1,
+)
+
+trainer = SFTTrainer(
+    model=model,
+    args=training_args,
+    train_dataset=dataset,
+)
+trainer.train()
+</code></pre>
+<h3>
+	<a id="key-sftconfig-parameters-for-ulysses" href="#key-sftconfig-parameters-for-ulysses" rel="nofollow">
+		
+	</a>
+	<span>
+		Key SFTConfig Parameters for Ulysses
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>pad_to_multiple_of</code></td>
+<td>Must equal <code>sp_size</code> to ensure sequence divisibility</td>
+</tr>
+<tr>
+<td><code>max_length</code></td>
+<td>Global sequence length (before splitting across GPUs)</td>
+</tr>
+<tr>
+<td><code>packing</code></td>
+<td>Works well with SP — packing reduces padding waste, especially for variable-length sequences</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="accelerate-config-file" href="#accelerate-config-file" rel="nofollow">
+		
+	</a>
+	<span>
+		Accelerate Config File
+	</span>
+</h3>
+<p>Create <code>alst_ulysses_4gpu.yaml</code>:</p>
+<pre><code data-language="yaml">compute_environment: LOCAL_MACHINE
+distributed_type: DEEPSPEED
+mixed_precision: bf16
+num_processes: 4
+deepspeed_config:
+  zero_stage: 3
+  seq_parallel_communication_data_type: bf16
+parallelism_config:
+  parallelism_config_sp_size: 2
+  parallelism_config_sp_backend: deepspeed
+  parallelism_config_dp_shard_size: 2
+  parallelism_config_sp_seq_length_is_variable: true
+  parallelism_config_sp_attn_implementation: flash_attention_2
+</code></pre>
+<h3>
+	<a id="complete-training-command" href="#complete-training-command" rel="nofollow">
+		
+	</a>
+	<span>
+		Complete Training Command
+	</span>
+</h3>
+<pre><code data-language="bash">accelerate launch --config_file alst_ulysses_4gpu.yaml \
+    trl/scripts/sft.py \
+    --model_name_or_path meta-llama/Llama-3.1-8B \
+    --dataset_name trl-lib/Capybara \
+    --max_length 32768 \
+    --packing \
+    --pad_to_multiple_of 2 \
+    --per_device_train_batch_size 1
+</code></pre>
+<h3>
+	<a id="shift-labels-handling" href="#shift-labels-handling" rel="nofollow">
+		
+	</a>
+	<span>
+		Shift Labels Handling
+	</span>
+</h3>
+<p>The SFTTrainer automatically handles pre-shifted labels when Ulysses is enabled:</p>
+<pre><code data-language="python"># When using SP, labels are pre-shifted by the dataloader adapter
+# The trainer detects this and uses shift_labels directly
+labels = inputs["labels"] if "shift_labels" not in inputs else None
+
+# Loss computation uses the pre-shifted labels
+if "shift_labels" in inputs:
+    shift_logits = outputs.logits.contiguous()
+    shift_labels = inputs["shift_labels"]
+else:
+    shift_logits = outputs.logits[..., :-1, :].contiguous()
+    shift_labels = labels[..., 1:].contiguous()
+</code></pre>
+<h2>
+	<a id="comparing-ulysses-and-ring-attention" href="#comparing-ulysses-and-ring-attention" rel="nofollow">
+		
+	</a>
+	<span>
+		Comparing Ulysses and Ring Attention
+	</span>
+</h2>
+<p>Both Ulysses and Ring Attention enable long-context training, but they have different characteristics:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Aspect</th>
+<th>Ulysses (DeepSpeed)</th>
+<th>Ring Attention (FSDP2)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><strong>Parallelism Method</strong></td>
+<td>Attention head partitioning</td>
+<td>Ring-based KV exchange</td>
+</tr>
+<tr>
+<td><strong>Backend</strong></td>
+<td>DeepSpeed ZeRO</td>
+<td>PyTorch FSDP2</td>
+</tr>
+<tr>
+<td><strong>Attention Support</strong></td>
+<td>FlashAttention 2/3, SDPA</td>
+<td>SDPA only</td>
+</tr>
+<tr>
+<td><strong>Communication</strong></td>
+<td>Two <code>all-to-all</code>s per layer</td>
+<td>P2P ring communication</td>
+</tr>
+<tr>
+<td><strong>Comm volume per GPU</strong></td>
+<td>O(total_seq x hidden / sp_size)</td>
+<td>O(total_seq x hidden)</td>
+</tr>
+<tr>
+<td><strong>Sequence Divisibility</strong></td>
+<td><code>sp_size</code></td>
+<td><code>cp_size * 2</code></td>
+</tr>
+<tr>
+<td><strong>Num Head Constraint</strong></td>
+<td><code>num_heads &gt;= sp_size</code></td>
+<td>None</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h3>
+	<a id="when-to-choose-ulysses-vs-ring-attention" href="#when-to-choose-ulysses-vs-ring-attention" rel="nofollow">
+		
+	</a>
+	<span>
+		When to Choose Ulysses vs Ring Attention
+	</span>
+</h3>
+<p>Since switching between the two only requires changing the accelerate config, we recommend trying both and comparing performance and memory usage on your specific setup. The main constraint is that Ulysses requires <code>num_heads &gt;= sp_size</code>, while Ring Attention has no such limitation.</p>
+<h2>
+	<a id="best-practices" href="#best-practices" rel="nofollow">
+		
+	</a>
+	<span>
+		Best Practices
+	</span>
+</h2>
+<h3>
+	<a id="1-sequence-length-divisibility" href="#1-sequence-length-divisibility" rel="nofollow">
+		
+	</a>
+	<span>
+		1. Sequence Length Divisibility
+	</span>
+</h3>
+<p>Always ensure your sequence length is divisible by <code>sp_size</code>:</p>
+<pre><code data-language="python">training_args = SFTConfig(
+    pad_to_multiple_of=4,  # For sp_size=4
+    max_length=32768,  # Must be divisible by 4
+)
+</code></pre>
+<h3>
+	<a id="2-use-flash-attention" href="#2-use-flash-attention" rel="nofollow">
+		
+	</a>
+	<span>
+		2. Use Flash Attention
+	</span>
+</h3>
+<p>Flash Attention 2 provides cleaner output and better performance than SDPA:</p>
+<pre><code data-language="python">parallelism_config = ParallelismConfig(
+    sp_handler=DeepSpeedSequenceParallelConfig(
+        sp_attn_implementation="flash_attention_2",
+    ),
+)
+</code></pre>
+<p>Use Flash Attention 3 for Hopper and look out for Flash Attention 4 release for Blackwell (FA2 on Blackwell is quite slow).</p>
+<h3>
+	<a id="3-combine-with-deepspeed-zero" href="#3-combine-with-deepspeed-zero" rel="nofollow">
+		
+	</a>
+	<span>
+		3. Combine with DeepSpeed ZeRO
+	</span>
+</h3>
+<p>For very large models, combine Ulysses with ZeRO Stage 3:</p>
+<pre><code data-language="yaml">deepspeed_config:
+  zero_stage: 3
+  offload_optimizer:
+    device: cpu
+</code></pre>
+<p>If the model is huge, you can offload the params as well by adding to the above:</p>
+<pre><code data-language="yaml">  offload_param:
+    device: cpu
+</code></pre>
+<h3>
+	<a id="5-use-memory-fragmentation-friendly-pytorch-allocator" href="#5-use-memory-fragmentation-friendly-pytorch-allocator" rel="nofollow">
+		
+	</a>
+	<span>
+		5. Use memory fragmentation-friendly PyTorch allocator
+	</span>
+</h3>
+<p>This environment variable will allow for a longer sequence length:</p>
+<pre><code data-language="bash">export PYTORCH_ALLOC_CONF=expandable_segments:True
+</code></pre>
+<h3>
+	<a id="6-2d-parallelism-configuration" href="#6-2d-parallelism-configuration" rel="nofollow">
+		
+	</a>
+	<span>
+		6. 2D Parallelism Configuration
+	</span>
+</h3>
+<p>Balance SP and DP for your GPU count:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>GPUs</th>
+<th><code>sp_size</code></th>
+<th><code>dp_shard_size</code></th>
+<th>Use Case</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>4</td>
+<td>2</td>
+<td>2</td>
+<td>Balanced throughput and sequence length</td>
+</tr>
+<tr>
+<td>4</td>
+<td>4</td>
+<td>1</td>
+<td>Maximum sequence length</td>
+</tr>
+<tr>
+<td>8</td>
+<td>2</td>
+<td>4</td>
+<td>Higher throughput with moderate sequence length</td>
+</tr>
+<tr>
+<td>8</td>
+<td>4</td>
+<td>2</td>
+<td>Longer sequences with moderate throughput</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Remember: <code>dp_replicate_size × dp_shard_size × sp_size = num_processes</code></p>
+<h3>
+	<a id="7-liger-kernel" href="#7-liger-kernel" rel="nofollow">
+		
+	</a>
+	<span>
+		7. Liger-Kernel
+	</span>
+</h3>
+<p>If your desired model architecture is supported by <a href="https://github.com/linkedin/Liger-Kernel" rel="nofollow">Liger-Kernel</a>, it is fully compatible with Ulysses SP and can be enabled with a single flag:</p>
+<pre><code data-language="python">training_args = SFTConfig(
+    use_liger_kernel=True,
+)
+</code></pre>
+<p>The main memory saving comes from <code>FusedLinearCrossEntropy</code> which avoids materializing the full logits tensor during loss calculation. The savings grow with longer sequences where the logits tensor is larger.</p>
+<p>Additionally, you can enable <a href="https://www.deepspeed.ai/tutorials/ulysses-alst-sequence-parallelism/#tiled-mlp-computation" rel="nofollow"><code>TiledMLP</code></a> to further extend sequence length — like <code>FusedLinearCrossEntropy</code>, it saves working memory by tiling large matrix operations.</p>
+<h3>
+	<a id="8-token-distribution-across-ranks" href="#8-token-distribution-across-ranks" rel="nofollow">
+		
+	</a>
+	<span>
+		8. Token Distribution Across Ranks
+	</span>
+</h3>
+<p>You don't need to worry about manually balancing tokens across SP ranks—the loss aggregation code handles uneven distributions gracefully (including ranks with zero valid tokens). With random batching over a reasonably sized dataset, the distribution evens out statistically over training.</p>
+<h2>
+	<a id="benchmarks" href="#benchmarks" rel="nofollow">
+		
+	</a>
+	<span>
+		Benchmarks
+	</span>
+</h2>
+<p>To quantify the benefits of Ulysses SP, we trained <a href="https://huggingface.co/Qwen/Qwen3-4B">Qwen3-4B</a> on the <a href="https://huggingface.co/datasets/sedthh/gutenberg_english">Gutenberg English</a> streaming dataset using TRL's SFTTrainer. All experiments ran on H100 80GB GPUs with DeepSpeed ZeRO-3, CPU optimizer offloading, gradient checkpointing, and flash-attn2 as the attention backend.</p>
+<h3>
+	<a id="setup" href="#setup" rel="nofollow">
+		
+	</a>
+	<span>
+		Setup
+	</span>
+</h3>
+<div>
+	<table>
+		<thead><tr>
+<th>Config</th>
+<th>GPUs</th>
+<th>SP</th>
+<th>DP</th>
+<th>Seq Length</th>
+<th>Grad Acc</th>
+<th>Global Batch</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Baseline</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>8K</td>
+<td>8</td>
+<td>8</td>
+</tr>
+<tr>
+<td>SP=4</td>
+<td>4</td>
+<td>4</td>
+<td>1</td>
+<td>8K</td>
+<td>8</td>
+<td>8</td>
+</tr>
+<tr>
+<td>SP=4</td>
+<td>4</td>
+<td>4</td>
+<td>1</td>
+<td>32K</td>
+<td>8</td>
+<td>8</td>
+</tr>
+<tr>
+<td>SP=4</td>
+<td>4</td>
+<td>4</td>
+<td>1</td>
+<td>64K</td>
+<td>8</td>
+<td>8</td>
+</tr>
+<tr>
+<td>SP=4</td>
+<td>4</td>
+<td>4</td>
+<td>1</td>
+<td>96K</td>
+<td>8</td>
+<td>8</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The benchmark runs in the table above use the same global batch size (8 micro-batches), cosine learning-rate schedule, and seed, so those benchmark loss curves are directly comparable.</p>
+<h3>
+	<a id="loss-curve-matching-diagnostics-4-gpu" href="#loss-curve-matching-diagnostics-4-gpu" rel="nofollow">
+		
+	</a>
+	<span>
+		Loss Curve Matching Diagnostics (4 GPU)
+	</span>
+</h3>
+<p>To verify SP-vs-DP loss equivalence, we ran controlled 4-GPU A/B experiments with identical seed, model, optimizer, learning-rate schedule, and data order.</p>
+<h4>
+	<a id="methodology-for-fair-dp-vs-sp-comparison" href="#methodology-for-fair-dp-vs-sp-comparison" rel="nofollow">
+		
+	</a>
+	<span>
+		Methodology for Fair DP vs SP Comparison
+	</span>
+</h4>
+<p>Compared setups:</p>
+<ul>
+<li><code>DP=4, SP=1, GAS=1</code> (baseline)</li>
+<li><code>DP=1, SP=4, GAS=4</code> (Ulysses SP)</li>
+</ul>
+<p>For fair comparison, <code>GAS</code> must scale with <code>SP</code>:</p>
+<ul>
+<li>Ulysses SP splits the sequence across <code>SP</code> ranks, so each SP rank sees roughly <code>1/SP</code> of the sequence tokens per micro-step.</li>
+<li>If <code>GAS</code> is unchanged, each optimizer step in SP aggregates fewer total tokens than the DP baseline.</li>
+<li>Setting <code>GAS=SP</code> keeps effective tokens per optimizer step matched:<ul>
+<li>DP tokens/step: <code>dp_world_size * micro_batch * seq_len * GAS = 4 * B * L * 1</code></li>
+<li>SP tokens/step: <code>dp_world_size * micro_batch * (L/SP) * GAS * SP_ranks = 1 * B * (L/4) * 4 * 4 = 4 * B * L</code></li>
+</ul>
+</li>
+</ul>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ulysses/gutenberg_canonical_loss_dp4_vs_sp4.png" alt="Canonical loss on Gutenberg for DP=4 vs SP=4">
+  <figcaption>On Gutenberg text (20 steps), canonical loss matches within logging precision between <code>DP=4,SP=1,GAS=1</code> and <code>DP=1,SP=4,GAS=4</code>.</figcaption>
+</figure>
+
+<p>Measured over 20 steps on 4 GPUs in controlled equivalence harnesses:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Harness</th>
+<th>Metric</th>
+<th>DP vs SP setting</th>
+<th>Mean abs diff</th>
+<th>Max abs diff</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>Trainer</code></td>
+<td><code>loss</code></td>
+<td>DP=4, SP=1 vs DP=1, SP=4</td>
+<td>0.0054</td>
+<td>0.0131</td>
+</tr>
+<tr>
+<td><code>SFTTrainer</code></td>
+<td>logged <code>loss</code></td>
+<td>DP=4, SP=1 vs DP=1, SP=4</td>
+<td>0.0811</td>
+<td>0.0812</td>
+</tr>
+<tr>
+<td><code>SFTTrainer</code></td>
+<td>canonical NLL</td>
+<td>DP=4, SP=1 vs DP=1, SP=4</td>
+<td>0.000004</td>
+<td>0.000005</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Takeaway: under matched token budget, SP and non-SP match on canonical token-normalized loss. The remaining difference is in trainer-reported logging (<code>loss</code>), not in the underlying cross-entropy objective.</p>
+<h3>
+	<a id="memory-reduction" href="#memory-reduction" rel="nofollow">
+		
+	</a>
+	<span>
+		Memory Reduction
+	</span>
+</h3>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ulysses/memory_usage.png" alt="Peak GPU Memory per Rank">
+  <figcaption>SP=4 reduces per-GPU memory by 3.3x at the same sequence length, enabling training at up to 96K tokens on 4× H100 80GB. At 128K, the model OOMs.</figcaption>
+</figure>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Config</th>
+<th>Seq Length</th>
+<th>Peak Memory</th>
+<th>Notes</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>DP=4 (4 GPU)</td>
+<td>8K</td>
+<td>22.4 GB</td>
+<td>Baseline — no SP</td>
+</tr>
+<tr>
+<td>SP=4 (4 GPU)</td>
+<td>8K</td>
+<td>22.8 GB</td>
+<td>Similar memory at same seq length</td>
+</tr>
+<tr>
+<td>SP=4 (4 GPU)</td>
+<td>32K</td>
+<td>35.0 GB</td>
+<td>4x longer than DP baseline</td>
+</tr>
+<tr>
+<td>SP=4 (4 GPU)</td>
+<td>64K</td>
+<td>50.5 GB</td>
+<td>8x longer than DP baseline</td>
+</tr>
+<tr>
+<td>SP=4 (4 GPU)</td>
+<td>96K</td>
+<td>66.0 GB</td>
+<td><strong>12x longer than DP baseline</strong></td>
+</tr>
+<tr>
+<td>SP=4 (4 GPU)</td>
+<td>128K</td>
+<td>OOM</td>
+<td>Exceeds 80 GB limit</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>At 8K tokens, DP=4 and SP=4 use nearly the same memory per GPU (~22 GB with ZeRO-3). The advantage of SP is that it enables scaling to much longer sequences: at 96K tokens (12x longer), peak memory is 66 GB — still within the H100's 80 GB capacity. At 128K, the model OOMs, establishing the practical limit for this configuration. DP=4 without SP cannot scale beyond 8K for this model.</p>
+<h3>
+	<a id="throughput" href="#throughput" rel="nofollow">
+		
+	</a>
+	<span>
+		Throughput
+	</span>
+</h3>
+<figure>
+  <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ulysses/throughput.png" alt="Training Throughput">
+  <figcaption>Longer sequences with SP process dramatically more tokens per second. SP=4 at 64K achieves 3.7x the throughput of the baseline.</figcaption>
+</figure>
+
+<div>
+	<table>
+		<thead><tr>
+<th>Config</th>
+<th>Seq Length</th>
+<th>Tokens/s</th>
+<th>vs Baseline</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Baseline (1 GPU)</td>
+<td>8K</td>
+<td>3,633</td>
+<td>—</td>
+</tr>
+<tr>
+<td>SP=4 (4 GPU)</td>
+<td>8K</td>
+<td>3,933</td>
+<td>~1x</td>
+</tr>
+<tr>
+<td>SP=4 (4 GPU)</td>
+<td>32K</td>
+<td>7,733</td>
+<td><strong>2.1x</strong></td>
+</tr>
+<tr>
+<td>SP=4 (4 GPU)</td>
+<td>64K</td>
+<td>13,396</td>
+<td><strong>3.7x</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>At the same sequence length (8K), SP=4 has comparable throughput to the single-GPU baseline — the all-to-all communication overhead is minimal on NVLink-connected GPUs. The real benefit comes from longer sequences: as sequence length grows, the quadratic attention computation dominates over communication and other overheads, making each training step increasingly compute-efficient. Each step also processes proportionally more tokens, so throughput scales with sequence length. At 64K, SP=4 processes 13,396 tokens/second — 3.7x the baseline.</p>
+<blockquote>
+<p>These results use only 4 GPUs with SP=4. With 8 GPUs (SP=8), you can push to even longer sequences — up to 256K+ tokens — or use 2D parallelism (SP=4, DP=2) to combine long-context training with data-parallel throughput.</p>
+</blockquote>
+<h2>
+	<a id="requirements" href="#requirements" rel="nofollow">
+		
+	</a>
+	<span>
+		Requirements
+	</span>
+</h2>
+<ul>
+<li>HF Accelerate: <code>deepspeed&gt;=0.18.1 accelerate&gt;=1.12</code></li>
+<li>HF Trainer: <code>deepspeed&gt;=0.18.1 accelerate&gt;=1.12 transformers&gt;=5.0</code></li>
+<li>HF TRL: <code>deepspeed&gt;=0.18.1 accelerate&gt;=1.12 transformers&gt;=5.0 trl&gt;=0.18.0</code></li>
+</ul>
+<p>Use <code>flash_attention_2</code> for Ampere GPUs, or <code>flash_attention_3</code> for Hopper GPUs. Wait for <code>flash_attention_4</code> on Blackwell 🕰.</p>
+<h2>
+	<a id="resources" href="#resources" rel="nofollow">
+		
+	</a>
+	<span>
+		Resources
+	</span>
+</h2>
+<h3>
+	<a id="documentation" href="#documentation" rel="nofollow">
+		
+	</a>
+	<span>
+		Documentation
+	</span>
+</h3>
+<ul>
+<li><a href="https://huggingface.co/docs/accelerate/concept_guides/context_parallelism">Accelerate: Context Parallelism Guide</a></li>
+<li><a href="https://huggingface.co/docs/trl/distributing_training">TRL: Distributing Training</a></li>
+<li><a href="https://www.deepspeed.ai/tutorials/ulysses-alst-sequence-parallelism" rel="nofollow">DeepSpeed Sequence Parallelism</a></li>
+</ul>
+<h3>
+	<a id="examples" href="#examples" rel="nofollow">
+		
+	</a>
+	<span>
+		Examples
+	</span>
+</h3>
+<ul>
+<li><a href="https://github.com/huggingface/accelerate/tree/main/examples/alst_ulysses_sequence_parallelism" rel="nofollow">Accelerate ALST Example</a></li>
+<li><a href="https://github.com/huggingface/trl/tree/main/examples/accelerate_configs" rel="nofollow">TRL Accelerate Configs</a></li>
+</ul>
+<h3>
+	<a id="papers" href="#papers" rel="nofollow">
+		
+	</a>
+	<span>
+		Papers
+	</span>
+</h3>
+<ul>
+<li><a href="https://huggingface.co/papers/2506.13996">Arctic Long Sequence Training: Scalable And Efficient Training For Multi-Million Token Sequences</a></li>
+<li><a href="https://huggingface.co/papers/2309.14509">DeepSpeed Ulysses: System Optimizations for Enabling Training of Extreme Long Sequence Transformer Models</a></li>
+</ul>
+<h3>
+	<a id="related-blog-posts" href="#related-blog-posts" rel="nofollow">
+		
+	</a>
+	<span>
+		Related Blog Posts
+	</span>
+</h3>
+<ul>
+<li><a href="https://huggingface.co/blog/accelerate-nd-parallel">Accelerate ND-Parallel: A Guide to Efficient Multi-GPU Training</a></li>
+<li><a href="https://huggingface.co/blog/exploding-gradients/ulysses-ring-attention">Understanding Ulysses and Ring Attention</a></li>
+<li><a href="https://huggingface.co/blog/axolotl-ai-co/long-context-with-sequence-parallelism-in-axolotl">Enabling Long-Context Training with Sequence Parallelism in Axolotl</a></li>
+</ul>
+</div></div>
