@@ -1,0 +1,299 @@
+<div id="readability-page-1" class="page"><div> 
+<p><em>Four open Granite models, one extensible forecasting interface, and less
+guesswork about which model to use.</em></p>
+<p>Pre-trained time-series models can forecast without training on your dataset, but you still have to choose one. A model that handles smooth industrial signals well may struggle with noisy retail demand or a long seasonal horizon, and the best choice depends on the series and the task.</p>
+<p>Granite Timeseries Ensemble reduces that choice to a sensible default. One recipe combines four complementary Granite architectures and returns median and quantile forecasts, with no retraining and no fitted ensemble weights. Start with the Probabilistic Ensemble (uniform probability pooling), compare the adaptive Inter Quartile Range (IQR) Ensemble, and extend the same interface with compatible forecasters. The ensemble recipe and its default Granite members are permissively licensed.</p>
+<p>The idea will be familiar from weather forecasting. <a href="https://www.ecmwf.int/en/about/media-centre/focus/2017/fact-sheet-ensemble-weather-forecasting" rel="nofollow">Ensemble forecasts</a> explore a range of possible outcomes, and systems such as the <a href="https://www.cpc.ncep.noaa.gov/products/NMME/NMME_description.html" rel="nofollow">North American Multi-Model Ensemble</a> combine different models for seasonal prediction. Time-series forecasting benefits in a similar way: complementary models offer different views of what comes next, and an ensemble merges those views into one forecast.</p>
+<h2>
+	<a id="try-granite-timeseries-ensemble" href="#try-granite-timeseries-ensemble" rel="nofollow">
+		
+	</a>
+	<span>
+		Try Granite Timeseries Ensemble
+	</span>
+</h2>
+<p>Install Granite TSFM and load the recommended four-model recipe directly from
+Hugging Face:</p>
+<pre><code data-language="bash">pip install "granite-tsfm&gt;=0.3.11"
+</code></pre>
+<pre><code data-language="python">import pandas as pd
+
+from tsfm_public.models.ensemble.modeling_ensemble import QuantileEnsembleForecaster
+
+df = pd.read_csv(
+    "https://raw.githubusercontent.com/zhouhaoyi/ETDataset/main/ETT-small/ETTh1.csv",
+    parse_dates=["date"],
+)
+
+ensemble = QuantileEnsembleForecaster.from_pretrained(
+    "ibm-granite/granite-timeseries-ensemble-r1",
+)
+
+result = ensemble(
+    df.tail(1024),
+    timestamp_column="date",
+    target_columns=["OT"],
+    context_length=1024,
+    prediction_length=24,
+)
+
+print(result.prediction_outputs) # point forecast
+print(result.quantile_outputs)   # quantiles
+</code></pre>
+<p>The recipe stores the ensemble configuration rather than merged model weights. It downloads the four member checkpoints at runtime, so allow extra time for the first run. For the full configuration, member checkpoints, evaluation details, and limitations, see the <a href="https://huggingface.co/ibm-granite/granite-timeseries-ensemble-r1">model card</a>.</p>
+<p><code>result.prediction_outputs</code> contains the point forecast, while <code>result.quantile_outputs</code> contains the quantile predictions which by default range from  0.1 to 0.9. Applications can use the point value as a central prediction and selected quantiles to express forecast ranges. For example, the 0.1 and 0.9 quantiles define a central forecast interval with nominal 80% coverage.</p>
+<h2>
+	<a id="the-ensemble-members" href="#the-ensemble-members" rel="nofollow">
+		
+	</a>
+	<span>
+		The ensemble members
+	</span>
+</h2>
+<p>The default recipe combines four pre-trained Granite models with different architectures:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Architecture</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-timeseries-patchtst-fm-r1">Granite PatchTST-FM-r1</a></td>
+<td>Patched Transformer</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-timeseries-patchtst-fm-r2">Granite PatchTST-FM-r2</a></td>
+<td>Patched Conformer</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-timeseries-flowstate-r1">Granite FlowState-r1.1</a></td>
+<td>State-space model</td>
+</tr>
+<tr>
+<td><a href="https://huggingface.co/ibm-granite/granite-timeseries-ttm-r3">Granite TTM-r3</a></td>
+<td>Tiny Time Mixers (MLP mixer)</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>For background, see the <a href="https://arxiv.org/abs/2602.06909" rel="nofollow">PatchTST-FM-r1 paper</a>,
+<a href="https://huggingface.co/blog/ibm-research/ibm-releases-sota-granite-time-series">PatchTST-FM-r2 architecture overview</a>,
+<a href="https://arxiv.org/abs/2508.05287" rel="nofollow">FlowState paper</a>, and
+<a href="https://arxiv.org/abs/2401.03955" rel="nofollow">Tiny Time Mixers paper</a>.</p>
+<p>These architectures capture trends, seasonality, and local variation in different ways, so their errors need not coincide. A <a href="https://arxiv.org/abs/2205.04216" rel="nofollow">50-year review of forecast
+combinations</a> describes how combining forecasts can reduce the risk of picking the wrong single model, while stressing that member quality and diversity still matter.</p>
+<p><a href="https://huggingface.co/buckets/rry003/blogcomponents/resolve/ensemble_overview.svg?download=true" rel="nofollow"><img src="https://huggingface.co/buckets/rry003/blogcomponents/resolve/ensemble_overview.svg?download=true" alt="Four Granite forecasting models feed a common quantile interface and one of two aggregation methods."></a></p>
+<h2>
+	<a id="two-ways-to-combine-the-forecasts" href="#two-ways-to-combine-the-forecasts" rel="nofollow">
+		
+	</a>
+	<span>
+		Two ways to combine the forecasts
+	</span>
+</h2>
+<p>Each member returns quantile forecasts. The two main recipes use different rules to turn those forecasts into one predictive distribution and its median.</p>
+<h3>
+	<a id="probabilistic-ensemble-the-recommended-default" href="#probabilistic-ensemble-the-recommended-default" rel="nofollow">
+		
+	</a>
+	<span>
+		Probabilistic Ensemble: the recommended default
+	</span>
+</h3>
+<p>The Probabilistic Ensemble (uniform probability pooling) gives each member equal influence, pools their quantile forecasts in probability space, and extracts the requested quantiles from the combined values. Because the weights are fixed, there is no fitting step and no weighting hyperparameters to tune for a new series.</p>
+<p>The <a href="https://onlinelibrary.wiley.com/doi/10.1111/j.1468-0084.2008.00541.x" rel="nofollow">forecast combination puzzle</a>
+offers useful motivation: in point forecasting, simple equal-weight combinations
+have often held up well against methods with estimated weights. This recipe applies the same equal-influence idea to probabilistic forecasts. It is the default loaded in the example above.</p>
+<h3>
+	<a id="iqr-ensemble-an-adaptive-alternative" href="#iqr-ensemble-an-adaptive-alternative" rel="nofollow">
+		
+	</a>
+	<span>
+		IQR Ensemble: an adaptive alternative
+	</span>
+</h3>
+<p>The IQR Ensemble weights members according to their forecast spread, giving narrower intervals greater influence. It approximates each member’s interquartile range from the closest available quantiles around the 25th and 75th percentiles. Weights vary by sample, target, and horizon step, and like the Probabilistic Ensemble, nothing is fitted from historical forecast errors. Isotonic regression keeps the combined quantiles from crossing.</p>
+<p>A narrower interval does not necessarily mean a more accurate or better-calibrated forecast, and IQR weighting can favor an overconfident member. If you want to experiment, the recipe exposes a temperature setting (higher values move the weights toward uniform) and an optional cap on any single member's weight.</p>
+<p>Load the evaluated IQR recipe by changing only the subfolder:</p>
+<pre><code data-language="python">ensemble = QuantileEnsembleForecaster.from_pretrained(
+    "ibm-granite/granite-timeseries-ensemble-r1",
+    subfolder="recipes/granite-iqr",
+)
+</code></pre>
+<h2>
+	<a id="which-method-should-i-use" href="#which-method-should-i-use" rel="nofollow">
+		
+	</a>
+	<span>
+		Which method should I use?
+	</span>
+</h2>
+<div>
+	<table>
+		<thead><tr>
+<th>Your goal</th>
+<th>Start with</th>
+<th>Why</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>A simple default</td>
+<td>Probabilistic Ensemble</td>
+<td>Equal influence, no fitted weights</td>
+</tr>
+<tr>
+<td>Adaptive weighting based on forecast spread</td>
+<td>IQR Ensemble</td>
+<td>Influence varies with each member's predicted spread</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Start with the Probabilistic Ensemble. If forecast spread looks informative for your application, compare the IQR Ensemble against it on representative data, since accuracy and calibration depend on the series and the horizon.</p>
+<h2>
+	<a id="does-the-ensemble-improve-on-its-members" href="#does-the-ensemble-improve-on-its-members" rel="nofollow">
+		
+	</a>
+	<span>
+		Does the ensemble improve on its members?
+	</span>
+</h2>
+<p>We evaluated both recipes on 97 GIFT-Eval dataset configurations. The models
+forecast without fine-tuning, and test targets were not used to select or fit
+the aggregation method. Here we compare the official ensemble submission results
+with the four constituent models, using published leaderboard scores and ranks captured on 20 October 2026.</p>
+<p>GIFT-Eval reports <em>MASE</em> for point forecasts and <em>CRPS/MWQL</em> (the benchmark's
+<code>mean_weighted_sum_quantile_loss</code> metric) for probabilistic forecasts. Scores
+are normalized to Seasonal Naive and geometrically averaged across configurations.
+Lower is better.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Forecast</th>
+<th>MASE ↓</th>
+<th>MASE Rank ↓</th>
+<th>CRPS / MWQL ↓</th>
+<th>CRPS Rank ↓</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Granite Ensemble R1 — Prob</td>
+<td><strong>0.683</strong>★</td>
+<td><strong>47.175</strong>★</td>
+<td>0.471</td>
+<td>50.948</td>
+</tr>
+<tr>
+<td>Granite Ensemble R1 — IQR</td>
+<td>0.684</td>
+<td>48.773</td>
+<td>0.471</td>
+<td><strong>47.619</strong>★</td>
+</tr>
+<tr>
+<td>Granite PatchTST-FM-r2</td>
+<td>0.685</td>
+<td>51.371</td>
+<td><strong>0.467</strong>★</td>
+<td>48.918</td>
+</tr>
+<tr>
+<td>Granite FlowState-r1.1</td>
+<td>0.701</td>
+<td>66.474</td>
+<td>0.490</td>
+<td>69.485</td>
+</tr>
+<tr>
+<td>Granite PatchTST-FM-r1</td>
+<td>0.717</td>
+<td>74.794</td>
+<td>0.488</td>
+<td>68.134</td>
+</tr>
+<tr>
+<td>Granite TTM-r3</td>
+<td>0.724</td>
+<td>83.062</td>
+<td>0.520</td>
+<td>88.959</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>★ Best value among the forecasts shown. Lower is better. </p>
+<p>Rank columns average per-configuration ranks against the full GIFT-Eval reference leaderboard, not just these six forecasts, so rank values can shift as entries are added to the leaderboard.</p>
+<p>Both ensembles outperform all four individual members on aggregate MASE and average MASE Rank. The Probabilistic Ensemble achieves the lowest MASE among these six forecasts: 0.683 compared with 0.685 for PatchTST-FM-r2. Lower average MASE Rank indicates stronger relative point-forecast performance across GIFT-Eval’s diverse dataset configurations. Together, these results support the ensemble as a practical starting point, without requiring developers to select the strongest individual architecture in advance. The MASE margin over the best single member is small, so the main benefit is robustness: you get comparable or better aggregate accuracy without knowing in advance which architecture will suit your data.</p>
+<p>PatchTST-FM-r2 retains the lowest aggregate CRPS/MWQL score. The IQR Ensemble achieves the lowest average CRPS Rank among these six forecasts, while the Probabilistic Ensemble ranks behind PatchTST-FM-r2 on that measure. Aggregate error and average rank therefore favor different choices.</p>
+<p>In the 20 October 2026 comparison, the ensemble approach ranks 3rd among eligible systems on MASE Rank and CRPS Rank. The figure below shows both recipes alongside the ten best eligible reference systems per metric. Some systems, including entries excluded as fine-tuned or non-permissively licensed, score better than either recipe, so the value of the ensemble is not that it tops the leaderboard. It is that a single default delivers strong, consistent results across many series without requiring you to choose a member.</p>
+<p><a href="https://huggingface.co/buckets/rry003/blogcomponents/resolve/gift_eval_ranks_granite.png?download=true" rel="nofollow"><img src="https://huggingface.co/buckets/rry003/blogcomponents/resolve/gift_eval_ranks_granite.png?download=true" alt="GIFT-Eval average rank comparison for both Granite ensembles and eligible reference systems. Lower is better."></a></p>
+<p><em>Figure: GIFT-Eval average-rank standings on 20 October 2026, showing both Granite ensembles alongside the ten best eligible reference systems per metric. Eligible systems have replication code and no declared test-data leakage; fine-tuned entries and systems with known non-permissive licenses or member dependencies are excluded. Rank values are taken directly from the published overall leaderboard snapshot; filtering changes which systems are displayed, not their rank values.</em></p>
+<h2>
+	<a id="extend-the-recipe-to-other-forecasters" href="#extend-the-recipe-to-other-forecasters" rel="nofollow">
+		
+	</a>
+	<span>
+		Extend the recipe to other forecasters
+	</span>
+</h2>
+<p>The default recipe uses four Granite models, but the common <code>Forecaster</code> interface also accepts compatible external models. You can change the member mix or the aggregation method and keep the same downstream forecast format, with no merging or retraining of member checkpoints. That makes it easier to fit the ensemble into an existing forecasting stack, and to add forecasters suited to your domain as your needs evolve.</p>
+<p>The repository also includes expanded recipes that add IBM Research checkpoints. These carry separate license terms, including non-commercial and research-use restrictions, so review each member's model card before using them. </p>
+<p>For any new combination, check forecast compatibility, accuracy, calibration, latency, and licensing.</p>
+<h2>
+	<a id="evaluate-the-recipe-for-your-application" href="#evaluate-the-recipe-for-your-application" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluate the recipe for your application
+	</span>
+</h2>
+<p>GIFT-Eval is a broad benchmark, but aggregate gains don’t mean every series benefits, and average ranks don’t establish calibration. The way to find out how the recipes behave for your application is to backtest them on representative data:</p>
+<ul>
+<li><strong>Match your use case</strong>. Use historical forecast windows that reflect the data available at each forecast origin, the horizon you need, and the series you expect to serve.</li>
+<li><strong>Compare like with like</strong>. Run the Probabilistic Ensemble, the IQR Ensemble, and a strong individual member (such as PatchTST-FM-r2) on the same windows.</li>
+<li><strong>Look beyond point error</strong>. Assess quantile loss alongside MASE, and check the empirical coverage of the 0.1 to 0.9 interval against its nominal 80%.</li>
+<li><strong>Measure the cost</strong>. Record runtime and memory use to judge whether the benefit of combining four models justifies it for your workload.</li>
+</ul>
+<p>Keep two limitations in mind. The current recipe forecasts multivariate channels independently, without using cross-channel information, and it loads four member checkpoints, which increases inference time and memory relative to a single member. Member context limits, horizons, preprocessing, and missing-value handling also differ, and neither aggregation method guarantees calibration or robustness under distribution shift, so keep monitoring forecasts after deployment.</p>
+<h2>
+	<a id="try-it-on-your-data" href="#try-it-on-your-data" rel="nofollow">
+		
+	</a>
+	<span>
+		Try it on your data
+	</span>
+</h2>
+<p>The recommended starting point is the default four-model recipe:</p>
+<ul>
+<li><a href="https://huggingface.co/ibm-granite/granite-timeseries-ensemble-r1">Granite Timeseries Ensemble on Hugging Face</a></li>
+<li><a href="https://github.com/ibm-granite/granite-tsfm/blob/main/notebooks/hfdemo/probabilistic_ensemble_getting_started.ipynb" rel="nofollow">Getting-started notebook</a></li>
+<li><a href="https://github.com/ibm-granite/granite-tsfm" rel="nofollow">Granite TSFM repository</a></li>
+<li><a href="https://huggingface.co/spaces/Salesforce/GIFT-Eval">GIFT-Eval benchmark</a></li>
+</ul>
+<p>Load the default recipe to get median and quantile forecasts from all four Granite architectures in one call, and adapt the recipe as your needs evolve.</p>
+<h2>
+	<a id="references" href="#references" rel="nofollow">
+		
+	</a>
+	<span>
+		References
+	</span>
+</h2>
+<ul>
+<li><p><a href="https://www.ecmwf.int/en/about/media-centre/focus/2017/fact-sheet-ensemble-weather-forecasting" rel="nofollow">ECMWF: Ensemble weather forecasting</a></p>
+</li>
+<li><p><a href="https://www.cpc.ncep.noaa.gov/products/NMME/NMME_description.html" rel="nofollow">NOAA: North American Multi-Model Ensemble</a></p>
+</li>
+<li><p><a href="https://arxiv.org/abs/2508.05287" rel="nofollow">FlowState: Sampling-Rate-Equivariant Time-Series Forecasting</a></p>
+</li>
+<li><p><a href="https://arxiv.org/abs/2401.03955" rel="nofollow">Tiny Time Mixers (TTMs): Fast Pre-trained Models for Enhanced Zero/Few-Shot Forecasting of Multivariate Time Series</a></p>
+</li>
+<li><p><a href="https://arxiv.org/html/2602.06909v1" rel="nofollow">Revisiting the Generic Transformer: Deconstructing a Strong Baseline for Time Series Foundation Models</a></p>
+</li>
+<li><p><a href="https://arxiv.org/abs/2205.04216" rel="nofollow">Forecast combinations: an over 50-year review</a></p>
+</li>
+<li><p><a href="https://doi.org/10.1111/j.1468-0084.2008.00541.x" rel="nofollow">Smith and Wallis (2009), A Simple Explanation of the Forecast Combination Puzzle</a></p>
+</li>
+</ul>
+</div></div>

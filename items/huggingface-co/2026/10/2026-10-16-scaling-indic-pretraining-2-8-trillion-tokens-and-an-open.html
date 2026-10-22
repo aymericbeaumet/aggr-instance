@@ -1,0 +1,151 @@
+<div id="readability-page-1" class="page"><div> 
+<p><em>Native-script data for 22 languages, romanized data for twelve, and a reusable GPU-accelerated pipeline for translation, quality assessment, and repair.</em></p>
+<p><strong>Authors:</strong> AI4Bharat — Sumanth Doddapaneni, Thanmay Jayakumar, Mohammed Safi Ur Rahman Khan, Mitesh Khapra, Anoop Kunchukuttan, Rudra Murthy, Ujjwal Sharma. NVIDIA — Niket Agarwal, Ramani Akkati, Mohammad Qazim Bhat, Aishwarya Chhabra, Shuoyang Ding, Raviraj Joshi, Anusha Kamath, Abhinav Khattar, Markus Kliegl, Vitaly Lavrukhin, Yev Meyer, Sriharsha Niverty, Brandon Norick, Sai Nishanth Padala, Mostofa Patwary, Kiran Praveen, Kanishk Singla, Rajpreet Thethy, Utkarsh Vaidya, Ameya Velingker.</p>
+<p>We're excited to introduce <strong>Nemotron-pretraining-Indic-v1</strong> approximately <strong>2.8 trillion tokens across 22 Indian languages</strong>, releasing soon alongside the <strong>open, GPU-accelerated data generation pipeline</strong> used to create it. These are the 22 languages listed in India's Constitution: the first languages for 97% of Indians, or nearly 1.2 billion citizens at the 2011 Census. Developed by NVIDIA with <a href="https://www.iitm.ac.in/" rel="nofollow">IIT Madras</a>, India's premier engineering institute, and its <a href="https://ai4bharat.iitm.ac.in/" rel="nofollow">AI4Bharat</a> lab, this release gives model builders a substantial new resource for Indic pretraining. The pipeline captures the full generation recipe, including prompts, LLM workflows, and quality checks, so developers can adapt it to their own source material and generate more data for their needs.</p>
+<p>AI4Bharat, IIT Madras' Indian language research lab, builds open-source datasets and models for Indian languages. Its resources, such as <a href="https://huggingface.co/datasets/ai4bharat/sangraha">Sangraha</a>, an open pretraining corpus for 22 Indian languages, have helped lay the foundation for open Indic language-model research. Our joint open-source release represents a substantial expansion of the open synthetic Indic training data that will be available to the community. It brings a broad mix of curated English material, including mathematics, code, and question-answer content, into Indian languages, giving teams more training material for building models that can explain technical concepts, work through problems, and answer questions in those languages. Every record traces back to a curated source document, and each output is checked against its input, so the synthetic text stays grounded in real information.</p>
+<p>Mitesh Khapra, who heads AI4Bharat and made the <a href="https://time.com/collections/time100-ai-2025/7305866/mitesh-khapra/" rel="nofollow">2025 TIME100 AI list</a>, has named the core problem: Indian language technology trails English because "we do not have enough data for Indian languages." We're answering that call with more data, plus an open recipe for generating more.</p>
+<p>The corpus also accounts for how people write. It includes native-script data for all 22 languages and romanized text for twelve, spanning 34 language-script configurations. Our workflows combine document-level translation, quality assessment, and targeted repair, with checks to preserve content such as equations, tables, and code. This data complements naturally authored Indic text, which remains essential for local knowledge and cultural context.</p>
+<p>We're sharing the <a href="https://github.com/NVIDIA-NeMo/DataDesignerPlugins/tree/main/plugins/data-designer-nemotron-indic-translation" rel="nofollow">open generation recipe</a> so the community can not just reproduce the data but take this work further. Teams can use the corpus directly, adapt the prompts and quality checks, or bring their own source documents to the workflow. By opening up both the data and the process, we aim to make large-scale Indic data generation more accessible and enable more developers to contribute to stronger models across Indian languages.</p>
+<p>Continued pretraining for <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Super-VL-120B-A12B-NVFP4">Nemotron 3.5 Super VL</a> added 10 billion Indic tokens, drawn from a twelve-language subset of this corpus and natural Indic text. Our technical report on the model covers the full story. We plan to build on this corpus in future Nemotron models.</p>
+<h2>
+	<a id="what-is-in-the-corpus" href="#what-is-in-the-corpus" rel="nofollow">
+		
+	</a>
+	<span>
+		What is in the corpus?
+	</span>
+</h2>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68d2fec8856b85d927e44d32/VmVFMKjOsoNkEKfQ7cRnh.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68d2fec8856b85d927e44d32/VmVFMKjOsoNkEKfQ7cRnh.png" alt="Corpus composition by native-script and romanized token counts."></a>
+<em>Figure 1. The corpus contains 2,601.0 billion native-script tokens and 224.6 billion romanized tokens. Counts use the Gemma-4 tokenizer. Document records include translations and script variants of shared sources; they are not counts of unique English documents.</em></p>
+<p>The corpus has two groups of language configurations:</p>
+<ul>
+<li><strong>Native-script and romanized data:</strong> Bengali, Gujarati, Hindi, Kannada, Malayalam, Marathi, Nepali, Odia, Punjabi, Tamil, Telugu, and Urdu.</li>
+<li><strong>Native-script data:</strong> Assamese, Bodo, Dogri, Kashmiri, Konkani, Maithili, Manipuri, Sanskrit, Santali, and Sindhi.</li>
+</ul>
+<p>Here, <em>native-script</em> describes the writing system: the text is still translated from English. <em>Romanized</em> means Indic-language text written in Latin script, not an English translation. For each of the twelve dual-script languages, romanization covers a subset of the accepted native-script translations.</p>
+<p>This distinction matters when constructing a training mixture. Native and romanized records offer different script exposure, but can express the same underlying content. The token counts describe the retained corpus, including accepted rewrites, rather than a training run's token budget. Counts also depend on the tokenizer used, so corpus inventory and training-token counts should be read separately.</p>
+<h2>
+	<a id="from-english-source-documents-to-indic-training-data" href="#from-english-source-documents-to-indic-training-data" rel="nofollow">
+		
+	</a>
+	<span>
+		From English source documents to Indic training data
+	</span>
+</h2>
+<p>To build this corpus, we start with documents from 15 <a href="https://huggingface.co/datasets/nvidia/Nemotron-CC-v2">Nemotron-CC-v2</a> subsets, covering web text, question-answer material, mathematics, code, and other specialized content. We use <a href="https://docs.nvidia.com/nemo/datadesigner/" rel="nofollow">NeMo Data Designer</a>, NVIDIA's open-source framework for generating synthetic data, to run translation, quality checks, and targeted repair. Throughout the workflow, we retain each source identifier so developers can trace an output back to its original document. Clear provenance like this is part of what makes open data practical to audit and build on. Figure 2 shows the workflow for twelve languages.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68d2fec8856b85d927e44d32/PCtm5uAGrdrp8kgHXb6y3.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68d2fec8856b85d927e44d32/PCtm5uAGrdrp8kgHXb6y3.png" alt="Corpus composition by native-script and romanized token counts."></a>
+<em>Figure 2. Four-stage Indic synthetic-data pipeline for twelve languages, implemented using NeMo Data Designer and Gemma-4-31B-it. We translate English documents, assess translation quality, repair low-scoring outputs, and convert a subset of accepted translations into Latin script. The other ten languages use the separate Indic Translate workflow described below.</em></p>
+<h3>
+	<a id="the-twelve-language-workflow" href="#the-twelve-language-workflow" rel="nofollow">
+		
+	</a>
+	<span>
+		The twelve-language workflow
+	</span>
+</h3>
+<p>For these twelve languages, we translate documents in full so the model can use context across paragraphs, tables, and equations. We selected <a href="https://huggingface.co/google/gemma-4-31B-it">Gemma-4-31B-it</a> by comparing models on complete documents, checking translation quality and preservation of technical content. Our prompts distinguish prose to translate from content to preserve, including code, equations, URLs, and formatting.</p>
+<p>After translation, we use the same model to assess each output against its English source. A rubric inspired by <a href="https://themqm.org/" rel="nofollow">Multidimensional Quality Metrics</a> (MQM), an open framework for classifying translation errors by type and severity, covers meaning, fluency, terminology, style, and formatting. We retain only outputs scoring at least 75 out of 100 (a rubric score, not an accuracy percentage). For lower-scoring outputs, we use the assessment feedback to guide repairs, then reassess them against the same threshold. This process recovered <strong>438.4 billion tokens</strong> across native-script and romanized data, already included in the corpus total. Sampled human reviews and tests with deliberately introduced errors helped identify omissions and residual English, informing improvements to our prompts and checks.</p>
+<p>Accepted native-script translations also provide the starting point for romanized data. We convert a subset into Latin script and check each result against its native-script input. This separates translation from script conversion. In our initial human comparison, this two-step approach produced fewer hallucinated additions and less residual English than generating romanized text directly from English.</p>
+<h3>
+	<a id="the-ten-language-workflow" href="#the-ten-language-workflow" rel="nofollow">
+		
+	</a>
+	<span>
+		The ten-language workflow
+	</span>
+</h3>
+<p>For the other ten languages, we adapt the workflow to address long-document quality and script-stability issues observed in our comparisons. We translate with <a href="https://huggingface.co/bodhan-ai/indic-translate">Indic Translate</a>, a document-level translation model for English and 22 Indian languages from <a href="https://bodhan.ai/" rel="nofollow">Bodhan AI</a>, a nonprofit center for AI in education incubated at IIT Madras. Gemma-4-31B-it then assesses each translation against its English source. For eight languages, we keep the whole-document approach. For longer Santali documents, we translate overlapping windows and reconstruct the document; for Manipuri, we translate into Bengali script before converting to Meitei Mayek, its native script. These workflows retain outputs scoring at least 75 out of 100 and produce native-script data only, without feedback-based rewriting.</p>
+<h2>
+	<a id="what-changed-after-indic-continued-pretraining" href="#what-changed-after-indic-continued-pretraining" rel="nofollow">
+		
+	</a>
+	<span>
+		What changed after Indic continued pretraining?
+	</span>
+</h2>
+<p>The Nemotron 3.5 Super VL technical report compares the checkpoint immediately before Indic continued pretraining (CPT) with the checkpoint after that stage. The configured budget was 100 billion training tokens, with 10% (10 billion tokens) allocated to a mixture of synthetic and natural Indic text. The remaining 90% maintained the preceding training mixture's relative proportions.</p>
+<p>Scores increased on all five reported Indic knowledge and reasoning benchmarks: MILU, Indic MMLU-Pro, Indic ARC-Challenge, Indic ARC-Easy, and Indic GSM8K.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68d2fec8856b85d927e44d32/ZPR2A2wDoNW6OVb4-GX63.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68d2fec8856b85d927e44d32/ZPR2A2wDoNW6OVb4-GX63.png" alt="figure3-cpt-before-after@2x"></a>
+<em>Figure 3. Nemotron 3.5 Super VL before and after the Indic CPT stage. Gains range from 4.98 to 9.82 percentage points. The comparison reports the change across a training stage that combines synthetic and natural Indic data, rather than isolating the synthetic corpus's contribution. Language coverage differs by benchmark; these are stage-level checkpoints, not a comparison of final model releases.</em></p>
+<p><em>Source: Nemotron 3.5 Super VL technical report, Table 2. GSM8K excludes Odia because evaluation exceeded the serving context limit.</em></p>
+<p>These gains support the combined synthetic-and-natural Indic CPT recipe, while leaving the choice of mixture for other models and languages to further study.</p>
+<p>The companion Indic report examines source mixtures, synthetic-data pool size, and script coverage using first-pass accepted data for the twelve-language group. Evaluating the full corpus, including recovered rewrites and the other ten languages, remains a next step for those controlled studies.</p>
+<h3>
+	<a id="broader-indic-capabilities-in-nemotron-35-super-vl" href="#broader-indic-capabilities-in-nemotron-35-super-vl" rel="nofollow">
+		
+	</a>
+	<span>
+		Broader Indic capabilities in Nemotron 3.5 Super VL
+	</span>
+</h3>
+<p>Beyond the CPT-stage results, how does the released model compare with the previous generation? Figure 4 compares Nemotron 3.5 Super VL with <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16">Nemotron 3 Super</a> across Indic task performance and language quality. These results reflect the released model's full training pipeline, including Indic CPT and post-training.</p>
+<p>Nemotron 3.5 Super VL scores higher on five of the six task benchmarks shown, spanning knowledge, reasoning, mathematics, code, and translation. Instruction following on IFEval 1.5 dipped 2.04 points. It also improves across all four <a href="https://huggingface.co/datasets/sarvamai/indivibe">IndiVibe</a> dimensions: usefulness, fluency, language and script fidelity, and appropriate verbosity. IndiVibe is Sarvam AI's open benchmark of assistant-style prompts in Indian languages. Together, these evaluations examine both what the model can do and how well it communicates in Indian languages.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/68d2fec8856b85d927e44d32/YQO_-yZWrhhQgueXuxzuM.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/68d2fec8856b85d927e44d32/YQO_-yZWrhhQgueXuxzuM.png" alt="figure4-super-generations-HD"></a>
+<em>Figure 4. Indic task performance and language quality across Nemotron Super generations. Left: six task benchmarks. Right: preliminary IndiVibe conditional preference scores, not direct head-to-head win rates. Labels show changes in percentage points, except WMT24++, which uses chrF points. See the companion Indic technical report for benchmark and evaluation details.</em></p>
+<h2>
+	<a id="start-building" href="#start-building" rel="nofollow">
+		
+	</a>
+	<span>
+		Start building
+	</span>
+</h2>
+<h3>
+	<a id="load-the-corpus" href="#load-the-corpus" rel="nofollow">
+		
+	</a>
+	<span>
+		Load the corpus
+	</span>
+</h3>
+<p>Start with the languages and scripts your model needs, inspect a sample, and review the dataset card and license before training. Configurations use language, script, and region tags: for example, <code>hi-Deva-IN</code> denotes Hindi in Devanagari, while <code>hi-Latn-IN</code> denotes romanized Hindi.</p>
+<p>The example below asks for the repository ID from the dataset card, then discovers the available splits and streams a sample.</p>
+<pre><code data-language="python">from datasets import get_dataset_split_names, load_dataset
+
+dataset_id = input("Repository ID from the dataset card: ").strip()
+config = "hi-Deva-IN"
+
+splits = get_dataset_split_names(dataset_id, config_name=config)
+print("Available splits:", splits)
+
+data = load_dataset(
+    dataset_id, name=config, split=splits[0], streaming=True
+)
+print(next(iter(data)))
+</code></pre>
+<p><a href="https://huggingface.co/docs/datasets/stream">Hugging Face Datasets</a> supports streaming so readers can inspect records without downloading the entire corpus. Once the release is available, pin a dataset revision for reproducible experiments.</p>
+<p><strong>For a first training study</strong>, compare mixtures at a fixed token budget and record the natural/synthetic and native/romanized shares. Track per-language results alongside English capability retention and language/script quality. When creating held-out splits, account for records derived from the same source across languages and scripts.</p>
+<p>To build a fuller recipe, pair the corpus with Nemotron post-training data, such as the <a href="https://huggingface.co/collections/nvidia/nemotron-chat-and-instruction-following">Chat &amp; Instruction</a> or <a href="https://huggingface.co/collections/nvidia/nemotron-post-training-v3">Post-Training Blends</a> collections. For India-specific synthetic data, seed NeMo Data Designer with <a href="https://huggingface.co/datasets/nvidia/Nemotron-Personas-India">Nemotron-Personas-India</a>, synthetic personas in English and Hindi grounded in real-world distributions for India.</p>
+<h3>
+	<a id="adapt-the-generation-recipe" href="#adapt-the-generation-recipe" rel="nofollow">
+		
+	</a>
+	<span>
+		Adapt the generation recipe
+	</span>
+</h3>
+<p>The open-source <a href="https://github.com/NVIDIA-NeMo/DataDesignerPlugins/tree/main/plugins/data-designer-nemotron-indic-translation" rel="nofollow">Nemotron Bharat translation plugin</a> for NeMo Data Designer provides translation and evaluation prompts, optional feedback-based rewriting, document windowing, and script-remapping support. Use its <a href="https://github.com/NVIDIA-NeMo/DataDesignerPlugins/blob/main/plugins/data-designer-nemotron-indic-translation/docs/index.md" rel="nofollow">configuration reference</a> to choose models and languages, adapt prompts to your domain, and set rewrite parameters. The accompanying <a href="https://github.com/NVIDIA-NeMo/DataDesigner/pull/959" rel="nofollow">developer note</a> explains the workflow and engineering choices.</p>
+<p>Start with a small sample of your own source documents. Inspect translation quality and preservation of code, mathematics, and formatting, then refine the prompts and checks with native-language reviewers before scaling up. Treat generation and corpus acceptance as separate steps: the plugin returns candidates and scores, while your filtering policy determines which records enter the training corpus.</p>
+<h2>
+	<a id="scope-and-limitations" href="#scope-and-limitations" rel="nofollow">
+		
+	</a>
+	<span>
+		Scope and limitations
+	</span>
+</h2>
+<p>Translation broadens access to the source material, but does not replace text originally written in Indian languages or guarantee coverage of local knowledge and culture. We recommend combining this corpus with appropriately sourced natural Indic text and evaluating the resulting mixture for the intended use case.</p>
+<p>Quality assessment is primarily automated, complemented by sampled human review whose coverage varies across languages. For the twelve-language workflow (Figure 2), the translator also serves as the judge. Retained text can still contain errors, and the ten-language workflow needs broader native-speaker validation. Source-ID checks remove processing duplicates; they are not semantic deduplication of similar content.</p>
+<p>Alongside the corpus, AI4Bharat at IIT Madras, with support from NVIDIA, is building Indic-LLM-Eval-Suite, an open and evolving collection of benchmarks for Indic model capabilities. It helps model builders assess both task performance and language quality. See the companion blog, <a href="https://ai4bharat.github.io/indic-llm-eval-suite-blog/" rel="nofollow"><em>Better Models Need Better Benchmarks: Introducing Indic-LLM-Eval-Suite</em></a>.</p>
+<p>Explore the language configurations, test a training mixture, or adapt the open recipe to a new domain. Sharing per-language results and improvements to the generation workflow can help the community build on this work.</p>
+<h2>
+	<a id="further-reading-and-acknowledgments" href="#further-reading-and-acknowledgments" rel="nofollow">
+		
+	</a>
+	<span>
+		Further reading and acknowledgments
+	</span>
+</h2>
+<p>The companion reports, <a href="https://huggingface.co/datasets/nvidia/nemotron-indic-pretraining-report/blob/main/Scaling%20Synthetic%20Pre-training%20Data%20and%20Evaluation%20for%20Indic%20LLMs.pdf"><em>Scaling Synthetic Pre-training Data and Evaluation for Indic LLMs</em></a> and the <a href="https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3.5-Super-and-Lightning-Technical-Report.pdf" rel="nofollow"><em>Nemotron 3.5 Super VL and Lightning technical report</em></a>, provide the corpus accounting, generation methods, experiments, and evaluation details. Evaluation is the other half of this work. For the benchmark side, see the companion blog from AI4Bharat and NVIDIA, <a href="https://ai4bharat.github.io/indic-llm-eval-suite-blog/" rel="nofollow"><em>Better Models Need Better Benchmarks: Introducing Indic-LLM-Eval-Suite</em></a>.</p>
+<p>This work brings together NVIDIA, IIT Madras, AI4Bharat, and Bodhan AI. We also acknowledge the model and tooling contributions used in the pipeline: Google's Gemma, Bodhan AI's Indic Translate, and NeMo Data Designer. Additional NVIDIA data resources are available in the <a href="https://huggingface.co/collections/nvidia/nemotron-pre-training-datasets">Nemotron Pre-Training Datasets collection</a>.</p>
+</div></div>
