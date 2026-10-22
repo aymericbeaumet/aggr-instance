@@ -1,0 +1,155 @@
+<div id="readability-page-1" class="page"><div> 
+
+
+<p>Last week, I wanted a small version of the <a href="https://huggingface.co/Qwen/Qwen-Image-2.1-PE-T2I">prompt rewriter</a> that ships with Qwen-Image 2.1. The official one is a 9B model that needs about 20 GB of memory and thinks for thousands of tokens before writing a single paragraph. On the Hub, I found only compressed copies of that same 9B model. So I described what I wanted to <a href="https://huggingface.co/chat/?mode=ml-intern">ML Intern</a>, and the next day I had a <a href="https://huggingface.co/ML-Intern-lab/Qwen-Image-2.1-PE-T2I-Pocket-0.8B">0.8B version</a> that runs on a CPU. It returns valid output 99.7% of the time and uses about a quarter of the teacher's tokens. The compute for the whole project, including having the 9B model label 8,797 example requests, came to USD 16.</p>
+<p>Over the course of the next few days, I made five more models the same way. Each one started as a message in HuggingChat with ML-intern switched on, and each one ended as a public model on the Hub with its evaluation in the model card. ML-intern plans the work, asks me for a budget before it spends anything, runs a small test before the real job, then trains, evaluates and publishes on Hugging Face hardware.</p>
+<h2>
+	<a id="how-i-prompt-ml-intern" href="#how-i-prompt-ml-intern" rel="nofollow">
+		
+	</a>
+	<span>
+		How I prompt ML Intern
+	</span>
+</h2>
+
+<p>The first message is where I spend my effort. My first prompt, for the <em>citrus</em> model shared below, was about 450 words. By my 6th project it was closer to 2,000, because each project taught me something I wanted in the next one. All seven prompts are on GitHub at <a href="https://github.com/yvrjsharma/ml-intern-prompts" rel="nofollow">yvrjsharma/ml-intern-prompts</a>, exactly as I wrote them.</p>
+<p>A prompt starts with the idea in one line and why I want it. Then it names the exact pieces: the dataset, the base model, the training script. Anything I have already checked goes under a heading that literally says "Verified facts, do not re-derive", so the agent spends its budget on the work instead of rediscovering what I know. For the camera-angle LoRA that section listed which trainer had just added transparent-image support, and which open GitHub issues made the fallback trainer risky.</p>
+<p><strong>Two lines in the prompt are critical</strong>. The <strong>first</strong> asks for a baseline before any training. For example, the <em>citrus prompt</em> says: "Also report the base model's zero-shot score on the same metric before training so we can see the gain." Without it you get a trained model and no idea whether it is better than what you started with. The <strong>second</strong> is a smoke test with a check attached. For the image LoRAs I asked for 50 training steps, then a check that the saved weights had actually changed, before paying for the full run.</p>
+<p>At the end of the prompt, I lay out the expected deliverables and limit the cost. I define what belongs in the model card and include a instruction like: "Cap total spend at USD 12 and ask me before exceeding it." Because ML-intern begins every task with zero dollar budget and needs permission before executing paid jobs, this spending limit stays strictly enforced. When you leave out a budget, the agent suggests a couple of paths depending on project size and asks which one you prefer.</p>
+<p>You don't necessarily need all of that on your first attempt. For example, I didn't have the <em>verified-facts</em> section in my <em>citrus</em> brief and ML Intern still produced a model that more than <a href="https://huggingface.co/ML-Intern-lab/citrus-disease-vlm#results">tripled the accuracy</a> of the <a href="https://huggingface.co/Qwen/Qwen3.5-2B">Qwen3.5-2B</a> model. Let me walk you through 6 things I built with Ml-Intern in just a couple of days.</p>
+<h2>
+	<a id="1-a-model-that-knows-your-field" href="#1-a-model-that-knows-your-field" rel="nofollow">
+		
+	</a>
+	<span>
+		1. A model that knows your field
+	</span>
+</h2>
+<p>A general vision model can describe a yellowing citrus leaf. However, telling you whether it is a mite problem or a magnesium deficiency, and the bio and non-bio remedies to treat the plant is very hard. Using Claude, I put together a training dataset merged from three sources hosted by the <a href="https://huggingface.co/Project-AgML">Project-AgML</a> organization on the Hub. The resulting <a href="https://huggingface.co/datasets/ML-Intern-lab/citrus-disease-vlm-instruct">citrus-disease-vlm-instruct</a> is a dataset containing 3,017 annotated images across 21 distinct pests, illnesses, nutritional gaps, and treatment approaches. ML-intern handled the fine-tuning of Qwen3.5-2B using these examples, making sure to benchmark the foundation model beforehand.</p>
+
+<p>On the 335 test photos, the base model named the right problem 14.9% of the time. After two epochs on one A10G, the fine-tuned model got 52.8%. Compute cost, about USD 1.90.</p>
+<p>Check out: <a href="https://huggingface.co/ML-Intern-lab/citrus-disease-vlm">Model</a> · <a href="https://huggingface.co/datasets/ML-Intern-lab/citrus-disease-vlm-instruct">Dataset</a> · <a href="https://huggingface.co/spaces/ML-Intern-lab/citrus-doctor">Citrus Doctor App</a></p>
+<h2>
+	<a id="2-a-model-that-draws-your-character" href="#2-a-model-that-draws-your-character" rel="nofollow">
+		
+	</a>
+	<span>
+		2. A model that draws your character
+	</span>
+</h2>
+<p>Image models know plenty of characters. Huggy, drawn in the flat style of the Hugging Face brand assets, was not one of them. I asked ML-Intern for a LoRA on <a href="https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B">FLUX.2 klein base 4B</a>, trained on 84 captioned drawings from <a href="https://huggingface.co/datasets/Chunte/huggy_for_training">Chunte/huggy_for_training</a> dataset.</p>
+
+<p>The agent saved a checkpoint every 100 steps and drew the same set of prompts with each one, which made choosing easy. Step 200 was the first where Huggy was fully <em>on-model</em>. From step 500 on, Huggy's style started bleeding into prompts that had nothing to do with Huggy! The trained LoRA also works on the distilled klein model at 4 steps. Compute cost, about USD 7.60.</p>
+<p>Check out: <a href="https://huggingface.co/ML-Intern-lab/huggy-flux2-klein-lora">Model</a> · <a href="https://huggingface.co/datasets/Chunte/huggy_for_training">Dataset</a> · <a href="https://huggingface.co/spaces/ML-Intern-lab/huggy-generator">Huggy Generator App</a></p>
+<h2>
+	<a id="3-a-model-that-does-a-new-trick" href="#3-a-model-that-does-a-new-trick" rel="nofollow">
+		
+	</a>
+	<span>
+		3. A model that does a new trick
+	</span>
+</h2>
+<ol>
+<li><strong>Camera-angle LoRAs</strong> are among the most-liked community add-ons for earlier Qwen-Image models. You can give the model a picture of an object and ask to see it 45 degrees from the left. When I checked a few days after the Qwen-Image 2.1 model release, nobody had made one, so I tasked ML-intern to build it.</li>
+</ol>
+<p>
+<img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/building-with-ml-intern/viewpoint-orbit-lora.gif" alt="Qwen camera angle LoRA" width="400">
+</p>
+
+<p>ML-intern rendered 1,030 scanned household objects from <a href="https://huggingface.co/datasets/suvadityamuk/google-scanned-objects">Google Scanned Objects</a> at 24 angles each, 24,722 transparent images, on a CPU job that cost a few cents. It later finalised 461 objects for training and 40 held out for testing, and 1,844 before-and-after training pairs spread evenly over 23 camera instructions.</p>
+<p>Training ran 2,000 steps in about 90 minutes on one A100 (~USD 3.75). The whole project took about half a day and 48 jobs, counting the ones that failed on missing packages or wrong paths and had to be resubmitted by ML-Intern. Total compute cost, about USD 16.</p>
+<p>Check out: <a href="https://huggingface.co/ML-Intern-lab/Qwen-Image-2.1-viewpoint-orbit-LoRA">Model</a> · <a href="https://huggingface.co/datasets/ML-Intern-lab/gso-orbit-rgba">Dataset</a> · <a href="https://huggingface.co/spaces/ML-Intern-lab/Qwen-Image-2.1-viewpoint-orbit-LoRA">Viewpoint Orbit App</a></p>
+<ol start="2">
+<li><strong>Doodle-in LoRA</strong> is another cool idea. Upload a photo with a magenta scribble on it and add a short prompt naming an object. The LoRA replaces the scribble with that object while keeping the original lighting and composition consistent.</li>
+</ol>
+
+<p>No dataset existed for this, so my prompt described how to make one. Start from a real photo in Open Images, remove one object with the LaMa inpainting model, and draw a scribble where the object used to be. The untouched photo is the target. ML-intern wrote and tested the pair-building scripts in a CPU sandbox, then ran them as GPU jobs, recording the author and license of every source photo along the way. It built 6,042 training pairs and a 160-pair test set, where 40 of the test pairs come from 23 object classes kept out of training entirely.</p>
+<p>Before training, it measured the base model on its own and with the Viggle turbo LoRA, and checked that running edits in batches produced identical images, which made the evaluation cheaper. Training ran 2,000 steps in 1 hour 38 minutes on one A100 (~USD 4), and a comparison of the saved checkpoints on 48 test pairs picked step 500.</p>
+<p>Paired with the <a href="https://huggingface.co/Viggle/Qwen-Image-2.1-viggle-turbo">Viggle turbo LoRA</a> at 6 steps the LoRA performed really well. <a href="https://huggingface.co/ML-Intern-lab/Qwen-Image-2.1-doodle-in-LoRA#main-comparison--160-test-pairs">67.5%</a> of objects detected where they were drawn, at 4.7 seconds per edit. Objects from the 23 unseen classes landed as reliably as the rest (65.0% versus 64.2%). The project took a little over a day and 59 jobs. Total compute cost, about USD 24.</p>
+<p>Check out: <a href="https://huggingface.co/ML-Intern-lab/Qwen-Image-2.1-doodle-in-LoRA">Model</a> · <a href="https://huggingface.co/datasets/ML-Intern-lab/doodle-in-pairs">Dataset</a> · <a href="https://huggingface.co/spaces/ML-Intern-lab/Qwen-Image-2.1-doodle-in-LoRA">Doodle-in App</a></p>
+<h2>
+	<a id="4-a-model-that-fits-your-device" href="#4-a-model-that-fits-your-device" rel="nofollow">
+		
+	</a>
+	<span>
+		4. A model that fits your device
+	</span>
+</h2>
+<ol>
+<li>The <strong>Pocket Rewriter</strong> from the top of this post is the first one. ML-intern started by generating 8,797 short image requests with a small instruct model through Inference Providers, following a mix set in my prompt: photos, posters, logos, infographics and more, about a third of them asking for exact text in quotes, and many in languages other than English. The 9B teacher then rewrote all of them on one A100 in 2 hours 37 minutes (~USD 6.50). After filtering for quality, 1,840 examples were selected for training dataset.</li>
+</ol>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/building-with-ml-intern/qwen-image-2.1-pocket-studio.png" alt="Qwen Image 2.1 Pocket Studio"></p><p>Training the 0.8B and 2B students took 12 and 18 minutes on an A10G (USD 0.75 for both). The 0.8B also ships as an 812 MB GGUF file for running on a CPU. The project took about 11 hours and 24 jobs. Total compute cost, about USD 16.</p>
+<p>Check out: <a href="https://huggingface.co/ML-Intern-lab/Qwen-Image-2.1-PE-T2I-Pocket-0.8B">Pocket rewriter 0.8B Student</a> · <a href="https://huggingface.co/ML-Intern-lab/Qwen-Image-2.1-PE-T2I-Pocket-2B">2B Student</a> · <a href="https://huggingface.co/datasets/ML-Intern-lab/Qwen-Image-2.1-rewriter-distill">Dataset</a> · <a href="https://huggingface.co/spaces/ML-Intern-lab/Qwen-Image-2.1-pocket-studio">Pocket Studio App</a> · <a href="https://huggingface.co/spaces/ML-Intern-lab/Qwen-Image-2.1-rewriter-arena">Compare the teacher-student in Rewriter Arena</a></p>
+<ol start="2">
+<li><strong>Agate-Preview-002-4step</strong> is the second. <a href="https://huggingface.co/Logolabs/agate-preview-002">Logolabs' Agate Preview 002</a> is a 260M-parameter text-to-image model, small enough for a browser, but it needs 50 steps with guidance, which is 100 network passes per image. I asked ML-intern to distill it down to just 4 passes!</li>
+</ol>
+
+<p>It took two runs. The first cached 155,000 training images as latents, baked the guidance into the model, then cut the step count in stages from 16 to 8 to 4, all on A100s. The 4-step student beat the teacher run at the same 4 steps on GenEval and FID, after that ML-intern exported it to ONNX for the browser. This run took about 13 hours and USD 22.</p>
+<p>I did a second training run by asking ML-Intern to improve the 4-step student a bit more. It then made 24,000 more image pairs with the teacher at 16 steps and fine-tuned the 4-step student against them for about an hour. GenEval went from 0.509 to 0.536, against the teacher's 0.563 at 50 steps, with just 4 steps (one-fourth the compute). ML-intern re-exported the browser version. The second run took about 8 hours. Total compute cost across both runs, about USD 37.</p>
+<p>Check out: <a href="https://huggingface.co/ML-Intern-lab/agate-preview-002-4step">Agate 4-step model</a> · <a href="https://huggingface.co/datasets/ML-Intern-lab/agate-preview-002-4step-latents">Dataset</a> · <a href="https://huggingface.co/spaces/ML-Intern-lab/agate-preview-002-4step-webgpu">Run Agate in your browser</a> · <a href="https://huggingface.co/spaces/ML-Intern-lab/agate-preview-002-4step-live">Agate 4-step LIVE</a></p>
+<h2>
+	<a id="what-it-cost" href="#what-it-cost" rel="nofollow">
+		
+	</a>
+	<span>
+		What it cost
+	</span>
+</h2>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Base model</th>
+<th>Compute</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Citrus Doctor</td>
+<td>Qwen3.5-2B</td>
+<td>USD 1.90</td>
+</tr>
+<tr>
+<td>Huggy LoRA</td>
+<td>FLUX.2 klein base 4B</td>
+<td>USD 7.60</td>
+</tr>
+<tr>
+<td>Pocket rewriter (0.8B and 2B)</td>
+<td>Qwen3.5-0.8B and 2B</td>
+<td>USD 16.05</td>
+</tr>
+<tr>
+<td>Viewpoint Orbit LoRA</td>
+<td>Qwen-Image 2.1</td>
+<td>USD 16</td>
+</tr>
+<tr>
+<td>Doodle-in LoRA</td>
+<td>Qwen-Image 2.1</td>
+<td>USD 24.30</td>
+</tr>
+<tr>
+<td>Agate 4-step (two runs)</td>
+<td>Agate Preview 002</td>
+<td>USD 37</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td><strong>about USD 103</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>These are the GPU and CPU job charges reported for each session.</p>
+<h2>
+	<a id="make-yours" href="#make-yours" rel="nofollow">
+		
+	</a>
+	<span>
+		Make yours
+	</span>
+</h2>
+<p>ML-intern is in <a href="https://huggingface.co/chat/">HuggingChat</a>. Switch on ML-intern mode and paste a prompt. If you want a starting point, <a href="https://github.com/yvrjsharma/ml-intern-prompts" rel="nofollow">my example prompts</a> are free to copy. Start from a model you wish existed and a dataset you have, or one you can describe. Give it a small budget, ask for a baseline and a smoke test, and read what comes back before you raise the cap.</p>
+<p>If you make something with it, share it on X and tag <a href="https://x.com/Gradio" rel="nofollow">@Gradio</a> and <a href="https://x.com/huggingface" rel="nofollow">@HuggingFace</a>. We would love to see the models you make that nobody else would think to build for you.</p>
+</div></div>
