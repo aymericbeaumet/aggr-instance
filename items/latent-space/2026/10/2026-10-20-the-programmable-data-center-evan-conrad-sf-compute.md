@@ -13,7 +13,7 @@ remote_preview:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/221372257/7df8338a8bb8d4ac8abb9702a0be2372.mp3
-  duration_seconds: 2204
+  duration_seconds: 2203
 ---
 
 *This was recorded on the sidelines of [the new Compute Trading track at AIE NYC](https://www.youtube.com/watch?v=jiUC6IUMdvc&t=1552s). Catch us next at [AIE CODE](https://aie.codes/), our last flagship for the top agentic engineers in the world.*

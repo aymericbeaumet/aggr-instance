@@ -13,7 +13,7 @@ remote_preview:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/221403684/69e655f2eacf6772a7f2575bbbbf9b0d.mp3
-  duration_seconds: 2613
+  duration_seconds: 2612
 ---
 
 **Last year**, [Alex Lieberman and his cofounder joined us](https://www.latent.space/p/10x-ai-engineers-with-1m-salaries) to explain Tenex’s unusual bet: pay AI engineers for the work they deliver, rather than the hours they spend at a keyboard. If AI makes an engineer faster, an hourly rate can make the engineer less money for the same job. Tenex wanted the incentives to run the other way.

@@ -1,0 +1,170 @@
+<div id="readability-page-1" class="page">
+
+<p>if you’ve ever written C(or c++) on a mac, you’ll know that the
+so-called <code>gcc</code> is just clang in disguise<br></p>
+<div id="cb1"><pre><code>$ gcc
+clang: error: no input files</code></pre></div>
+<p>most people(fairly) assume that this is just an alias, but this is
+not true! it’s a binary!<br></p>
+<div id="cb2"><pre><code>$ which gcc
+/usr/bin/gcc</code></pre></div>
+<p>now, what <em>is</em> this binary? i naively assumed that it would
+just be shelling out to <code>clang</code> but it turns out the answer
+is more interesting than that.<br></p>
+<div id="cb3"><pre><code>int sub_1000006c4(int arg0, int arg1) {
+    r19 = arg1;
+    r20 = arg0;
+    if (*_mainExecutableToolName.once == -0x1) {
+            if (*(int8_t *)*_mainExecutableToolName.toolName == 0x63 &amp;&amp; *(int8_t *)(*_mainExecutableToolName.toolName + 0x1) == 0x63 &amp;&amp; *(int8_t *)(*_mainExecutableToolName.toolName + 0x2) == 0x0) {
+                    r21 = "clang";
+            }
+            else {
+                    if (strcmp(*_mainExecutableToolName.toolName, "llvm-gcc") == 0x0) {
+                            r21 = "clang";
+                    }
+                    else {
+                            r21 = *_mainExecutableToolName.toolName;
+                            if (strcmp(*_mainExecutableToolName.toolName, "c++") == 0x0 || strcmp(r21, "llvm-g++") == 0x0) {
+                                    r21 = "clang++";
+                            }
+                    }
+            }
+            xcselect_invoke_xcrun();
+    }
+    while (true) {
+            dispatch_once(_mainExecutableToolName.once, ___block_literal_global);
+            if (*(int8_t *)*_mainExecutableToolName.toolName == 0x63) {
+                    if (*(int8_t *)(*_mainExecutableToolName.toolName + 0x1) == 0x63) {
+                            if (*(int8_t *)(*_mainExecutableToolName.toolName + 0x2) != 0x0) {
+                                    if (strcmp(*_mainExecutableToolName.toolName, "llvm-gcc") == 0x0) {
+                                            r21 = "clang";
+                                    }
+                                    else {
+                                            if (strcmp(*_mainExecutableToolName.toolName, "c++") != 0x0) {
+                                                    r21 = *_mainExecutableToolName.toolName;
+                                                    if (strcmp(*_mainExecutableToolName.toolName, "llvm-g++") == 0x0) {
+                                                            r21 = "clang++";
+                                                    }
+                                            }
+                                            else {
+                                                    r21 = "clang++";
+                                            }
+                                    }
+                                    xcselect_invoke_xcrun();
+                            }
+                            else {
+                                    xcselect_invoke_xcrun();
+                            }
+                    }
+                    else {
+                            if (strcmp(*_mainExecutableToolName.toolName, "llvm-gcc") == 0x0) {
+                                    r21 = "clang";
+                            }
+                            else {
+                                    if (strcmp(*_mainExecutableToolName.toolName, "c++") != 0x0) {
+                                            r21 = *_mainExecutableToolName.toolName;
+                                            if (strcmp(*_mainExecutableToolName.toolName, "llvm-g++") == 0x0) {
+                                                    r21 = "clang++";
+                                            }
+                                    }
+                                    else {
+                                            r21 = "clang++";
+                                    }
+                            }
+                            xcselect_invoke_xcrun();
+                    }
+            }
+            else {
+                    if (strcmp(*_mainExecutableToolName.toolName, "llvm-gcc") == 0x0) {
+                            r21 = "clang";
+                    }
+                    else {
+                            if (strcmp(*_mainExecutableToolName.toolName, "c++") != 0x0) {
+                                    r21 = *_mainExecutableToolName.toolName;
+                                    if (strcmp(*_mainExecutableToolName.toolName, "llvm-g++") == 0x0) {
+                                            r21 = "clang++";
+                                    }
+                            }
+                            else {
+                                    r21 = "clang++";
+                            }
+                    }
+                    xcselect_invoke_xcrun();
+            }
+            continue;
+    }
+}</code></pre></div>
+<p>there’s some interesting stuff here(for example special logic for
+checking if it’s being run as c++ or llvm-gcc specifically), but the key
+thing we’re interested in is this line of code:<br></p>
+<div id="cb4"><pre><code>xcselect_invoke_xcrun()</code></pre></div>
+<p>this is a function from libxcselect.dylib, but it’s basically the
+same thing as running <code>xcrun</code>.(fun fact: <a href="https://zoey-on-github.github.io/blog/images/Screenshot_2026-10-21_at_11.38.00_PM.png">the xcrun binary
+basically just calls this function</a>) <a href="https://zoey-on-github.github.io/blog/images/Screenshot_2026-10-21_at_12.57.05_PM.png">if you
+disassemble any xcode-installed developer tool, you’ll see this exact
+same binary</a>,meaning all the developer tools that xcode-select
+installs on macOS are actually just being run through xcrun.<a href="#fn1" id="fnref1" role="doc-noteref"><sup>1</sup></a> <br> but that raises the important
+question: what does xcrun <em>do</em>? i’ve certainly never heard of it
+before this.<br> well, checking <a href="https://keith.github.io/xcode-man-pages/xcrun.1.html">the
+manpage</a> we can see that it calls developer tools from the developer
+tool directory. this gives us an important bit of info: the location of
+the <em>actual</em> gcc binary that’s being called. thankfully for us,
+there is a <code>--find</code> command that can give us exactly
+this.<br></p>
+<div id="cb5"><pre><code>$ xcrun --find gcc
+/Library/Developer/CommandLineTools/usr/bin/gcc</code></pre></div>
+<p>looking in this directory, we can see that:<br> c++, llvm-gcc,
+llvm-g++ aren’t in this directory, that’s why they’re hardcoded into the
+binary itself<br> cc and clang++ are just alises to clang<br> <img src="https://zoey-on-github.github.io/blog/images/Screenshot_2026-10-21_at_1.11.00_PM.png"> <img src="https://zoey-on-github.github.io/blog/images/Screenshot_2026-10-21_at_1.11.10_PM.png"><br> but most
+interestingly, g++ is an alias to an actual gcc binary that’s in the
+same directory:<br> <img src="https://zoey-on-github.github.io/blog/images/Screenshot_2026-10-21_at_11.54.47_PM.png"><br> well, what
+does <em>that</em> gcc binary do, then?<br> opening it in my
+disassembler, we see that it… shells out to xcrun and calls clang(or
+clang++ depending on how it’s called) <br></p>
+<div id="cb6"><pre><code>int EntryPoint(int arg0, int arg1) {
+    r22 = arg1;
+    r21 = arg0;
+    asm { sbfiz      x8, x21, #0x3, #0x20 };
+    r0 = malloc(r8 + 0x10);
+    if (r0 == 0x0) {
+            err(0x47, r1);
+    }
+    r19 = r0;
+    *r0 = "/usr/bin/xcrun";
+    r23 = *r22;
+    r0 = strlen(r23);
+    if (*(int8_t *)(r23 + (r0 - 0x1 &lt;&lt; r64)) == 0x2b &amp;&amp; *(int8_t *)(r23 + (r0 - 0x2 &lt;&lt; r64)) == 0x2b) {
+            r8 = "clang++";
+    }
+    else {
+            r8 = "clang";
+    }
+    r19[0x1] = r8;
+    if (r21 &gt;= 0x2) {
+            asm { ubfiz      x2, x8, #0x3, #0x20 };
+            memcpy(r19 + 0x10, r22 + 0x8, r2);
+            r8 = r21;
+    }
+    else {
+            r8 = 0x1;
+    }
+    *(r19 + r8 * 0x8 + 0x8) = 0x0;
+    r0 = execv("/usr/bin/xcrun", r19);
+    err(0x47, r1);
+    return r0;
+}</code></pre></div>
+
+<section id="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn1"><p>if you’re wondering <em>why</em> this is, my guess is
+because of SIP. /usr/bin is a protected directory on macOS and i assume
+apple can’t update it without requiring a restart, and you can update
+the xcode tools without having to restart your mac. as for why they dont
+just add the developer tools directory to path, my guess is that they
+want the freedom to change this directory whenever they want<a href="#fnref1" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+
+
+</div>

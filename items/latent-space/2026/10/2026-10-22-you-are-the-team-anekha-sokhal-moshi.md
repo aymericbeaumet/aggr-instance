@@ -13,7 +13,7 @@ remote_preview:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/221404681/24bc30266ea9e301325cdc415de8189b.mp3
-  duration_seconds: 1601
+  duration_seconds: 1600
 ---
 
 *Tickets and applications now live for [AIE CODE](https://aie.codes/) - the last flagship AIE of the year.*

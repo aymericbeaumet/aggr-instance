@@ -15,7 +15,7 @@ remote_preview:
 extra:
   audio_type: audio/mpeg
   audio_url: https://api.substack.com/feed/podcast/221647996/5d4e5f71cd623bb63fd2aff5db9a1836.mp3
-  duration_seconds: 5133
+  duration_seconds: 5132
 ---
 
 *Warm welcome to [Basil Chatha](https://x.com/realbasilchatha?lang=en), our newest [cohost](https://www.youtube.com/watch?v=MwNvowwcZOo) from the [Forward Deployed](https://www.forwardeployed.com/about) side of the AI Engineering world! We’ll be ramping up a new show with him and couldn’t pass up an interview with Modal’s CEO Eric on the occasion of their monster Series D!*
