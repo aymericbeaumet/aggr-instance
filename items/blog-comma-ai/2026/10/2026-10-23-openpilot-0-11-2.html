@@ -1,0 +1,555 @@
+<div id="readability-page-1" class="page"><section itemprop="text">
+        <h2 id="a-better-openpilot-across-the-board">A better openpilot, across the board<a href="#a-better-openpilot-across-the-board" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>This release brings improvements throughout the openpilot experience, on and off the road.</p>
+<p>openpilot 0.11.2 introduces our first chestnut-class driving models, better driver monitoring, Volkswagen ID.4 support as a gold car, new sounds and UI improvements, and new comma connect features such as livestreaming and shareable clips.</p>
+<h2 id="chestnut-class-driving-models">chestnut-class driving models<a href="#chestnut-class-driving-models" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>This is our first release with chestnut-class driving models. The new model has about 15× as many parameters as the small model in 0.11.1, and uses about 55× as much computation.</p>
+<p>We pair this increase in capacity with a larger world model and a switch to reinforcement learning training. Together, these changes are a big step forward in driving quality and performance, especially in challenging scenarios.</p>
+<h3 id="convnext-backbone">convnext backbone<a href="#convnext-backbone" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>We based our initial vision backbone search on the <a href="https://github.com/huggingface/pytorch-image-models/blob/main/results/results-imagenetv2-matched-frequency.csv" target="_blank" rel="noopener noreferrer">ImageNetV2 Matched Frequency results</a>.
+<a href="https://arxiv.org/abs/2201.03545" target="_blank" rel="noopener noreferrer">ConvNeXt</a> is among the strongest convolutional architectures in that comparison and gives us a straightforward way to scale model capacity by increasing the number of channels and blocks.
+It also lets us initialize the vision encoder from pretrained weights, adapt them to our camera inputs, and fine-tune on driving data.</p>
+<table>
+  <thead>
+    <tr>
+      <th scope="col"></th>
+      <th scope="col">Submodule</th>
+      <th scope="col">Params (M)</th>
+      <th scope="col">GFLOPs</th>
+      <th scope="col">Activations (M)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="rowgroup" rowspan="5">0.11.2 (big model)<br>convnext_xl</th>
+      <td>vision</td>
+      <td>349.283</td>
+      <td>79.987081</td>
+      <td>37.568512</td>
+    </tr>
+    <tr>
+      <td>temporal policy</td>
+      <td>17.263</td>
+      <td>6.738552</td>
+      <td>8.277629</td>
+    </tr>
+    <tr>
+      <td>residual policy</td>
+      <td>12.739</td>
+      <td>6.729515</td>
+      <td>8.271362</td>
+    </tr>
+    <tr>
+      <td>point policy</td>
+      <td>3.619</td>
+      <td>0.007230</td>
+      <td>0.005525</td>
+    </tr>
+    <tr>
+      <td>total</td>
+      <td>382.905</td>
+      <td>93.462378</td>
+      <td>54.123028</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th scope="rowgroup" rowspan="4">0.11.1 (small model)<br>fastvit_t12</th>
+      <td>vision</td>
+      <td>12.004</td>
+      <td>1.599242</td>
+      <td>4.791360</td>
+    </tr>
+    <tr>
+      <td>temporal policy</td>
+      <td>6.949</td>
+      <td>0.072744</td>
+      <td>0.062926</td>
+    </tr>
+    <tr>
+      <td>point policy</td>
+      <td>7.642</td>
+      <td>0.015259</td>
+      <td>0.011944</td>
+    </tr>
+    <tr>
+      <td>total</td>
+      <td>26.595</td>
+      <td>1.687246</td>
+      <td>4.866230</td>
+    </tr>
+  </tbody>
+</table>
+<p>We also increased the number of training segments from 500k to 2.5M for the vision backbone (off-policy model).</p>
+<p>All these improvements translate to a significant reduction in driving losses.</p>
+<figure id="plot-0" data-plot="{&quot;colors&quot;:[&quot;#9a9a9a&quot;,&quot;#30b94c&quot;],&quot;dashed&quot;:&quot;3,4&quot;,&quot;height&quot;:220,&quot;points&quot;:&quot;3,4&quot;,&quot;src&quot;:&quot;/data/0112_release/plan.csv&quot;,&quot;sync&quot;:&quot;driving-losses&quot;,&quot;x&quot;:&quot;&quot;,&quot;xlabel&quot;:&quot;Step&quot;,&quot;xlim&quot;:&quot;&quot;,&quot;y&quot;:&quot;&quot;,&quot;ylabel&quot;:&quot;Loss&quot;,&quot;ylim&quot;:&quot;-2.8,-1.5&quot;}" aria-label="plan"><h4>plan</h4>
+  
+  
+  
+  <p>Loading plot…</p>
+  
+</figure>
+
+<figure id="plot-1" data-plot="{&quot;colors&quot;:[&quot;#9a9a9a&quot;,&quot;#30b94c&quot;],&quot;dashed&quot;:&quot;3,4&quot;,&quot;height&quot;:220,&quot;points&quot;:&quot;3,4&quot;,&quot;src&quot;:&quot;/data/0112_release/action.csv&quot;,&quot;sync&quot;:&quot;driving-losses&quot;,&quot;x&quot;:&quot;&quot;,&quot;xlabel&quot;:&quot;Step&quot;,&quot;xlim&quot;:&quot;&quot;,&quot;y&quot;:&quot;&quot;,&quot;ylabel&quot;:&quot;Loss&quot;,&quot;ylim&quot;:&quot;-1.6,0&quot;}" aria-label="action"><h4>action</h4>
+  
+  
+  
+  <p>Loading plot…</p>
+  
+</figure>
+
+<figure id="plot-2" data-plot="{&quot;colors&quot;:[&quot;#9a9a9a&quot;,&quot;#30b94c&quot;],&quot;dashed&quot;:&quot;3,4&quot;,&quot;height&quot;:220,&quot;points&quot;:&quot;3,4&quot;,&quot;src&quot;:&quot;/data/0112_release/desire_pred.csv&quot;,&quot;sync&quot;:&quot;driving-losses&quot;,&quot;x&quot;:&quot;&quot;,&quot;xlabel&quot;:&quot;Step&quot;,&quot;xlim&quot;:&quot;&quot;,&quot;y&quot;:&quot;&quot;,&quot;ylabel&quot;:&quot;Loss&quot;,&quot;ylim&quot;:&quot;0.5,2.5&quot;}" aria-label="desire_pred"><h4>desire_pred</h4>
+  
+  
+  
+  <p>Loading plot…</p>
+  
+</figure>
+
+<figure id="plot-3" data-plot="{&quot;colors&quot;:[&quot;#9a9a9a&quot;,&quot;#30b94c&quot;],&quot;dashed&quot;:&quot;3,4&quot;,&quot;height&quot;:220,&quot;points&quot;:&quot;3,4&quot;,&quot;src&quot;:&quot;/data/0112_release/pose.csv&quot;,&quot;sync&quot;:&quot;driving-losses&quot;,&quot;x&quot;:&quot;&quot;,&quot;xlabel&quot;:&quot;Step&quot;,&quot;xlim&quot;:&quot;&quot;,&quot;y&quot;:&quot;&quot;,&quot;ylabel&quot;:&quot;Loss&quot;,&quot;ylim&quot;:&quot;-3.7,-2.5&quot;}" aria-label="pose"><h4>pose</h4>
+  
+  
+  
+  <p>Loading plot…</p>
+  
+</figure>
+
+<p>And better driving losses translate to better driving performance, especially in challenging scenarios.</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/hard_brake_afc1609bb1584f28_45_301.mp4">
+  </video>
+  <figcaption></figcaption>
+</figure>
+
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/hard_brake_probability_comparison.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/hard_brake_probability_comparison.png" alt="Hard braking: convnext_xl assigns a higher probability of hard braking.">
+  </picture>
+  <figcaption><p>Hard braking: convnext_xl assigns a higher probability of hard braking.</p></figcaption>
+</figure>
+<hr>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/lead_car_decelerates.mp4">
+  </video>
+  <figcaption></figcaption>
+</figure>
+
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/lead_car_decelerates_velocity_comparison.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/lead_car_decelerates_velocity_comparison.png" alt="Lead car decelerates: convnext_xl predicts a larger deceleration, closer to ground truth.">
+  </picture>
+  <figcaption><p>Lead car decelerates: convnext_xl predicts a larger deceleration, closer to ground truth.</p></figcaption>
+</figure>
+<hr>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/better_stop_sign.mp4">
+  </video>
+  <figcaption></figcaption>
+</figure>
+
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/better_stop_sign_velocity_comparison.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/better_stop_sign_velocity_comparison.png" alt="Approaching a stop sign: convnext_xl predicts a more accurate deceleration, closer to ground truth.">
+  </picture>
+  <figcaption><p>Approaching a stop sign: convnext_xl predicts a more accurate deceleration, closer to ground truth.</p></figcaption>
+</figure>
+<hr>
+<h3 id="4b-parameter-world-model">4B parameter world model<a href="#4b-parameter-world-model" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<div><pre><code data-language="diff">-    n_layer = 34,
+-    n_head = 20,
+-    n_embd = 1280,
+-    n_segments = 2.5M,
++    n_layer = 56,
++    n_head = 36,
++    n_embd = 2304,
++    n_segments = 10.0M,
+</code></pre></div><p>We also scaled up the world model training and enjoyed a very predictable improvement in video generation quality.
+We fit a scaling law similar to <a href="https://arxiv.org/abs/2001.08361" target="_blank" rel="noopener noreferrer">Kaplan et al. 2020</a> to predict the performance of the full scale run using smaller scale experiments.</p>
+<p>The fit <span><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>12.65</mn><mo>⋅</mo><msup><mi>F</mi><mrow><mo>−</mo><mn>0.063</mn></mrow></msup></mrow><annotation encoding="application/x-tex"> 12.65 \cdot F^{-0.063} </annotation></semantics></math></span> was produced BEFORE the full scale run and predicted a loss very close to the achieved loss.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/wm_4b.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/wm_4b.png" alt="World model scaling">
+  </picture>
+  <figcaption><p>World model scaling</p></figcaption>
+</figure>
+<h3 id="new-desire-stack">New desire stack<a href="#new-desire-stack" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>We also updated the desire labeling stack to use offline map data and a simpler lane change detection algorithm <a href="https://github.com/commaai/openpilot/pull/39047" target="_blank" rel="noopener noreferrer">#39047</a>. Doing this improved recall across the board
+especially for turns, exits, and complex lane changes.</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/new_desire_mp4_recall.mp4">
+  </video>
+  <figcaption><p>Desire events missed by the previous stack and detected by the new stack.<br>Top to bottom: right and left turns, exits, lane changes.</p></figcaption>
+</figure>
+
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/new_desire_complex.mp4">
+  </video>
+  <figcaption><p>Right: both lane changes missed by the previous stack and detected by the new stack.<br>Left: previous stack labeled as one right lane change, new stack correctly labels two.</p></figcaption>
+</figure>
+
+<h3 id="reinforcement-learning-post-training">Reinforcement Learning post training<a href="#reinforcement-learning-post-training" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>Previous models learned to imitate the actions suggested by the world model at each step during simulation episodes. The new models are trained with a reinforcement learning (RL) objective, learning which actions produce the highest cumulative reward in the episode.</p>
+<p>Imitation learning gives the policy a target action at each step, but matching that action does not necessarily produce the desired motion long term. RL evaluates the consequences of the policy’s actions over time. This lets the policy learn corrections that account for future outcomes. The world model still supplies the driving reference, but the new objective allows the policy to deviate from it when it is advantageous to do so in the long term.</p>
+<figure>
+  <picture>
+    <img src="https://blog.comma.ai/img/0112_release/rl_ping_pong.gif" alt="Illustrative lane-centering simulation: both cars start off-center, and are subject to the same lateral actuation noise model. A reference policy (world model) aims to keep the car centered in the lane but does not account for noise. The gray policy (imitation learning) minimizes the tracking error with the reference policy at each timestep. The green policy (reinforcement learning) minimizes future tracking error. Bottom left: squared tracking error. Bottom right: accumulated squared lateral position error.">
+  </picture>
+  <figcaption><p>Illustrative lane-centering simulation: both cars start off-center, and are subject to the same lateral actuation noise model. A reference policy (world model) aims to keep the car centered in the lane but does not account for noise. The gray policy (imitation learning) minimizes the tracking error with the reference policy at each timestep. The green policy (reinforcement learning) minimizes future tracking error. Bottom left: squared tracking error. Bottom right: accumulated squared lateral position error.</p></figcaption>
+</figure>
+<h5 id="reward-and-objective">Reward and objective<a href="#reward-and-objective" title="Permalink"><span>Permalink</span><i></i></a></h5>
+<p>At each step, the reward compares the car’s achieved lateral and longitudinal acceleration with the accelerations predicted from the world model an earlier step.
+We additionally use smoothness terms in the actor loss to penalize abrupt changes in steering and acceleration.</p>
+<h5 id="residual-policy-and-critics">Residual policy and critics<a href="#residual-policy-and-critics" title="Permalink"><span>Permalink</span><i></i></a></h5>
+<p>We use the residual learning approach from <a href="https://arxiv.org/abs/2509.19301" target="_blank" rel="noopener noreferrer">ResFiT</a>. The pre-trained base policy <span><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><mrow><mi mathvariant="normal">b</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">e</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\pi_{\mathrm{base}}</annotation></semantics></math></span> is frozen, and a separate residual temporal policy <span><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">s</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\pi_{\mathrm{res}}</annotation></semantics></math></span> learns a correction. If <span><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>o</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">o_t</annotation></semantics></math></span> denotes the policy’s observation history the commanded lateral and longitudinal accelerations <span><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>t</mi></msub></mrow><annotation encoding="application/x-tex">a_t</annotation></semantics></math></span> are:
+</p>
+<span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>a</mi><mi>t</mi></msub><mo>=</mo><msub><mi>π</mi><mrow><mi mathvariant="normal">b</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">e</mi></mrow></msub><mo stretchy="false">(</mo><msub><mi>o</mi><mi>t</mi></msub><mo stretchy="false">)</mo><mo>+</mo><mi>tanh</mi><mo>⁡</mo><mtext> ⁣</mtext><mrow><mo fence="true">(</mo><msub><mi>π</mi><mrow><mi mathvariant="normal">r</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">s</mi></mrow></msub><mo stretchy="false">(</mo><msub><mi>o</mi><mi>t</mi></msub><mo separator="true">,</mo><msub><mi>π</mi><mrow><mi mathvariant="normal">b</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">s</mi><mi mathvariant="normal">e</mi></mrow></msub><mo stretchy="false">(</mo><msub><mi>o</mi><mi>t</mi></msub><mo stretchy="false">)</mo><mo stretchy="false">)</mo><mo fence="true">)</mo></mrow><mi mathvariant="normal">.</mi></mrow><annotation encoding="application/x-tex">
+a_t = \pi_{\mathrm{base}}(o_t)
+    + \tanh\!\left(\pi_{\mathrm{res}}(o_t,\pi_{\mathrm{base}}(o_t))\right).
+</annotation></semantics></math></span><p>The training algorithm builds on <a href="https://proceedings.mlr.press/v80/fujimoto18a.html" target="_blank" rel="noopener noreferrer">TD3</a>. Each critic learns from a five-step return, reducing the number of bootstrapping steps through which value-estimation errors can accumulate, as discussed in <a href="https://seohong.me/blog/q-learning-is-not-yet-scalable/" target="_blank" rel="noopener noreferrer">Q-learning is not yet scalable</a>.</p>
+<h3 id="full-frame-copy">Full frame copy<a href="#full-frame-copy" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>We now copy the full frames from both road cameras over USB to the chestnut and perform the image transformation and model work there <a href="https://github.com/commaai/openpilot/pull/38684" target="_blank" rel="noopener noreferrer">#38684</a>. Moving the preprocessing onto the external GPU prepares the input pipeline for full-frame driving models in future releases.</p>
+<h3 id="pre-compiled-models-on-development-branches">Pre-compiled models on development branches<a href="#pre-compiled-models-on-development-branches" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>We now ship the big driving model precompiled on development branches as well <a href="https://github.com/commaai/openpilot/pull/38930" target="_blank" rel="noopener noreferrer">#38930</a>. Updating the model no longer requires compiling the driving network on the device, making it faster to test new models in cars.</p>
+<p>ONNX versions of the models will be available at <a href="https://huggingface.co/commaai/openpilot_driving_models" target="_blank" rel="noopener noreferrer">hf.co/commaai/openpilot_driving_models</a>.</p>
+<h2 id="chestnut">chestnut<a href="#chestnut" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>We are introducing chestnut, a PCIe-to-USB bridge that brings desktop-class GPUs to comma four and closes the compute gap to Tesla.</p>
+<p>It provides a PCIe x16 slot with four PCIe lanes, a USB3 or USB4 connection to the host, and a 12V GPU power stage. On comma four, it connects over USB3 through the AUX port. Power is supplied over an XT60 connector from the car’s cigarette adapter or a standard ATX power supply.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/chestnut.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/chestnut.png" alt="An AMD Radeon RX 9060 graphics card seated in a chestnut board.">
+  </picture>
+  <figcaption><p>chestnut with an AMD Radeon RX 9060</p></figcaption>
+</figure>
+<p>chestnut is built around the <a href="https://www.asmedia.com.tw/product/802zX91Yw3tsFgm4/C64ZX59yu4sY1GW5/cfe" target="_blank" rel="noopener noreferrer">ASM2464PD</a>, a USB4 to PCIe bridge chip. We replaced the stock firmware with our own custom <a href="https://github.com/tinygrad/asm2464pd-firmware" target="_blank" rel="noopener noreferrer">reverse-engineered firmware</a> for the chip’s 8051 core.</p>
+<p>The firmware exposes PCIe over USB and uses the bridge’s 512 kB SRAM for bulk DMA transfers. It supports direct PCIe reads and writes, and transfers data at 700 MB/s over a USB3 10 Gbit link.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/chestnut_specs.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/chestnut_specs.png" alt="Top down view of the chestnut board with the connectors and interfaces labeled.">
+  </picture>
+  <figcaption><p>chestnut connectors and interfaces</p></figcaption>
+</figure>
+<p>The 12V GPU rail uses an LM51770 buck-boost converter and an INA231 to monitor the rail. A separate debug USB port uses an FT230X for UART and reset.</p>
+<p>For a reliable USB3 connection over a 3 m cable, the link was tuned on both ends. On the ASM2464 side the SerDes parameters were adjusted in the custom firmware. The SDM845 receive equalization and transmit de-emphasis were then tuned in <a href="https://github.com/commaai/agnos-kernel-sdm845" target="_blank" rel="noopener noreferrer">AGNOS</a>.</p>
+<p>To test hardware reliability and improve the USB3 link, we built a rack of 10 comma four and chestnuts. The systems were tested under sustained load and repeated model loading.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/chestnut_rack.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/chestnut_rack.png" alt="A row of GPUs on a shelf, each seated in a chestnut.">
+  </picture>
+  <figcaption><p>chestnut test rack</p></figcaption>
+</figure>
+<h2 id="driver-monitoring">Driver Monitoring<a href="#driver-monitoring" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<h3 id="face-detection-fix">Face Detection Fix<a href="#face-detection-fix" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>The driver camera frame is distortion-corrected when the face detection and pose ground truths are generated. In training the previous release model, the frames from comma four data were rectified with an incorrectly scaled distortion matrix. This made the face detector input more zoomed out, so labeled faces became smaller and offset on comma four segments, but head pose remains unaffected since it uses a crop. Some of these smaller faces are mistaken as backseat passengers and thus discarded.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/face_detector_stage_input_comparison_v2.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/face_detector_stage_input_comparison_v2.png" alt="Ground truth frames before and after the fix">
+  </picture>
+  <figcaption><p>Ground truth frames before and after the fix</p></figcaption>
+</figure>
+<p>It affected about 1.6% of comma four frames, so in 0.11.1 about 0.32% of all training frames received an incorrect negative face label. The small amount of junk labels were enough to cause model false negatives when the driver leans back. This bug made up ~75% of undetected faces and was fixed in <a href="https://github.com/commaai/openpilot/pull/38554" target="_blank" rel="noopener noreferrer">Zoom Zoom Model</a>.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/face_detection_by_commit_range.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/face_detection_by_commit_range.png" alt="Comparison of face detection rate on master">
+  </picture>
+  <figcaption><p>Comparison of face detection rate on master</p></figcaption>
+</figure>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/cabin_camera_dialog_render.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/cabin_camera_dialog_render.png" alt="Face is no longer misaligned in driver camera preview">
+  </picture>
+  <figcaption><p>Face is no longer misaligned in driver camera preview</p></figcaption>
+</figure>
+<h3 id="escalation-policy-update">Escalation Policy Update<a href="#escalation-policy-update" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>Following recommendations in <a href="https://eur-lex.europa.eu/eli/reg/2025/1899/oj/eng" target="_blank" rel="noopener noreferrer">UN Regulation No. 171</a>, we <a href="https://github.com/commaai/openpilot/pull/38244" target="_blank" rel="noopener noreferrer">revised DM escalation and tweaked alert timings</a>, focusing on making the severity of different DM alerts clearer. Notably, the 3-second text-only alert was removed, and the first alert at 5 seconds was given a new sound, softening the first transition into audible alerts.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/dm_alert_timing_comparison.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/dm_alert_timing_comparison.png" alt="Change in DM alert timings">
+  </picture>
+  <figcaption><p>Change in DM alert timings</p></figcaption>
+</figure>
+<p>Lockout times are now more forgiving on initial entries, starting at 1 minute instead of lasting until the car ignition is restarted. Repeated lockouts increase to 5, 15, and then 30 minutes, penalizing repeatedly distracted driving while reducing the impact of an accidental lockout during normal driving.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/dm_lockout_time.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/dm_lockout_time.png" alt="Change in DM lockout times">
+  </picture>
+  <figcaption><p>Change in DM lockout times</p></figcaption>
+</figure>
+<h2 id="gold-car">Gold Car<a href="#gold-car" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>A gold car has accurate enough controls that every driving failure is a model failure, not a controls failure. If openpilot fails to stay within the lane, takes a turn poorly, or stops too late, that is a model failure.</p>
+<p>Until now, the Tesla Model 3 and Model Y were the only cars we could reliably trust to actuate what the driving model planned. Having a diverse fleet of gold cars helps with driving model development, as the controls are no longer the limiting factor. In this release, we expand that fleet with the Volkswagen ID.4, our first car on Volkswagen’s MEB platform.</p>
+<h3 id="how-the-id4-compares">How the ID.4 Compares<a href="#how-the-id4-compares" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>In the lateral 0.5 Hz sine maneuver at 30 mph, the ID.4 reaches the 50% threshold in 350 ms while the Tesla Model Y takes 423 ms. This allows the car to follow the model’s plan with less actuator delay and more accuracy.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/lat_sine_overlay.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/lat_sine_overlay.png" alt="Lateral maneuver report for ID.4 and Tesla Model Y">
+  </picture>
+  <figcaption><p>Lateral maneuver report for ID.4 and Tesla Model Y</p></figcaption>
+</figure>
+<p>Good longitudinal control comes down to how fast the car reaches the requested acceleration and how closely it maintains it without over or undershooting. The ID.4 and the Tesla platforms manage this well enough that openpilot sends the feedforward request from the model straight to the car. To contrast with an example, Toyota vehicles need <a href="https://github.com/commaai/opendbc/blob/b72c1fd55ae7e84763e40912bbe06b8f533cb66b/opendbc/car/toyota/carcontroller.py#L222-L240" target="_blank" rel="noopener noreferrer">a PID loop, pitch compensation, and anti-windup code</a> to correct for error in its powertrain control module. The Model Y reacts faster to changes, but the ID.4 tracks a changing request more tightly.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/long_brake_step_response_3_5mss_from_20mph.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/long_brake_step_response_3_5mss_from_20mph.png" alt="Braking to -3.5 m/s² from 20 mph. The Model Y reaches the request first, the ID.4 follows, and the Corolla takes twice as long">
+  </picture>
+  <figcaption><p>Braking to -3.5 m/s² from 20 mph. The Model Y reaches the request first, the ID.4 follows, and the Corolla takes twice as long</p></figcaption>
+</figure>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/long_creep_alternate_between_1mss_and_1mss.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/long_creep_alternate_between_1mss_and_1mss.png" alt="Alternating between +1 and -1 m/s². The ID.4 barely overshoots when braking while the Model Y and Corolla spike to ~-1.5 m/s². The Corolla is also much slower to change direction">
+  </picture>
+  <figcaption><p>Alternating between +1 and -1 m/s². The ID.4 barely overshoots when braking while the Model Y and Corolla spike to ~-1.5 m/s². The Corolla is also much slower to change direction</p></figcaption>
+</figure>
+<p>Take a look at the full reports behind these plots at <a href="https://github.com/commaai/opendbc-data" target="_blank" rel="noopener noreferrer">commaai/opendbc-data</a>.</p>
+<h3 id="native-curvature-control">Native Curvature Control<a href="#native-curvature-control" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>The MEB steering rack is not torque controlled like previous Volkswagen platforms. It takes a target curvature and a power percentage.</p>
+<p>To allow a consistent lateral jerk and acceleration at any speed, we improved our existing curvature safety limits (<a href="https://github.com/commaai/opendbc/pull/3405" target="_blank" rel="noopener noreferrer">#3405</a>) by operating directly in acceleration space. Previously, 3 coarse speed breakpoints were applied in curvature space, which resulted in a different jerk at every speed. Now, low-speed jerk does not collapse to zero, allowing the car to wind up and down for turns much faster. Ford is a curvature-controlled car, it gained this improvement as well.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/ford_lateral_jerk_limit.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/ford_lateral_jerk_limit.png" alt="Ford lateral jerk limit before and after the new curvature safety">
+  </picture>
+  <figcaption><p>Ford lateral jerk limit before and after the new curvature safety</p></figcaption>
+</figure>
+<hr>
+<p>The port is based on community groundwork from lukasloetkolben for the harness, and daHansi and jyoung8607 for the port.</p>
+<p>The MEB platform is used across the Volkswagen group, including the ID.3, ID.5 and ID.7, the Škoda Enyaq and Elroq, the CUPRA Tavascan, and the Audi Q4 e-tron. Support for these models will follow.</p>
+<h2 id="simpler-cruise-speed-control-logic">Simpler cruise speed control logic<a href="#simpler-cruise-speed-control-logic" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>As the models become more capable in controlling the acceleration and braking of the car, we can remove constraints on the longitudinal action the existed to make the acceleration and braking smoother. With <a href="https://github.com/commaai/openpilot/pull/38367" target="_blank" rel="noopener noreferrer">this PR</a> the cruise acceleration limits are simplified such that in experimental mode openpilot can accelerate as much as the model wants. This means in experimental mode openpilot will now accelerate faster in some cases.</p>
+<h2 id="new-sounds">New Sounds<a href="#new-sounds" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>This update introduces a new family of sounds, designed for comma four.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th scope="col">Sound</th>
+      <th scope="col">Old sounds</th>
+      <th scope="col">New sounds</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row">Engage</th>
+      <td>
+        
+        <audio preload="none" src="https://blog.comma.ai/img/0112_release/old_sounds/engage.wav"></audio>
+      </td>
+      <td>
+        
+        <audio preload="none" src="https://blog.comma.ai/img/0112_release/new_sounds/engage.wav"></audio>
+      </td>
+    </tr>
+    <tr>
+      <th scope="row">Disengage</th>
+      <td>
+        
+        <audio preload="none" src="https://blog.comma.ai/img/0112_release/old_sounds/disengage.wav"></audio>
+      </td>
+      <td>
+        
+        <audio preload="none" src="https://blog.comma.ai/img/0112_release/new_sounds/disengage.wav"></audio>
+      </td>
+    </tr>
+    <tr>
+      <th scope="row">Warning</th>
+      <td>
+        
+        <audio preload="none" src="https://blog.comma.ai/img/0112_release/old_sounds/prompt.wav"></audio>
+      </td>
+      <td>
+        
+        <audio preload="none" src="https://blog.comma.ai/img/0112_release/new_sounds/warning.wav"></audio>
+      </td>
+    </tr>
+    <tr>
+      <th scope="row">DM Warning</th>
+      <td>
+        
+        <audio preload="none" src="https://blog.comma.ai/img/0112_release/old_sounds/prompt_distracted.wav"></audio>
+      </td>
+      <td>
+        
+        <audio preload="none" src="https://blog.comma.ai/img/0112_release/new_sounds/dm_warning.wav"></audio>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Audible feedback is one of the most important interfaces between a driver and openpilot. It conveys relevant information immediately, and defines the personality of the device. The philosophy behind comma four has always been one of restraint; it should be just noticeable, just audible, and only when necessary. The previous sound pack was too harsh and raw, we wanted to make sure this new family of sounds was coherent, harmonious, and modern.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/speaker_frequency_response.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/speaker_frequency_response.png" alt="Frequency response curves for the new speaker from 100 Hz to 20 kHz">
+  </picture>
+  <figcaption><p>Frequency response of the new speaker, measured at 2.83 Vrms from 10 cm in a 1 cc enclosure</p></figcaption>
+</figure>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/speaker_total_harmonic_distortion.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/speaker_total_harmonic_distortion.png" alt="Total harmonic distortion curve for the new speaker from 100 Hz to 20 kHz, with the reference limit shown in gray">
+  </picture>
+  <figcaption><p>Total harmonic distortion of the new speaker under the same test conditions</p></figcaption>
+</figure>
+<p>The optimal playback zone of comma four’s speaker sits between 700-1200Hz where the distortion is lowest and the volume is highest. We determined that a simple sine-like tone reinforced with a round thumpy bass produced a sound that was rich and audible above a wide range of background noises, while retaining a modern and clean characteristic.</p>
+<p>The structure of the sounds are simple so they cannot be confused with one another despite being written in the same key.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/sound_structure.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/sound_structure.png" alt="Chart showing the note composition of the system sounds.">
+  </picture>
+  <figcaption><p>Sound structure chart</p></figcaption>
+</figure>
+<p>Basic system feedback is centered around the neutral note, A5. All sounds relevant to the engagement state start here. Uniquely, these sounds (engage, disengage, and refuse) include two tones so they are far less likely to be confused, even if they are partially obscured. Furthermore, they are designed to be understood without context. Engage and disengage are based on the universal “mhm” (affirmative) and “mm-mm” (negative) noises found evolved into cultures and languages across the world. Additionally, their timings were tuned based on samples from various physical cruise control buttons and lever detents from a wide array of manufacturers. This way they can feel like a natural extension of your car’s haptics, which immediately connects the driver’s action to the audible feedback from comma four.</p>
+<p>Alerts escalate in frequency and shift to a minor key to give an “off-putting” sense to a driver and grab their attention from the more typical recurring sounds like the engage and disengage tones. They also move upwards along the octave until the very highest pitch maximum alerts. This not only allows us to truly max out the speaker when needed, it also works physiologically; the human ear picks out higher pitches quicker and easier, especially in the expected noise environment, the inside of a moving vehicle, where most sounds are low spectrum bass noises.</p>
+<h2 id="ui-updates">UI Updates<a href="#ui-updates" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<h3 id="driving-view">Driving View<a href="#driving-view" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>Alerts now include more text or updated text to be more helpful. Previously, some alerts shared headlines that notified the user what action to take, but not why they needed to take action. This is a step to better flesh out the alert and notification experience on comma four.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/alert_comparisons.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/alert_comparisons.png" alt="Before and after, various alerts">
+  </picture>
+  <figcaption><p>Before and after, various alerts</p></figcaption>
+</figure>
+<p>The bookmark gesture has been updated for more visual consistency with the rest of the UI. The button now has a pressed state when activated, making it more clear when a bookmark will be created or when it can be canceled.</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/bookmark.mp4">
+  </video>
+  <figcaption><p>Bookmark gesture</p></figcaption>
+</figure>
+
+<p>Driver monitor icon head-tracking arc position is corrected in RHD. This was a visual bug.</p>
+<h3 id="homescreen">Homescreen<a href="#homescreen" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>A notification pill has been added to the bottom right of the homescreen. It only shows when there are active notifications.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/alertpill.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/alertpill.png" alt="Notification pill">
+  </picture>
+  <figcaption><p>Notification pill</p></figcaption>
+</figure>
+<p>For chestnut users, a chestnut status icon now shows in the tray. Green indicates a working chestnut, pulsing white means the big model is loading, and orange means there is some issue preventing the chestnut from working. All issues have corresponding notifications to help diagnose and fix the problem. Additionally at the start of driving, the chestnut icon appears in the driving view until the big model is loaded, then fades out. This is synced with the homescreen icon so the chestnut status is clear from either view.</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/chestnut_loading.mp4">
+  </video>
+  <figcaption><p>Big model loading</p></figcaption>
+</figure>
+
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/chestnut_error.mp4">
+  </video>
+  <figcaption><p>chestnut error</p></figcaption>
+</figure>
+
+<p>A generic USB icon was added to indicate a connection detected in the AUX port.</p>
+<figure>
+  <picture><source srcset="https://blog.comma.ai/img/0112_release/usb.webp" type="image/webp">
+    <img src="https://blog.comma.ai/img/0112_release/usb.png" alt="USB status icon">
+  </picture>
+  <figcaption><p>USB status icon</p></figcaption>
+</figure>
+<h3 id="settings">Settings<a href="#settings" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>Software updates and management have been moved out of the device menu into a new software menu. This is part of a broader series of ongoing changes to better semantically organize the various settings.</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/software_menu.mp4">
+  </video>
+  <figcaption><p>New software menu</p></figcaption>
+</figure>
+
+<p>A new comma connect and prime status menu has been added. This makes it easier to check which account is paired to your device, and see your prime status on device.</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/prime_menu.mp4">
+  </video>
+  <figcaption><p>New prime menu</p></figcaption>
+</figure>
+
+<p>eSIM management options have been added to the network menu.</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/esim_menu.mp4">
+  </video>
+  <figcaption><p>New eSIM menu</p></figcaption>
+</figure>
+
+<p>Some buttons can now be long-pressed to view deeper explanations.</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/tooltips.mp4">
+  </video>
+  <figcaption><p>Long-press for more info</p></figcaption>
+</figure>
+
+<h2 id="body--comma-connect">body &amp; comma connect<a href="#body--comma-connect" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>Over the past few months, we have been busy working on reviving the comma body, and this release marks its first major update in a long time. We are working toward body v2, and while we do this, we get the chance to ship features and improvements not only for body v1, but also for cars (keep reading to learn more).</p>
+<h3 id="remote-teleoperation--livestreaming">Remote Teleoperation &amp; Livestreaming<a href="#remote-teleoperation--livestreaming" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>A big problem with the body in the past was that it was too hard to use and actually get any use out of. That’s why, for our first major comma body release, we are announcing <strong>remote teleoperation in connect</strong>! If you are a comma body v1 owner, all you need to do is update your comma 3X (or four!) device and connect it to your comma body, pair it to comma connect with your phone, and then you can drive it around from anywhere in the world.</p>
+<p>Here’s one of our Discord community members teleoperating the device from a different city during one of our dev calls:</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/body-driving.mp4">
+  </video>
+  <figcaption><p>Left your house and need to watch your dog? Connect to your comma body and check on them!</p></figcaption>
+</figure>
+
+<p>Along with this big customer-facing feature, we have also taken the time to clear the cobwebs from the body infrastructure in openpilot, and are laying the groundwork for more features, more community involvement, and the release of body v2 in the future.</p>
+<p><em>We have added <strong>new</strong> C4 head mounts for the comma body v1, so you can now <a href="https://github.com/commaai/hardware/blob/master/body/comma_four_stand.3mf" target="_blank" rel="noopener noreferrer">3D print a mount</a> for your new comma four and use it with your body v1 as well.</em></p>
+<p><em>body v1 firmware also has some quality-of-life updates. Visit the <a href="https://github.com/commaai/body" target="_blank" rel="noopener noreferrer">body firmware repository</a> to install them.</em></p>
+<p>A corollary to remote teleoperation—and probably the feature that most people will actually care about—is the new <strong>car livestreaming</strong> feature! Since we developed the whole stack for remote teleoperation, we realized it would take minimal effort to port it to cars and replace our old screenshot feature.</p>
+<p>Now, with an internet connection—whether through your home Wi-Fi or <a href="https://comma.ai/connect" target="_blank" rel="noopener noreferrer">comma prime</a> LTE—and an installed <a href="https://comma.ai/shop/comma-power" target="_blank" rel="noopener noreferrer">comma power</a>, you can livestream your road and driver cameras to see what is happening around your vehicle while it’s parked. Keep a constant eye on your belongings and who is around your car!</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/connect_livestream.mp4">
+  </video>
+  <figcaption><p>Livestream of a car with nearby nefarious activity</p></figcaption>
+</figure>
+
+<p>We would like to add more features like this to make our own version of Sentry Mode, but for the car you already own!</p>
+<h3 id="comma-body-ui">comma body UI<a href="#comma-body-ui" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<p>It was also time to give the body UI an update. Since we moved to raylib, we thought it would be only natural to also write the body UI in raylib! Apart from raylib being awesome, it also allows us to make more dynamic animations for the body face. It makes it a lot easier for you as a developer to create your own faces and expressions with the FaceAnimator class.</p>
+<p>The class is a lightweight animation player built around a simple idea: a 16-by-8 grid of dots, each of which you can turn on or off.</p>
+<p><img src="https://blog.comma.ai/img/0112_release/dot_grid.png" alt="The 16 by 8 dot grid"></p>
+<p>A single frame is just a pattern of dots on that grid, so drawing a face is as simple as picking which dots to light up:</p>
+<p><img src="https://blog.comma.ai/img/0112_release/face_normal.png" alt="normal face">
+  <img src="https://blog.comma.ai/img/0112_release/face_sleepy.png" alt="sleepy face"></p>
+<p>String a sequence of those frames together and you’ve got an animation.</p>
+
+<p><img src="https://blog.comma.ai/img/0112_release/normal.gif" alt="normal animation">
+  <img src="https://blog.comma.ai/img/0112_release/sleepy.gif" alt="sleepy animation">
+  <img src="https://blog.comma.ai/img/0112_release/wink.gif" alt="wink animation">
+  <img src="https://blog.comma.ai/img/0112_release/inquisitive.gif" alt="inquisitive animation"></p>
+<p>Since these animations are programmatically designed, you can also change them and their colors on the fly to react to control inputs or things in the environment.</p>
+<h2 id="connect-clips">connect Clips<a href="#connect-clips" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<p>Although we talked about connect in the last section, this feature is big enough to warrant its own section. Introducing… <strong>clips in connect</strong>!</p>
+<p>Now in connect, you can click the clips button on a drive to generate a clip of a selected portion of your drive. Your comma device encodes that section of the drive into a user-friendly format that you can download and share anywhere you would like. Here is a quick video demo of how it works:</p>
+<figure>
+  <video loop="true" autoplay="autoplay" muted="" playsinline="">
+    <source src="https://blog.comma.ai/img/0112_release/clips-in-connect.mp4">
+  </video>
+  <figcaption><p>Clips can encode in the background, just make sure to leave your comma device on</p></figcaption>
+</figure>
+
+<p>On each device’s dashboard, you can click the clips icon <img src="https://blog.comma.ai/img/0112_release/clips_icon.png" alt="clips icon"> to see all the clips you have made on your device, and they will be cached in your browser or app for you to view later.</p>
+<p>comma normally records video in HEVC (H.265), but its fixed-length segments are inconvenient to share. Now, you can choose any part of a drive and your comma will stitch and re-encode it as a widely supported MP4 (H.264). Leave the device powered while it works, then return to connect to download your clip!</p>
+<h2 id="cars">Cars<a href="#cars" title="Permalink"><span>Permalink</span><i></i></a></h2>
+<h3 id="bug-fixes">Bug fixes<a href="#bug-fixes" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<ul>
+<li>Nissan Altima: fix fingerprinting without comma power (<a href="https://github.com/commaai/opendbc/pull/3418" target="_blank" rel="noopener noreferrer">opendbc#3418</a>)</li>
+<li>Nissan: fix driver override faults by winding down torque more (<a href="https://github.com/commaai/opendbc/pull/3407" target="_blank" rel="noopener noreferrer">opendbc#3407</a>)</li>
+<li>Rivian: fix radar lateral position (<a href="https://github.com/commaai/opendbc/pull/3511" target="_blank" rel="noopener noreferrer">opendbc#3511</a>)</li>
+<li>Toyota: remove faulty radar data from lead training stack (<a href="https://github.com/commaai/opendbc/pull/3452" target="_blank" rel="noopener noreferrer">opendbc#3452</a>)</li>
+<li>paramsd: stop learning vehicle parameters while in reverse (<a href="https://github.com/commaai/openpilot/pull/38573" target="_blank" rel="noopener noreferrer">#38573</a>)</li>
+</ul>
+<h3 id="enhancements">Enhancements<a href="#enhancements" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<ul>
+<li>CI / testing: replace hypothesis fuzzer (~1MB wheel) with faster 122 line file (<a href="https://github.com/commaai/opendbc/pull/3582" target="_blank" rel="noopener noreferrer">opendbc#3582</a>)</li>
+<li>Nissan: higher precision steering angle and smoother steering (<a href="https://github.com/commaai/opendbc/pull/3423" target="_blank" rel="noopener noreferrer">opendbc#3423</a>, <a href="https://github.com/commaai/opendbc/pull/3415" target="_blank" rel="noopener noreferrer">opendbc#3415</a>)</li>
+<li>Nissan: allow engaging in low gear (<a href="https://github.com/commaai/opendbc/pull/3416" target="_blank" rel="noopener noreferrer">opendbc#3416</a>)</li>
+</ul>
+<h3 id="car-ports">Car ports<a href="#car-ports" title="Permalink"><span>Permalink</span><i></i></a></h3>
+<ul>
+<li>Volkswagen ID.4 2021-2025 support thanks to DaHansi!</li>
+<li>CUPRA Born 2021-2023 support thanks to DaHansi! (<a href="https://github.com/commaai/opendbc/pull/3451" target="_blank" rel="noopener noreferrer">opendbc#3451</a>)</li>
+</ul>
+
+      </section></div>
