@@ -1,7 +1,140 @@
-<p>Hi HN,<p>I’ve been working on esp32sim, an open-source ESP32 emulator that runs in the browser.<p>The fun part of the demo is that there is no ESP32 involved — the firmware is executing in the emulator.<p>The goal is to make ESP32 software easier to experiment with, test and simulate without always needing physical hardware connected.<p>Source:
-<a href="https://github.com/mikroverk/esp32sim" rel="nofollow">https://github.com/mikroverk/esp32sim</a><p>I made a short video showing it in action:
-<a href="https://youtu.be/waoWFilTWEc" rel="nofollow">https://youtu.be/waoWFilTWEc</a><p>I’m particularly interested in feedback from embedded developers: what would an emulator like this need to support before you’d actually use it for development, testing or CI?</p>
-<hr>
-<p>Comments URL: <a href="https://news.ycombinator.com/item?id=50131189">https://news.ycombinator.com/item?id=50131189</a></p>
-<p>Points: 149</p>
-<p># Comments: 15</p>
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text"><p dir="auto">
+  <a target="_blank" rel="noopener noreferrer" href="https://github.com/mikroverk/esp32sim/blob/main/docs/assets/esp32sim-logo-icon.png"><img src="https://github.com/mikroverk/esp32sim/raw/main/docs/assets/esp32sim-logo-icon.png" alt="esp32sim logo: a smiling chip in an emulator window" width="240"></a>
+</p>
+
+<p dir="auto">esp32sim is an ESP32 emulator written in Rust. It runs real ESP32 firmware on your computer or in
+a browser tab, without the hardware.</p>
+<p dir="auto">It boots the chip's own mask ROM, the real second-stage bootloader and your unmodified application.
+It also models the board around the chip: displays, touch, LEDs, buttons, audio, camera and WiFi.</p>
+<p dir="auto">Try it in your browser, nothing to install: <a href="https://mikroverk.github.io/esp32sim/" rel="nofollow">https://mikroverk.github.io/esp32sim/</a></p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Supported chips</h2><a id="user-content-supported-chips" aria-label="Permalink: Supported chips" href="#supported-chips"></a></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Chip</th>
+<th>CPU</th>
+<th>Status</th>
+<th>Boards</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESP32-S3</td>
+<td>2 x Xtensa LX7</td>
+<td>mature</td>
+<td>Atech 14-port kit, Waveshare Touch-LCD-4B, Touch-AMOLED-1.8, ESP32-S3-CAM</td>
+</tr>
+<tr>
+<td>ESP32-C3</td>
+<td>RISC-V RV32IMC</td>
+<td>draft</td>
+<td>console only</td>
+</tr>
+<tr>
+<td>ESP32-C6</td>
+<td>RISC-V RV32IMAC</td>
+<td>draft</td>
+<td>Waveshare ESP32-C6-LCD-1.47, with the 802.15.4 radio</td>
+</tr>
+<tr>
+<td>ESP32 (classic)</td>
+<td>2 x Xtensa LX6</td>
+<td>early</td>
+<td>LilyGO TTGO T-Display</td>
+</tr>
+<tr>
+<td>ESP32-P4 (rev &lt; 3)</td>
+<td>2 x RISC-V RV32IMAFC</td>
+<td>draft</td>
+<td>console only</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Features</h2><a id="user-content-features" aria-label="Permalink: Features" href="#features"></a></p>
+<ul dir="auto">
+<li>The full boot chain: mask ROM, bootloader, FreeRTOS, then your app. No patched firmware.</li>
+<li>WiFi with the unmodified Espressif WiFi library. Firmware joins a virtual access point, gets
+DHCP, DNS and NTP, and can reach the real network, HTTPS included.</li>
+<li>Board models, so firmware can draw on a display, read touch, light LEDs and play sound.</li>
+<li>Speed: the S3 has a block cache and a JIT, and runs hello_world about 30 times faster than real
+time.</li>
+<li>A WebAssembly build of the same emulator for the browser.</li>
+<li>Comparisons with real chips: the S3 in JTAG lock-step, the C3 and C6 by console diff. See
+<a href="https://github.com/mikroverk/esp32sim/blob/main/docs/hardware-testing.md">hardware testing</a>.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Demos</h2><a id="user-content-demos" aria-label="Permalink: Demos" href="#demos"></a></p>
+<p dir="auto">These run on the <a href="https://mikroverk.github.io/esp32sim/" rel="nofollow">demo site</a>:</p>
+<ul dir="auto">
+<li>Linux 6.11 on the ESP32-S3 (<a href="https://github.com/svermigo/Linux-on-esp32-S3">svermigo/Linux-on-esp32-S3</a>), with a login shell.</li>
+<li>The Atech kit's Pocket Synth and its C64 SID jukebox (<a href="https://github.com/joakimeriksson/atech-firmware">atech-firmware</a>).</li>
+<li>An LVGL touch panel at 480x480 with a SID player.</li>
+<li><a href="https://github.com/mediacutlet/pocket-tank">pocket-tank</a>, where a small transformer model steers the fish.</li>
+<li>An 802.15.4 energy scanner, and two Contiki-NG motes running RPL/IPv6, on the ESP32-C6.</li>
+<li>MicroPython on a classic ESP32 T-Display.</li>
+</ul>
+<p dir="auto">You can also load your own firmware for any of the chips.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Quick start</h2><a id="user-content-quick-start" aria-label="Permalink: Quick start" href="#quick-start"></a></p>
+<p dir="auto">No Rust needed: the <a href="https://github.com/mikroverk/esp32sim/releases">releases</a> carry prebuilt binaries
+for macOS and Linux, and <a href="https://github.com/mikroverk/esp32sim/blob/main/docs/quick-start.md">docs/quick-start.md</a> takes your own build from the tarball
+to a run in three steps. From a checkout:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="cargo build --release
+tools/fetch-demo-assets.sh --no-linux       # downloads the mask ROMs, which are not in the repo
+
+FW=web/wasm/fw/public                       # demo firmware included in the repo
+./target/release/esp32sim --boot rom --rom web/wasm/fw/esp32s3_rev0_rom.elf \
+    --bootloader $FW/atech-bootloader.bin --ptable $FW/atech-ptable.bin --app $FW/atech-firmware.bin \
+    --script $FW/atech-script1.txt --wav out.wav --tft-png tft.png --max-seconds 5"><pre><code data-language="shell">cargo build --release
+tools/fetch-demo-assets.sh --no-linux       # downloads the mask ROMs, which are not in the repo
+
+FW=web/wasm/fw/public                       # demo firmware included in the repo
+./target/release/esp32sim --boot rom --rom web/wasm/fw/esp32s3_rev0_rom.elf \
+    --bootloader $FW/atech-bootloader.bin --ptable $FW/atech-ptable.bin --app $FW/atech-firmware.bin \
+    --script $FW/atech-script1.txt --wav out.wav --tft-png tft.png --max-seconds 5</code></pre></div>
+<p dir="auto">This boots the Atech synth firmware, plays a short script, and saves the audio to <code>out.wav</code> and
+the display to <code>tft.png</code>. Use <code>esp32sim-c3</code>, <code>esp32sim-c6</code>, <code>esp32sim-p4</code> or <code>--chip esp32</code> for the other chips.</p>
+<p dir="auto"><a href="https://github.com/mikroverk/esp32sim/blob/main/docs/getting-started.md">Getting started</a> covers the rest: your own ESP-IDF builds, each chip,
+WiFi, scripts, the browser build and debugging.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Documentation</h2><a id="user-content-documentation" aria-label="Permalink: Documentation" href="#documentation"></a></p>
+<ul dir="auto">
+<li><a href="https://github.com/mikroverk/esp32sim/blob/main/docs/quick-start.md">Quick start</a>: install the release, fetch the mask ROM, run your own build, read the result</li>
+<li><a href="https://github.com/mikroverk/esp32sim/blob/main/docs/getting-started.md">Getting started</a>: running firmware on each chip, WiFi, scripts, the browser build</li>
+<li><a href="https://github.com/mikroverk/esp32sim/blob/main/docs/cli.md">CLI reference</a>: every flag, environment variable and output file</li>
+<li><a href="https://github.com/mikroverk/esp32sim/blob/main/docs/boards.md">Boards</a>: what each board models, and how to add one</li>
+<li><a href="https://github.com/mikroverk/esp32sim/blob/main/docs/architecture.md">Architecture</a>: how the emulator is put together</li>
+<li><a href="https://github.com/mikroverk/esp32sim/blob/main/docs/peripherals.md">Peripherals</a>: which hardware blocks are modelled, and how completely</li>
+<li><a href="https://github.com/mikroverk/esp32sim/blob/main/docs/hardware-testing.md">Hardware testing</a>: how the emulator is compared with real chips</li>
+<li><a href="https://github.com/mikroverk/esp32sim/blob/main/docs/README.md">All documents</a>: chip notes, design decisions and plans</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Contributing</h2><a id="user-content-contributing" aria-label="Permalink: Contributing" href="#contributing"></a></p>
+<p dir="auto">Bug fixes, peripherals, boards and new chips are welcome. <a href="https://github.com/mikroverk/esp32sim/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> lists
+what a pull request needs; these are the same checks CI runs. Security problems go through
+<a href="https://github.com/mikroverk/esp32sim/blob/main/SECURITY.md">SECURITY.md</a>, not the public issue tracker.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Credits and license</h2><a id="user-content-credits-and-license" aria-label="Permalink: Credits and license" href="#credits-and-license"></a></p>
+<p dir="auto">esp32sim is released under the <a href="https://github.com/mikroverk/esp32sim/blob/main/LICENSE">MIT License</a>.</p>
+<p dir="auto">Authors: Joakim Eriksson, RISE (<a href="https://github.com/joakimeriksson">@joakimeriksson</a>),
+Alice (<a href="https://github.com/aliceisjustplaying">@aliceisjustplaying</a>) and
+Mattia Fiumara, Schematik (<a href="https://github.com/mfiumara">@mfiumara</a>), together with
+<a href="https://github.com/mikroverk/esp32sim/graphs/contributors">other contributors</a>.</p>
+<p dir="auto">The emulator was written from the ESP-IDF register headers, the Xtensa core configuration that
+ships with ESP-IDF, the RISC-V specification, the chips' technical reference manuals and observed
+firmware behaviour. QEMU was consulted only to confirm instruction semantics; no code was copied.</p>
+<p dir="auto">esp32sim is unofficial and not affiliated with Espressif Systems.</p>
+<p dir="auto">Third-party code, data and demo files keep their own licenses:</p>
+<ul dir="auto">
+<li>pocket-tank (<a href="https://github.com/mediacutlet/pocket-tank">mediacutlet/pocket-tank</a>, MIT). Its
+bootloader, partition table and app are in <code>web/wasm/fw/public/</code> with <code>pocket-tank-LICENSE.txt</code>;
+its model is downloaded.</li>
+<li>MicroPython (<a href="https://micropython.org/download/ESP32_GENERIC/" rel="nofollow">micropython.org</a>, MIT): the
+official ESP32_GENERIC v1.29.0 image used by the T-Display demo, downloaded by
+<code>tools/fetch-micropython.sh</code> and not in the repo. The demo's app and filesystem are in
+<code>examples/ttgo-tdisplay</code>, with Russ Hughes's st7789py driver and fonts (MIT); the notice is in
+<code>web/wasm/fw/public/tdisplay-NOTICE.txt</code>.</li>
+<li>Mask ROM ELFs (<a href="https://github.com/espressif/esp-rom-elfs">espressif/esp-rom-elfs</a>, Apache-2.0),
+downloaded, not in the repo.</li>
+<li>xterm.js (<a href="https://github.com/xtermjs/xterm.js">xtermjs/xterm.js</a>, MIT), downloaded, not in the repo.</li>
+<li>The Linux image (<a href="https://github.com/svermigo/Linux-on-esp32-S3">svermigo/Linux-on-esp32-S3</a>,
+GPL-3.0), downloaded, not in the repo.</li>
+<li>ESP-IDF ADC calibration data (Espressif, Apache-2.0): the curve-fitting coefficients and S3 ADC1
+calibration from #165, in <code>esp-periph/src/sar_adc.rs</code>; see <code>esp-periph/LICENSE-ADC</code>.</li>
+</ul>
+</article></div></div>
