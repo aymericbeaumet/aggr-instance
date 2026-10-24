@@ -1,0 +1,145 @@
+<div id="readability-page-1" class="page"><div itemprop="articleBody">
+    <p>After <a href="https://blog.habets.se/2026/05/Everything-in-C-is-undefined-behavior.html">my post on undefined behavior in
+C</a>
+some people insisted that it’s demonstrably fine, we know what the code will
+do, and at worst we’ll get a segfault.</p>
+
+<p>This is false.</p>
+
+<p>Here’s an example.</p>
+
+<h2 id="c-code">C code</h2>
+
+<div><pre><code data-language="c">#include&lt;utility&gt;
+
+// Let's pretend this is a memory mapped device controlling
+// motors and gears and stuff.
+volatile int device_command = 0;
+
+void serve_hot_chocolate() {
+        device_command = 42;
+
+        // Oh no, we spilled some hot chocolate, invoking UB.
+        //
+        // The definition of `std::unreachable()` is:
+        //     Invokes undefined behavior at a given point.
+        std::unreachable();
+}
+
+void explode() {
+        device_command = 3;
+}
+</code></pre>
+</div>
+
+<h2 id="example-assembly-output">Example assembly output</h2>
+
+<p>With GCC 16.2 with <code>-O1</code>.</p>
+
+<div><pre><code data-language="nasm">"serve_hot_chocolate()":
+        mov     DWORD PTR "device_command"[rip], 42
+"explode()":
+        mov     DWORD PTR "device_command"[rip], 3
+        ret
+"device_command":
+        .zero   4
+</code></pre>
+</div>
+
+<p>Ruh roh. Exploding chocolate! The function <code>explode()</code> will be executed, even
+though it was never called!</p>
+
+<p><a href="https://godbolt.org/z/Y5844eTKe">godbolt link</a></p>
+
+<h2 id="another-example-dereferencing-a-null-pointer">Another example: dereferencing a null pointer</h2>
+
+<p>Some people insisted that dereferencing a null pointer is <em>fine</em>. It’ll just
+try to access address zero! And these people supposedly know what happens when
+you try: if nothing is mapped there, you’ll get a segfault.</p>
+
+<p>Again, not true.</p>
+
+<p>Let’s say we change <code>std::unreachable()</code> to <code>int* ptr = nullptr; *ptr = 99;</code> in
+the previous example. Now we <a href="https://godbolt.org/z/efqKrzefa">get this</a>:</p>
+
+<div><pre><code data-language="nasm">"serve_hot_chocolate()":
+        mov     DWORD PTR "device_command"[rip], 42
+        mov     DWORD PTR ds:0, 0
+        ud2
+</code></pre>
+</div>
+
+<p>Curious, eh? First it writes zero, <strong>not</strong> 99, to memory address zero. Then it
+crashes the program using an invalid instruction. The number 99 never appears
+in the generated program. But the null pointer write does. Presumably the null
+pointer write is done in order to improve debugger error messages.</p>
+
+<p>Now let’s check <a href="https://godbolt.org/z/86M7MWTT8">clang with godbolt</a>:</p>
+
+<div><pre><code data-language="nasm">"serve_hot_chocolate()":
+        mov     dword ptr [rip + "device_command"], 42
+
+"explode()":
+        mov     dword ptr [rip + "device_command"], 3
+        ret
+
+"device_command":
+        .long   0
+</code></pre>
+</div>
+
+<p>Again we get exploding chocolate.</p>
+
+<h2 id="lets-do-some-pointer-arithmetic-on-the-null-pointer">Let’s do some pointer arithmetic on the null pointer</h2>
+
+<p>Ok, so what happens if we add <code>ptr += 10</code>. That’s UB for three reasons:</p>
+<ol>
+  <li>using a null pointer for anything other than comparison against other pointers,</li>
+  <li>even if an object would be valid at the null pointer (which it’s not),
+creating a pointer that points outside that object, or if an array, beyond
+one-past the array, is UB,</li>
+  <li>even if that were valid (which it’s not), we then dereference the address.</li>
+</ol>
+
+<p>Let’s <a href="https://godbolt.org/z/8z6hPPsvG">try it</a>.</p>
+
+<div><pre><code data-language="nasm">"serve_hot_chocolate":
+        mov     DWORD PTR "device_command"[rip], 42
+        mov     DWORD PTR ds:40, 99
+        ret
+</code></pre>
+</div>
+
+<p>Wow. <em>Now</em> it did what someone naively would expect, taking the code at face
+value. Lucky.</p>
+
+<p>Why did GCC (and clang, by the way) not detect that <code>*(ptr + 10) = 99</code> is
+equally UB as <code>*ptr = 99</code>, and do the same thing?</p>
+
+<p>Wrong question. No compiler is obligated to “detect” UB at all. Looks to me
+like GCC and clang, if we want to anthropomorphize them, saw “oh, null pointer
+dereference? Well that can’t happen, so I’ll stop emitting instructions for
+this function, to save on the binary size”. Because of the <a href="https://en.wikipedia.org/wiki/Halting_problem">halting
+problem</a>, it cannot in the
+general case know if the code will ever be executed.</p>
+
+<h2 id="so-what-does-ub-do">So what does UB do?</h2>
+
+<p>Anything. I have now demonstrated three things UB can do, when UB was triggered
+in the same place:</p>
+
+<ol>
+  <li>Run whatever happens to be next in memory (exploding chocolate).</li>
+  <li>Store a (for all intents and purposes) <em>random</em> value at address zero (wrote
+zero, not 99), and then deliberately crash.</li>
+  <li>Do what one would naively expect: write the value to the address seen in the
+code at face value.</li>
+</ol>
+
+<p>And to think that some people don’t believe in <a href="https://en.wikipedia.org/wiki/Undefined_behavior">nasal
+demons</a>.</p>
+
+<p><a href="https://news.ycombinator.com/item?id=50203996">Someone submitted this to HN</a>.</p>
+
+
+  </div><p>disqus has started showing ads. :-(</p><p>Showing (probably incomplete) comments in a static read-only view. Click button to be able to leave comments.</p></div>
