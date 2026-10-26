@@ -1,0 +1,59 @@
+<div id="readability-page-1" class="page"><div>
+            <p><a href="https://pubs.opengroup.org/onlinepubs/9799919799/functions/wordexp.html"><code>wordexp(3)</code></a> is a POSIX API for performing shell-style expansions from C.</p>
+<p>It's often cited/recommended as a way to do tilde expansion (e.g. <code>~/foo</code> to <code>/home/me/foo</code>):</p>
+<pre><code data-language="c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;wordexp.h&gt;
+
+int expand_tilde(const char *input, char **output) {
+    wordexp_t p;
+    int ret = wordexp(input, &amp;p, 0);
+    if (ret == 0) {
+        *output = strdup(p.we_wordv[0]);
+        wordfree(&amp;p);
+    }
+    return ret;
+}
+
+int main(void) {
+    char *expanded = NULL;
+    expand_tilde("~/foo", &amp;expanded);
+    printf("expanded: %s\n", expanded);
+    return 0;
+}
+</code></pre>
+<p>However, <code>wordexp(3)</code> is also dangerous! That last <code>0</code> argument is for the <em>flags</em> parameter.
+By default, all expansion features are enabled, <strong>including command expansion</strong>:</p>
+<pre><code data-language="c">expand_tilde("$(whoami)/foo", &amp;expanded);
+</code></pre>
+<p>or:</p>
+<pre><code data-language="c">expand_tilde("$(cat /etc/passwd)/foo", &amp;expanded);
+</code></pre>
+<p>Disabling this requires passing <a href="https://pubs.opengroup.org/onlinepubs/9799919799/functions/wordexp.html#:~:text=WRDE_NOCMD,Substitution%2C%20is%20requested."><code>WRDE_NOCMD</code></a> as a flag. Unfortunately, this
+palliative at best in some libc implementations:</p>
+<ul>
+<li>
+<p><a href="https://git.musl-libc.org/cgit/musl/tree/src/misc/wordexp.c">musl implements <code>wordexp(3)</code></a> by delegating to the system shell. It adds some
+perfunctory scanning for command substitutions before delegating, but
+fails to match some patterns that the underlying shell (like GNU Bash) can treat
+as valid command substitutions.</p>
+</li>
+<li>
+<p><a href="https://github.com/apple-oss-distributions/Libc/blob/71bbe350ab79eef58113991d817ccc6165061a64/gen/FreeBSD/wordexp.c#L201">macOS's libc implements <code>wordexp(3)</code></a> in a similar manner, delegating to
+<code>/usr/lib/system/wordexp-helper</code><sup><a href="#fn-perl" id="fnref-perl" data-footnote-ref="">1</a></sup>. According to <a href="https://www.cipht.net">Julian Squires</a>
+this had the same bypass as musl <a href="https://www.cipht.net/2023/11/21/worried-by-wordexp.html">as recently as 2023</a>, although I didn't bother
+testing whether it's still effective now that the default macOS shell is <code>zsh</code>
+instead of <code>bash</code>.</p>
+</li>
+</ul>
+<p>Bottom line: don't use <code>wordexp(3)</code> on untrusted inputs, even with <code>WRDE_NOCMD</code>.</p>
+<section data-footnotes="">
+<ol>
+<li id="fn-perl">
+<p>Previously, macOS's <code>wordexp(3)</code> would shell out to Perl. <code>wordexp-helper</code> appears to be the "modern" solution. <a href="#fnref-perl" data-footnote-backref="" data-footnote-backref-idx="1" aria-label="Back to reference 1">↩</a></p>
+</li>
+</ol>
+</section>
+
+        </div></div>
