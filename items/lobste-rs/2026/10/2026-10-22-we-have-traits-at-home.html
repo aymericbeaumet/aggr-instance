@@ -1,0 +1,604 @@
+<div id="readability-page-1" class="page"><div>
+    <p>I have had more time recently to write code in Zig<sup id="fr-zig-0.17-1"><a href="https://www.axelmagn.com/blog/202610-zig-traits/#fn-zig-0.17">[1]</a></sup>, and it has been
+good for my soul. I wanted to share some insights I have arrived at regarding
+abstractions in Zig, including some techniques that I have found useful but not
+seen employed more broadly.</p>
+<p>Considerable<sup id="fr-seguin2023-1"><a href="https://www.axelmagn.com/blog/202610-zig-traits/#fn-seguin2023">[2]</a></sup> ink<sup id="fr-figuratively-1"><a href="https://www.axelmagn.com/blog/202610-zig-traits/#fn-figuratively">[3]</a></sup> has<sup id="fr-wong2025-1"><a href="https://www.axelmagn.com/blog/202610-zig-traits/#fn-wong2025">[4]</a></sup> been<sup id="fr-mckay2025-1"><a href="https://www.axelmagn.com/blog/202610-zig-traits/#fn-mckay2025">[5]</a></sup>
+spilled<sup id="fr-cypert2026-1"><a href="https://www.axelmagn.com/blog/202610-zig-traits/#fn-cypert2026">[6]</a></sup> on Zig Interfaces, and justifiably so. While not a language
+feature, interfaces are the de-facto way of implementing runtime polymorphism in
+Zig. Yet<sup id="fr-kelley2021-1"><a href="https://www.axelmagn.com/blog/202610-zig-traits/#fn-kelley2021">[7]</a></sup> more<sup id="fr-redig2025-1"><a href="https://www.axelmagn.com/blog/202610-zig-traits/#fn-redig2025">[8]</a></sup> has been said about zig's comptime, and
+how it may be leveraged to avoid the performance woes of dynamic dispatch and
+write slick, data-oriented code.</p>
+<p>To put it briefly, polymorphism in Zig is conventionally obtained in one of two
+ways:</p>
+<ol start="2">
+<li><strong>Dynamic Interfaces</strong>: Use opaque pointers, virtual tables, and dynamic
+dispatch to achieve runtime polymorphism.</li>
+<li><strong>Comptime Duck Typing</strong>: Use type reflection, switch statements, and
+monomorphism at compile time to achieve static polymorhpism.</li>
+</ol>
+<p>This state of affairs has proven to be quite effective so far, but it is not
+without its tradeoffs.</p>
+<p>Interfaces offer the sort of type contracts that we are used to from other
+languages. A function that accepts an interface has a guarantee of its method
+signatures, but not its implementation. However because interfaces are, by
+design, modular at runtime, they also introduce a hard barrier for the compiler
+and thus a performance overhead. There is enough indirection that it often
+cannot effectively apply the optimizations that it would to monomorphic code.</p>
+<p>For cases of performance critical code, Zig code typically relies on comptime
+duck typing. A function argument is either <code>anytype</code> or parameterized by a type
+argument <code>T</code>, and the function implementation will either perform compile-time
+reflection or make assumptions about the type's methods that can be checked at
+compile-time. Implementations can then be monomorphised, similar to C++
+templating or C macros. This is slightly more safe than runtime duck typing,
+because any interface violations will be caught at compile time rather than
+runtime, but the caller and callee must still be careful to document and follow
+the contract of what types may be passed.</p>
+<p>If you are coming from another strongly typed language, you would be forgiven
+for finding this arrangement rather simplistic. This is perhaps by design
+-- Zig aims to be simple. However if you have grown accustomed to Rust's traits
+or Haskell typeclasses, there appears to be no ready equivalent in Zig.</p>
+<p>I will argue that, with a little adaptation, it is perfectly possible to express
+similar abstractions over types in Zig userland. I would propose a new
+<strong>convention</strong> for defining compile-time type contracts as <strong>Traits</strong> in Zig. It
+doesn't require any libraries or machinery - in fact if fits remarkably well
+into vanilla Zig. It is inspired by the functional programming world in general,
+and OCaml in particular.</p>
+<blockquote>
+<p><strong>Definition:</strong> a Trait is a compile-time struct which contains related
+functions over a given type. <sup id="fr-ocaml-inspired-1"><a href="https://www.axelmagn.com/blog/202610-zig-traits/#fn-ocaml-inspired">[9]</a></sup></p>
+</blockquote>
+<p>So as not to bury the lead, let me begin with a brief example of how we might
+define a trait for folding (reducing) on a type.</p>
+<pre><code data-language="zig">/// T forms a Reducer under an empty value and a combine operation
+fn Reducer(T: type) type {
+    return struct {
+        empty: T,
+        combine: fn (T, T) T,
+
+        fn reduce(self: @This(), xs: []const T) T {
+            var accum = self.empty;
+            for (xs) |x| accum = self.combine(accum, x);
+            return accum;
+        }
+    };
+}
+
+/// i32 forms a sum reducer under 0 and addition
+const sum_trait = impl(Reducer(i32), struct {
+    pub const empty = 0;
+    pub fn combine(x: i32, y: i32) i32 { return x + y; }
+});
+
+/// i32 forms a product reducer under 1 and multiplication
+const product_trait = impl(Reducer(i32), struct {
+    pub const empty = 1;
+    pub fn combine(x: i32, y: i32) i32 { return x * y; }
+});
+
+export fn run(buf: [*]i32, n: usize) i32 {
+    const sum = sum_trait.reduce(buf[0..n]);
+    const product = product_trait.reduce(buf[0..n]);
+    return sum + product;
+}</code></pre>
+<p>Ugh. Isn't that just buttery smooth?<sup id="fr-so-good-1"><a href="https://www.axelmagn.com/blog/202610-zig-traits/#fn-so-good">[10]</a></sup> The contract is clear, LSP
+autocompletion picks it up, the compiler even knows to inline it and unroll the
+loop.</p>
+<p>Traits are just bags of functions and types that tell the receiving function how
+to execute subtasks that it's not responsible for defining. They behave a lot
+like vtables, except that they are evaluated at comptime rather than runtime.</p>
+<h2 id="conventional-polymorphism-vs-traits">Conventional Polymorphism vs Traits</h2>
+<p>To justify traits, let's take a tour through Zig polymorphism with a common
+motivating example: arithmetic operations. I've seen a few complaints over the
+years about how awkward is it to do math in Zig over user-defined types. In its
+pursuit of explicit control flow, Zig has eschewed operator overloading, and
+this can be jarring if you're coming from other typed languages.</p>
+<p>Let's imagine we have some user-defined types like <code>Rational</code> and <code>Complex</code>, and
+we want to define their basic arithmentic operations. We would probably end up
+with something like the following.</p>
+<pre><code data-language="zig">const Rational = struct {
+    numerator: i32,
+    denominator: i32,
+
+    fn add(lhs: Rational, rhs: Rational) Rational {...}
+    fn sub(lhs: Rational, rhs: Rational) Rational {...}
+    fn mul(lhs: Rational, rhs: Rational) Rational {...}
+    fn div(lhs: Rational, rhs: Rational) Rational {...}
+};
+
+const Complex = struct {
+    real: f32,
+    imaginary: f32,
+
+    fn add(lhs: Complex, rhs: Complex) Complex {...}
+    fn sub(lhs: Complex, rhs: Complex) Complex {...}
+    fn mul(lhs: Complex, rhs: Complex) Complex {...}
+    fn div(lhs: Complex, rhs: Complex) Complex {...}
+};</code></pre>
+<p>For the sake of having something to do with them, let's say that we want to
+compute the
+<a rel="external" href="https://en.wikipedia.org/wiki/M%C3%B6bius_transformation">Möbius transformation</a>:
+<code>(a * x + b) / (c * x + d)</code>, which is useful for complex numbers as well as
+rationals. To keep things simple, we'll assume that all arguments to the
+function are of the same type.</p>
+<h3 id="comptime-duck-typing">Comptime Duck Typing</h3>
+<p>If we were to implement the Mobius transformation naively, we could just use
+built-in operators.</p>
+<pre><code data-language="zig">fn mobius(T: type, x: T, a: T, b: T, c: T, d: T) T {
+    return (a * x + b) / (c * x + d);
+}</code></pre>
+<p>This would work fine, as long as the inputs were all floats of the same type.
+Division would break for integers, and of course it wouldn't work with our
+user-defined types, but it's a starting point.</p>
+<p>We could of course notice that both of our user-defined types have arithmetic
+functions with matching names and similar signatures, which would lend
+themselves to duck typing as well.</p>
+<pre><code data-language="zig">fn mobius(T: type, x: T, a: T, b: T, c: T, d: T) T {
+    const numerator = a.mul(x).add(b);
+    const denominator = c.mul(x).add(d);
+    return numerator.div(denominator);
+}</code></pre>
+<p>This will work for our user-defined types, but obviously not with Zig's
+primitive types. We would have to wrap those in our own user-defined types with
+their own functions. More troublingly, this sort of ties us to a sort of
+object-oriented pattern: the de-facto way to obey this abstraction contract is
+to define methods on the struct.</p>
+<p>The good news is that it's all monomorphised at compile time, allowing the
+compiler to simplify and inline these function calls.</p>
+<h3 id="interfaces-vtables">Interfaces &amp; VTables</h3>
+<p>If we wanted this to work dynamically at runtime, we could perhaps declare a
+<code>Num</code> interface that uses a VTable and opaque pointer to dynamically dispatch
+these math operations.</p>
+<pre><code data-language="zig">const Num = struct {
+    value: [32]u8,
+    vtable: *const VTable,
+
+    const VTable = struct {
+        add: *const fn([*]u8, [*]u8) Num,
+        sub: *const fn([*]u8, [*]u8) Num,
+        mul: *const fn([*]u8, [*]u8) Num,
+        div: *const fn([*]u8, [*]u8) Num,
+    };
+
+    fn add(lhs: Num, rhs: Num) Num { ... }
+    fn sub(lhs: Num, rhs: Num) Num { ... }
+    fn mul(lhs: Num, rhs: Num) Num { ... }
+    fn div(lhs: Num, rhs: Num) Num { ... }
+
+    fn mobius(x: Num, a: Num, b: Num, c: Num, d: Num) {
+        const numerator = a.mul(x).add(b);
+        const denominator = c.mul(x).add(d);
+        return numerator.div(denominator);
+    }
+}</code></pre>
+<p>We would then need to wire up <code>Complex</code> and <code>Rational</code> to expose
+<code>fn num(self: *Self) Num</code> (or some such) that wraps our arithmentic functions,
+which is a little too tedious to reproduce here, but it would work fine on the
+happy path. You would of course need to be a bit careful: there's nothing
+stopping you from mixing complex and rational numbers in your function calls,
+and this would lead to undefined behavior. You could probably add some saftey
+checks with a bit of overengineering, but we won't get into that here.</p>
+<p>Not only is this clunkier than comptime duck typing, it will also be slower. We
+are effectively demanding dynamic dispatch whenever we want to do a math
+operation, which will trip up the compiler and have a significant performance
+impact if we're doing a lot of math.</p>
+<h3 id="traits">Traits</h3>
+<p>When we define the mobius function, we really want to say "I don't know what
+type I'm dealing with, but it needs to have arithmetic operations." In this sort
+of case, I think it makes the most sense to just pass the functions it needs to
+use at compile-time. This would remove any ambiguity, at the cost of being
+rather explicit.</p>
+<pre><code data-language="zig">fn mobius(
+    comptime T: type,
+    comptime add: fn (T, T) T,
+    comptime mul: fn (T, T) T,
+    comptime div: fn (T, T) T,
+    x: T,
+    a: T,
+    b: T,
+    c: T,
+    d: T,
+) T {
+    const numerator = add(mul(a, x), b);
+    const denominator = add(mul(c, x), d);
+    return div(numerator, denominator);
+}</code></pre>
+<p>This is effectively compile-time dependency injection at a really fine-grained
+level. The signature is rather verbose, but there's actually a lot less
+boilerplate to write for <code>Complex</code> or <code>Rational</code> compared to runtime interfaces.</p>
+<pre><code data-language="zig">mobius(Complex, Complex.add, Complex.mul, Complex.div, x, a, b, c, d);
+mobius(Real, Real.add, Real.mul, Real.div, x, a, b, c, d);</code></pre>
+<p>From here, it's not a huge leap to traits. We're effectively just cleaning up
+the function signature by gathering together the arithmetic functions into one
+struct.<sup id="fr-num-is-simplified-1"><a href="https://www.axelmagn.com/blog/202610-zig-traits/#fn-num-is-simplified">[11]</a></sup></p>
+<pre><code data-language="zig">fn Num(T: type) type {
+    return struct {
+        add: fn (T, T) T,
+        sub: fn (T, T) T,
+        mul: fn (T, T) T,
+        div: fn (T, T) T,
+    };
+}
+
+fn mobius(T: type, num: Num(T), x: T, a: T, b: T, c: T, d: T) T {
+    const numerator = num.add(num.mul(a, x), b);
+    const denominator = num.add(num.mul(c, x), d);
+    return num.div(numerator, denominator);
+}</code></pre>
+<p>From here, I usually just declare the trait implementation as part of my type.</p>
+<pre><code data-language="zig">const Complex = struct {
+    // fields...
+    const num = Num(Complex) { .add = add, .sub = sub, .mul = mul, .div = div };
+    // functions (add, sub, mul, div...)
+};
+
+mobius(Complex, Complex.num, x, a, b, c, d);</code></pre>
+<p>What I really like about this approach is how flexible it is, while remaining
+very clear about the contract between the function and type. For example,
+imagine that we wanted to extend our definition of <code>Num</code> to the primitive types
+like <code>i32</code> and <code>f32</code>. There are a bunch of ways we could do this, but I would
+probably just define a function that produces something appropriate for integer
+and float types.</p>
+<pre><code data-language="zig">fn builtinNum(T: type) Num(T) {
+    const inner = struct {
+        fn add(lhs: T, rhs: T) T { return lhs + rhs; }
+        fn sub(lhs: T, rhs: T) T { return lhs - rhs; }
+        fn mul(lhs: T, rhs: T) T { return lhs * rhs; }
+    };
+    const div = switch (@typeInfo(T)) {
+        .int, .comptime_int =&gt; struct {
+            fn div(lhs: T, rhs: T) T { return @divTrunc(lhs, rhs); }
+        }.div,
+        .float, .comptime_float =&gt; struct {
+            fn div(lhs: T, rhs: T) T { return lhs / rhs; }
+        }.div,
+        else =&gt; @compileError("unsupported type: " ++ @typeName(T)),
+    };
+    return .{ .add = inner.add, .sub = inner.sub, .mul = inner.mul, .div = div };
+}
+
+mobius(f32, builtinNum(f32), x, a, b, c, d);</code></pre>
+<p>Traits are also transparent to the compiler, which will happily monomorphize and
+inline these functions. I prefer this over runtime polymorphism most of the
+time, especially in hot loops or for library functions that are unopinionated on
+data layout.</p>
+<h3 id="limitations">Limitations</h3>
+<p>You'll notice that traits have to be explicitly conditioned on a known type.
+Unlike interfaces, there's no way to say "give me a number, I don't care what
+kind."  For some applications, it would be nice if we could have an associated
+type.</p>
+<pre><code data-language="zig">fn Iter(Elem: type) type {
+    return struct {
+        T: type,
+        next: fn (T) ?Elem,
+    };
+}</code></pre>
+<p>Unfortunately, the above isn't valid Zig, and it's unclear how that would even
+work at a language level.  Instead, traits insist that the types they are
+operating on are known in advance.</p>
+<pre><code data-language="zig">fn Iter(T: type, Elem: type) type {
+    return struct {
+        next: fn (T) ?Elem,
+    };
+}</code></pre>
+<p>I have not yet found an ergonomic way around this.  Traits do not play very
+well with type erasure.</p>
+<h2 id="trait-helpers">Trait Helpers</h2>
+<p>Before proceeding, I want to introduce some small helper functions that have
+streamlined how I work with traits.</p>
+<h3 id="impl">impl</h3>
+<p>If you adopt traits as a programming pattern and convention, you'll quickly end
+up defining functions and passing them around. You will have already noticed
+above that I define a lot of throwaway inner struct types, just so that I can
+pull functions out of them. This has led to the following convenience function
+for declaring trait implementations, which removes some of the boilerplate.</p>
+<pre><code data-language="zig">pub fn impl(comptime Trait: type, comptime Impl: type) Trait {
+    comptime {
+        var result: Trait = undefined;
+        for (@typeInfo(Trait).@"struct".field_names) |field_name| {
+            @field(result, field_name) = @field(Impl, field_name);
+        }
+        return result;
+    }
+}</code></pre>
+<p>I use this all over the place to derive trait implementations from anonymous
+structs. For example, we could use it to rewrite <code>builtinNum</code> to be a little
+more concise and functional. Note that the declarations need to be public for
+the type reflection to work.</p>
+<pre><code data-language="zig">fn builtinNum(T: type) Num(T) {
+    return impl(Num(T), struct {
+        pub fn add(lhs: T, rhs: T) T { return lhs + rhs; }
+        pub fn sub(lhs: T, rhs: T) T { return lhs - rhs; }
+        pub fn mul(lhs: T, rhs: T) T { return lhs * rhs; }
+
+        pub const div = switch (@typeInfo(T)) {
+            .int, .comptime_int =&gt; struct {
+                fn div(lhs: T, rhs: T) T { return @divTrunc(lhs, rhs); }
+            }.div,
+            .float, .comptime_float =&gt; struct {
+                fn div(lhs: T, rhs: T) T { return lhs / rhs; }
+            }.div,
+            else =&gt; @compileError("unsupported type: " ++ @typeName(T)),
+        };
+    });
+}</code></pre><h3 id="gettrait">getTrait</h3>
+<p>Most of the time, I don't mind passing trait implementations around explicitly.
+I've gotten into the habit, and just don't find it to be that big of a deal.
+Trait functors make it pretty easy to reduce the boilerplate, and I like having
+explicit control over how things are implemented.</p>
+<p>However when I'm dealing with my own structs, 99% of the time the trait
+implementation I'm looking for is going to be declared as a const on the struct
+itself. I use the function below to to easily retrieve or construct the most
+common cases.</p>
+<pre><code data-language="zig">fn getTrait(Trait: type, Impl: type) Trait {
+    comptime {
+        // try to find the trait declared explicitly as a member
+        for (@typeInfo(Impl).@"struct".decl_names) |decl_name| {
+            if (@TypeOf(@field(Impl, decl_name)) == Trait) {
+                return @field(Impl, decl_name);
+            }
+        }
+        // otherwise throw an error
+        @compileError("trait " ++ @typeName(Trait) ++ " not found on " ++ @typeName(Impl));
+    }
+}</code></pre>
+<p>This is basically equivalent to saying "eh, it's duck typed. figure it out".
+Just because we <em>are</em> explicit, doesn't mean that we <em>can't</em> be lazy. If we want
+to take this full circle back to duck typing, we can even define trait functors
+that rely on <code>getTrait</code> to extract traits from the types they pass.</p>
+<pre><code data-language="zig">fn duckMobius(T: type) fn(T, T, T, T) T {
+    comptime {
+        const num = getTrait(Num(T), T);
+        return makeMobius(T, num);
+    }
+}</code></pre><h2 id="trait-functors">Trait Functors</h2>
+<p>With some helpers defined, let's return to the <code>Num</code> example.</p>
+<p>Traits in Zig resemble traits in Rust, typeclasses in Haskell, or modules in
+Ocaml. In Rust or Haskell, they would be resolved from a global registry managed
+by the compiler. This can feel very convenient, but it violates Zig's principle
+of explicit control flow. Rust and Haskell can require a fair bit of hunting for
+where a trait is defined, especially when something's wrong and the LSP isn't
+resolving it properly. It can also be a contributor to long compile times.
+Resolving a generic trait in these languages is often equivalent to evaluating a
+proof, and that can take time.</p>
+<p>Ocaml modules, however, work quite a bit like Zig traits: modules are
+first-class objects, and they are passed as arguments to the functions that
+consume them. There is no inference of what modules apply to a type - you locate
+them and pass them explicitly. If we were to define <code>Num</code> as a module, it might
+look something like the following.</p>
+<pre><code data-language="ocaml">(* signature *)
+module type NUM = sig
+  type t
+  val add : t -&gt; t -&gt; t
+  val sub : t -&gt; t -&gt; t
+  val mul : t -&gt; t -&gt; t
+  val div : t -&gt; t -&gt; t
+end
+
+(* Implementation on float *)
+module Float : NUM with type t = float = struct
+  type t = float
+  let add = ( +. )
+  let sub = ( -. )
+  let mul = ( *. )
+  let div = ( /. )
+end
+
+(* function *)
+let mobius (type a) (module N : NUM with type t = a) x a b c d =
+  let numerator = N.add (N.mul a x) b in
+  let denominator = N.add (N.mul c x) d in
+  N.div numerator denominator
+
+(* Usage *)
+let res = mobius (module Float) x a b c d)</code></pre>
+<p>Because modules in Ocaml are first-class values, they can actually take it a
+step further. Rather than defining <code>mobius</code> as written above, it is common in
+Ocaml to make use of "module functors", which are simply functions that take
+modules as arguments and return new modules. If we wanted to define <code>mobius</code> in
+terms of a given numeric type, we might instead write it:</p>
+<pre><code data-language="ocaml">(* MakeMobius receives a NUM module and returns a new module with mobius function *)
+module MakeMobius (N : NUM) = struct
+  let mobius x a b c d =
+    let numerator = N.add (N.mul a x) b in
+    let denominator = N.add (N.mul c x) d in
+    N.div numerator denominator
+end
+
+(* usage *)
+module FloatMobius = MakeMobius (Float)
+let res = FloatMobius.mobius x a b c d</code></pre>
+<p>This is effectively currying: we are applying the module arguments now, and the
+value arguments later. However it derives a mobius function that doesn't need to
+be taking a bunch of type arguments all the time, and that module can in turn be
+used in later constructions. This translates straightforwardly to Zig. If we
+wanted to adhere strictly to the traits pattern, it might look like the
+following.</p>
+<pre><code data-language="zig">fn Mobius(T: type) type {
+    return struct {
+        mobius: fn(T, T, T, T, T) T,
+    };
+}
+fn makeMobius(T: type, num: Num(T)) Mobius(T) {
+    return impl(Mobius(T), struct {
+        fn mobius(x: T, a: T, b: T, c: T, d: T) T {
+            const numerator = num.add(num.mul(a, x), b);
+            const denominator = num.add(num.mul(c, x), d);
+            return num.div(numerator, denominator);
+        }
+    });
+}
+const complex_mobius = MakeMobius(Complex, Complex.num);
+complex_mobius.mobius(x, a, b, c, d);</code></pre>
+<p>This works fine, but I think it's even simpler to move the functor into
+<code>Mobius(T)</code>:</p>
+<pre><code data-language="zig">fn Mobius(T: type) type {
+    return struct {
+        mobius: fn(T, T, T, T, T) T,
+
+        fn make(num: Num(T)) Mobius(T) {
+            return impl(Mobius(T), struct {
+                fn mobius(x: T, a: T, b: T, c: T, d: T) T {
+                    const numerator = num.add(num.mul(a, x), b);
+                    const denominator = num.add(num.mul(c, x), d);
+                    return num.div(numerator, denominator);
+                }
+            });
+        }
+    };
+}
+const complex_mobius = Mobius(Complex).make(Complex.num);
+complex_mobius.mobius(x, a, b, c, d);</code></pre>
+<p>However for single functions like this, unless I knew it would need to be
+consumed by another function as a trait, I would probably be tempted to just
+implement it as a type-curried function rather than a full-blown trait:</p>
+<pre><code data-language="zig">fn makeMobius(T: type, num: Num(T)) fn(T, T, T, T) T {
+    return struct {
+        fn mobius(x: T, a: T, b: T, c: T, d: T) T {
+            const numerator = num.add(num.mul(a, x), b);
+            const denominator = num.add(num.mul(c, x), d);
+            return num.div(numerator, denominator);
+        }
+    }.mobius;
+}
+
+const complexMobius = makeMobius(Complex, Complex.num);
+complexMobius(x, a, b, c, d);</code></pre>
+<p>The versatility of Zig's comptime makes all of these more or less equivalent to
+the compiler. It's just a stylistic choice, depending on what the situation
+calls for.</p>
+<p>Also, notice that technically we have already used trait functors when we
+defined <code>builtinNum</code>. It's not a deep, technical concept. It's just a function
+that constructs a trait implementation for you.</p>
+<h2 id="useful-traits">Useful Traits</h2>
+<p>Having thoroughly introduced traits, let's talk about what we can do with them.</p>
+<p>In this section are a few traits that I find myself reaching for with enough
+regularity that I keep a file around containing them.  All of these are fairly
+humdrum (but wildly applicable) abstractions that I lifted wholecloth from
+other languages.</p>
+<h3 id="into-from">Into / From</h3>
+<p>I need to convert one type into another all the freaking time.  Often there are
+multiple ways to do this, depending on how you want to interpret the upstream
+type.  I use <code>Into</code> and <code>From</code> to canonicalize methods for converting one type
+into another.</p>
+<pre><code data-language="zig">/// T can be converted into Out
+fn Into(T: type, Out: type) type {
+    return struct {
+        into: fn(T) Out,
+    };
+}
+
+/// T can be derived from In
+fn From(T: type, In: type) type {
+    return struct {
+        from: fn(In) T,
+    };
+}</code></pre><h3 id="index">Index</h3>
+<p>Sometimes, rather than iterating, we need keyed access to a value.  The
+container could be a slice or a hash table - we don't care.  For this, I use
+<code>Index</code>.</p>
+<pre><code data-language="zig">/// T forms an index over Key and Value
+fn Index(T: type, Key: type, Value: type) type {
+    return struct {
+        get: fn(T, Key) ?Value,
+    };
+}</code></pre><h3 id="iterator-iterable">Iterator / Iterable</h3>
+<p>Another common case: we have a function that iterates over a type, but we don't
+care what sort of iterable data structure we're going to be working with.  We
+usually need two traits: one for the <code>Iterable</code> collection, and another for the
+<code>Iterator</code>, which keeps track of our progress through the collection.</p>
+<pre><code data-language="zig">/// T can be used to iterate over Elem elements of type
+fn Iterator(T: type, Elem: type) type {
+    return struct {
+        next: fn(*T) ?Elem,
+    };
+}
+
+/// T can return an Iter iterator over Elem elements
+fn Iterable(T: Type, Elem: type, Iter: type) type {
+    return struct {
+        iter: fn(T) IterPair,
+        pub const IterPair = struct {impl: Iter, trait: Iterator(Iter, Elem)};
+    };
+}</code></pre>
+<p>You'll notice that this is a little awkward, because we don't usually care what
+the iterator implementation is.  It's probably just a usize index over an array
+or something.  It would be nice if we could just define <code>Iterable(T: type, Elem: type)</code>.  I've chosen to just let it be awkward.  It's usually not a big
+deal.</p>
+<h2 id="words-of-warning">Words of Warning</h2>
+<p>I really don't want you to walk away from this article thinking "I need to
+convert all my code to use traits".  Traits should not be thought of as a
+totalizing pattern.  The last thing I want is for Zig code to start looking
+like Rust or Haskell.</p>
+<p>Traits are a sometimes treat.  They are useful for functions that need
+abstractions inside of hot loops, where you know that you want monomorphization
+and static dispatch.  They can become legible building blocks for some neat
+metaprogramming tricks.  However most of the time I only reach for them in a
+pull-based manner: I have a function where it would be useful to consume a
+trait, because it's undecided on some implementation detail.</p>
+<p>Used improperly, traits can explode the size of your binary and actually make
+it slower.  Each function parameterized on comptime parameters gets its own
+templated assembly, and if you nest these a few layers deep, it's easy to end
+up with a combinatorial explosion.  This can thrash your CPU cache, and
+depending on the situation, easily be outperformed by dynamic dispatch and
+vtables.</p>
+<h2 id="words-of-encouragement">Words of Encouragement</h2>
+<p>Traits are ultimately handy and very powerful.  I wish I saw more codebases
+that made use of them, especially for abstraction inside of hot loops. I like
+that they are a design pattern more than a language feature, and this gives you
+a lot of explicit control over when and how you use them.  I was looking for a
+solution like this for a long time, and I'm glad I found it.</p>
+<p>I'm sure that other Zig users have stumbled onto this trick, but I have yet to
+see it in the wild.  I think that part of the reason is that it doesn't really
+lend itself to a library.  It's more of a convention that you can choose to
+use or ignore.</p>
+<p>My hope is that for someone reading, traits are the right tool for the job.</p>
+<section>
+<ol>
+<li id="fn-zig-0.17">
+<p>Zig 0.17 at time of writing. <a href="https://www.axelmagn.com/blog/202610-zig-traits/#fr-zig-0.17-1">↩</a></p>
+</li>
+<li id="fn-seguin2023">
+<p><a rel="external" href="https://www.openmymind.net/Zig-Interfaces/">Zig Interfaces</a> by Karl Seguin <a href="https://www.axelmagn.com/blog/202610-zig-traits/#fr-seguin2023-1">↩</a></p>
+</li>
+<li id="fn-figuratively">
+<p>figuratively <a href="https://www.axelmagn.com/blog/202610-zig-traits/#fr-figuratively-1">↩</a></p>
+</li>
+<li id="fn-wong2025">
+<p><a rel="external" href="https://williamw520.github.io/2025/07/13/zig-interface-revisited.html">Zig Interface Revisited</a>
+by William Wong <a href="https://www.axelmagn.com/blog/202610-zig-traits/#fr-wong2025-1">↩</a></p>
+</li>
+<li id="fn-mckay2025">
+<p><a rel="external" href="https://joegm.github.io/blog/inside-zigs-new-writer-interface/">Inside Zig's new Writer</a>
+by Joe McKay <a href="https://www.axelmagn.com/blog/202610-zig-traits/#fr-mckay2025-1">↩</a></p>
+</li>
+<li id="fn-cypert2026">
+<p><a rel="external" href="https://www.bradcypert.com/interfaces-in-zig/">Interfaces in Zig</a> by Brad
+Cypert <a href="https://www.axelmagn.com/blog/202610-zig-traits/#fr-cypert2026-1">↩</a></p>
+</li>
+<li id="fn-kelley2021">
+<p><a rel="external" href="https://vimeo.com/649009599">A Practical Guide to Applying Data-Oriented Design</a>
+by Andrew Kelley <a href="https://www.axelmagn.com/blog/202610-zig-traits/#fr-kelley2021-1">↩</a></p>
+</li>
+<li id="fn-redig2025">
+<p><a rel="external" href="https://www.scottredig.com/blog/bonkers_comptime/">Zig Comptime is Bonkers Good</a>
+by Scott Redig <a href="https://www.axelmagn.com/blog/202610-zig-traits/#fr-redig2025-1">↩</a></p>
+</li>
+<li id="fn-ocaml-inspired">
+<p>"Traits" are directly inspired from OCaml modules, but the
+term "module" already refers to something else in Zig. <a href="https://www.axelmagn.com/blog/202610-zig-traits/#fr-ocaml-inspired-1">↩</a></p>
+</li>
+<li id="fn-so-good">
+<p><img src="https://www.axelmagn.com/blog/202610-zig-traits/so_good.png" alt="Feels Good"> <a href="https://www.axelmagn.com/blog/202610-zig-traits/#fr-so-good-1">↩</a></p>
+</li>
+<li id="fn-num-is-simplified">
+<p>This is a pretty simplistic definition of a numeric
+trait. In practice, you would probably want to look into
+<a rel="external" href="https://doc.rust-lang.org/std/ops/index.html">std::ops</a> from Rust or
+<a rel="external" href="https://hackage.haskell.org/package/base-4.17.0.0/docs/GHC-Num.html#t:Num">Num</a>
+from Haskell. <a href="https://www.axelmagn.com/blog/202610-zig-traits/#fr-num-is-simplified-1">↩</a></p>
+</li>
+</ol>
+</section>
+
+  </div></div>
