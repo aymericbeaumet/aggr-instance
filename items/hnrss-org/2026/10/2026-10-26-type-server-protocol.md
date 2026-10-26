@@ -1,0 +1,285 @@
+---
+title: Type Server Protocol
+link: https://github.com/microsoft/pylance-release/blob/main/docs/tsp/type-server-protocol.md
+source: hnrss-org
+published: 2026-10-26T18:14:49Z
+updated: 2026-10-26T18:14:49Z
+first_seen: 2026-10-26T23:45:44.074426996Z
+authors:
+- adamnemecek
+content: extracted
+html: 2026-10-26-type-server-protocol.html
+remote_preview:
+  url: https://opengraph.githubassets.com/9534fed34bb6e0eeb6567d5f823375ff1b0c3873aace151e643a7f5c8e76e40f/microsoft/pylance-release
+  alt: Documentation and issues for Pylance. Contribute to microsoft/pylance-release development by creating an account on GitHub.
+---
+
+The Type Server Protocol (TSP) is a JSON-RPC protocol for asking a type server for Python analysis data. A type server maintains the type-analysis state for a workspace and answers requests for the protocol version, snapshots, Python search paths, import resolution, and type queries (computed, declared, and expected types).
+
+The protocol uses Language Server Protocol (LSP) data shapes and conventions where they are useful, such as `Position` and `Range`, and it represents URIs as strings the same way LSP does. TSP methods use the `typeServer/` prefix.
+
+The protocol artifacts in this folder are the authoritative definitions:
+
+- [typeServerProtocol.ts](https://github.com/microsoft/pylance-release/blob/main/docs/tsp/typeServerProtocol.ts) defines the TypeScript interfaces and request types.
+- [tsp.json](https://github.com/microsoft/pylance-release/blob/main/docs/tsp/tsp.json) is the machine-readable protocol model.
+- [tsp.schema.json](https://github.com/microsoft/pylance-release/blob/main/docs/tsp/tsp.schema.json) is the JSON schema for the protocol model.
+
+## Version History
+
+TSP uses semantic version strings for client/server compatibility checks. While the protocol is in the `0.x` line, minor version changes may be breaking. Patch version changes remain backward compatible within the same minor line.
+
+| Version | Changes                                                                             |
+| ------- | ----------------------------------------------------------------------------------- |
+| `0.1.0` | Initial protocol version.                                                           |
+| `0.2.0` | Added request types and fields.                                                     |
+| `0.3.0` | Switched to more complex type shapes.                                               |
+| `0.4.0` | Switched to the `Type` union and stub-based type payloads.                          |
+| `0.4.1` | Added multi-connection negotiation and the `typeServer/connection` control request. |
+
+## Connection Model
+
+A client starts a type server and communicates with it over the main JSON-RPC connection using a transport the server supports, such as stdio or Node IPC. When using stdio, stdout must be reserved for JSON-RPC protocol messages.
+
+A type server is expected to receive enough workspace and document state to answer the TSP requests it supports. Clients commonly use normal LSP initialization and document synchronization for this state, then send `typeServer/*` requests on the same JSON-RPC connection.
+
+TSP also supports optional extra read-only connections. The original connection remains the main connection and owns initialization, workspace state, document synchronization, state-changing notifications, and connection control. Extra connections are opened only after client and server negotiate support during initialization.
+
+## Startup Sequence
+
+A typical session follows this order:
+
+1. The client starts or connects to the type server.
+2. The client and server initialize any shared workspace state, commonly through the LSP `initialize` and `initialized` messages.
+3. The client calls `typeServer/getSupportedProtocolVersion` and verifies that the returned semver string is compatible with the protocol version it expects.
+4. The client calls `typeServer/getSnapshot` to obtain the first snapshot identifier.
+5. The client sends type-query, import-resolution, or search-path requests that include the current snapshot when required by the request shape.
+6. The server sends `typeServer/snapshotChanged` when prior type results are no longer valid.
+
+## Multi-Connection Mode
+
+Multi-connection mode is an optional performance feature. It lets a client open additional local channels to the same type server for read-only TSP requests, while the main connection continues to own the mutable workspace state.
+
+Clients should use multi-connection mode only when they can benefit from concurrent read-only work, such as high-volume type queries or background workers that should not block the main JSON-RPC connection. A server must still work correctly in single-connection mode. Multi-connection support must not be required for protocol correctness.
+
+### Capability Handshake
+
+Multi-connection support is negotiated through the normal LSP `initialize` request and response. A client that can open extra TSP channels advertises the supported transport kinds under `capabilities.experimental.typeServerMultiConnection`:
+
+```json
+{
+    "capabilities": {
+        "experimental": {
+            "typeServerMultiConnection": {
+                "supportedTransports": ["ipc"]
+            }
+        }
+    }
+}
+```
+
+A server that can serve extra TSP channels returns the same capability shape in the `initialize` result:
+
+```json
+{
+    "capabilities": {
+        "experimental": {
+            "typeServerMultiConnection": {
+                "supportedTransports": ["ipc"]
+            }
+        }
+    }
+}
+```
+
+Multi-connection mode is enabled only when both sides advertise `typeServerMultiConnection` and the two `supportedTransports` lists have at least one transport in common. If either side omits the capability, or if there is no common transport, the session remains single-connection and the client must not send `typeServer/connection`.
+
+The currently supported built-in transport kind for extra connections is `ipc`. This negotiation is separate from the main connection, which can use stdio or Node IPC.
+
+### Opening An Extra Connection
+
+After initialization and transport negotiation, the client opens an extra channel by sending `typeServer/connection` on the main connection:
+
+```json
+{
+    "type": "open",
+    "kind": "ipc",
+    "args": ["<ipc-endpoint>"]
+}
+```
+
+For `ipc`, the `args` array identifies the endpoint or endpoints that the server should connect to. The server should validate the request, connect to the supplied endpoint promptly, and return a result with `success: true` when it accepts the request. If the server cannot open the channel, it should return `success: false` and include a short `message` when useful for logs.
+
+### IPC Endpoint Arguments
+
+An `ipc` endpoint is expected to provide a full-duplex JSON-RPC stream when the platform IPC mechanism supports it. In that case, `args` contains one endpoint string:
+
+```json
+{
+    "type": "open",
+    "kind": "ipc",
+    "args": ["<full-duplex-ipc-endpoint>"]
+}
+```
+
+If the platform IPC mechanism exposes only one-way endpoints, `args` contains two endpoint strings. The endpoint names are from the type server's perspective: the first endpoint is the server input stream, and the second endpoint is the server output stream.
+
+```json
+{
+    "type": "open",
+    "kind": "ipc",
+    "args": ["<input-ipc-endpoint>", "<output-ipc-endpoint>"]
+}
+```
+
+### Closing An Extra Connection
+
+The client closes an extra channel by sending `typeServer/connection` on the main connection with the same transport kind and endpoint identity:
+
+```json
+{
+    "type": "close",
+    "kind": "ipc",
+    "args": ["<ipc-endpoint>"]
+}
+```
+
+The server should stop serving the matching extra channel and close the transport promptly. A client may also tear down its local transport if the server does not complete the close within the client's timeout budget.
+
+The `close` request should use the same `args` shape that opened the channel: one endpoint for a full-duplex IPC stream, or the same input/output endpoint pair for a split IPC stream.
+
+### Allowed Traffic
+
+The main connection owns all state-changing traffic. The following must remain main-connection-only:
+
+- LSP initialization and lifecycle messages.
+- Workspace, configuration, file-watcher, and document synchronization notifications.
+- Server-to-client snapshot notifications.
+- The `typeServer/connection` control request.
+
+Extra connections are TSP-only and read-only. They may be used for requests that do not mutate server state and whose results are valid for the snapshot supplied by the client.
+
+The allowed TSP messages on an extra connection are bound to the negotiated TSP version. If a server reports support for a TSP version and advertises multi-connection support for that session, it must support every extra-connection TSP message defined for that version.
+
+The table below lists the TSP version that first allows each message on an extra connection:
+
+| TSP version | Extra-connection message                 |
+| ----------- | ---------------------------------------- |
+| `0.4.1`     | `typeServer/getSupportedProtocolVersion` |
+| `0.4.1`     | `typeServer/getSnapshot`                 |
+| `0.4.1`     | `typeServer/getPythonSearchPaths`        |
+| `0.4.1`     | `typeServer/resolveImport`               |
+| `0.4.1`     | `typeServer/getComputedType`             |
+| `0.4.1`     | `typeServer/getDeclaredType`             |
+| `0.4.1`     | `typeServer/getExpectedType`             |
+
+Servers should reject LSP traffic, state-changing notifications, `typeServer/connection`, and any TSP message not allowed for the negotiated TSP version when received on an extra connection.
+
+## Snapshots
+
+A snapshot is a non-negative integer that identifies a point-in-time view of the type server's analysis state. Type handles, declarations, symbols, and other returned objects are valid only for the snapshot in which they were returned unless a request explicitly says otherwise.
+
+The type server must advance the snapshot whenever a previously returned type-analysis result may be invalid. Typical invalidating events include opened-file changes, closed files, configuration changes, watched-file changes, dependency changes, or any cache reset that changes analysis results.
+
+Snapshot rules:
+
+- `typeServer/getSnapshot` returns the current snapshot identifier.
+- Snapshot identifiers must not decrease during a session.
+- `typeServer/snapshotChanged` reports the previous and new snapshot identifiers.
+- Requests that include a stale snapshot should fail with a JSON-RPC error that lets the client retry with a fresh snapshot. LSP's `ServerCancelled` error code (`-32802`) is the preferred error for this case.
+
+## Positions And Ranges
+
+TSP follows LSP position conventions:
+
+- Lines are zero-based.
+- Character offsets are zero-based UTF-16 code units.
+- Ranges identify source spans using a start position and end position.
+
+If a type server stores source locations in another encoding, it must convert locations at the protocol boundary. Incorrect conversion can cause the client to request information for the wrong syntax node.
+
+## Nodes, Declarations, And Handles
+
+The type-query requests (`typeServer/getComputedType`, `typeServer/getDeclaredType`, `typeServer/getExpectedType`) identify a source construct with an `arg` that is either a node or a declaration. A node is a URI plus a source range. A declaration describes where and how a symbol is defined and is either a regular declaration, which is backed by a source AST node, or a synthesized declaration, which is created by the type checker and has no source node.
+
+`InvalidHandle` is `-1` and represents an invalid or unavailable handle. Clients and servers should treat it as a sentinel value, not as a valid object identifier.
+
+## Type Results
+
+Type results are JSON-serializable tagged objects. Each type includes a discriminator that tells the client how to interpret the rest of the object. The protocol supports built-in types, declared types, functions, classes, unions, modules, type variables, overload sets, synthesized types, and type references.
+
+Every type object carries a numeric `kind` discriminator, a numeric `id`, and a bitfield of `flags`:
+
+| `kind` | Type            | Description                                                          |
+| ------ | --------------- | -------------------------------------------------------------------- |
+| `0`    | `BuiltIn`       | `unknown`, `any`, `unbound`, `ellipsis`, `never`, and similar        |
+| `1`    | `Declared`      | Base for source-declared types (rarely used directly)                |
+| `2`    | `Function`      | Functions and methods from `def` statements                          |
+| `3`    | `Class`         | Classes and their instances                                          |
+| `4`    | `Union`         | Union types (`int &#124; str &#124; None`)                           |
+| `5`    | `Module`        | Module objects (`import os` produces a `Module` type for `os`)       |
+| `6`    | `TypeVar`       | Type variables (`T`, `P`, `Ts`)                                      |
+| `7`    | `Overloaded`    | Functions with multiple `@overload` signatures                       |
+| `8`    | `Synthesized`   | Types synthesized by the type checker                                |
+| `9`    | `TypeReference` | Reference to another type by `id`, used for deduplication and cycles |
+
+Type objects are snapshot-bound, and type IDs are response-local:
+
+- A returned type object is valid only for the snapshot used by the request that produced it.
+- Type IDs are used to connect `TypeReference` objects to earlier type objects in the same serialized response graph.
+- Type IDs are not a stable global identity for a snapshot and should not be compared across separate responses.
+- Type references should be used to avoid duplicating large or recursive type graphs within one response.
+
+## Protocol Surface
+
+The current protocol is intentionally small. The exact parameters and result shapes are defined in the protocol artifacts; the table below lists every TSP message with its direction and payload shape.
+
+| Message                                  | Direction       | Params                                      | Result                  |
+| ---------------------------------------- | --------------- | ------------------------------------------- | ----------------------- |
+| `typeServer/getSupportedProtocolVersion` | client → server | none                                        | `string` (semver)       |
+| `typeServer/getSnapshot`                 | client → server | none                                        | `number`                |
+| `typeServer/snapshotChanged`             | server → client | `{ old: number, new: number }`              | notification            |
+| `typeServer/connection`                  | client → server | `{ type: "open" &#124; "close", kind, args? }` | `{ success, message? }` |
+| `typeServer/getPythonSearchPaths`        | client → server | `{ fromUri, snapshot }`                     | `string[] &#124; undefined` |
+| `typeServer/resolveImport`               | client → server | `{ sourceUri, moduleDescriptor, snapshot }` | `string &#124; undefined` |
+| `typeServer/getComputedType`             | client → server | `{ arg: Declaration &#124; Node, snapshot }` | `Type &#124; undefined` |
+| `typeServer/getDeclaredType`             | client → server | `{ arg: Declaration &#124; Node, snapshot }` | `Type &#124; undefined` |
+| `typeServer/getExpectedType`             | client → server | `{ arg: Declaration &#124; Node, snapshot }` | `Type &#124; undefined` |
+
+A type server should implement the messages required by the client it integrates with and return `undefined` only where the protocol's result type allows it.
+
+### Type Queries
+
+The three type-query requests differ by which type they report for the same node or declaration:
+
+- `typeServer/getComputedType` returns the type inferred from code flow. After narrowing `a` to `int`, the computed type of `b` in `b = a + 1` is `int`.
+- `typeServer/getDeclaredType` returns the type explicitly written in the source. For `def foo(a: int | str)`, the declared type of `a` is `int | str`.
+- `typeServer/getExpectedType` returns the type the surrounding context expects. For the call `foo(4)`, the expected type of the argument is `int | str`.
+
+## Error Handling
+
+Use standard JSON-RPC error responses.
+
+| Situation          | Error code                   | Guidance                                                       |
+| ------------------ | ---------------------------- | -------------------------------------------------------------- |
+| Stale snapshot     | `-32802` (`ServerCancelled`) | The client can request a fresh snapshot and retry.             |
+| Invalid parameters | `-32602` (`InvalidParams`)   | Required fields are missing or malformed.                      |
+| Internal failure   | `-32603` (`InternalError`)   | The server failed unexpectedly while handling a valid request. |
+
+Errors should include enough message detail for a client log to identify the failed request, but they should not expose local secrets or implementation-only state.
+
+## Compatibility Checklist
+
+A compatible type server should verify these behaviors:
+
+1.  `typeServer/getSupportedProtocolVersion` returns a semver string supported by the client.
+2.  All request and notification payloads serialize and deserialize according to the protocol artifacts.
+3.  `typeServer/getSnapshot` returns a non-negative snapshot and snapshots do not go backward.
+4.  Document, configuration, and watched-file changes invalidate snapshots when they can change returned analysis data.
+5.  Requests with stale snapshots fail with a retryable cancellation error.
+6.  Position and range conversions use LSP zero-based UTF-16 conventions.
+7.  Import-resolution requests return document URIs or no result according to the protocol result type.
+8.  Type queries (computed, declared, and expected) return well-formed `Type` objects, or `undefined`, for the snapshot supplied by the client.
+9.  Multi-connection support is advertised only when the server can serve the negotiated extra transport.
+10. Extra connections accept every TSP request allowed for the negotiated TSP version and reject LSP traffic, state-changing notifications, `typeServer/connection`, and TSP requests not allowed for that version.
+
+Last content update aligned with [Pylance 2026.4.1](https://github.com/microsoft/pylance-release/blob/8095001387e5aa5295b9f6070b97989693de9988/CHANGELOG.md#202641-23-september-2026-release).
