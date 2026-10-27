@@ -1,0 +1,62 @@
+<div id="readability-page-1" class="page"><div>
+	<article>
+	
+	<p>Sending an email is essentially the same as making an HTTPS request. You open a TCP connection to port 25, you do a little SSL handshake, and you send some data through. Most personal computers out there can easily do this thousands of times per second, so <strong>how can companies charge $15 to send 1000 emails?!</strong> Why do I need some 3rd party company involved at all?! I used to work at Google specifically on GMail, and nothing from my little corner of the product on the “tabbed inbox” team led me to a clear answer...</p>
+<p><strong>Unfortunately for me, I was determined to figure it out for myself!</strong></p>
+<p>I mostly program with Haskell, and I call C code as necessary for things like OpenSSL and SQLite. I already had a setup for making HTTPS requests from my Haskell code with OpenSSL. I had code for working with HTTP 1.1 messages. How hard could it be to adapt this to email? To my surprise, it turns out that the actual “sending” part is not that hard. The real problem was ultimately out of my hands...</p>
+<h2 id="simple-mail-transfer-protocol">Simple Mail Transfer Protocol</h2>
+<p>Just like the original plaintext Hypertext Transfer Protocol (HTTP 1.1), there is a correspondingly goofy plaintext protocol for sending emails called Simple Mail Transfer Protocol (SMTP). The original version of the protocol involves sending a bunch of messages back and forth and back and forth between the sender and receiver. It looks kind of like a little conversation. Here is an example where I start my messages with keywords like <code>HELO</code> and <code>MAIL FROM</code> and the receiver starts her messages with status codes like <code>220</code> and <code>250</code>:</p>
+<pre><code>(Evan opens the TCP connection)
+220 mail.example.com
+HELO evancz.dev
+250 Hello evancz.dev, I am glad to meet you
+MAIL FROM:&lt;devnull@evancz.dev&gt;
+250 OK
+RCPT TO:&lt;alice@example.com&gt;
+250 OK
+DATA
+354 End data with &lt;CR&gt;&lt;LF&gt;.&lt;CR&gt;&lt;LF&gt;
+From: "Evan from Elm" &lt;devnull@evancz.dev&gt;
+To: "Alice from Cryptography" &lt;alice@example.com&gt;
+Date: Wed, 21 Oct 1981 8:33:40 +0100
+Subject: Big Fan!
+
+Hello Alice from Cryptography,
+
+I loved your collaboration with Rivest, Shamir, and Adleman
+in 1977. I have been eagerly awaiting the invention of email,
+so that I could express my admiration through this plaintext
+transfer protocol!
+
+Best,
+Evan from Elm
+.
+250 OK: queued as 12345
+QUIT
+221 Bye
+(Alice closes the connection)</code></pre>
+
+<p>So to send a single email, you originally had to do SEVEN roundtrips! And TLS did not exist at that time, so you did not even get any encryption after all those roundtrips!</p>
+<p>That said, it is not that hard to send and receive a bunch of goofy plaintext, so I set it up and sent an email to myself. It worked! But... it showed up in spam.</p>
+<h2 id="wait-who-sent-that-message-">Wait, who sent that message?!</h2>
+<p>The original protocol has a very serious flaw. <strong>How does <code>mail.example.com</code> know that I am <code>devnull@evancz.dev</code> and not an imposter?</strong> The original protocol lets you just claim whatever sender you want, so anybody in the whole world could easily spoof the domain and sender.</p>
+<p>So these days you need to add some <code>TXT</code> records to the DNS for your domain. This way the receiver can go look up some public encryption keys for <code>evancz.dev</code> and confirm that whoever sent the email at least has access to the private key.</p>
+<p>At this point I started wondering, wait, how do you prevent someone from spoofing the DNS records? Like what if <a href="https://www.propublica.org/article/nsa-spying-relies-on-atts-extreme-willingness-to-help">the NSA and AT&amp;T were collaborating</a> or what if <a href="https://www.washingtonpost.com/graphics/2020/world/national-security/cia-crypto-encryption-machines-espionage/">the CIA had a history of creating companies like Crypto AG to backdoor cryptographic systems from the very beginning</a>? It seems like a problem... But hey, I just want to send an email and it looks like all you have to do is set up these DNS records.</p>
+<p>So I set up a private key, added some DNS records, ran my emails through some OpenSSL functions, and I started sending emails again!</p>
+<p>Now my emails were showing up in my inbox in GMail! Heck yeah! The technical details were not hard, only sort of annoying to figure out. So why does it cost $15 to send 1000 emails?!</p>
+<p>When the database backend for Elm went into private alpha, I decided to try sending the transactional emails myself. Just some Haskell and C code making TCP connections! My thinking was that if I ever set up a hosting service to support Elm development, maybe it would be cool to handle emails as well. The whole goal of Elm is to filter out all the irrelevant details and let the programmer focus on the actually meaningful parts, so it seemed like there might be something there!</p>
+<p>Okay, but then I noticed that the emails were <em>only</em> showing up in GMail. People who used Microsoft Outlook were not even seeing them in spam...</p>
+<h2 id="old-and-goofy-spam-filters">Old and Goofy Spam Filters</h2>
+<p>Once someone adds the DNS records to verify their identity, it is still possible for them to just start blasting out spam. I was not sending spam, but I was now interacting with a baroque mosaic of spam detection filters that sometimes work in funny ways.</p>
+<p>Each email inbox provider has different algorithms for determining “the reputation” of the sender. Some inboxes are able to mostly assess the reputation of the sender’s domain. “Are the emails from this domain good?” Other inboxes seem to care more about the particular IP address. “If one domain on a given IP address is bad, maybe other domains on that IP address are bad too!” Other inboxes seem to really care about the IP address <strong>block</strong>. “If someone is sending spam from <code>100.0.0.0</code>, then maybe the whole <code>100.0.*.*</code> block is a problem!”</p>
+<p>So it is possible that an inbox like Microsoft Outlook really cares about IP address <strong>blocks</strong>. Maybe they do not have a very fine-grained way of assessing individual IP addresses, or maybe this is just a good for a filter for “big business” users. I have no idea, and I have no special inside knowledge. The point is that this appears to be true for some of the many many inbox services out there. Even if it is not true this month, it may be true next month as the developers at Yahoo Mail, Zoho Mail, Proton Mail, etc. etc. adapt to whatever spammers are getting up to recently.</p>
+<p>I host my servers with a smaller cloud provider, so I have access to whichever IP address blocks they offer. I can get a fixed IP address and treat it nicely, but again, some email inboxes seem to really care about the entire IP address <strong>block</strong>. That means that if <em>anyone</em> is sending spam through my cloud services provider, my whole IP address <strong>block</strong> may get blacklisted.</p>
+<p>So finally we come to the reason why sending emails costs so much.</p>
+<h2 id="my-personal-conclusion">My Personal Conclusion</h2>
+<p>Actually setting up the code to send emails is a relatively doable one-time thing. From a technical perspective, it is essentially the same as sending an HTTPS request.</p>
+<p>But to deliver to all different email addresses, you need to be trusted by inbox providers with the oldest and goofiest spam filters. Since some inboxes seem to really care about IP address blocks, <strong>this means you probably need to get your own IP address block.</strong> And from there, you need to send a pretty high volume of emails through it per day.</p>
+<p>My emails went through to certain inbox providers just fine, so it must be <em>possible</em> for them to avoid heavily relying on IP address block blacklists. The particular feature I worked on at Google was the “tagged inbox” where emails get sorted into primary, promotions, social, updates, and forums. I never really talked to the spam people down the hall, but maybe things like the human categorization from tagged inbox helps them get a better signal on domain names such that they can rely less on the IP address block blacklists? I honestly have no idea. It was a big office, and the “more exciting” gossip mostly came from the other side of the building where the Google+ people were developing a Facebook killer in the era of “social search”.</p>
+<p>In any case, this is where my personal exploration ended. Hopefully it helps readers who have never tried to send emails from scratch, and I will be curious to hear from the collective “spam people down the hall” if there is anything I got wrong! (I am sure there is!)</p>
+
+	</article>
+</div></div>

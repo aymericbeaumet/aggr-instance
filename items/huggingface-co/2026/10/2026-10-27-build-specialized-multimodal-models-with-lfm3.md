@@ -1,0 +1,376 @@
+---
+title: Build specialized multimodal models with LFM3
+link: https://huggingface.co/blog/LiquidAI/lfm3
+source: huggingface-co
+published: 2026-10-27T17:16:52Z
+updated: 2026-10-27T17:16:52Z
+first_seen: 2026-10-27T20:37:14.562886086Z
+content: extracted
+html: 2026-10-27-build-specialized-multimodal-models-with-lfm3.html
+remote_preview:
+  url: https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/wEKXxH6qGa7vmHjn5KA-W.png
+---
+
+[**LFM3**](https://huggingface.co/collections/LiquidAI/lfm3) is our new generation of Liquid Foundation Models (LFMs), built to be the starting point for specialized intelligence. It brings text, vision, audio, omni, and decision models onto one shared backbone, all in the 2B parameter range. This means you can pick the model for your modality, fine-tune it on your own data on a single GPU, and deploy it where your application runs.
+
+LFM3 brings four main changes compared to our previous LFM2 family:
+
+- **More capability per parameter:** a new tri-hybrid architecture and training recipe allow LFM3-1.7B to outperform LFM2.5-2.6B while using 35% fewer parameters.
+- **Every modality on one backbone:** six 2B-class models (text, vision, audio, omni, and decision) trained from LFM3-1.7B-Base, including our first omni model and video input for our vision model.
+- **Built for the edge:** the text model fits in about 1 GB at 4-bit precision, new in-house vision and audio encoders speed up processing, and the text model’s 256K context window lets agents run on-device.
+- **Made to be specialized:** every model fine-tunes on a single GPU, so you can adapt it to your data, terminology, and deployment environment.
+
+## How we built a more expressive backbone
+
+LFM2 showed that a hybrid of short convolutions and attention can run fast on-device without sacrificing quality. For LFM3, we used our hardware-in-the-loop architecture search to redesign that architecture for agentic use cases, which need more capability per parameter and fast inference over long contexts. The search now covers 14 device and backend combinations, from phones and a Raspberry Pi 5 to laptops, cloud CPUs, GPUs, and the Qualcomm Hexagon NPU.
+
+[![lfm3-1.7b-architecture](https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/iZQBqXVZfrcUNCklF4eAs.png)](https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/iZQBqXVZfrcUNCklF4eAs.png)
+
+LFM3-1.7B-Base has 24 layers and four main changes:
+
+1. **Tri-hybrid layer mix:** 13 gated short convolutions, 5 sliding-window attention (SWA) layers with a 256-token window, and 6 global attention layers. The convolutions use a kernel size of 7, up from 3 in LFM2.
+2. **Head-wise gated attention:** a sigmoid gate scales each head's output, so a head can switch off when it has nothing to add. This can help suppress activation outliers that hurt quantization.
+3. **Partial RoPE:** global attention layers rotate only the highest-frequency half of each head, so the other half matches on content regardless of distance. SWA layers keep full RoPE.
+4. **Sandwich norm:** each block normalizes both its input and its output to keep activations well-scaled.
+
+The payoff shows at long context. Per parameter, LFM3-1.7B matches LFM2-1.2B on short prompts across edge devices, and with 8K tokens in context it is about 25% faster. LFM3-1.7B-Base was pre-trained on 22T tokens with the same 128K vocabulary as [LFM2.5-8B-A1B](https://huggingface.co/LiquidAI/LFM2.5-8B-A1B). The final 3.5T tokens are a mid-training stage on curated data with a larger share of agentic traces and tool calls, which also extends the context window to 256K tokens.
+
+## One backbone for six models
+
+Every LFM3 model branches from LFM3-1.7B-Base. Instead of running one large general-purpose model, you pick the one that fits your inputs, customize it, and run it on-device.
+
+[![lfm3-post-training](https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/6RfJINOKr6Ay2kHCPR-mz.png)](https://cdn-uploads.huggingface.co/production/uploads/644249b08443bce4c9890a0f/6RfJINOKr6Ay2kHCPR-mz.png)
+
+| Model                                                           | Input                      | Output             | Built on                                                      |
+| --------------------------------------------------------------- | -------------------------- | ------------------ | ------------------------------------------------------------- |
+| [LFM3-1.7B](https://huggingface.co/LiquidAI/LFM3-1.7B)         | Text                       | Text               | LFM3-1.7B-Base                                                |
+| [LFM3-VL-2B](https://huggingface.co/LiquidAI/LFM3-VL-2B)       | Text, images, video        | Text               | LFM3 backbone + vision encoder                                |
+| [LFM3-Audio-2B](https://huggingface.co/LiquidAI/LFM3-Audio-2B) | Text, audio                | Text, speech       | LFM3 backbone + audio encoder, audio decoder, and LiquidCodec |
+| [LFM3-Omni-2B](https://huggingface.co/LiquidAI/LFM3-Omni-2B)   | Text, images, video, audio | Text, speech       | LFM3 backbone + vision and audio encoders and audio decoder   |
+| [d1-2B](https://huggingface.co/LiquidAI/d1-2B)                 | Text, images, video        | Calibrated answers | LFM3-VL-2B                                                    |
+| [d1-omni-2B](https://huggingface.co/LiquidAI/d1-omni-2B)       | Text, images, video, audio | Calibrated answers | LFM3-Omni-2B                                                  |
+
+The vision and audio models also get two new in-house encoders:
+
+- **Vision encoder:** it combines convolution and attention and uses 3x less compute than the SigLIP2 encoder in previous LFM VL models. Our 164M-parameter encoder matches Qwen3.5-2B's vision encoder in accuracy while requiring 2.2x fewer FLOPs (both measured with the same LFM2.5-230M language backbone). For video, it embeds each pair of sampled frames into one temporal slice, halving the temporal sequence length.
+- **Audio encoder and LiquidCodec:** the audio encoder mixes sliding-window attention and short convolutions and is fully causal, so the model can prefill while you speak, with time to first token as low as 50 ms. LiquidCodec, our new audio tokenizer, turns generated tokens into speech at about 87x real time on a single CPU thread on Apple M4 Max and supports streaming decoding.
+
+## How to use the LFM3 models
+
+Each model runs in `transformers`. The snippets below come from the model cards, which also list the other inference engines each model supports.
+
+### LFM3-1.7B
+
+Reach for LFM3-1.7B when you need local agents, tool calling, structured outputs, or a base for domain-specific fine-tuning. It is post-trained to run in agentic harnesses such as Hermes Agent, Pi, and OpenClaw. It outperforms its predecessor, LFM2.5-2.6B, with 35% fewer parameters, and the biggest gains are on agentic tasks: on WebArena-Verified, it scores 38.42 against 3.02, and it even beats Qwen3.5-9B on long tasks in browsers and business apps. You can find more details in the [LFM3-1.7B model card](https://huggingface.co/LiquidAI/LFM3-1.7B).
+
+To run LFM3-1.7B, install the latest version of `transformers`:
+
+```py
+pip install -U transformers
+```
+
+Then load and run the model:
+
+```py
+from transformers import pipeline
+
+generator = pipeline(
+    "text-generation",
+    model="LiquidAI/LFM3-1.7B",
+    trust_remote_code=True,
+)
+
+messages = [{"role": "user", "content": "What is C. elegans?"}]
+output = generator(
+    messages,
+    do_sample=True,
+    temperature=0.1,
+    top_k=50,
+    repetition_penalty=1.1,
+    max_new_tokens=2048,
+)
+print(output[0]["generated_text"][-1]["content"])
+```
+
+For local agent setup, see the [Agent Harnesses guide](https://docs.liquid.ai/examples/agent-harnesses).
+
+### LFM3-VL-2B
+
+Reach for LFM3-VL-2B when you need on-device visual understanding. It is the first LFM vision model that takes video as input; it reasons step by step before it answers, and it finds objects and reasons about how they are placed, a strong foundation for robotics. Compared with LFM2.5-VL-3B, it has fewer parameters (1.9B against 3.1B) yet raises the average across 62 vision benchmarks from 57.6 to 71.4, on par with Gemma 4 12B, a model more than six times larger. You can find more details in the [LFM3-VL-2B model card](https://huggingface.co/LiquidAI/LFM3-VL-2B).
+
+To run LFM3-VL-2B, install transformers>=5.21.0 with its vision dependencies:
+
+```py
+pip install "transformers>=5.21.0" torch torchvision pillow
+```
+
+Then load and run the model:
+
+```py
+import torch
+from transformers import AutoModelForImageTextToText, AutoProcessor
+
+model_id = "LiquidAI/LFM3-VL-2B"
+
+model = AutoModelForImageTextToText.from_pretrained(model_id, dtype=torch.bfloat16, device_map="auto", trust_remote_code=True)
+processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+
+messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "image", "url": "https://placecats.com/300/200"},
+            {"type": "text", "text": "Describe this image."},
+        ],
+    }
+]
+
+inputs = processor.apply_chat_template(
+    messages,
+    add_generation_prompt=True,
+    tokenize=True,
+    return_dict=True,
+    return_tensors="pt",
+).to(model.device)
+
+with torch.inference_mode():
+    output_ids = model.generate(
+        **inputs,
+        do_sample=True,
+        temperature=0.1,
+        top_k=50,
+        repetition_penalty=1.1,
+        max_new_tokens=16384,  # generate() needs an explicit limit; reasoning can be long
+    )
+
+generated_ids = output_ids[:, inputs["input_ids"].shape[1] :]
+print(processor.batch_decode(generated_ids, skip_special_tokens=True)[0])
+```
+
+See the [LFM3-VL-2B model card](https://huggingface.co/LiquidAI/LFM3-VL-2B) for tool calling, tool search, and on-device inference with llama.cpp.
+
+### LFM3-Audio-2B
+
+Reach for LFM3-Audio-2B when you need voice chat, speech recognition, speech synthesis, or translation across 18 languages on a laptop or edge device. It takes text or audio as input and responds with text, speech, or both, and it can turn spoken requests into tool calls. Compared with LFM2.5-Audio-1.5B, it uses a new in-house audio encoder and speech codec, speaks with higher quality (UTMOSv2 3.83 against 3.22), and adds audio understanding, general-purpose audio reasoning, and tool calling. You can find more details in the [LFM3-Audio-2B model card](https://huggingface.co/LiquidAI/LFM3-Audio-2B).
+
+To run LFM3-Audio-2B, install `transformers>=5.20.2` with its audio dependencies:
+
+```py
+pip install "transformers>=5.20.2" torch accelerate librosa soundfile
+```
+
+Load the model and processor directly from the Hugging Face Hub:
+
+```py
+import torch
+import soundfile as sf
+
+from transformers import AutoModelForMultimodalLM, AutoProcessor
+
+model_id = "LiquidAI/LFM3-Audio-2B"
+device = "cuda" if torch.cuda.is_available() else "cpu"
+dtype = torch.bfloat16 if device == "cuda" else torch.float32
+
+model = AutoModelForMultimodalLM.from_pretrained(
+    model_id, dtype=dtype, device_map=device, trust_remote_code=True
+).eval()
+processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+codec = processor.audio_tokenizer.to(device=device).eval()
+```
+
+Then ask a question aloud and get a reply in text and speech:
+
+```py
+conversation = [
+    {"role": "system", "content": "Respond with interleaved text and audio."},
+    {"role": "user", "content": [{"type": "audio", "audio": "question.wav"}]},
+    {"role": "assistant", "content": "<|mixed_start|>"},
+]
+inputs = processor.apply_chat_template(
+    conversation,
+    continue_final_message=True,
+    tokenize=True,
+    return_dict=True,
+    return_tensors="pt",
+).to(device)
+with torch.no_grad():
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=1024,
+        audio_temperature=1.0,
+        audio_top_k=128,
+        audio_repetition_penalty=1.1,
+        audio_repetition_window=4096,
+        return_dict_in_generate=True,
+    )
+
+    text = processor.decode(
+        outputs.sequences[0, inputs["input_ids"].shape[1]:],
+        skip_special_tokens=True,
+    )
+    waveform = codec.decode(
+        outputs.audio_codes[:1, :, :outputs.audio_lengths[0]]
+    ).audio_values[0]  # 24 kHz
+print(text)
+sf.write("reply.wav", waveform.float().cpu().numpy(), 24_000)
+```
+
+See the [LFM3-Audio-2B model card](https://huggingface.co/LiquidAI/LFM3-Audio-2B) for live speech recognition, speech synthesis, audio understanding, and tool calling.
+
+### LFM3-Omni-2B
+
+Reach for LFM3-Omni-2B when you need one on-device model that sees, listens, and talks back, in place of a separate ASR model, vision-language model, LLM, and TTS model. It can answer spoken questions about an image, watch and listen to a video together, and turn what it sees and hears into tool calls. It is our first omni model, with text, vision, and audio input and both text and speech output, and it keeps the core capabilities of the standalone LFM3 models, including visual question answering, speech recognition, speech synthesis, and instruction following. Like LFM3-Audio-2B, it speaks through LiquidCodec, which turns generated tokens into speech faster than real time, so spoken replies stream as the model generates them. On audio-visual video understanding, it beats models up to 10.7B parameters, such as Qwen2.5-Omni-7B, on Daily-Omni, WorldSense, and AV-SpeakerBench. You can find more details in the [LFM3-Omni-2B model card](https://huggingface.co/LiquidAI/LFM3-Omni-2B).
+
+To run LFM3-Omni-2B, install `transformers>=5.20.2` with its vision and audio dependencies:
+
+```py
+pip install "transformers>=5.20.2" torch torchvision torchcodec accelerate pillow librosa soundfile
+```
+
+```py
+import torch
+import soundfile as sf
+
+from transformers import AutoModelForMultimodalLM, AutoProcessor
+
+model_id = "LiquidAI/LFM3-Omni-2B"
+device = "cuda" if torch.cuda.is_available() else "cpu"
+dtype = torch.bfloat16 if device == "cuda" else torch.float32
+
+model = AutoModelForMultimodalLM.from_pretrained(
+    model_id, dtype=dtype, device_map=device, trust_remote_code=True
+).eval()
+processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+codec = processor.audio_tokenizer.to(device=device).eval()
+```
+
+Then ask a question about a photo by voice:
+
+```py
+conversation = [
+    {
+        "role": "system",
+        "content": "Answer questions about the provided image. Base every answer only on what can be seen. Respond with text.",
+    },
+    {
+        "role": "user",
+        "content": [
+            {"type": "image", "image": "photo.jpg"},
+            {"type": "audio", "audio": "question.wav"},
+        ],
+    },
+]
+inputs = processor.apply_chat_template(
+    conversation,
+    add_generation_prompt=True,
+    tokenize=True,
+    return_dict=True,
+    return_tensors="pt",
+).to(device)
+
+with torch.no_grad():
+    outputs = model.generate(**inputs, max_new_tokens=1024, generation_mode="text")
+
+print(processor.decode(
+    outputs.sequences[0, inputs["input_ids"].shape[1]:outputs.sequence_lengths[0]],
+    skip_special_tokens=True,
+))
+```
+
+See the [LFM3-Omni-2B model card](https://huggingface.co/LiquidAI/LFM3-Omni-2B) for speech output, video with its soundtrack, and tool calling.
+
+### d1-2B and d1-omni-2B
+
+Reach for the d1 models when you need fast, structured decisions instead of generated text. Give them a situation (a support ticket, an invoice, an app screen, a photo, a voice note) and a list of questions, and they answer all of them in a single forward pass, each with a calibrated probability. Beyond yes/no, choices, and scores, they can now point at objects, read values from documents, estimate numbers with a range, and pick every option that applies. You can find more details in the model cards for [d1-2B](https://huggingface.co/LiquidAI/d1-2B) and [d1-omni-2B](https://huggingface.co/LiquidAI/d1-omni-2B).
+
+Between the two d1 models:
+
+- **d1-2B**: choose it for text, pictures, and video. It replaces [d1-3B](https://huggingface.co/LiquidAI/d1-3B) with a third fewer parameters and scores higher on all four of our decision suites, for example, 75.5 against 64.0 on ImajevBench.
+- **d1-omni-2B**: choose it when your inputs include audio. If you ask by voice instead of in writing, it keeps nearly all of its accuracy.
+
+To run d1-2B, install `transformers>=5.19` with its vision dependencies:
+
+```py
+pip install "transformers>=5.19" torch torchvision pillow
+```
+
+Then load d1-2B and ask it several questions about one support ticket in a single pass:
+
+```py
+import torch
+from transformers import AutoModel
+
+device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+dtype = torch.float32 if device == "cpu" else torch.bfloat16
+model = AutoModel.from_pretrained("LiquidAI/d1-2B", trust_remote_code=True, dtype=dtype).to(device)
+
+# Several named questions over one state, answered in one pass
+questions = {
+    "refund": {"type": "noul", "instructions": "Is the customer asking for a refund?"},  # yes/no: P(yes)
+    "team": {"type": "choice", "instructions": "Which team should handle this?",
+             "criteria": {"billing": "Charges, refunds, invoices", "shipping": "Delivery and parcels",
+                          "technical": "App or site faults"}},
+    "topics": {"type": "choice", "multiple": True, "instructions": "Which topics does the message raise?",
+               "criteria": {"billing": "Payments and charges", "delivery": "Shipping and parcels",
+                            "login": "Signing in to the account"}},
+    "urgency": {"type": "score", "instructions": "How urgent is this ticket?", "criteria": ["low", "medium", "high"]},
+}
+out = model.system_one("I was charged twice and my parcel never arrived. Please refund one charge.", questions)
+a = out["answers"]
+urgency = a["urgency"]["legend"][str(int(a["urgency"]["score"]))]
+print(round(a["refund"]["noul"], 2), a["team"]["choice"], a["topics"]["choices"], urgency)
+# 1.0 billing ['billing', 'delivery'] medium
+```
+
+For brevity, we only include the example for d1-2B. See the [d1-omni-2B model card](https://huggingface.co/LiquidAI/d1-omni-2B) for audio clips and spoken questions.
+
+## Fine-tune LFM3 for your task
+
+LFM3 is built to be specialized. Frontier models are powerful generalists, but they are not necessarily experts in your use case. LFM3 packs extra capacity into a small, fast model, so a short fine-tune can turn it into a reliable expert on your task, with your data, terminology, and tools. Because it is small, you can deploy the fine-tuned model where your application runs, from devices to private infrastructure to the cloud.
+
+Every model can be fine-tuned on a single GPU, and these notebooks walk you through a complete task for the text, vision, audio, and omni models, from data preparation to evaluation.
+
+| Model         | Method | Task                                             | Notebook                                                                                                                                                 |
+| ------------- | ------ | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LFM3-1.7B     | SFT    | Extract structured JSON from messy documents     | [Open in Colab](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_sft_with_trl.ipynb)                    |
+| LFM3-1.7B     | DPO    | Answer from retrieved documents, or decline      | [Open in Colab](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_dpo_with_trl.ipynb)                    |
+| LFM3-1.7B     | GRPO   | Call the right tools in a 108-tool phone app     | [Open in Colab](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_grpo_with_trl.ipynb)                   |
+| LFM3-1.7B     | CPT    | Learn a new language (Turkish) from raw text     | [Open in Colab](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_cpt_with_trl.ipynb)                    |
+| LFM3-VL-2B    | SFT    | Read receipt photos into JSON                    | [Open in Colab](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_vl_sft_with_trl.ipynb)                 |
+| LFM3-VL-2B    | GRPO   | Transcribe images of equations to LaTeX          | [Open in Colab](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_vl_grpo_with_trl.ipynb)                |
+| LFM3-Audio-2B | SFT    | Map spoken smart-home commands to function calls | [Open in Colab](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_audio_sft_with_transformers.ipynb)     |
+| LFM3-Audio-2B | SFT    | Teach the model a new voice                      | [Open in Colab](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_audio_tts_sft_with_transformers.ipynb) |
+| LFM3-Omni-2B  | SFT    | Map spoken smart-home commands to function calls | [Open in Colab](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_omni_sft_with_transformers.ipynb)      |
+| LFM3-Omni-2B  | SFT    | Answer spoken questions about medical images     | [Open in Colab](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_omni_vqa_sft_with_transformers.ipynb)  |
+
+### Example: teaching LFM3 to act
+
+We adapt LFM3-VL-2B into three complementary robotics models for **orchestration, navigation, and manipulation**. The orchestrator operates a robot arm through tool calls: it grounds objects by pointing, measures them with depth tools, invokes motion planners, and checks outcomes in subsequent camera images. The navigator follows route descriptions using recent RGB observations, predicting spatial targets and a waypoint trajectory in just five tokens. The manipulation VLA maps images, language, and robot state to eight-step chunks of continuous actions in a single forward pass. Jointly trained across 15 embodiments, the VLA achieves 96.2% average success across the four LIBERO suites and 45.7% on RoboCasa-GR1 tabletop tasks, generating action chunks in under 50 ms on a Jetson AGX Orin with TensorRT FP16. These results highlight LFM3-VL-2B as a compact foundation for robotics, spanning high-level planning to low-level control with real-time action generation on embedded hardware.
+
+Watch LFM3-VL-2B handle perception, navigation, and manipulation in [this demo video](https://www.youtube.com/watch?v=ZARw2VY6Dlk).
+
+[![Video title](https://img.youtube.com/vi/ZARw2VY6Dlk/hqdefault.jpg)](https://www.youtube.com/watch?v=ZARw2VY6Dlk)
+
+## Get Started with LFM3
+
+All LFM3 models are open-weight and available on Hugging Face today:
+
+- **Download:** the [LFM3 collection](https://huggingface.co/collections/LiquidAI/lfm3) on Hugging Face, including [LFM3-1.7B-Base](https://huggingface.co/LiquidAI/LFM3-1.7B-Base) for your own post-training.
+- **Fine-tune:** adapt LFM3 to your task with our [fine-tuning notebooks](https://github.com/Liquid4All/cookbook/tree/main/finetuning/notebooks).
+- **Use in your harness:** follow our [guide](https://docs.liquid.ai/examples/agent-harnesses) on how to run a local agent, like OpenClaw, Hermes Agent, and Pi.
+
+We can't wait to see what you build.
+
+## Citation
+
+If you use this work, please cite the release blog:
+
+```
+@article{liquidAI2026LFM3,
+  author = {Liquid AI},
+  title = {Introducing LFM3: Every Modality for Specialized Intelligence},
+  journal = {Liquid AI Blog},
+  year = {2026},
+  note = {www.liquid.ai/blog/lfm3},
+}
+```
