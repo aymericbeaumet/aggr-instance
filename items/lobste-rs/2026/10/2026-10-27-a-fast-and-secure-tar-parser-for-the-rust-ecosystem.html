@@ -1,0 +1,726 @@
+<div id="readability-page-1" class="page"><article><p>Starting with 0.13<sup><a href="#user-content-fn-preview" id="user-content-fnref-preview" data-footnote-ref="true" aria-describedby="footnote-label">1</a></sup>, <a href="https://github.com/astral-sh/uv">uv</a> uses <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> to parse source distributions.</p>
+<p><a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> is roughly twice as fast as our previous tar implementation (<a href="https://crates.io/crates/astral-tokio-tar">astral-tokio-tar</a>) while
+also reducing uv's exposure to parser differentials and other security risks.</p>
+<p>This blog post is about <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> itself: what it is, and what compelled us to build and optimize
+it. Read on if you, too, would like to know too much about tar archives.</p>
+<picture><source media="(prefers-color-scheme: dark)" srcset="https://astral.sh/static/SVG/tar-codec-bench.dark.svg"><img src="https://astral.sh/static/SVG/tar-codec-bench.svg" alt="Performance of tar-codec relative to astral-tokio-tar, in uv's benchmarks" width="2000" height="254" loading="lazy"></picture>
+<h2><span id="background-uv-and-tar"></span>Background: uv and tar <a href="#background-uv-and-tar">#</a></h2>
+<p><em>What follows is an extended digression on the tar format. If all you care about is <code>tar-codec</code>,
+<a href="#tar-codec">skip to it</a></em>.</p>
+<p>As a Python packaging tool, uv is in the business of resolving and installing Python packages. <a href="https://github.com/astral-sh/uv">uv</a>
+requests <em>installable distributions</em> from various sources (principally package indices like <a href="https://pypi.org">PyPI</a>)
+and installs them on the user's behalf. This is how you go from <code>uv add urllib3</code> to something you
+can actually import and use in your own Python codebase.</p>
+<p>Installable distributions come in two primary forms:</p>
+<ul>
+<li>
+<p>"Built"<sup><a href="#user-content-fn-built" id="user-content-fnref-built" data-footnote-ref="true" aria-describedby="footnote-label">2</a></sup> distributions, also known as <em>bdists</em> or (most commonly) <em>wheels</em>, are essentially
+ZIP archives containing structured metadata and a fixed layout. Installers handle these by (more
+or less) plopping their contents into the right destination directory.</p>
+<p>Many people think that <em>bdist</em> is short for "binary distribution," since wheels often contain
+compiled native code. This one common way to use wheels, but wheels can also contain pure Python.
+They're just another (and frequently better) way to package and install a distribution.</p>
+</li>
+<li>
+<p>"Source" distributions, also known as <em>sdists</em>, are essentially tar archives. Unlike built
+distributions, a source distribution is <em>essentially</em><sup><a href="#user-content-fn-sdist" id="user-content-fnref-sdist" data-footnote-ref="true" aria-describedby="footnote-label">3</a></sup> just a rollup of a source tree's
+state at release time.</p>
+<p>By definition, source distributions execute arbitrary code at installation time. This makes them
+very powerful, but brittle (missing build tools or dependencies) and also a security risk (an
+attacker who controls the sdist can run code without the user needing to <code>import</code> anything).</p>
+</li>
+</ul>
+<p>Wheels are generally produced by running a <a href="https://peps.python.org/pep-0517/">build backend</a> on a source distribution. Examples of
+that include uv's own <a href="https://docs.astral.sh/uv/concepts/build-backend/">uv_build</a>, <a href="https://github.com/pyo3/maturin">maturin</a>, and <a href="https://flit.pypa.io/en/stable/">flit</a>.</p>
+<p>Consequently, at a bare minimum, a Python package installer needs to understand at least two
+different archive formats: ZIP for wheels, and tar for sdists.</p>
+<p>We've already <a href="https://astral.sh/blog/uv-security-advisory-cve-2025-54368">talked a bit before</a> about ZIPs on the Astral blog, and we'll certainly be talking
+about them again soon enough. But today we'll be focusing on tar.</p>
+<h3><span id="why-a-new-tar-parser"></span>Why a new tar parser? <a href="#why-a-new-tar-parser">#</a></h3>
+<p>It's fair to ask: why does <a href="https://github.com/astral-sh/uv">uv</a> want a new tar parser?</p>
+<p>In short: security and performance, but mostly security.</p>
+<p>Up until 0.13, uv used <a href="https://crates.io/crates/astral-tokio-tar">astral-tokio-tar</a> for its tar operations, including both parsing and
+creation (in <code>uv build</code>). <a href="https://crates.io/crates/astral-tokio-tar">astral-tokio-tar</a> is itself a fork of <a href="https://github.com/edera-dev/tokio-tar">edera-dev/tokio-tar</a>, which is a
+fork of <a href="https://github.com/vorot93/tokio-tar">vorot93/tokio-tar</a>, which is a fork of <a href="https://github.com/dignifiedquire/async-tar">dignifiedquire/async-tar</a>, which is an async
+<em>adaptation</em> of <a href="https://github.com/composefs/tar-rs">composefs/tar-rs</a>.</p>
+<p>Around a year ago, we began to receive a <a href="https://github.com/astral-sh/tokio-tar/security/advisories">number of security reports</a> in <a href="https://crates.io/crates/astral-tokio-tar">astral-tokio-tar</a>. This
+spurred us into looking more into our compression and archive handling stack, where we found
+additional problems.</p>
+<p>Many of these boiled down to differentials that could cause a full parser
+desynchronization<sup><a href="#user-content-fn-tarmageddon" id="user-content-fnref-tarmageddon" data-footnote-ref="true" aria-describedby="footnote-label">4</a></sup>: given an identical tarball, <a href="https://github.com/astral-sh/uv">uv</a>, <a href="https://github.com/pypa/pip">pip</a>, and other package tooling
+could be made to see different contents for the same package distribution. We found this
+particularly concerning in the context of archives that would appear "safe" to an index (like PyPI)
+but could extract dangerously when parsed by an installer like <a href="https://github.com/astral-sh/uv">uv</a> or <a href="https://github.com/pypa/pip">pip</a>.</p>
+<p>This could the take the form of an "append" differential (where the attacker can append new files or
+new contents to existing files for a specific victim parser), or even a "full" differential (where
+the attacker can fully separate the extraction contents for each parser):</p>
+
+<p>In the context of <a href="https://github.com/astral-sh/uv">uv</a>, the attacker model for these kinds of vulnerabilities is somewhat subtle:
+tar is only used for source distributions which, per above and unlike wheels, are assumed to execute
+arbitrary code at build time. Consequently, Python packaging <em>mostly</em> considers tar differentials to
+be a minor concern, since any attacker who <em>would</em> use them has a much more direct and official
+route towards writing arbitrary contents to disk (or executing arbitrary code).</p>
+<p>Still, these findings unnerved us, and we <a href="https://github.com/astral-sh/tokio-tar/pull/95">embarked on a project</a> to eliminate every differential we
+could find in <a href="https://crates.io/crates/astral-tokio-tar">astral-tokio-tar</a>.</p>
+<p><a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> grew directly out of that effort: we ultimately came to the conclusion that the
+tokio-tar family was <em>too lenient by design</em>, and that retrofitting constraints to it would be more
+troublesome and error-prone (including for existing non-Astral users of its APIs) than developing
+our own, ground-up implementation of tar. This would also give us the opportunity to systematically
+understand the tar format, and ensure that our assumptions around which aspects are (or aren't)
+differential risks hold true.</p>
+<p>Similarly, we determined that our performance goals around tar parsing would be impossible to meet
+in the existing code base, at least not without refactors that would be tantamount to a rewrite.</p>
+<h2><span id="tarchaeology"></span>(t)archaeology <a href="#tarchaeology">#</a></h2>
+<p>It's important to understand that one does not simply build a tar parser from scratch. One must
+first understand <em>how</em> the tar format evolved into its current state<sup><a href="#user-content-fn-dorum" id="user-content-fnref-dorum" data-footnote-ref="true" aria-describedby="footnote-label">5</a></sup>.</p>
+<p>tar is an <em>interesting</em> format. Or more precisely, it's an interesting <em>family</em> of formats.</p>
+<p>To summarize, there are three (and a half) variants that matter in practice:</p>
+<ul>
+<li>
+<p>There's UNIX V7 tar, which is the "original" tar. Very few tar implementations write this format
+by default anymore, but virtually all still read it. For example, Python's <a href="https://docs.python.org/3/library/tarfile.html#supported-tar-formats"><code>tarfile</code> module</a> will
+happily parse V7 tar files.</p>
+<p>The UNIX V7 format is not widely used anymore because it comes with significant limitations on
+per-member file sizes (approximately 8 GiB) and path lengths (100 bytes).</p>
+</li>
+<li>
+<p>Then there's the UStar/pax tar family<sup><a href="#user-content-fn-family" id="user-content-fnref-family" data-footnote-ref="true" aria-describedby="footnote-label">6</a></sup>. This family is widely supported by tar
+implementations for both reading and writing. As far as tar goes, UStar and pax are what passes
+for a "gold standard" in terms of clarity of specification and documentation.</p>
+<p>At this juncture, the main thing to know about the UStar/pax family is that it's derived from the
+UNIX V7 format, but with certain restrictions lifted:</p>
+<ul>
+<li>UStar keeps the per-member size limit at 8 GiB, but raises the path length limit to 255 bytes
+(except for link names, which remain 100 bytes),</li>
+<li>pax makes per-member sizes and path lengths unlimited, <em>including</em> link names.</li>
+</ul>
+</li>
+<li>
+<p>Finally, there's GNU tar<sup><a href="#user-content-fn-oldgnu" id="user-content-fnref-oldgnu" data-footnote-ref="true" aria-describedby="footnote-label">7</a></sup>.</p>
+<p>GNU tar is documented in the <a href="https://www.gnu.org/software/tar/manual/html_node/Standard.html">GNU tar manual</a>, but is not standardized <em>per se</em>. The source code
+of GNU <code>tar</code> (the CLI) is the <em>de facto</em> standard for GNU tar.</p>
+<p>Like UStar/pax, GNU tar is derived from UNIX V7 tar. It's <em>also</em> derived from an <a href="https://www.gnu.org/software/tar/manual/html_node/gnu.html">early draft of
+UStar</a>.</p>
+<p>Also like pax, GNU tar makes file sizes and path/link lengths (effectively) unlimited. It does so
+in a completely different and much funnier way than pax does.</p>
+</li>
+</ul>
+<p>That gives us the following genealogy:</p>
+
+<p>If you've ever written a parser for a binary format before, then you probably have a preconception
+for what a binary format <em>should</em> look like. To first, second, and third approximations, binary
+formats tend to look <em>something</em> like this:</p>
+
+<p>Within this, too, certain idioms appear: binary formats typically use some form of <a href="https://en.wikipedia.org/wiki/Type%E2%80%93length%E2%80%93value">TLV encoding</a>,
+use different magics to signal different endiannesses, &amp;c.</p>
+<p>The tar format does not look like this, regardless of the variant. tar is fundamentally a <em>block
+format</em>, owing to its origins as a tape archival format<sup><a href="#user-content-fn-tape" id="user-content-fnref-tape" data-footnote-ref="true" aria-describedby="footnote-label">8</a></sup>.</p>
+<p>As a block format, a tar archive is comprised of one or more fixed-length blocks. There is no
+file-level header; instead, many of its blocks <em>are</em> headers, while other blocks contain actual
+member<sup><a href="#user-content-fn-member" id="user-content-fnref-member" data-footnote-ref="true" aria-describedby="footnote-label">9</a></sup> data:</p>
+
+<p>In all flavors of tar, all blocks (including the header blocks) are always 512 bytes. Each header
+block declares metadata for the <em>member</em> that follows it. This includes important things like the
+size of the member and its filepath.</p>
+<p>Member contents don't always fit cleanly into multiples of 512 bytes, so a tar that wants to encode
+a file member of <code>N</code> bytes will allocate <code>ceil(N / 512)</code> blocks and pad out the remainder of the
+last block. This doesn't affect extraction, since the reader knows (via the header block) exactly
+how many bytes out of the allocated space are actual file content.</p>
+<p>Conventionally, the padding or "holes" in a tar archive are filled with NUL bytes. However, nothing
+stops a tar producer from filling them with uninitialized memory, or lines from the Bee Movie, or
+anything else. A recurring theme with tar (of all flavors) is that it has no opinions about what
+goes in the holes of the format. This malleability makes it very prone to parser differentials,
+since it gives the attacker ample space to place surprising data.</p>
+<p>tar's block design also makes it relatively space-inefficient<sup><a href="#user-content-fn-compression" id="user-content-fnref-compression" data-footnote-ref="true" aria-describedby="footnote-label">10</a></sup> by modern standards. For
+example, a 513-byte file occupies an absolute minimum of 1,536 bytes when encoded as a tar member:
+one 512-byte block for the header, and two blocks for the content (one of which has only 1 "real"
+byte, followed by 511 bytes of padding). Similarly, a tar archive containing 1000 one-byte files
+requires a minimum of 1025 KiB of encoding (1 MiB for the headers and contents, and then 1 KiB for
+the trailing zero blocks).</p>
+<h3><span id="tar-problems"></span>tar problems <a href="#tar-problems">#</a></h3>
+<p>So far, this all sounds pretty sane. It's not a "normal" file format by modern standards, but
+there's a simple state machine one could write to formalize a parse for the tar example above:</p>
+
+<p>Unfortunately, it's not that simple. The state machine above is accurate for a V7 tar, but not for
+anything else in the tar format family.</p>
+<p>To understand why, we have to remember V7 tar's limitations. All of those limitations come down to
+the C structure that represents a V7 member header, which we've annotated here:</p>
+<div data-rehype-pretty-code-fragment=""><pre><code data-language="c">struct v7_header {
+    // The member's path. Observe that this can be no more than 100 bytes;
+    // NUL termination isn't required, since it's a fixed-size field.
+	char name[100];
+
+    // The member's mode, as an octal string.
+    // Note that only the first 4 octal digits (12 bits) have well-defined semantics in pax.
+	char mode[8];
+
+    // The member's owner's UID and GID, as octal strings.
+	char uid[8];
+	char gid[8];
+
+    // The size of the member, as an octal string.
+    // V7 treats this as NUL-terminated, so the largest
+    // interoperable value in it is `77777777777\0`.
+	char size[12];
+
+    // The member's mtime, as an octal string.
+	char mtime[12];
+
+    // A checksum for the member header itself.
+	char chksum[8];
+
+    // '\0' for a regular file, '1' for a hard link,
+    // and '2' for a symbolic link.
+	char linkflag;
+
+    // When `linkflag` is '1' or '2', this is the link's destination.
+    // Like `name` this is limited to 100 bytes.
+	char linkname[100];
+
+    // 255 bytes of the header are unused.
+	char pad[255];
+};</code></pre></div>
+<p>Three big limitations stand out, and each member of the tar family tries to solve them in various
+different ways:</p>
+<ol>
+<li>Member and link names cannot be longer than 100 bytes;</li>
+<li>Members cannot be larger than <code>0o77777777777</code> bytes, i.e. one byte short of 8 GiB;</li>
+<li>Only regular files and links are defined; there are no directory or other member types<sup><a href="#user-content-fn-dir" id="user-content-fnref-dir" data-footnote-ref="true" aria-describedby="footnote-label">11</a></sup>.</li>
+</ol>
+<p>Let's see how each family works around these.</p>
+<h3><span id="ustar-and-pax"></span>UStar and pax <a href="#ustar-and-pax">#</a></h3>
+<p>UStar's half-solution is to preserve the existing physical header block, while <a href="https://en.wikipedia.org/wiki/Impressment">impressing</a> some of
+its fields and padding into new roles.</p>
+<p>This is the UStar header:</p>
+<div data-rehype-pretty-code-fragment=""><pre><code data-language="c">struct ustar_header {
+    // Unchanged.
+	char name[100];
+	char mode[8];
+	char uid[8];
+	char gid[8];
+	char size[12];
+	char mtime[12];
+	char checksum[8];
+
+    // `linkflag` is now `typeflag`, and encodes, inter alia,
+    // '5' for a directory.
+	char typeflag[1];
+
+    // Unchanged.
+	char linkname[100];
+
+    // `"ustar\0"`
+	char magic[6];
+
+    // `"00"`
+	char version[2];
+
+    // The user and group names for the member.
+	char uname[32];
+	char gname[32];
+
+    // For chardev/blockdev members, the device's major and minor numbers.
+	char devmajor[8];
+	char devminor[8];
+
+    // If nonempty, a prefix to prepend to `name` (joined by a `/`).
+	char prefix[155];
+
+    // 12 remaining bytes of the header are unused.
+	char pad[12];
+};</code></pre></div>
+<p>This partially lifts the member name restriction (by raising it to 255 bytes), but retains the file
+size and linkname limitations.</p>
+<p>pax fixes these remaining limitations by doing away with the single-block metadata design. Instead,
+pax has <em>extensions</em> that rely on two new UStar typeflags:</p>
+<ul>
+<li>Typeflag <code>'x'</code> indicates a <em>local</em> extended header block.</li>
+<li>Typeflag <code>'g'</code> indicates a <em>global</em> extended header block.</li>
+</ul>
+<p>In both cases, an extended header block indicates its member's "size." But that size isn't for a
+file: instead, it's for the extension data itself.</p>
+<p>So, what's in the extension data? pax calls it an <em>extended header</em>, and it's an entirely different
+encoding format. An <em>extended header</em> contains one or more pax "records," and each record is a
+string that looks like this:</p>
+<div><pre><code>&lt;length&gt; &lt;keyword&gt;=&lt;value&gt;\n
+</code></pre></div>
+<p>where:</p>
+<ul>
+<li><code>&lt;length&gt;</code> is the byte-length of the record itself, <em>including</em> <code>&lt;length&gt;</code> itself<sup><a href="#user-content-fn-selfdesc" id="user-content-fnref-selfdesc" data-footnote-ref="true" aria-describedby="footnote-label">12</a></sup>;</li>
+<li><code>&lt;keyword&gt;</code> is a keyword that sets or overrides some pax parsing state;</li>
+<li><code>&lt;value&gt;</code> is the value to apply to <code>&lt;keyword&gt;</code>.</li>
+</ul>
+<p>This can be hard to visualize, so here's a concrete example:</p>
+<div><pre><code>13 size=8000↵
+</code></pre></div>
+<p>"↵" above indicates the linefeed.</p>
+<p>Despite being a new encoding, the way that pax records work is <em>relatively</em> simple: if there is an
+<em>effective</em> pax record that corresponds to a tar member header's state, the pax record's value takes
+precedence. In the example above, this means that the subsequent member's size is <code>8000</code> bytes, even
+if the member's own header records a different size.</p>
+<p>This is where the difference between global and local extensions comes in as well: global extended
+headers take precedence over <em>all</em> subsequent members in the archive, while local extended headers
+only affect the <em>next</em> file in the archive. Local extended headers also take precedence over any
+global headers, so we have the following precedence ordering:</p>
+
+<p>(This, too, is simplified. More on that later.)</p>
+<p>To visualize all of that:</p>
+
+<p>For this example, a pax-conforming tar implementation should extract two members:</p>
+<ul>
+<li>
+<p><code>hasdrubal.txt</code>, with a payload of <code>10737418240</code> bytes and an <code>mtime</code> of <code>100</code>.</p>
+<p>Observe that this is both greater than the UStar size limit of 8 GiB and does <em>not</em> use the UStar
+header's own <code>name</code> (of <code>hannibal.txt</code>) or <code>size</code> (of <code>0</code>), since the member's header is preceded
+by an <code>x</code> extended header that overrides those values<sup><a href="#user-content-fn-own" id="user-content-fnref-own" data-footnote-ref="true" aria-describedby="footnote-label">13</a></sup>.</p>
+<p>Moreover, the archive <em>also</em> contains a <code>g</code> extended header that overrides <code>mtime</code> for all
+subsequent members and <code>x</code> does not contain its own <code>mtime</code>, so the global extended header's
+<code>mtime=100</code> also takes effect.</p>
+</li>
+<li>
+<p><code>hamilcar.txt</code>, with a payload of <code>1234</code> bytes and an <code>mtime</code> of <code>100</code>.</p>
+<p>Observe that, unlike <code>hasdrubal.txt</code>, there is no <code>x</code> extended header for this member. As a
+result, the UStar member states are used, with the exception of those overridden by the effective
+<code>g</code> extended header. Thus <code>hamilcar.txt</code> ends up with <code>mtime=100</code>, even if its UStar header sets a
+different value.</p>
+</li>
+</ul>
+<h3><span id="gnu-tar"></span>GNU tar <a href="#gnu-tar">#</a></h3>
+<p>GNU tar takes a very different approach. First, here's the GNU tar header:</p>
+<div data-rehype-pretty-code-fragment=""><pre><code data-language="c">struct gnu_header {
+    // Unchanged from UStar.
+	char name[100];
+	char mode[8];
+
+    // Same layout as UStar, but potentially base-256.
+	char uid[8];
+	char gid[8];
+	char size[12];
+	char mtime[12];
+	char checksum[8];
+
+    // Same layout as UStar, but additional typeflags.
+	char typeflag[1];
+
+    // Unchanged.
+	char linkname[100];
+
+    // `"ustar "`
+	char magic[6];
+
+    // `" \0"`
+	char version[2];
+
+    // Unchanged from UStar.
+	char uname[32];
+	char gname[32];
+	char devmajor[8];
+	char devminor[8];
+
+    // GNU extensions.
+	char atime[12];
+	char ctime[12];
+	char offset[12];
+	char longnames[4];
+	char unused[1];
+	struct {
+		char offset[12];
+		char numbytes[12];
+	} sparse[4];
+	char isextended[1];
+	char realsize[12];
+
+    // 17 remaining bytes of the header are unused.
+	char pad[17];
+};</code></pre></div>
+<p>Observe that, unlike the UStar format, there is no <code>char prefix[155]</code> field. Furthermore, instead of
+pax extended headers with a fully general keyword/value format, GNU tar does two things:</p>
+<ul>
+<li>
+<p>It goes <em>way</em> harder than UStar on trying to re-use the existing 512-byte V7 member header. In
+particular, GNU tar adds its own base-256 encoding: if the first byte in a numeric field has its
+high bit set, then the remaining octets in that field are binary, rather than tar's normal octal
+form.</p>
+<p>This effectively expands the per-byte entropy in numeric fields from 3 bits to 8 bits. For a
+<code>char size[12]</code>, that makes the effective size limit <code>2**80</code><sup><a href="#user-content-fn-big" id="user-content-fnref-big" data-footnote-ref="true" aria-describedby="footnote-label">14</a></sup> or one yobibyte.</p>
+</li>
+<li>
+<p>Instead of general <code>x</code> and <code>g</code> extended headers, GNU tar introduces a bunch of <em>specialized</em>
+typeflags for its own extensions.</p>
+<p><a href="https://www.gnu.org/software/tar/manual/html_node/Standard.html">Many of these</a> are not relevant to the post, or even to modern tar archives at all. But two are:</p>
+<ul>
+<li>The <code>L</code> typeflag identifies the next sequence of content blocks as containing a filename.</li>
+<li>The <code>K</code> typeflag identifies the next sequence of content blocks as containing a link name.</li>
+</ul>
+<p>These two typeflags effectively fill the role of the pax <code>path</code> and <code>linkpath</code> records,
+respectively.</p>
+</li>
+</ul>
+<p>To visualize that:</p>
+
+<p>For this example, a GNU tar implementation should extract two members:</p>
+<ul>
+<li>
+<p><code>hasdrubal.txt</code> with a payload of <code>10737418240</code> bytes.</p>
+<p>Observe that this size, which exceeds 8 GiB, was encoded directly in the header. However, the
+effective filename of <code>hasdrubal.txt</code> comes from overriding the header's original filename of
+<code>hannibal.txt</code> via the preceding GNU <code>L</code> extension.</p>
+</li>
+<li>
+<p><code>publius.txt</code>, which links to another file named <code>africanus.txt</code>.</p>
+<p>Observe that <code>publius.txt</code> originally declared <code>publius.txt -&gt; scipio.txt</code> as its link, but this
+gets overridden to <code>africanus.txt</code> by the preceding GNU <code>K</code> extension.</p>
+</li>
+</ul>
+<p>Finally, while GNU tar does not have pax's notion of global vs. local precedence, GNU tar extensions
+can <em>stack</em>. For example, to override a member's <code>name</code> and <code>linkname</code> at the same time, you'd have
+a tar header sequence like this<sup><a href="#user-content-fn-order" id="user-content-fnref-order" data-footnote-ref="true" aria-describedby="footnote-label">15</a></sup>:</p>
+
+<h2><span id="tar-codec"></span>tar-codec <a href="#tar-codec">#</a></h2>
+<h3><span id="state-machine-turducken"></span>State machine <a href="https://en.wikipedia.org/wiki/Turducken">turducken</a> <a href="#state-machine-turducken">#</a></h3>
+<p>Now that we understand <em>very roughly</em> how the various tar family formats look and work, let's see
+what <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> has to do to parse them safely and efficiently.</p>
+<p>First we'll revisit the state machine. Our nice and simple V7 state machine now understands the
+different pax and GNU states, and has become this monstrosity:</p>
+
+<p>(Note that the error transitions in this state machine are dramatically simplified: in practice, any
+I/O or validation failure at any point also results in a <code>Failed</code> state.)</p>
+<p>What in the world happened? A few different things:</p>
+<ul>
+<li>
+<p>Our state machine begins with a "classification" stage, which effectively locks the remainder of
+the parse to a single family (either UStar/pax or GNU<sup><a href="#user-content-fn-nov7" id="user-content-fnref-nov7" data-footnote-ref="true" aria-describedby="footnote-label">16</a></sup>) based on the identity (magic and
+version) of the first block.</p>
+<p>This is done for differential reduction reasons: while researching <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a>'s design, we
+realized that many other widely used tar parsers attempt to merge states across various tar
+families, with inconsistent results.</p>
+<p>For example, with some tar parsers, it's possible to stack headers like so:</p>
+
+<p>This has unclear semantics: GNU tar expects an <code>L</code> or <code>K</code> to apply to the next "file" member, but
+the next physical member in the stream is a pax local extension that <em>also</em> wants to modify the
+next "file" member. In practice we've seen other parsers do all kinds of things in this state,
+including attempting to merge the extensions, honoring one over the other(s), attempting to apply
+the <code>L</code> state to <code>x</code> instead of the file member, and so forth. Each of these is a potentially
+exploitable differential!</p>
+<p>Instead, <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> will reject a tar archive if its individual headers don't agree about what
+family of tar it is. Real-world tar encoders don't mix tar families (there's no good reason to),
+so this doesn't pose a significant breakage risk.</p>
+</li>
+<li>
+<p>The GNU part of the state machine is slightly more strict than the GNU documentation implies: the
+GNU documentation allows stacking of <code>L</code>/<code>K</code> extensions, including <em>multiple of the same kind</em>, in
+any order.</p>
+<p><a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> tightens that to allowing <code>L</code> and <code>K</code> in any order, but only one of each per
+underlying member.</p>
+</li>
+<li>
+<p>The UStar/pax part of the state machine models local and global extended headers rigidly.</p>
+<p>There's a significant amount of complexity beneath this: pax allows <code>x</code> and <code>g</code> <em>anywhere</em> in the
+tar stream. For example, this is a perfectly valid extension sequence in pax:</p>
+
+<p>This brings us to one of the most painful parts of pax that we glossed over before: extended
+headers don't <em>shadow</em> each other fully, they <em>compose</em> depending on what state the "stack" of
+effective pax records is in. The state of any given pax record can be:</p>
+<ul>
+<li>
+<p><em>Undeclared</em>: no effective pax record exists anywhere in the current stack of local and global
+extensions, which means that the member's own UStar header's state takes precedence.</p>
+</li>
+<li>
+<p><em>Active</em>: there's an effective pax record in the stack, <em>and</em> it has a value.</p>
+</li>
+<li>
+<p><em>Tombstoned</em>: there's an effective pax record in the stack, but it has no value (for example,
+<code>8 path=\n</code> instead of <code>12 path=abc\n</code>).</p>
+<p>You would think that this would be the same as the <em>Undeclared</em> state, but it's not! pax
+considers this record <strong>explicitly</strong> deleted, and <a href="https://pubs.opengroup.org/onlinepubs/9799919799/utilities/pax.html#:~:text=If%20the%20%3Cvalue%3E%20field%20is%20zero%20length%2C%20it%20shall%20delete%20any%20header%20block%20field%2C%20previously%20entered%20extended%20header%20value%2C%20or%20global%20extended%20header%20value%20of%20the%20same%20name.">prescribes</a>:</p>
+<blockquote>
+<p>If the <code>&lt;value&gt;</code> field is zero length, it shall delete any header block field, previously
+entered extended header value, or global extended header value of the same name.</p>
+</blockquote>
+<p>This has fascinating consequences for the state machine, because it means that an
+effective-but-deleted <code>path</code> record means...a file with no path? How are you supposed to extract
+that<sup><a href="#user-content-fn-random" id="user-content-fnref-random" data-footnote-ref="true" aria-describedby="footnote-label">17</a></sup>?</p>
+</li>
+</ul>
+
+<p>Needless to say, <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> tries to follow this faithfully. In particular, it attempts to be
+diligent about rejecting logically-consistent-but-nonsense states that fall out of pax's strange
+record state machine, including empty paths and global extended headers that try to declare <code>size</code>
+and other key states for all members.</p>
+</li>
+</ul>
+<h3>From parsing to extraction <a href="#from-parsing-to-extraction">#</a></h3>
+<p>One of the early design choices we made with <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> was to isolate the implementation into a
+few layers. From lowest to highest:</p>
+<ul>
+<li>
+<p>The <a href="https://crates.io/crates/tar-framing">tar-framing</a> crate is responsible for taking a stream of blocks and turning it into a stream
+of frames. This happens in two refinement stages:</p>
+<ul>
+<li>
+<p>The stream or "physical" API honors the big state machine above and yields each block in a given
+state, one block at a time.</p>
+</li>
+<li>
+<p>The "logical" API consumes the blocks produced by the "physical" API, and yields them as a
+stream of assembled members. Each assembled member is essentially its "header" (which is the
+physical header, merged with any effective extension state that affected the physical framing),
+a separate extension state for non-framing extensions (such as GNU <code>L</code> and <code>K</code>), and a readable
+payload for the member's actual contents.</p>
+</li>
+</ul>
+</li>
+<li>
+<p>The <a href="https://crates.io/crates/tar-codec">tar-codec</a> crate takes the "logical" API from <a href="https://crates.io/crates/tar-framing">tar-framing</a> and turns it
+into something that can be extracted in memory or onto disk.</p>
+</li>
+</ul>
+<p>Extracting an archive (of any format) onto disk is its own can of worms, with its own differential
+risks<sup><a href="#user-content-fn-extdiff" id="user-content-fnref-extdiff" data-footnote-ref="true" aria-describedby="footnote-label">18</a></sup>. Another one of our early observations is that every archive implementation tends to
+have its own extract-to-disk implementation, with its own edge cases.</p>
+<p>We built <a href="https://crates.io/crates/archive-trait">archive-trait</a> to address that. <a href="https://crates.io/crates/archive-trait">archive-trait</a> exposes <code>Archive</code> and <code>ArchiveBuilder</code>
+traits (along with associated types and machinery) that allow any format to expose uniform APIs for
+reading and creating archives. We then built <a href="https://crates.io/crates/archive-trait">archive-trait</a>'s own filesystem extraction on top of
+<a href="https://crates.io/crates/cap-std">cap-std</a>, giving us the ability to "anchor" extraction into a single directory and avoid a large
+class of link and path traversal footguns.</p>
+<h2><span id="lessons-learned"></span>Lessons learned <a href="#lessons-learned">#</a></h2>
+<ul>
+<li>
+<p>Writing a differential-resistant tar parser is <em>surprisingly</em> hard, given how ubiquitous tar files
+of all flavors are, and how simple the original (V7) format is.</p>
+<p>This post has only scratched the surface in terms of complexity. To recap:</p>
+<ul>
+<li>
+<p>Each tar family has its own state machine, which is not always clearly laid out in that family's documentation
+or reference implementation. It is <em>imperative</em> that these state machines do not mix, but real-world tar
+parsers regularly allow them to.</p>
+</li>
+<li>
+<p>Each tar family has its own, non-trivial rules for determining the precedence of state (pathname, linkname, and size)
+attached to archive members.</p>
+<p>Some of this state affects the framing of the parser itself, meaning that faithfully
+handling e.g. pax archives means handling <code>size</code> and similar records up-front, rather than trying to abstract the
+parse across individual 512-byte header blocks.</p>
+</li>
+</ul>
+<p>Separately, there were numerous places where we had to compromise on strict pax conformance
+because of observed behavior from other implementations:</p>
+<ul>
+<li>
+<p>The pax spec is explicit that pax record values must be UTF-8. However, both GNU tar and <code>star</code> historically emitted
+some vendor-specific records<sup><a href="#user-content-fn-paxvendor" id="user-content-fnref-paxvendor" data-footnote-ref="true" aria-describedby="footnote-label">19</a></sup> as raw binary. See <a href="https://lists.gnu.org/r/bug-tar/2013-12/msg00012.html">this bug-tar thread for more context</a>.</p>
+</li>
+<li>
+<p>UStar and pax are explicit that <code>uname</code> and <code>gname</code> should be NUL-terminated in the UStar header, meaning that each can
+be at most 31 bytes long. However, CPython's <code>tarfile</code> (and probably others) will happily fill either to 32 bytes, only
+overflowing to the pax record at 33 bytes or more. See <a href="https://github.com/python/cpython/issues/159322">CPython#159322</a> for more context.</p>
+</li>
+<li>
+<p>More generally, tar implementations will frequently leave <code>mode</code>, <code>uid</code>, <code>gid</code>, and <code>mtime</code> as all NUL, rather than
+zeroed or similar. This doesn't pose a framing/parser synchronization risk, so <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> tracks them as "missing"
+rather than assigning an arbitrary default value.</p>
+</li>
+</ul>
+<p>Finally, in the process of designing and implementing tar-codec, we found <em>many</em> parser
+differential primitives that cause various tar implementations to behave <em>very</em> differently on
+identical inputs. Some of these are currently being disclosed as security vulnerabilities.
+However, some of the general classes we saw:</p>
+<ul>
+<li>
+<p>pax/GNU state machine confusion, as mentioned above. In particular, some tar implementations can be fooled
+into applying a pax extension's states to a GNU extension (or vice versa) instead of to the subsequent
+member, often resulting in full desynchronization and different extraction results.</p>
+</li>
+<li>
+<p>Mis-handling of pax extension precedence, in particular both global (<code>g</code>) extended headers and
+record "tombstoning." For example, some implementations will accept a <code>g</code> header with <code>size=1234</code>
+but ignore it, despite pax saying clearly that such a <code>size</code> record overrides any UStar <code>size</code> fields.
+This also typically results in a full desynchronization primitive.</p>
+</li>
+<li>
+<p>Mis-handling of pax record parsing. For example, some implementations will ignore the <code>&lt;length&gt;</code>
+prefix and instead assume that pax records can be safely split on <code>\n</code>. This is not true, since
+the <code>&lt;value&gt;</code> of a pax record can contain a verbatim <code>\n</code>. As you may have guessed, this also
+typically results in a full desynchronization primitive.</p>
+</li>
+<li>
+<p>More generally, we found a great deal of variety in how lax various tar implementations are when it comes to parsing
+integer fields: many use their language's native "integer from string" API, which can <a href="https://yossarian.net/til/post/some-surprising-numeric-conversions-in-python/">behave surprisingly</a>
+in the presence of different (non-Western Arabic) numeral forms, leading and trailing whitespace,
+and so forth. These small variations can percolate into two different implementations parsing
+the same <code>size</code> field as different integers, once again resulting in desynchronization.</p>
+</li>
+</ul>
+</li>
+<li>
+<p>Decode and encode performance was <em>not</em> the hard part: we found a lot of low-hanging fruit while
+optimizing both, including optimizing tar's checksum generation and calculating pax record length
+prefixes.</p>
+<p>We also picked up significant performance gains by ensuring that tar-codec reuses allocations and
+batches/buffers its work wherever possible (and where doing so does not weaken the API's internal
+consistency or cancellation correctness in an <code>async</code> setting).</p>
+</li>
+<li>
+<p>Conversely, <em>performant</em> secure extraction <em>is</em> somewhat hard: directory capability tracking (of
+the kind that <a href="https://crates.io/crates/cap-std">cap-std</a> does) adds measurable overhead to many of our filesystem operations,
+particularly when extracting on hosts that lack <a href="https://man7.org/linux/man-pages/man2/openat2.2.html"><code>openat2(2)</code></a> or an equivalent system
+call<sup><a href="#user-content-fn-openat" id="user-content-fnref-openat" data-footnote-ref="true" aria-describedby="footnote-label">20</a></sup>. This negatively impacts extraction on macOS in particular.</p>
+</li>
+</ul>
+<p>All in all, <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a>'s design rests on well-worn principles for secure parser design: we are
+<a href="https://alexgaynor.net/2025/mar/25/postels-law-and-the-three-ring-circus/">conservative rather than liberal</a> in what we accept, and we enforce correctness by construction
+through increasingly constrictive layers (from member framing to streaming to extraction). These
+design choices have made us confident that <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> is more resistant to differentials (by
+correctly rejecting them) than other tar implementations.</p>
+<p>The fractured and under-specified nature of tar makes it impossible for us to say that we are
+<em>entirely</em> devoid of differentials, or that new differentials won't be discovered in the future.
+However, we believe that <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a>'s primitives are the correct ones if and when those
+contingencies occur.</p>
+<h2><span id="looking-forwards"></span>Looking forwards <a href="#looking-forwards">#</a></h2>
+<p>This is not the end of our work, on several levels:</p>
+<ul>
+<li>
+<p>While <a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> is essentially feature-complete for our own purposes (within <a href="https://github.com/astral-sh/uv">uv</a>), we're
+interested in making sure that it also solves problems that the larger Open Source community has
+around secure and performant tar parsing.</p>
+<p>To that end, we'll be looking at supporting other, more niche aspects of the various tar families
+(like sparse files, and more control over vendor-specific pax records) as the need arises.</p>
+<p>Separately, we'll be working with others in the community on improving the correctness of <em>other</em>
+tar implementations. In particular, we see Harmen Stoppels's nascent <a href="https://stoppels.ch/tar/">tar-minefield</a> project as a
+promising way to test and re-align other implementations with stricter, more
+differential-resistant interpretations of the tar family formats.</p>
+</li>
+<li>
+<p>Separately, as you may have guessed from our decision to build a generic <a href="https://crates.io/crates/archive-trait">archive-trait</a> library:
+tar is not the only format we're thinking about here!</p>
+<p>We're also actively looking into replacing uv's ZIP parsing, for similar reasons. We hope to share
+our lessons from that work soon, along with material benefits to uv itself.</p>
+</li>
+</ul>
+<section data-footnotes="true"><h2><span id="footnotes"></span>Footnotes <a href="#footnotes">#</a></h2>
+<ol>
+<li id="user-content-fn-preview">
+<p><a href="https://github.com/astral-sh/astral-codec/tree/main/crates/tar-codec">tar-codec</a> has been available since 0.12, but was disabled by default behind the
+<code>--preview-features tar-codec</code> flag. As of 0.13, it is the default and can be disabled by
+setting <code>UV_LEGACY_TAR_BACKEND=1</code>. <a href="#user-content-fnref-preview" data-footnote-backref="" aria-label="Back to reference 1">↩</a></p>
+</li>
+<li id="user-content-fn-built">
+<p>The term "built" is the source of a great deal of confusion for newcomers when they first
+encounter Python packaging. In the context of Python packaging, "built" refers to the fact that
+the distribution is produced by a "build backend", i.e. contains structured metadata that a
+source distribution is not guaranteed to have.</p>
+<p>It does <strong>not</strong> imply that the wheel contains shared libraries or other native code, although it can.
+Pure Python packages are also regularly distributed as built distributions, because installing them is
+faster and more reliable. <a href="#user-content-fnref-built" data-footnote-backref="" aria-label="Back to reference 2">↩</a></p>
+</li>
+<li id="user-content-fn-sdist">
+<p>Historically, a source distribution was <em>literally</em> just a source archive, with the convention
+of having a <code>pyproject.toml</code> or <code>setup.py</code> at the archive's root. More recent Python packaging
+standards state that source distributions must contain a <code>PKG-INFO</code> file containing standard
+metadata. See <a href="https://peps.python.org/pep-0643/">PEP 643</a> for more on that.</p>
+<p>As a result, many source distributions contain no metadata other than the build system itself, which must be
+executed to access the distribution's metadata. <a href="#user-content-fnref-sdist" data-footnote-backref="" aria-label="Back to reference 3">↩</a></p>
+</li>
+<li id="user-content-fn-tarmageddon">
+<p>We recommend Edera's "<a href="https://edera.dev/stories/tarmageddon">TARmageddon</a>" blog post for a detailed treatment of one such
+differential. <a href="#user-content-fnref-tarmageddon" data-footnote-backref="" aria-label="Back to reference 4">↩</a></p>
+</li>
+<li id="user-content-fn-dorum">
+<p><a href="https://mort.coffee">Martin Dørum</a> has a <a href="https://mort.coffee/home/tar/">great blog post</a> on the original tar format and how it evolved over time
+into the constellation of variants that currently exist. We highly recommend reading his post. <a href="#user-content-fnref-dorum" data-footnote-backref="" aria-label="Back to reference 5">↩</a></p>
+</li>
+<li id="user-content-fn-family">
+<p>Whether or not UStar and pax should be clumped together in the same family is doubtless
+extremely controversial to the dozen-or-so other people on Earth who have thought about the tar
+format this much. I consider them to be in the same family, since pax is <em>effectively</em> a strict
+superset of UStar and comes from the same standards body (POSIX) that produced UStar. <a href="#user-content-fnref-family" data-footnote-backref="" aria-label="Back to reference 6">↩</a></p>
+</li>
+<li id="user-content-fn-oldgnu">
+<p>There are actually two different GNU tar formats: there's <code>oldgnu</code> i.e. "old GNU" and <code>gnu</code> i.e.
+"new GNU". The difference between these two is minor (relative to everything else) and GNU tar
+itself emits "new GNU" as of tar 1.12, which was released in 1997. So that's enough about "old
+GNU." <a href="#user-content-fnref-oldgnu" data-footnote-backref="" aria-label="Back to reference 7">↩</a></p>
+</li>
+<li id="user-content-fn-tape">
+<p>"tar" of course being short for "Tape ARchive." Magnetic tapes (like all mass storage) store
+their contents in sequences of fixed-sized blocks, and tar seals 1979's glorious 512-byte blocks
+in amber.</p>
+<p>tar is also far from the only block-style file format. <a href="https://en.wikipedia.org/wiki/Cpio">cpio</a> is another well-known one. <a href="#user-content-fnref-tape" data-footnote-backref="" aria-label="Back to reference 8">↩</a></p>
+</li>
+<li id="user-content-fn-member">
+<p>Archive members are things like files and directories, but <em>also</em> things like sockets and device
+files. I'm not really clear on what it means to archive a socket, but both UStar/pax and GNU tar
+will happily let you express that you've done so! <a href="#user-content-fnref-member" data-footnote-backref="" aria-label="Back to reference 9">↩</a></p>
+</li>
+<li id="user-content-fn-compression">
+<p>Before compression, of course. tar knows nothing about compression. It's just the format that
+encodes one or more files into a single file. <a href="#user-content-fnref-compression" data-footnote-backref="" aria-label="Back to reference 10">↩</a></p>
+</li>
+<li id="user-content-fn-dir">
+<p>V7 tar handles directories in two ways: it creates directories that are <em>implied</em> to exist (for
+example, a member whose name is <code>foo/makeme/bar</code> will create <code>foo</code> and <code>foo/makeme</code> if needed),
+and it will explicitly create a directory if a regular file member ends with a slash, e.g.
+<code>foo/makeme/</code>. <a href="#user-content-fnref-dir" data-footnote-backref="" aria-label="Back to reference 11">↩</a></p>
+</li>
+<li id="user-content-fn-selfdesc">
+<p>In other words, it's a self-describing length. This is somewhat unusual when compared to a
+"normal" TLV/LTV encoding, where the length component is typically either a fixed length or
+something with only limited length variation, like <a href="https://en.wikipedia.org/wiki/LEB128">LEB128</a>. <a href="#user-content-fnref-selfdesc" data-footnote-backref="" aria-label="Back to reference 12">↩</a></p>
+</li>
+<li id="user-content-fn-own">
+<p>You might be thinking: why bother putting states in the member's UStar header at all, if they're
+just going to be overridden by the pax extended header? Why not just fill those parts of the
+block with NULs?</p>
+<p>The answer has to do with backwards compatibility: both GNU and pax do a <del>disgusting hack</del>
+interesting trick where the extension/extended header's <em>own</em> name field is also a valid
+path, conventionally a specially formatted one like <code>%d/PaxHeaders.%p/%f</code>, where <code>%d</code> is
+the dirname of the pax <code>path</code> record, <code>%p</code> is the current PID, and <code>%f</code> is the basename
+of the same <code>path</code> record.</p>
+<p>The theory behind this is (probably) that a subsequent tool can repair the extraction,
+by looking at the pax headers which have been extracted as a regular file instead.
+In practice I suspect this doesn't work well in the greater-than-8 GiB case, which
+is one of the cases where it matters the most. <a href="#user-content-fnref-own" data-footnote-backref="" aria-label="Back to reference 13">↩</a></p>
+</li>
+<li id="user-content-fn-big">
+<p>This is <code>2**80</code> instead of <code>2**96</code> because we lose <code>size[0]</code> to the base-256 sign bit and
+<code>size[11]</code> to the NUL byte. Implementations that don't require a NUL terminator for fields like
+<code>size</code> could in principle allow up to <code>2**88</code> instead. <a href="#user-content-fnref-big" data-footnote-backref="" aria-label="Back to reference 14">↩</a></p>
+</li>
+<li id="user-content-fn-order">
+<p>The order of GNU extensions before the member they affect does not appear to matter in any
+implementation. In other words, you can have <code>L -&gt; K -&gt; 1</code> or <code>K -&gt; L -&gt; 1</code>. <a href="#user-content-fnref-order" data-footnote-backref="" aria-label="Back to reference 15">↩</a></p>
+</li>
+<li id="user-content-fn-nov7">
+<p>That's correct: we don't support parsing V7-style tar files. An early review revealed that
+they're nonexistent in the Python packaging ecosystem, probably because Python's own <code>tarfile</code>
+never supported creating them. The gap between V7 and UStar is small, however, so adding it
+would not be difficult <em>if</em> needed. <a href="#user-content-fnref-nov7" data-footnote-backref="" aria-label="Back to reference 16">↩</a></p>
+</li>
+<li id="user-content-fn-random">
+<p>Many tar implementations do random things here, like trying to extract to an empty path (which
+of course fails), or picking <em>some</em> previous filename or extended header state. <a href="#user-content-fnref-random" data-footnote-backref="" aria-label="Back to reference 17">↩</a></p>
+</li>
+<li id="user-content-fn-extdiff">
+<p>Extraction differentials themselves are out of this post's scope, but to summarize: extraction
+depends heavily on the target filesystem and its state, including any pre-existing symbolic and
+hard links.</p>
+<p>Nuances abound, including how to handle files that differ in casing inside the archive but not on the filesystem itself
+(macOS and Windows), how to handle symlinking on systems where symbolic links are privileged (Windows), and how to handle "funky but valid" filenames
+(non-UTF-8, UTF-8 with NULs, control characters, &amp;c.). <a href="#user-content-fnref-extdiff" data-footnote-backref="" aria-label="Back to reference 18">↩</a></p>
+</li>
+<li id="user-content-fn-paxvendor">
+<p>A pax "vendor record" is a normal pax record, but with a name like <code>VENDOR.keyword</code> instead of
+<code>keyword</code>. pax itself does not specify their semantics and various implementations do wildly
+different things with them, so tar-codec rejects them by default (with an option to skip/ignore
+them instead). <code>SCHILY.xattr.*</code> is one common example of a vendor record namespace. GNU also has
+their own vendor namespace, e.g. <code>GNU.sparse.*</code> for sparse members. <a href="#user-content-fnref-paxvendor" data-footnote-backref="" aria-label="Back to reference 19">↩</a></p>
+</li>
+<li id="user-content-fn-openat">
+<p>Without <code>openat2(2)</code> or a similar source of <code>RESOLVE_BENEATH</code> semantics, <code>cap-std</code> needs to open
+each directory component in a path, which means that its system calls scale linearly with the
+depth of the paths it needs to track. This is on top of the system call overhead for the
+extraction I/O itself. <a href="#user-content-fnref-openat" data-footnote-backref="" aria-label="Back to reference 20">↩</a></p>
+</li>
+</ol>
+</section></article></div>

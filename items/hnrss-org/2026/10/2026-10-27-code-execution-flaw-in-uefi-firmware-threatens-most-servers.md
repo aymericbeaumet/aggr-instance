@@ -1,0 +1,67 @@
+---
+title: Code-execution flaw in UEFI firmware threatens most servers on planet Earth
+link: https://arstechnica.com/security/2026/10/code-execution-flaw-in-uefi-firmware-threatens-most-servers-on-planet-earth/
+source: hnrss-org
+published: 2026-10-27T20:35:09Z
+updated: 2026-10-27T20:35:09Z
+first_seen: 2026-10-28T11:34:18.317588229Z
+authors:
+- DamnInteresting
+content: extracted
+html: 2026-10-27-code-execution-flaw-in-uefi-firmware-threatens-most-servers.html
+remote_preview:
+  url: https://cdn.arstechnica.net/wp-content/uploads/2024/04/malware.jpg
+---
+
+Defenders across the world face the burden of responding to yet another botched code-execution vulnerability, this time in boot-time firmware used by most of the world’s server vendors and data centers.
+
+The vulnerability, with a severity rating of 9.5 out of 10, resides in the TianoCore [EDK II](https://www.tianocore.org/tianocore-wiki.github.io/reference/external-resources/edk_ii.html), an open source codebase that hardware makers and cloud providers use to create the UEFI firmware that runs during the boot-up sequence. Last year, a representative of the UEFI Forum [called](https://uefi.org/sites/default/files/resources/State%20of%20UEFI_UEFI%202025%20DevCon_Final.pdf) EDK2 the “preeminent solution / implementation of the UEFI specifications.” Virtually all UEFI suppliers (sometimes still called IBVs or independent BIOS vendors), including AMI, Insyde, and Phoenix, use the reference code extensively. Project Mu, Microsoft’s hardened EDK2 fork, used the code containing the vulnerable component as well.
+
+The vulnerability, tracked as CVE-2026-97631, is a memory-corruption flaw in an [ICMP](https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol) component that attackers can exploit to execute malicious code that runs before the operating system and firmware can implement defenses like [Secure Boot](https://uefi.org/sites/default/files/resources/UEFI_Secure_Boot_in_Modern_Computer_Security_Solutions_2019.pdf), which establishes a chain of trust for all code, including the [Trusted Platform Module](https://www.trustedcomputinggroup.org/work-groups/tpm) (TPM), loaded during boot. While final payloads delivered by CVE-2026-97631 have no persistence—meaning they run only once—they can give attackers a wide opening to install other payloads that also run each time early in the boot process.
+
+## The cat has left the bag
+
+The parties that discovered CVE-2026-97631—Alex Matrosov of Anthropic and Dan Holmes of Google—had arranged for it to stay under wraps until a coordinated disclosure that was scheduled for January. AMI, a maker of motherboards and other hardware, published [this pull request](https://github.com/tianocore/edk2/pull/13200) last month that detailed the vulnerability and included a code fix. Once the post came to the attention of the discovering parties, TianoCore Project members published a [public advisory](https://github.com/tianocore/edk2/security/advisories/GHSA-99cj-7hg9-mp4m) last week.
+
+With publicly available patch code, it will be trivial for advanced hackers to learn how the vulnerability is triggered and to build working exploits. Further compounding the urgency, patching UEFI code vulnerabilities in millions of end devices sold and used by thousands of hardware makers and cloud providers is cumbersome and time-consuming. Word of the vulnerability comes six days after another botched disclosure, this one involving a [critical code-execution vulnerability](https://arstechnica.com/security/2026/10/php-maintainers-tell-web-devs-to-prepare-themselves-for-critical-security-patches/) in the PHP programming language.
+
+“This vulnerability in the ICMP parser of the EDK2 network stack is interesting in terms of how it affects the chain of trust and the broader ecosystem,” said HD Moore, creator of Metasploit and chief research officer at security firm Dragos. “An attacker intent on compromising a nearby endpoint or server could use this bug to hijack program flow at a point where the boot process still has access to sensitive components, like the endpoint’s TPM. This could be used to break disk encryption for cases where an attacker has short-term network access (and it would be even easier in a theft scenario).”
+
+CVE-2026-97631 is a 16-year-old buffer overflow in the PXE-Base Code driver (NetworkPkg/UefiPxeBcDxe), which is responsible for allowing servers, storage equipment, and other devices to boot using code downloaded from a local network. During this process—known as the pre-execution environment boot—the driver uses a network listener to monitor for ICMP errors. Because the driver doesn’t enforce a memory copy limit of 504 bytes, overwriting adjacent data, a malicious insider or a hacker who has gained low-level access to a local network can send an error message that appends code past this limit. The IUEFI module running on the CPU then becomes corrupted.
+
+As the official advisory puts it:
+
+> During network boot, the PXE Base Code driver (NetworkPkg/UefiPxeBcDxe) keeps a receive request open for ICMP error messages and copies each received message into the fixed 504-byte field Mode.IcmpError of its private context structure. The copy loop’s bounds handling is incorrect in both the IPv4 and IPv6 handlers (PxeBcIcmpErrorDpcHandle and PxeBcIcmp6ErrorDpcHandle): for a message longer than 504 bytes it still copies bytes into the field, and it advances the destination pointer by the cumulative rather than the per-fragment length, so an oversized message writes attacker-controlled bytes past the field. Nothing earlier on the receive path restricts the message length.
+
+The malicious error can be delivered through a simple unicast sent from any network distance to a target device’s IP address, as long as it’s sent during the PXE boot sequence. An attacker can deliver a denial-of-service by causing the boot sequence to hang. When the attacker knows what the target firmware build is, it can plant a “counterfeit event” that executes the malicious code on the CPU in its UEFI firmware environment. The code runs in ring 0, a CPU’s most privileged execution level. Because exploits bypass attestation processes designed to cryptographically prove to remote servers that the hardware is secure, they present a key opportunity for elevating limited privileges.
+
+## Yet another forever day
+
+CVE-2026-97631 joins a long list of previously discovered vulnerabilities in UEFI or code that works closely with it. The most severe of them, [LogoFail](https://arstechnica.com/security/2023/12/just-about-every-windows-and-linux-device-vulnerable-to-new-logofail-firmware-attack/), stemmed from logo images included in the UEFI of just about every hardware maker. Rendering bugs allowed attackers to subvert the chain of trust UEFI enforces and go on to install malicious components before the OS loaded or Secure Boot ran. [PixieFail](https://arstechnica.com/security/2024/01/new-uefi-vulnerabilities-send-firmware-devs-across-an-entire-ecosystem-scrambling/) was a vulnerability similar to CVE-2026-97631. It, too, was the result of faulty PXE boot flaws in EDK2. Following discovery of the vulnerability, researchers embarked on [multiple](https://introspector.oss-fuzz.com/project-profile?project=edk2) [fuzzing](https://www.ndss-symposium.org/wp-content/uploads/2025-400-paper.pdf) [projects](https://github.com/google/oss-fuzz/tree/master/projects/edk2) designed to surface other critical flaws in the open source code library. It appears those efforts failed to find this latest flaw.
+
+Other recently discovered UEFI flaws include:
+
+- [PKFail](https://arstechnica.com/security/2024/09/secure-boot-neutering-pkfail-debacle-is-more-prevalent-than-anyone-knew/), a supply-chain failure resulting from non-production test platform keys, public for more than a decade before they were discovered, used in hundreds of device models
+- [BootHole](https://arstechnica.com/information-technology/2020/07/new-flaw-neuters-secure-boot-but-theres-no-reason-to-panic-heres-why/)
+- [Bootkit](https://arstechnica.com/security/2024/11/found-in-the-wild-the-worlds-first-unkillable-uefi-bootkit-for-linux/) and
+- [BlackLotus](https://arstechnica.com/information-technology/2023/03/unkillable-uefi-malware-bypassing-secure-boot-enabled-by-unpatchable-windows-flaw/)
+
+Like CVE-2026-97631, exploitation or use of these payloads is appealing because it allows attackers to infect machines early in the boot process, before TPM and other defenses load, so they can inflict maximum damage. Given the ubiquity of CVE-2026-97631, Moore said it’s likely a “forever” bug that will live on in end-of-support systems.
+
+There are important caveats and limitations to exploiting this latest vulnerability. As noted, some level of control over a local network is a prerequisite. That likely limits exploitation to insiders or attackers, such as nation-states or ransomware operators, who manage to gain low-level access inside a network and are looking for a way to elevate system rights. There’s no evidence yet that CVE-2026-97631 provides an initial entry point into a network. There are other hurdles to clear.
+
+“For exploiting the vulnerability itself, an attacker needs to guess specific addresses within the target system, so it’s not something that you can throw a single exploit at any target and get RCE across a diverse range of devices, but it needs to be tuned for each target model/version/configuration since the addresses will change based on those,” Jesse Michael, a principal researcher at firmware security firm Eclypsium, told Ars. “Unlike some of the previous, high-profile vulnerabilities like BootHole, Black Lotus, and Baton Drop, this vulnerability can be fixed with a basic code fix, which will require deploying a BIOS/UEFI update, but they don’t need to deal with revocations, pk/kek/db/dbx key management updates, or making sure to update OS and provisioning media like you do with Secure Boot bypasses in the bootloader itself.”
+
+CVE-2026-97631 doesn’t affect home and small office users, or any other users who boot their devices solely from disk drives. Instead, it applies only to organizations with machines that boot from local networks, or conceivably from Internet-connected resources. Even then, the targeted firmware must rely on EDK2, as opposed to a different reference implementation, and use the PXE functionality (which is turned on by default).
+
+In an email, Intel said that none of its “commercial products currently under security support” are known to be affected. “Intel does not include the affected EDK2 functionality in its reference code, though it may be integrated by an OEM board vendor or system manufacturer,” the company added. It advised customers to check with their system manufacturer for specific guidance. Publicly available [Intel reference code](https://github.com/intel/FSP), however, makes reference to EDK2. Further, TianoCore [has said](https://www.tianocore.org/tianocore-wiki.github.io/reference/faqs-glossaries/differences_between_udk_and_edk_ii.html) that each Intel-supplied UEFI development kit “is a fully validated implementation… for a specific revision of the EDK II source.” Many other Intel documents reference EDK2 as well.
+
+Arm, meanwhile, responded to a list of questions with: “CVE-2026-97631 is not directly applicable to Arm’s product portfolio.” Like Intel, [firmware](https://github.com/ARM-software/arm-systemready/blob/main/SystemReady-band/README.md) the company [makes](https://github.com/ARM-software/arm-systemready/blob/main/SystemReady-band/README.md) available also borrows heavily from EDK2. TianoCore has also [documented](https://github.com/tianocore/edk2-platforms/blob/master/Platform/ARM/Readme.md) Arm’s reliance on EDK2.
+
+While it’s possible some platforms are free of EDK2 code, it’s prudent for users of all servers to investigate if CVE-2026-97631 affects them.
+
+Questions sent to AMD, Phoenix Technologies, AMI, Microsoft, and Amazon—likely some of the other biggest organizations affected—went unanswered when this post went live. Without concrete answers to questions about the use of EDK2 by organizations like these, it’s impossible to say what or how devices are affected and what actions, if any, these organizations, or their users, should take. Representatives from the TianoCore Project also didn’t respond.
+
+Some readers are likely to be unhappy at the lack of detail. Sometimes—particularly in cases involving botched disclosures that break embargoes months before they’re scheduled to lift—there’s no escaping the lack of actionable information in initial reporting.
+
+Those affected should check with the maker of the firmware being used to boot their systems and ask for guidance. Beyond that, they should consider turning off network boot capabilities at least temporarily if possible. Firmware configurations should always enable security features such as TPM and Secure Boot whenever possible, although those defenses don’t protect against this particular threat. It’s also a good idea to monitor logs for signs of exploitation attempts.

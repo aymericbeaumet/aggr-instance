@@ -1,0 +1,98 @@
+<div id="readability-page-1" class="page"><div>
+      
+
+
+
+  <p><span>2026-10-27</span> · 15 min ·  <a href="https://gracefulliberty.com/articles/tags/computing">#computing</a>  </p>
+
+
+<p>It has been about four months since I <a href="https://gracefulliberty.com/articles/return-to-zig">returned to Zig</a> after being absent for a few years. In this time, I have written some software in Zig and reengaged with the community, online and in person. I decided to share some of that experience, including what I have liked about Zig so far and what I haven't. I'll include some comparisons to Rust along the way since that was my previous go-to language.</p>
+<span id="continue-reading"></span><h2 id="projects">Projects</h2>
+<p>The first project I started in Zig was <a rel="external" href="https://codeberg.org/liberty/snurl">snurl</a>. It is a library for interacting with the smallnet (Gemini, Finger, Gopher, Spartan, and such). My goal has been to provide an alternative to curl for the smallnet, with similar testing and fuzzing requirements but on a smaller scale. I wanted to roughly follow <a rel="external" href="https://tigerstyle.dev/">TigerStyle</a> insofar as it made sense for the project.</p>
+<p>Something I ran into early on was that the fuzzer didn't actually work. When getting excited about fuzzing in my last post, I didn't realize that the feature had not yet been completed. This isn't surprising, considering Zig's status, but it was disappointing, especially since the fuzzer is demonstrated in the generated <code>main.zig</code> file provided by <code>zig init</code>.</p>
+<p>After this, I wrote a two programs which I have not published yet. The first is a small TUI typer racer. It was simpler than I expected to get a minimum version working so far. The second is an n-body simulator with stellar evolution using raylib.</p>
+<h2 id="zig-day">Zig Day</h2>
+<p>The most exciting opportunity in the last few months was the chance to go to a local Zig Day. I learned of Zig Day Seattle occurring on <a rel="external" href="https://lobste.rs">Lobsters</a> on August 20th. I was ecstatic to learn that there was a Zig Day in my area. Then I saw Andrew Kelley would be there and became more excited.</p>
+<p>Zig Days are local meetups where people interested in Zig hang out, work on their projects together, and talk about Zig. For this Zig Day, I decided to work on snurl. A friend, <a rel="external" href="https://yujiri.xyz">Evin Yulo</a> also decided to attend.</p>
+<p>The event itself occurred in the Bothell library, moved there from the Bellevue library after so many people signed up that capacity was overwhelmed. Having the creator of Zig at the event will do that.</p>
+<p>I love the format of these Zig Days and I'm glad they are a part of the community. Since they are run by local groups, it gives the whole Zig community a more interconnected feeling. It's a way to interact with other people who are interested in Zig in person. And, in this case, the creator of Zig itself.</p>
+<p>I got the chance to talk with other programmers about their projects. Hopefully some ideological cross-pollination occurred that will make all our projects stronger. I ended up working on snurl with evin, who started work on integrating Zig's standard library TLS implementation as alternative backend.</p>
+<p>I also briefly talked with Andrew Kelley. I hope Zig's built-in fuzzing gets fixed sometime soon!</p>
+<p>Ryan Hendrickson <a rel="external" href="https://www.ryanjh.com/articles/my-first-zig-day/">wrote an excellent article</a> outlining more of the events of that day from his perspective if you want more details.</p>
+<p>I will definitely be attending Zig Day Seattle again in the future. I may even head down to Portland to catch one before the next local one comes around. I enjoy the opportunity to connect with other people interested in Zig and its values.</p>
+<h2 id="what-i-ve-liked">What I've Liked</h2>
+<h3 id="anyzig">anyzig</h3>
+<p>I love <a rel="external" href="https://github.com/marler8997/anyzig">anyzig</a>. I've had to use zig master and 0.16.0 for different projects, and anyzig has made that doable.</p>
+<p>Unfortunately, it breaks outside of directories without a <code>build.zig.zon</code>, meaning if you have tooling that requires a <code>zig</code> command to work, it can only occur in project directories. This breaks autoformatting for my one-off Zig scripts. Maybe a default zig version could be provided in that case.</p>
+<h3 id="io-and-allocators">IO and Allocators</h3>
+<p>I know it frustrates some people, but I love the fact that you have to pass IO and allocator parameters to functions in Zig.</p>
+<h4 id="allocators">Allocators</h4>
+<p>I'll start with allocators, since they've been around longer. For each Zig function you have to accept an explicit allocator parameter. This is different from most programming languages which either use a default allocator that may be changed globally or one changed by a local <code>context</code> (see Odin).</p>
+<p>I like being able to change allocators for different parts of code. You might want an arena allocator for some things but need a general purpose allocator for others. Sometimes a <code>FixedBufferAllocator</code> is all you need to perform an operation. Zig's style makes this all obvious to handle.</p>
+<p>I prefer Zig's system to Odin's implicit <code>context</code> system since Zig keeps things explicit. It's clear whether a function allocates memory or not, and hard to accidentally pass in the wrong allocator.</p>
+<p>This is also superior to Rust's hidden, infallible allocations that panic when memory is exhausted. They're working on adding explicit allocations, but this will be yet another feature tacked onto the language rather than something built from the ground up.</p>
+<p>It's much easier to reason about programs that allocate memory in Zig.</p>
+<h4 id="io">IO</h4>
+<p>The IO parameter is even more powerful, even if it is newer. It is well worth the breaking changes required to bring it about (even if I skipped the 0.15.0 -&gt; 0.16.0 transition). In Zig, every function that interacts with the underlying operating system (with caveats) requires an "IO" parameter. This provides the context for input, output, and everything else. Porting Zig to new operating systems is mostly just porting IO.</p>
+<p>Practically, this is really nice for testing. When testing behavior, you just need to put in a testing IO instance that works as you need it to. You can change the input stream however you want, cause writes to fail, and anything else.</p>
+<p>Just like with allocation, passing an IO argument makes it clear which programs are pure and which ones are not. You can tell at a glace whether or not a program is going to modify something external.</p>
+<p>Zig has a really good track record of keeping things simple while also adding powerful features. Instead of adding 100 small features that do slightly different similar things, it tends to provide one major feature that supports all the various other use-cases. Low floor, high ceiling.</p>
+<h3 id="comptime">Comptime</h3>
+<p>I love comptime. It's a seamless way to do metaprogramming and precomputation all in one. Other people have written more detailed accounts so I shall move on.</p>
+<h3 id="build-system">Build System</h3>
+<p><a rel="external" href="https://ziglang.org/learn/build-system/">Zig's build system</a> is stellar. So much so that companies like Uber have adopted it for their software written in other languages.</p>
+<p>One thing I like about it is that I can integrate other tools with it seamlessly in ways that Cargo complains about. This is especially important for one of my projects that involves code generation.</p>
+<h3 id="dependency-culture">Dependency Culture</h3>
+<p>Zig has an excellent dependency culture. The main ethos is simple: avoid. When you don't need a dependency, don't add one. However, when you do, it's often a battle-tested library that Zig can effortlessly integrate with translate-c. You can easily also vendor in external dependencies and audit their code.</p>
+<p>Most of my Zig programs have about one or two direct Zig dependencies, with zero indirect dependencies. This makes the codebase much easier to audit and control.</p>
+<p>This stands in stark contrast to Rust, where the smallest of my projects regularly have a few direct and dozens of indirect dependencies.</p>
+<p>This is thanks both to Zig's dependency culture and the fact that essential features like reflection, random number generation, clean error handling, and JSON parsing are built into the language or standard library rather than maintained as separate individual libraries. No need to depend on serde or syn in every program.</p>
+<p>Zig encourages careful consideration before adding dependencies, and I appreciate that.</p>
+<h3 id="handling-errors-effortlessly">Handling Errors Effortlessly</h3>
+<p>Zig pushes programmers to handle errors correctly by default. The laziest way to handle errors in Zig is to use the <code>try</code> keyword and add <code>!</code> to the function's return type.</p>
+<p>This contrasts to Rust, which leads programmers to insert panics into their code. The issue is that it's often easier to panic when prototyping, and then leave that in the code longer than it should be. I've used production code written in Rust that panic instead of returning a proper error.</p>
+<p>In Rust you can use <code>?</code>, which is quicker than <code>unwrap</code>, but you also have to do something like <code>Result&lt;Type, Box&lt;dyn std::error::Error&gt;</code>. That's a mouthful! Alternatively, you can use the anyhow crate and return <code>anyhow::Result</code>, which also provides some nice helper methods. But then you have to add a dependency for reasonable error handling. There's also Zig-style <a rel="external" href="https://mcmah309.github.io/posts/the-missing-piece-in-rust-error-handling/">composable errors</a> with yet another library.</p>
+<h3 id="incremental-compilation">Incremental Compilation</h3>
+<p>The core team members at Zig have been doing amazing work at incremental compilation. If you run <code>zig build --watch -fincremental</code>, the compiler will watch for changes, check exactly what you changed, and then modify only what you've changed down to linking. No effort beyond what's required, so it's faster that human perception even for large codebases. Zig was designed from the ground up to support this behavior.</p>
+<p>This makes for a really nice workflow. I can just run the compiler in incremental mode right next to my text editor, and get updates on my code as I save. No time to get distracted with something else. With Rust projects 10+ seconds incremental compilation loops were common even in smaller projects. That's enough time to get distracted but not enough time to be productive doing something else, leaving annoying gaps that Zig eliminates.</p>
+<p>Rust is disadvantaged here. It's a stable language that needs to maintain backwards compatibility. This means it can't afford to break things in order to improve compilation speed, at least not to any large degree. Meanwhile, if it makes Zig better, the maintainers are willing to break just about anything to ensure the end result will be perfect.</p>
+<p>Currently, Zig only supports incremental compilation on x86_64 on Linux and macOS. If you use another operating system or architecture you won't have access to this feature yet, but in that case it's another thing to look out for!</p>
+<p>This makes Zig just a bit more wonderful to work with. I'll take it.</p>
+<h2 id="what-i-d-like-to-see">What I'd Like to See</h2>
+<h3 id="improved-stability">Improved Stability</h3>
+<p>Like every other user of Zig, I would like to see the standard library become more stable. I know that's one of the last tasks to do before 1.0, and there are many others before then, but it is frustrating to deal with the constant breakage in the ecosystem. My understanding is that that's why 0.17.0 took so long to be released.</p>
+<p>Andrew Kelley said at Zig Day that he would like to see 1.0 more than anyone. I believe him, so I will have patience and trust that the final version will be excellent.</p>
+<p>This is the one reason I still use Rust for some projects. Some cases require a stable programming language and the ecosystem that provides. But considering the impressive software that's being built in Zig these days, stability isn't everything. And there are projects for which the niceties of Zig outweigh its instability. I can't wait for 1.0.</p>
+<h3 id="lifetime-support">Lifetime Support</h3>
+<p>I would like to see more assistance with lifetimes in the Zig compiler. Specifically, I would like to see returning local variables to fail in debug mode, either as a kind of built-in lint (as Andrew Kelley has mentioned wanting to implement) or as literally invalidating that memory after the function returns. That way new users quickly learn to avoid that pattern. Currently, it's easy to unintentionally break your code this way, even if you think you understand lifetimes.</p>
+<p>Relatedly, the compiler currently accepts code that will be broken in the future. The compiler lets variables live the entire scope instead of the scope of a block. This means that if you stack-allocate a buffer and return it from a block, that buffer should be invalidated but isn't. My understanding is that this could silently break in a future Zig version.</p>
+<pre><code data-language="zig">// This works but will be invalid.
+const foo = blk: {
+	var buf: [1024]u8 = undefined;
+	const n = try writeToBuf(&amp;buf);
+	break :blk buf[0..n];
+};</code></pre><h3 id="more-documentation">More Documentation</h3>
+<p>Zig is poorly documented. It has enough to get you started, but to continue onward you have to parse intention from sparse doc comments that are sometimes attached to functions. Examples are rare. I still haven't got Zig's standard library TLS working in snurl because neither I nor a friend can figure out how to set up the buffers correctly.</p>
+<p>Because of this lack of documentation, a lot of the knowledge for building solid Zig programs is distributed across the Web. If you're well integrated into Zig communities, having read the existing documentation, watched the presentations, and read the code, you can succeed. If you aren't that well integrated, however, it can be a challenge to work effectively.</p>
+<p>The benefit of this is that it encourages people to engage in <a rel="external" href="https://ziglang.org/community">Zig communities</a> (I'm an admin for the Matrix room, for example). While LLMs seek to demolish human collaboration, we need human-to-human collaboration now more than ever. However, we can still have that and nice documentation too. As we all know, people will still ask questions if you have things well-documented. And a good community knows how to point people towards good resources rather than just saying "RTFM".</p>
+<p>I would also be curious to see what the intersection of Zig and literate programming could be. My literate programming tool is written in Rust right now, but that might change.</p>
+<h3 id="comptime-allocators">Comptime Allocators</h3>
+<p>I would love to parse JSON at compile time. For one of my projects, there is a JSON file that is stored inside the binary. It's static and could be parsed at compile time into a collection of structs.</p>
+<p>However, the standard library JSON parser requires an allocator. Because there are no allocators that work at compile time, this means that any JSON parsing must be done at runtime. So that's what I did with my project.</p>
+<p>I believe there is an intention of adding a JSON parser that does not require an allocator (the data already exists in the JSON string, after all). That will solve the immediate problem, but there are more general cases that may require an allocator. I believe <code>FixedBufferAllocator</code> worked at compile time before and served this purpose. It could do so again.</p>
+<h3 id="better-bootstrapping">Better Bootstrapping</h3>
+<p>Zig's bootstrapping story is impressive. <a rel="external" href="https://ziglang.org/news/goodbye-cpp/">They erased the C++ version of their compiler and replaced it with a small WASM blob and WASM interpreter</a>. The WASM file is a stripped-down version of the compiler that compiles the full Zig compiler to C, which is then compiled by the system C compiler. It's an interesting approach and you should read the linked article if you want more details.</p>
+<p>The one caveat to this is that it requires the compiled binary blob checked into the source code. This is better than requiring the full previous compiler (like Rust), but it's not as good as having the full source available for every step of the process at all points. A malicious actor could still sneak something into the blob. More importantly, many distributions (like Debian) cannot properly package Zig at the moment because it's impossible to do so in a way that's compliant with their guidelines.</p>
+<p>Their original plan was to use the compiler's C backend to generate a C version of the compiler which would then be maintained separately. They would then have two different source versions. They decided this approach would be too difficult, unfortunately.</p>
+<p>Because of this, someone will have to make another Zig compiler in another language (probably C) that will improve the bootstrap process. This is explicitly not something the Zig Software Foundation wants to develop right now. This means that at the moment there is no way to bootstrap Zig fully from source.</p>
+<p>This issue isn't just a theoretical problem. Because Zig can't be packaged on Debian, I had to choose another language for one of my projects to ensure wider possible usage.</p>
+<p>Fortunately, this issue is temporary. Once Zig is stable, building an alternative compiler should be straightforward. Zig is designed to be a simple language where alternative implementations are humanly achievable, unlike <a rel="external" href="https://rust-lang.org/">other languages</a>. Currently, the instability means any alternative compiler will be playing a constant game of catch-up, which is probably why the core team doesn't want to manage it while they're rapidly iterating.</p>
+<p>Alas, this may also require waiting for 1.0. May it come soon!</p>
+<h2 id="moving-forward">Moving Forward</h2>
+<p>I will continue to use Zig. I'm excited about the direction it's going and I look forward to continuing to be a part of its community. So far, I've found no other programming language that I prefer more than Zig, even with its shortcomings. It's just stable enough that I don't have to make massive changes between releases. It will continue to be my go-to programming language for most projects.</p>
+<p>One of these projects is <a rel="external" href="https://codeberg.org/liberty/retangled">ReTangled</a>. It was previously written in Rust but I grew tired of the massive dependency trees and want to take full advantage of Zig's build system.</p>
+<p>I've also been looking to contribute more to Zig directly. Between my limited time as a student, Zig's overflow of contributors already, and the poor documentation, this will be a challenge. But I want to contribute back, make an impact on the project, and become a better software engineer. Thankfully, improving contributor onboarding seems to be a priority for Andrew Kelley moving forward.</p>
+<p>I'll also be at future <a rel="external" href="https://zig.day/">Zig Days</a> in Seattle, if you want to meet and work on Zig projects together!</p>
+
+
+    </div></div>
