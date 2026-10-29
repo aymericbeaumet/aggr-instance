@@ -1,0 +1,383 @@
+<div id="readability-page-1" class="page"><div> 
+<p>Mistral Large 4 (aka Le Chonk) is a multimodal, multilingual, Mixture-of-Experts (MoE) model from Mistral. It takes text and images as input and generates text. It has about <strong>1T total, 49B active parameter</strong>, and a context window of <strong>1M tokens</strong>.</p>
+<p>The model is released in two official variants:</p>
+<ol>
+<li><a href="https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B">FP8</a></li>
+<li><a href="https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B-NVFP4">NVFP4</a></li>
+</ol>
+<p>There are also <a href="https://huggingface.co/ggml-org">GGUFs</a> created by <a href="https://huggingface.co/unsloth/Mistral-Large-4-1T-A52B-GGUF">Unsloth</a> and the llama.cpp team. It’s distributed under the Mistral Ecosystem Open-Weight License (an MIT derivative that establishes limitations for model-as-a-service offerings).</p>
+<p>Mistral Large 4 is particularly strong for cybersecurity, coding agents, and multimodality. In this post, we look at how the model works, its capabilities, architecture and more!</p>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#welcome-le-chonk-mistral-large-4-on-hugging-face" rel="nofollow">"Welcome Le Chonk: Mistral Large 4 on Hugging Face"</a><ul>
+<li><a href="#table-of-contents" rel="nofollow">Table of Contents</a></li>
+<li><a href="#what-is-new-with-mistral-large-4" rel="nofollow">What is new with Mistral Large 4</a><ul>
+<li><a href="#cybersecurity-capabilities" rel="nofollow">Cybersecurity Capabilities</a></li>
+</ul>
+</li>
+<li><a href="#architecture" rel="nofollow">Architecture</a><ul>
+<li><a href="#vision-encoder" rel="nofollow">Vision encoder</a></li>
+</ul>
+</li>
+<li><a href="#benchmark-results" rel="nofollow">Benchmark Results</a></li>
+<li><a href="#inference-support" rel="nofollow">Inference Support</a><ul>
+<li><a href="#transformers" rel="nofollow">Transformers</a></li>
+<li><a href="#vllm" rel="nofollow">vLLM</a></li>
+<li><a href="#llamacpp" rel="nofollow">Llama.cpp</a></li>
+</ul>
+</li>
+<li><a href="#fine-tuning-with-trl" rel="nofollow">Fine-tuning with TRL</a></li>
+<li><a href="#inference-endpoints" rel="nofollow">Inference Endpoints</a></li>
+<li><a href="#dell-enterprise-hub" rel="nofollow">Dell Enterprise Hub</a></li>
+<li><a href="#try-it-out" rel="nofollow">Try it out</a></li>
+</ul>
+</li>
+</ul>
+<h2>
+	<a id="what-is-new-with-mistral-large-4" href="#what-is-new-with-mistral-large-4" rel="nofollow">
+		
+	</a>
+	<span>
+		What is new with Mistral Large 4
+	</span>
+</h2>
+<p><a href="https://huggingface.co/collections/mistralai/mistral-large-4">Mistral Large 4</a> combines a large pool of experts with sparse attention and a <a href="https://huggingface.co/docs/transformers/en/model_doc/pixtral">Pixtral</a> vision encoder. The language model selects a small group of experts for each token, while its attention indexer selects which earlier token positions to attend to. These are two different forms of sparsity, where one selects feed-forward networks, the other selects context positions.</p>
+<p>You can find all the checkpoints in the <a href="https://huggingface.co/collections/mistralai/mistral-large-4">Mistral Large 4 collection</a>.</p>
+<h3>
+	<a id="cybersecurity-capabilities" href="#cybersecurity-capabilities" rel="nofollow">
+		
+	</a>
+	<span>
+		Cybersecurity Capabilities
+	</span>
+</h3>
+<p>Mistral Large 4 scores 82% on the Artificial Analysis Cyber Index test that asks a model to reproduce a real vulnerability in open-source software and then patch the software. Mistral reports that several closed frontier models score near zero on the same test because they refuse to attempt the work. This is super important for defenders, because fixing a vulnerability usually requires reproducing the vulnerability. In Mistral’s internal testing, Mistral Large 4 was also useful for malware analysis, vulnerability prioritisation and writing detection rules, which the model was not explicitly trained for.</p>
+<p>Mistral mainly positions the model for defensive security work. Vulnerability research and incident response often appear like attacks in model input, so closed source filters can block them. A team that depends on an API can also lose access in the middle of an incident. Crucially, open weight models put both the usage policy and the deployment under the user’s control. That said, the model still declines harmful requests: on cyber prompts from JailbreakBench, StrongREJECT and AgentHarm, its average refusal rate is higher than any other open weight model.</p>
+<p>For community builders, an open weight model like Mistral Large 4 unlocks a load of downstream use cases. You could build your own cyber system around your code base, crash logs, and malware samples. For example, with <a href="#fine-tuning-with-trl" rel="nofollow">TRL you could fine-tune</a> smaller models from Mistral Large 4 traces patching your code base. In fact, reproduce-then-patch tasks use a verifiable reward, so it fits with RL environments that could be used to further RL smaller security models. Open weights also let researchers measure the model’s refusal behaviour directly instead of relying on the provider’s description.</p>
+<p>In short, cyber capabilities like ML4’s in the open are a huge boost for the community.</p>
+<blockquote>
+<p>We have interviewed Pierre Stock about the cyber capabilities of the model, <a href="https://www.youtube.com/embed/FczbSauVvjw" rel="nofollow">you can watch it here</a>.</p>
+</blockquote>
+<h2>
+	<a id="architecture" href="#architecture" rel="nofollow">
+		
+	</a>
+	<span>
+		Architecture
+	</span>
+</h2>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ml4/ml4.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ml4/ml4.png" alt="ML4"></a></p>
+<p>Mistral Large 4’s text decoder has 72 layers, a hidden dimension of 6,144, and 64 attention heads. Its attention blocks combine Multi-head Latent Attention (MLA) with a DeepSeek Sparse Attention (DSA) indexer (a direction in other models such as GLM 5.3). MLA keeps a compressed KV representation, and DSA selects up to 2,048 key positions for each query.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ml4/attention.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ml4/attention.png" alt="Attention"></a><br>For each decoder block, there’s a 3:1 RoPE to NoPE pattern, i.e. 3 decoder layers employ RoPE and every fourth layer uses NoPE. The model also shares KV state across layers.<br>The first decoder layer uses a dense feed-forward network. The other 71 layers use MoE blocks, in which a softmax router selects four of the 128 experts for each token. One shared expert always runs alongside the selected experts, for a total of 5 active experts per token.</p>
+<p>Regarding RoPE, Mistral uses <em>LeRope</em>, a YaRN-scaled RoPE with one learned multiplier per frequency.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ml4/experts.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ml4/experts.png" alt="Experts"></a></p>
+<h3>
+	<a id="vision-encoder" href="#vision-encoder" rel="nofollow">
+		
+	</a>
+	<span>
+		Vision encoder
+	</span>
+</h3>
+<p>Mistral Large 4 employs a 1.6B Pixtral encoder. Pixtral has 30 layers, a hidden dimension of 2,048, and 16 attention heads. It uses 14 × 14 patches and a patch-merge projector with spatial merge size 2. You can see the encoder pipeline below.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ml4/img_encoder.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/ml4/img_encoder.png" alt="Image Encoder"></a></p>
+<h2>
+	<a id="benchmark-results" href="#benchmark-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Benchmark Results
+	</span>
+</h2>
+<p>Mistral Large 4 delivers strong benchmark performance across coding, cybersecurity, multimodal understanding, and agentic workflows, positioning it as a competitive addition to the open-weight ecosystem. As of October 29, 2026, the model is the fifth best open weights model on Artificial Analysis Intelligence index.</p>
+<p>On coding, ML4 achieves <strong>61.7% on DeepSWE v1.1</strong>, <strong>59.4% on SWE-Atlas-QnA</strong>, and <strong>28.3% on Terminal-Bench 4</strong>. Its combined <strong>Coding Agent Index score of 49.8%</strong> places it ahead of DeepSeek V4 Pro 0813 and Qwen3.8 Max.</p>
+<p>Coding capabilities of ML4 extend to knowledge work, with <strong>59.9% on AutomationBench</strong> and <strong>1,393 Elo on AA-Briefcase</strong>, which evaluate business workflows and long-horizon professional tasks.</p>
+<p>Cybersecurity is one of Mistral Large 4’s standout capabilities, with strong results across real-world vulnerability assessment and security competition tasks. Three benchmarks highlight the model’s cyber performance:</p>
+<ul>
+<li><strong>Artificial Analysis Cyber Index:</strong> ML4 ranks among the <strong>top five models globally</strong> on this independent evaluation of models’ ability to find and fix software vulnerabilities.  </li>
+<li><strong>Vulnerability reproduction and patching:</strong> It achieves <strong>82%</strong>, the highest reported score on this test within the index. The task requires reproducing a real vulnerability in open-source software and then patching it, testing both investigation and remediation.  </li>
+<li><strong>Cybench:</strong> ML4 solves <strong>93%</strong> of a suite of <strong>40 challenges drawn from security competitions</strong>, demonstrating strong performance on hands-on security problems.</li>
+</ul>
+<p>Mistral Large 4 also demonstrates <strong>93.3% attack resistance on Lakera’s B3 benchmark</strong>, adding evidence of robustness against prompt-injection attacks. Beyond benchmarks, internal testing showed promising results in malware analysis, vulnerability prioritization, and detection-rule generation.</p>
+<h2>
+	<a id="inference-support" href="#inference-support" rel="nofollow">
+		
+	</a>
+	<span>
+		Inference Support
+	</span>
+</h2>
+<p>Mistral Large 4 is shipped with day-0 support for transformers, vLLM and llama.cpp. GGUF quants are available from GGUF and the <a href="https://huggingface.co/ggml-org/Mistral-Large-4-1T-A52B-GGUF">llama.cpp team</a>. We provide options to deploy remotely with Inference Endpoints, and use serverless inference through Inference Providers.</p>
+<h3>
+	<a id="transformers" href="#transformers" rel="nofollow">
+		
+	</a>
+	<span>
+		Transformers
+	</span>
+</h3>
+<p>The Transformers implementation provides <code>AutoModelForMultimodalLM</code>, with <code>AutoProcessor</code> preparing the conversation and image inputs. Mistral Large 4 can take <code>low</code>, <code>medium</code>, <code>high</code> as reasoning effort. The default is <code>high</code>, and note that reasoning cannot be disabled, so using <code>reasoning_effort</code>: <code>none</code> would still use <code>high</code>.</p>
+<p>To run the model, upgrade the transformers package</p>
+<pre><code data-language="bash">pip install --upgrade transformers
+</code></pre>
+<pre><code data-language="python">import os
+from transformers import AutoProcessor, AutoModelForMultimodalLM, DistributedConfig
+
+distributed_config = DistributedConfig(
+    tp_size=int(os.environ["WORLD_SIZE"]),
+    ep_size=int(os.environ["WORLD_SIZE"]),
+)
+
+model_id = "mistralai/Mistral-Large-4-1T-A52B"
+processor = AutoProcessor.from_pretrained(model_id)
+model = AutoModelForMultimodalLM.from_pretrained(
+    model_id,
+    distributed_config=distributed_config,
+)
+
+# only text
+text_messages = [
+    {
+        "role": "user",
+        "content": "Who are you?"
+    }
+]
+
+# text + image
+multimodal_messages = [
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "image",
+                "image": "https://huggingface.co/datasets/huggingface/cats-image/resolve/main/cats_image.jpeg",
+            },
+            {
+                "type": "text",
+                "text": "How many cats are in the image?",
+            },
+        ],
+    },
+]
+
+for messages in [text_messages, multimodal_messages]:
+    inputs = processor.apply_chat_template(
+        messages,
+        add_generation_prompt=True,
+        tokenize=True,
+        return_dict=True,
+        return_tensors="pt",
+        reasoning_effort="medium",
+    ).to(model.device).to(model.dtype)
+    input_len = inputs["input_ids"].shape[-1]
+
+    outputs = model.generate(**inputs, max_new_tokens=100)
+    if int(os.environ["RANK"]) == 0:
+        print(processor.decode(outputs[0][input_len:], skip_special_tokens=False))
+</code></pre>
+<p>You can run the script above by saving it in a python file <code>script.py</code> and then run</p>
+<pre><code data-language="bash">torchrun --nproc-per-node 8 script.py
+</code></pre>
+<h3>
+	<a id="vllm" href="#vllm" rel="nofollow">
+		
+	</a>
+	<span>
+		vLLM
+	</span>
+</h3>
+<p>vLLM supports the high-quality NVFP4 Mistral Large 4 checkpoint, which has a smaller memory footprint and requires NVIDIA Blackwell GPUs. The model also ships with a DSpark drafter for additional speed-ups with vLLM. Launch the server like this:</p>
+<pre><code data-language="sh">vllm serve mistralai/Mistral-Large-4-1T-A52B-NVFP4 \
+  --config-format mistral \
+  --load-format mistral \
+  --tensor-parallel-size 8 \
+  --decode-context-parallel-size 8 \
+  --enable-expert-parallel \
+  --dtype bfloat16 \
+  --max-model-len 131072 \
+  --max-num-seqs 16 \
+  --max-num-batched-tokens 2048 \
+  --gpu-memory-utilization 0.85 \
+  --enable-prefix-caching \
+  --enforce-eager \
+  --mm_processor_cache_gb 0.0
+</code></pre>
+<p>Once the server is up and running, you can run the following.</p>
+<pre><code data-language="sh">curl -s http://127.0.0.1:8000/v1/chat/completions -H 'Content-Type: application/json' \
+  -d '{"messages":[{"role":"user","content":"What is 17*23?"}],"max_tokens":512}'
+</code></pre>
+<h3>
+	<a id="llamacpp" href="#llamacpp" rel="nofollow">
+		
+	</a>
+	<span>
+		Llama.cpp
+	</span>
+</h3>
+<p>Llama.cpp and <a href="https://llama.app/" rel="nofollow">Llama App</a> already support Mistral Large 4.</p>
+<p>You can install Llama App with the following command:</p>
+<pre><code data-language="sh">curl -LsSf https://llama.app/install.sh | sh
+</code></pre>
+<p>Then you can start the server as follows, indicating the quant suffix after the model ID:</p>
+<pre><code data-language="sh">llama serve -hf ggml-org/Mistral-Large-4-1T-A52B-GGUF:Q2_K
+</code></pre>
+<p><a href="https://huggingface.co/ggml-org/Mistral-Large-4-1T-A52B-GGUF">Here’s the repository</a> with the  quants derived from the FP8 checkpoint, and <a href="https://huggingface.co/ggml-org/Mistral-Large-4-1T-A52B-NVFP4-GGUF">this is the NVFP4 one</a>, converted from the official NVFP4 repo.</p>
+<p>Once the server has started, you can head to localhost:9931 to chat using the built-in WebUI. From the web UI you can add images for inference and adjust the reasoning lever.<br>You can also query the server as follows. Feel free to check out <a href="https://llama.app/docs/serve" rel="nofollow">the API reference</a> for multimodality, tool calls and more.</p>
+<pre><code data-language="sh">curl http://localhost:8080/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Write a limerick about python exceptions"}
+        ]
+    }'
+</code></pre>
+<p>You can run image-text inference as follows.</p>
+<pre><code data-language="sh">curl -s http://127.0.0.1:8080/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer &lt;your-key&gt;" \
+    -d '{
+        "model": "muse-spark-open",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "What is in this image?"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": "data:image/png;base64,..."
+                        }
+                    }
+                ]
+            }
+        ],
+        "temperature": 0
+    }'
+</code></pre>
+<p>The llama.cpp team ships the following quants: <code>IQ2_XXS</code>, <code>Q2_K</code>, <code>Q4_K_M</code>, <code>NVFP4</code>, <code>Q8_0</code>, and <code>BF16</code> for further conversions. The 2-bit quants run on a single Apple Silicon Ultra computer with 512 GB of unified RAM. The others require distributed inference. You can also run on multiple NVIDIA or AMD cards.</p>
+<p>Running <code>Q2_K</code> on a single M3 Ultra, we got a prefill throughput of about 90 tokens per second, and a generation speed of 15 tok/s. On 4 x RTX6000 Pro, we observed the following results:</p>
+<ul>
+<li>NVFP4: 32K context size, prefill 130-590 t/s, gen speed ~10 t/s  </li>
+<li>IQ2_XXS: 800K context size. At short context sizes, prefill is 500 tok/s and generation runs at 30 tok/s. However, using long contexts performance drops to 129 tok/s (prefill) and 3 tok/s (generation).</li>
+</ul>
+<h2>
+	<a id="fine-tuning-with-trl" href="#fine-tuning-with-trl" rel="nofollow">
+		
+	</a>
+	<span>
+		Fine-tuning with TRL
+	</span>
+</h2>
+<p>We also ship day 0 support of fine tuning Mistral Large 4 using TRL. All you have to do is upgrade to the latest version of <code>transformers</code>, <code>trl</code> and <code>peft</code>.</p>
+<pre><code data-language="sh">pip install --upgrade transformers trl peft
+</code></pre>
+<p>In the following example we train the model to perform multilingual thinking. The fine tuned model would be able to reason in the language the system prompt asks for!</p>
+<p>The script runs on the FP8 variant on a node of 8xB300s.</p>
+<pre><code data-language="py"># torchrun --nproc-per-node 8 sft.py
+import os
+
+from datasets import load_dataset
+from peft import LoraConfig
+from transformers import AutoModelForImageTextToText, DistributedConfig
+from trl import SFTConfig, SFTTrainer
+
+world_size = int(os.environ["WORLD_SIZE"])
+model_id = "mistralai/Mistral-Large-4-1T-A52B"
+model = AutoModelForImageTextToText.from_pretrained(
+    model_id,
+    distributed_config=DistributedConfig(fsdp_size=world_size, ep_size=world_size),
+    dtype="auto",
+)
+
+dataset = load_dataset("HuggingFaceH4/Multilingual-Thinking", split="train")
+# the assistant turns carry reasoning, so render them in reasoning mode
+dataset = dataset.map(lambda x: {"chat_template_kwargs": {"reasoning_effort": "high"}})
+
+trainer = SFTTrainer(
+    model=model,
+    args=SFTConfig(
+        packing=True,
+        max_length=4096,
+        assistant_only_loss=True,
+        learning_rate=1e-4,
+        lr_scheduler_type="cosine",
+        warmup_steps=10,
+    ),
+    train_dataset=dataset,
+    peft_config=LoraConfig(
+        r=16,
+        lora_alpha=32,
+        target_modules=r".*language_model.*\.(q_proj|kv_a_proj_with_mqa|kv_b_proj|o_proj|gate_proj|up_proj|down_proj)",
+    ),
+)
+trainer.train()
+</code></pre>
+<h2>
+	<a id="inference-endpoints" href="#inference-endpoints" rel="nofollow">
+		
+	</a>
+	<span>
+		Inference Endpoints
+	</span>
+</h2>
+<p>Mistral Large 4 is also available on Inference Endpoints, with a ready-to-deploy recipe on 8 x NVIDIA H200 GPUs. The recipe runs vLLM with the FP8 weights split across all eight GPUs using tensor and expert parallelism, and uses the model's built-in DSpark draft head for faster generation through speculative decoding. It serves up to 131K tokens of context and processes up to 16 requests at a time, and we observed the following results:</p>
+<ul>
+<li>Single request: time to first token of about 0.6 seconds for a 1K-token prompt, and a generation speed of ~65 tok/s, reaching 120–138 tok/s on chat prompts where DSpark's drafts are accepted.  </li>
+<li>Long prompts: 16K-token prompts, four at a time, are prefilled at about 4,300 tok/s in total, with a time to first token of 8–9 seconds.  </li>
+<li>Under load: about 480 tok/s of total generation across 1,000 ShareGPT conversations.</li>
+</ul>
+<p>You can deploy it with the <code>hf</code> CLI as follows:</p>
+<pre><code data-language="sh">hf endpoints catalog deploy --repo mistralai/Mistral-Large-4-1T-A52B --name mistral-large-4
+</code></pre>
+<p>Once the endpoint is running, you can query its OpenAI-compatible API, using the endpoint URL and your Hugging Face token. The <code>reasoning_effort</code> field controls how much the model reasons before answering, and can be set to <code>low</code>, <code>medium</code>, or <code>high</code> (default).</p>
+<pre><code data-language="sh">curl "$(hf endpoints describe mistral-large-4 --json | jq -r .status.url)/v1/chat/completions" \
+    -H "Authorization: Bearer $(hf auth token 2&gt;/dev/null)" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "model": "mistralai/Mistral-Large-4-1T-A52B",
+        "messages": [
+            {"role": "user", "content": "Write a limerick about python exceptions"}
+        ],
+        "reasoning_effort": "medium"
+    }'
+</code></pre>
+<p>The answer comes back in <code>choices[0].message.content</code>, and the reasoning in <code>choices[0].message.reasoning</code>. The endpoint also supports tool calls, structured outputs, image inputs, and streaming through the standard Chat Completions fields.</p>
+<h2>
+	<a id="dell-enterprise-hub" href="#dell-enterprise-hub" rel="nofollow">
+		
+	</a>
+	<span>
+		Dell Enterprise Hub
+	</span>
+</h2>
+<p>The easiest way to get up and running with your Dell AI Servers (NVIDIA H200, B200, GB200 or GB300) is by installing the <code>dell-ai</code> CLI:</p>
+<pre><code data-language="sh">pip install dell-ai &amp;&amp; dell-ai login
+</code></pre>
+<p>And use it to run an optimized recipe for Mistral Large 4 on e.g., a NVIDIA B300 node.</p>
+<pre><code data-language="sh">dell-ai models deploy --model-id mistralai/Mistral-Large-4-1T-A52B-NVFP4 \
+    --engine docker \
+    --platform-id xe9780-nvidia-b300 \
+    --gpus 4
+</code></pre>
+<p>You can find more about this release in the <a href="https://dell.huggingface.co/updates/mistral-large-4" rel="nofollow">Dell Enterprise Hub (DEH)</a>.</p>
+<h2>
+	<a id="try-it-out" href="#try-it-out" rel="nofollow">
+		
+	</a>
+	<span>
+		Try it out
+	</span>
+</h2>
+<p>Grab the weights from the <a href="https://huggingface.co/collections/mistralai/mistral-large-4">Mistral Large 4 collection</a>, run them locally with the <a href="https://huggingface.co/ggml-org/Mistral-Large-4-1T-A52B-GGUF">GGUFs</a>, or deploy them with Inference Endpoints. We can't wait to see what you build with Le Chonk. Share your fine-tunes, quants and other artefacts on the Hub!</p>
+</div></div>

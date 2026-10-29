@@ -1,0 +1,537 @@
+<div id="readability-page-1" class="page"><div> 
+<p>Language models can do a lot.
+They write, summarize, translate, and call tools.
+But they're only a small part of what machine learning can do.</p>
+<p>Say a customer calls your support line.
+First, you want to know what they said (speech recognition).
+Then, you want to decide where to send them (decision).
+You <em>could</em> hand both to a language model,
+but there are models built for each that are
+better, faster, and less expensive.</p>
+<p>In our <a href="https://huggingface.co/blog/anylanguagemodel-1-0">AnyLanguageModel 1.0 recap</a>,
+we looked at a year of local and hosted models in Swift.
+With AnyLanguageModel and swift-huggingface now on their 1.x releases,
+we're extending the same approach to speech and decisions:
+familiar Swift APIs with a choice of model.</p>
+<p>Today we're announcing two packages:</p>
+<ul>
+<li><a href="https://github.com/mattt/AnySpeechRecognizer" rel="nofollow">AnySpeechRecognizer</a>
+implements Apple's new speech-to-text API with a choice of recognition engine,
+including NVIDIA's Parakeet and Alibaba's Qwen3-ASR running locally on Core ML,
+and adds speaker diarization to track who speaks when.</li>
+<li><a href="https://github.com/mattt/AnyDecisionModel" rel="nofollow">AnyDecisionModel</a>
+answers yes-or-no, multiple-choice, and rating-scale questions
+with typed results and probabilities.
+It derives each answer from the model's probabilities
+instead of generating text,
+using a model on your device with MLX, Core AI, or llama.cpp,
+or a decision model from Jev or Ollama.</li>
+</ul>
+<p>Both packages can download open models from the Hugging Face Hub
+and run them on device.</p>
+<h2>
+	<a id="anyspeechrecognizer" href="#anyspeechrecognizer" rel="nofollow">
+		
+	</a>
+	<span>
+		AnySpeechRecognizer
+	</span>
+</h2>
+<p>Computers have been transcribing speech for decades,
+and in the past few years, they've gotten very good at it.
+Apple platforms already have an API for it.
+macOS 26 and iOS 26 introduced <code>SpeechAnalyzer</code>,
+Apple's new speech-to-text API.
+You add modules such as <code>SpeechTranscriber</code> and <code>SpeechDetector</code> to an analyzer,
+give it a file or a stream of audio buffers,
+and read results from async sequences as they arrive.
+<code>AssetInventory</code> installs the models,
+so your app decides when downloads happen.</p>
+<p>It's a well-designed API,
+but the only engine behind it is Apple's.
+AnySpeechRecognizer keeps the API and lets you choose the engine:</p>
+<pre><code data-language="diff">- import Speech
++ import AnySpeechRecognizer
+</code></pre>
+<p>The package mirrors <code>SpeechAnalyzer</code>, <code>SpeechTranscriber</code>, <code>DictationTranscriber</code>,
+<code>SpeechDetector</code>, and <code>AssetInventory</code>,
+with Apple's Speech framework as the default engine.
+If your code uses that shared API, changing the import is enough.
+To use Parakeet instead,
+change only how you create the transcriber:</p>
+<pre><code data-language="swift">let transcriber = SpeechTranscriber(
+    model: ParakeetSpeechModel(variant: .v3),
+    transcriptionOptions: [],
+    reportingOptions: [.volatileResults],
+    attributeOptions: [.audioTimeRange]
+)
+</code></pre>
+<p>The steps for installing assets, running the analyzer,
+and reading results stay the same.
+The <a href="https://github.com/mattt/AnySpeechRecognizer#transcribe-a-file" rel="nofollow">README</a>
+has a complete example
+and <a href="https://github.com/mattt/AnySpeechRecognizer#differences-from-apples-speech-framework" rel="nofollow">lists the differences</a>
+from Apple's framework.</p>
+<h3>
+	<a id="meet-the-models" href="#meet-the-models" rel="nofollow">
+		
+	</a>
+	<span>
+		Meet the models
+	</span>
+</h3>
+<p><strong>Parakeet v3</strong> is NVIDIA's <a href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3">Parakeet TDT 0.6B v3</a>.
+It's a polyglot:
+it recognizes 25 European languages and works out which one it's hearing,
+so you don't pass a locale.</p>
+<p><strong>Parakeet Ultra</strong> is Moondream's <a href="https://huggingface.co/moondream/parakeet-ultra">post-trained take on v3</a>.
+It was more accurate in most of our measurements.</p>
+<p><strong>Parakeet Unified</strong> is NVIDIA's
+<a href="https://huggingface.co/nvidia/parakeet-unified-en-0.6b">English-only Parakeet</a>.</p>
+<p>All three Parakeets run on the package's own Core ML runtime,
+which supports file and live input, volatile results, word timing,
+and word confidence.</p>
+<p><strong>Qwen3-ASR</strong> is Alibaba's speech model,
+in <a href="https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf">0.6B</a>
+and <a href="https://huggingface.co/Qwen/Qwen3-ASR-1.7B-hf">1.7B</a> sizes.
+It recognizes 30 languages and 22 Chinese dialects,
+including Mandarin, Cantonese, Japanese, and Korean, which Parakeet doesn't cover.
+It detects the language automatically, or you can set one:</p>
+<pre><code data-language="swift">let transcriber = SpeechTranscriber(
+    model: QwenSpeechModel(variant: .large, language: Locale.Language(identifier: "yue")),
+    transcriptionOptions: [],
+    reportingOptions: [],
+    attributeOptions: []
+)
+</code></pre>
+<p>Qwen3-ASR gives one final result for each segment of up to 40 seconds,
+without volatile results, word timing, or confidence.
+It runs on the GPU and is slower than Parakeet,
+so it's better suited to transcribing files than live input.</p>
+<p>To add another engine, implement <code>SpeechRecognitionModel</code> for its configuration
+and <code>SpeechRecognitionExecutor</code> for one module's session.
+The README includes a <a href="https://github.com/mattt/AnySpeechRecognizer#custom-providers" rel="nofollow">small provider</a>
+that reports placeholder text to help you get started.</p>
+<h3>
+	<a id="core-ml-models-on-the-hub" href="#core-ml-models-on-the-hub" rel="nofollow">
+		
+	</a>
+	<span>
+		Core ML models on the Hub
+	</span>
+</h3>
+<p>To run these models in apps,
+we converted them to Core ML and published them on the Hub:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>Core ML conversion</th>
+<th>Original checkpoint</th>
+<th>License</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Parakeet TDT 0.6B v3</td>
+<td><a href="https://huggingface.co/mattt/parakeet-tdt-0.6b-v3-coreml">mattt/parakeet-tdt-0.6b-v3-coreml</a></td>
+<td><a href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3">nvidia/parakeet-tdt-0.6b-v3</a></td>
+<td>CC BY 4.0</td>
+</tr>
+<tr>
+<td>Parakeet Ultra</td>
+<td><a href="https://huggingface.co/mattt/parakeet-ultra-coreml">mattt/parakeet-ultra-coreml</a></td>
+<td><a href="https://huggingface.co/moondream/parakeet-ultra">moondream/parakeet-ultra</a></td>
+<td>CC BY 4.0</td>
+</tr>
+<tr>
+<td>Parakeet Unified EN 0.6B</td>
+<td><a href="https://huggingface.co/mattt/parakeet-unified-en-0.6b-coreml">mattt/parakeet-unified-en-0.6b-coreml</a></td>
+<td><a href="https://huggingface.co/nvidia/parakeet-unified-en-0.6b">nvidia/parakeet-unified-en-0.6b</a></td>
+<td><a href="https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/" rel="nofollow">NVIDIA Open Model License</a></td>
+</tr>
+<tr>
+<td>Qwen3-ASR 0.6B</td>
+<td><a href="https://huggingface.co/mattt/qwen3-asr-0.6b-coreml">mattt/qwen3-asr-0.6b-coreml</a></td>
+<td><a href="https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf">Qwen/Qwen3-ASR-0.6B-hf</a></td>
+<td>Apache 2.0</td>
+</tr>
+<tr>
+<td>Qwen3-ASR 1.7B</td>
+<td><a href="https://huggingface.co/mattt/qwen3-asr-1.7b-coreml">mattt/qwen3-asr-1.7b-coreml</a></td>
+<td><a href="https://huggingface.co/Qwen/Qwen3-ASR-1.7B-hf">Qwen/Qwen3-ASR-1.7B-hf</a></td>
+<td>Apache 2.0</td>
+</tr>
+<tr>
+<td>Streaming Sortformer 4spk v2</td>
+<td><a href="https://huggingface.co/mattt/diar-streaming-sortformer-4spk-v2-coreml">mattt/diar-streaming-sortformer-4spk-v2-coreml</a></td>
+<td><a href="https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2">nvidia/diar_streaming_sortformer_4spk-v2</a></td>
+<td>CC BY 4.0</td>
+</tr>
+<tr>
+<td>Streaming Sortformer 4spk v2.1</td>
+<td><a href="https://huggingface.co/mattt/diar-streaming-sortformer-4spk-v2.1-coreml">mattt/diar-streaming-sortformer-4spk-v2.1-coreml</a></td>
+<td><a href="https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2.1">nvidia/diar_streaming_sortformer_4spk-v2.1</a></td>
+<td><a href="https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/" rel="nofollow">NVIDIA Open Model License</a></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Each repository records its source checkpoint
+and a checksum for every file,
+and the package pins it to a fixed revision.
+The Parakeet repositories add an 8-second encoder for live input,
+which cuts live analysis time by about a third
+at the cost of a somewhat higher word error rate.
+The repository also has the conversion workflows,
+most of which follow FluidInference's <a href="https://github.com/FluidInference/mobius" rel="nofollow">mobius</a> scripts,
+and checks each conversion against the original model.</p>
+<p>Downloads happen only when your app asks for them:
+about 600 MB for each Parakeet, plus about 590 MB for the live encoder,
+0.9 to 2.4 GB for Qwen3-ASR, and about 250 MB for Sortformer.
+Files go in the standard Hugging Face cache,
+so a Mac app outside the sandbox shares them with Python and other Hugging Face tools.</p>
+<h3>
+	<a id="speaker-diarization" href="#speaker-diarization" rel="nofollow">
+		
+	</a>
+	<span>
+		Speaker diarization
+	</span>
+</h3>
+<p>When you transcribe a conversation,
+you often want to know who said what.
+That's speaker diarization,
+and Apple's Speech framework doesn't have a module for it,
+so AnySpeechRecognizer adds one.
+<code>SpeakerDiarizer</code> runs NVIDIA's
+<a href="https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2">Streaming Sortformer</a>
+on Core ML alongside an Apple or Parakeet transcriber,
+on the same timeline:</p>
+<pre><code data-language="swift">let diarizer = SpeakerDiarizer(model: SortformerDiarizationModel())
+if let request = try await AssetInventory.assetInstallationRequest(
+    supporting: [transcriber, diarizer]
+) {
+    try await request.downloadAndInstall()
+}
+let analyzer = SpeechAnalyzer(modules: [transcriber, diarizer])
+</code></pre>
+<p>The diarizer tracks up to four speakers,
+even when they talk over each other.
+A <code>SpeakerTimeline</code> collects its results
+and attributes each timed word to a speaker,
+so you can print a transcript by speaker turn.
+Like image support in AnyLanguageModel,
+this goes beyond what Apple's API offers today.</p>
+<p>The diarizer uses Sortformer v2 by default.
+You can also choose <a href="https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2.1">v2.1</a>,
+which NVIDIA trained with more meeting data
+and which was more accurate on meetings in our measurements, too.</p>
+<h3>
+	<a id="how-well-does-it-work" href="#how-well-does-it-work" rel="nofollow">
+		
+	</a>
+	<span>
+		How well does it work?
+	</span>
+</h3>
+<p>We measured the package with its <code>hear</code> command-line tool
+on an M4 Max Mac Studio with macOS 27.0.1.
+Here are the word error rates on LibriSpeech files of 3 to 8 minutes:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Transcriber</th>
+<th>test-clean</th>
+<th>test-other</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Parakeet v3, file</td>
+<td>1.55%</td>
+<td>2.78%</td>
+</tr>
+<tr>
+<td>Parakeet v3, live</td>
+<td>4.73%</td>
+<td>4.29%</td>
+</tr>
+<tr>
+<td>Parakeet Ultra, file</td>
+<td>1.66%</td>
+<td>2.55%</td>
+</tr>
+<tr>
+<td>Parakeet Ultra, live</td>
+<td>2.65%</td>
+<td>3.28%</td>
+</tr>
+<tr>
+<td>Parakeet Unified, file</td>
+<td>1.43%</td>
+<td>2.19%</td>
+</tr>
+<tr>
+<td>Parakeet Unified, live</td>
+<td>1.45%</td>
+<td>2.42%</td>
+</tr>
+<tr>
+<td>Apple's transcriber, file</td>
+<td>2.12%</td>
+<td>3.97%</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>Parakeet transcribes an hour of audio
+in about 20 to 40 seconds from a file,
+or about 1.5 to 2.5 minutes live,
+with about 100 MB of memory once Core ML has compiled the model.
+Qwen3-ASR is much slower and needs a few gigabytes of memory.
+Meetings are hard for everyone:
+on AMI recordings, where people talk over each other,
+every engine we tested had a word error rate above 23%.</p>
+<p>These numbers come from one machine and a few datasets,
+so measure with your own hardware and audio.
+<code>hear evaluate</code> works on your own files,
+and the repository's <code>natural-speech-eval.py</code> tool
+<a href="https://github.com/mattt/AnySpeechRecognizer#accuracy-and-performance" rel="nofollow">reproduces these measurements</a>.
+So far, we've tested only on macOS 27, not on an iPhone.</p>
+<p>Next, we'd like to add more engines, including Core AI on macOS 27 and iOS 27.</p>
+<h2>
+	<a id="anydecisionmodel" href="#anydecisionmodel" rel="nofollow">
+		
+	</a>
+	<span>
+		AnyDecisionModel
+	</span>
+</h2>
+<p>AnyDecisionModel is a different story.
+There's no Apple framework to map onto,
+and decision models aren't new, exactly.</p>
+<blockquote>
+<p>It's only a decision model if it comes from the Décision region of France;
+otherwise, it's sparkling zero-shot classification.</p>
+</blockquote>
+<p>What's new is the name, a lot of hype,
+and a crop of models trained to make decisions.
+We think that's where things are going,
+so we wanted a Swift API that's ready for them.</p>
+<p>Apps often ask language models to make decisions.
+<em>Is this message urgent?</em>
+<em>Which team should handle this ticket?</em>
+<em>How frustrated is this customer?</em>
+The usual approach is to prompt a language model
+and parse the text that it generates.
+That gives you one answer,
+but doesn't show the probabilities it assigned to the alternatives.</p>
+<p>Here's what a decision looks like in Swift:</p>
+<pre><code data-language="swift">import AnyDecisionModel
+
+enum Department: String, Choosable {
+    case billing, technical, sales
+}
+
+let ticket = "I was charged twice for my order, and now the app logs me out when I try to ask for a refund."
+
+let model = MLXDecisionModel(modelID: "mlx-community/Qwen3-4B-Instruct-2507-4bit")
+let session = DecisionSession(model: model, state: .text(ticket))
+
+let urgent = try await session.probability(of: "Does this convey urgency?")
+let team = try await session.choice("Which team?", from: Department.self)
+let anger = try await session.score(
+    "How frustrated?",
+    levels: ["Calm", "Frustrated", "Very angry"]
+)
+</code></pre>
+<p><code>urgent</code> is a <code>Double</code>.
+<code>team</code> is a <code>Choice&lt;Department&gt;</code> containing the selected case,
+a probability for each option, and a confidence value.
+<code>anger</code> is a <code>Score</code> containing the expected level,
+a probability for each level, and a confidence value.
+Because <code>Department</code> conforms to <code>Choosable</code>,
+<code>team.value</code> is a <code>Department</code> that you can use in an exhaustive <code>switch</code>.</p>
+<p>If you've used Foundation Models or AnyLanguageModel,
+the model-and-session pattern will look familiar.
+A <code>DecisionSession</code> holds a single state, which can be text or JSON,
+and every question is about that state.
+Questions are independent:
+an answer never becomes input to a later question.
+To ask several questions at once,
+pass them to <code>decide(_:)</code> as a batch.</p>
+<p>For each question, the MLX backend builds a prompt
+with a one-token label for each allowed answer,
+then reads the probability of each label from one forward pass.</p>
+<h3>
+	<a id="try-it-out-emoji-magnet" href="#try-it-out-emoji-magnet" rel="nofollow">
+		
+	</a>
+	<span>
+		Try it out: Emoji Magnet
+	</span>
+</h3>
+
+<p>Emoji Magnet is a macOS app with a text field above a pile of 343 emoji.
+Type a phrase, such as "things you wear",
+and the emoji that match rise out of the pile.
+Refine it to "things you wear in winter",
+and the emoji that no longer match fall back.</p>
+<p>The app has no built-in keyword rules;
+the model decides everything at inference time.
+When you pause typing, it asks the model one yes-or-no question for each emoji,
+for example:</p>
+<pre><code>Statement: a heavy winter coat fits the description "things you wear". Is this statement true?
+</code></pre>
+<p>The session's state holds the phrase.
+The demo above uses the hosted Jev backend,
+which answers all 343 questions in one request,
+so the emoji settle in about half a second for each phrase.
+Without a <code>TYPESAFE_AI_API_KEY</code>, the app runs Qwen3 4B on your Mac with the MLX backend.
+That backend uses prefix caching to evaluate the state once,
+then answers 16 questions per forward pass.
+On an M4 Max, a group of 16 takes about 0.45 seconds after the model loads.
+A full pass over all 343 emoji takes about 10 seconds,
+and each group's results appear as soon as they arrive.</p>
+<p>Emoji Magnet is in the <a href="https://github.com/mattt/AnyDecisionModel-Examples" rel="nofollow">AnyDecisionModel-Examples</a> repository.</p>
+<h3>
+	<a id="decision-heads-and-clef" href="#decision-heads-and-clef" rel="nofollow">
+		
+	</a>
+	<span>
+		Decision heads and Clef
+	</span>
+</h3>
+<p>Reading next-token probabilities works with general-purpose language models,
+but those models weren't trained to make decisions.
+Cloudflare's <a href="https://huggingface.co/Cloudflare/clef">Clef</a> models
+are an example of a newer approach:
+a model with a trained decision head
+that turns a state and a schema of typed questions into decisions,
+returning probabilities for all allowed options across the questions
+in one forward pass.
+<a href="https://huggingface.co/Cloudflare/clef-flash">Clef-Flash</a> is the 9B variant.</p>
+<p>AnyDecisionModel runs Clef-Flash on a Mac with MLX:</p>
+<pre><code data-language="swift">let model = MLXHeadDecisionModel(
+    modelID: "mlx-community/clef-flash-4bit",
+    head: .jointSchema
+)
+</code></pre>
+<p>You use the same sessions and questions,
+but <code>MLXHeadDecisionModel</code> reads each decision from Clef's trained decision head
+instead of from next-token probabilities.
+The <a href="https://huggingface.co/mlx-community/clef-flash-4bit">4-bit model</a> is a 6.2 GB download,
+and its model card recommends a Mac with at least 16 GB of memory.
+Clef can read images and video,
+but this backend accepts only text and JSON states.</p>
+<h3>
+	<a id="calibrating-and-checking-probabilities" href="#calibrating-and-checking-probabilities" rel="nofollow">
+		
+	</a>
+	<span>
+		Calibrating and checking probabilities
+	</span>
+</h3>
+<p>Raw probabilities from language models are often overconfident.
+The local backends accept a <code>Calibration</code>,
+which applies a temperature to every answer and a bias to yes-or-no answers.
+Use separate datasets to fit the calibration and evaluate the results.</p>
+<p>Language models can also favor an option because of its position in a list.
+On the MLX, Core AI, and llama.cpp next-token backends,
+turn on <code>rotationDebiasing</code> to ask a choice question
+once for each rotation of the options and average the probabilities.
+That costs one prompt evaluation per rotation.</p>
+<p>Each local choice and score also includes a confidence value
+based on the entropy of its probabilities.
+It measures how concentrated the probabilities are,
+not whether the answer is right,
+so check the error rate on your own data before you pick a threshold.
+The next-token backends' diagnostics report how much probability
+the model assigned to the allowed answers.
+A low value means it assigned most of the probability elsewhere.</p>
+<h3>
+	<a id="backends" href="#backends" rel="nofollow">
+		
+	</a>
+	<span>
+		Backends
+	</span>
+</h3>
+<p>AnyDecisionModel has six backends:</p>
+<ul>
+<li><strong>MLX</strong> runs a small language model on Apple silicon
+with <a href="https://github.com/ml-explore/mlx-swift-lm" rel="nofollow">mlx-swift-lm</a>
+and downloads it from the Hub.</li>
+<li><strong>MLX decision heads</strong> run a model with its own trained decision head,
+such as Clef.</li>
+<li><strong>Core AI</strong> does the same as MLX with a Core AI model on macOS 27 and iOS 27.</li>
+<li><strong>llama.cpp</strong> reads decisions from a local GGUF model
+through <a href="https://github.com/mattt/llama.swift" rel="nofollow">llama.swift</a>.</li>
+<li><strong>Jev</strong> calls TypeSafe's Jev through the <a href="https://docs.typesafe.ai/api/system-one" rel="nofollow">System One API</a>,
+or any server that implements it, such as <a href="https://github.com/jaredpalmer/kev" rel="nofollow">Kev</a>.</li>
+<li><strong>Ollama</strong> calls a System One decision model on a local Ollama server
+or in Ollama's cloud.
+It requires Ollama 0.35.0 or later, or 0.40.5 or later for cloud models.</li>
+</ul>
+<p>The next-token backends label answers "yes" and "no", A to Z, or 0 to 9,
+so a choice can have at most 26 options, and a score at most 10 levels.
+Decision heads have no such limit.</p>
+<p>Like AnyLanguageModel, the package uses Swift package traits.
+Without traits, it has no third-party dependencies.
+You get the core types and the Jev and Ollama backends,
+which also build on Linux.
+Enable the <code>MLX</code>, <code>CoreAI</code>, or <code>Llama</code> trait for the local backends.</p>
+<h2>
+	<a id="get-started" href="#get-started" rel="nofollow">
+		
+	</a>
+	<span>
+		Get started
+	</span>
+</h2>
+<p>Both packages require Swift 6.2 or later and macOS 26 or iOS 26 or later.
+The Parakeet and Sortformer runtimes and the MLX backend require Apple silicon.
+AnyDecisionModel's MLX build tasks use Xcode's Swift 6.4 or later
+and the Metal toolchain; Core AI requires Xcode 27 and an OS 27 runtime.</p>
+<p>Add the packages to your <code>Package.swift</code>:</p>
+<pre><code data-language="swift">dependencies: [
+    .package(url: "https://github.com/mattt/AnySpeechRecognizer", from: "0.1.0"),
+    .package(
+        url: "https://github.com/mattt/AnyDecisionModel",
+        from: "0.6.0",
+        traits: ["MLX"]
+    ),
+]
+</code></pre>
+<p>For now, AnyDecisionModel's <code>CoreAI</code> trait can't be combined with AnySpeechRecognizer,
+because coreai-kit 0.7.3 requires swift-huggingface below 1.0
+and AnySpeechRecognizer requires 1.x.</p>
+<p>Each README has more examples and details about requirements and backends.
+AnySpeechRecognizer also includes a command-line tool, <code>hear</code>,
+that transcribes local files, labels their speakers, and evaluates the results.
+Every <code>hear</code> command requires <code>--backend apple</code>, <code>--backend parakeet</code>, or <code>--backend qwen</code>;
+run <code>hear prepare</code> with the same backend and model options before analysis
+to install the needed assets.</p>
+<p>Try them in your apps and tell us what works and what doesn't.
+Issues and pull requests are welcome on both repositories.</p>
+<h2>
+	<a href="#links" rel="nofollow">
+		
+	</a>
+	<span>
+		Links
+	</span>
+</h2>
+<ul>
+<li><a href="https://github.com/mattt/AnySpeechRecognizer" rel="nofollow">AnySpeechRecognizer on GitHub</a></li>
+<li><a href="https://github.com/mattt/AnyDecisionModel" rel="nofollow">AnyDecisionModel on GitHub</a></li>
+<li><a href="https://github.com/mattt/AnyDecisionModel-Examples" rel="nofollow">AnyDecisionModel-Examples on GitHub</a></li>
+<li><a href="https://github.com/huggingface/AnyLanguageModel" rel="nofollow">AnyLanguageModel on GitHub</a></li>
+<li><a href="https://github.com/huggingface/swift-huggingface" rel="nofollow">swift-huggingface on GitHub</a></li>
+</ul>
+<p><em>Thanks to NVIDIA for Parakeet, Sortformer, and NeMo, to Moondream for Parakeet Ultra,
+to FluidInference, whose FluidAudio and mobius projects
+documented the conventions that the Parakeet runtime and the Core ML conversions follow,
+to Cloudflare for Clef,
+and to everyone who contributed to AnyLanguageModel,
+whose patterns both packages borrow.</em></p>
+</div></div>
