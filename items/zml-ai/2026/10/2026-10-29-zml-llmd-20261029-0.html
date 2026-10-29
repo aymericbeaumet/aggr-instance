@@ -1,0 +1,123 @@
+<div id="readability-page-1" class="page"><div>
+      
+      <main id="main-content">
+        
+  
+    <nav aria-label="Primary">
+    <a href="https://zml.ai/">ZML - Model to Metal</a>
+    <ul>
+        <li><a href="https://zml.ai/posts/">Blog</a></li>
+        <li><a href="https://zml.ai/llmd/">LLMD</a></li>
+        <li>
+            <a href="https://github.com/zml/zml" target="_blank" rel="noopener">
+                
+                GitHub <span data-github-stars="zml/zml">3.5K</span>
+            </a>
+        </li>
+        <li>
+            <a href="https://github.com/zml/zml/tree/master/docs" target="_blank" rel="noopener">Docs</a>
+        </li>
+        <li>
+            <a href="https://discord.com/invite/puhdWt8gzZ" target="_blank" rel="noopener">Discord</a>
+        </li>
+        <li>hello@zml.ai</li>
+    </ul>
+</nav>
+
+  
+  <article>
+    <div>
+      
+        <a href="https://zml.ai/posts/" aria-label="Back to posts">
+          
+          <span>Back to posts</span>
+        </a>
+      
+
+      <header>
+        <p>Article</p>
+        
+        
+          <p>Le Chonk.</p>
+        
+        
+          <p><span>October 29, 2026</span>
+            
+            
+              <span>inference / serving / mistral / chonk / glm / lfm</span></p>
+        
+      </header>
+
+      <div>
+        <p>We are pleased to announce the release of <code>zml/llmd 20261029.0</code>. This week, we are bringing
+more models:</p>
+<ul>
+<li><a href="https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B">Mistral Large 4</a></li>
+<li><a href="https://huggingface.co/collections/zai-org/glm-52">GLM 5.2</a> and <a href="https://huggingface.co/collections/zai-org/glm-53">GLM 5.3</a> series</li>
+<li><a href="https://huggingface.co/LiquidAI/LFM3-1.7B">LFM 3</a> series</li>
+</ul>
+<h2 id="mistral-large-4--le-chonk">Mistral Large 4 – Le Chonk <img src="https://zml.ai/posts/llmd-20261029.0/big-cat-icon.svg" alt=""></h2>
+<p>In coordination with Mistral, we are pleased to announce Day 0 support for
+<a href="https://huggingface.co/mistralai/Mistral-Large-4-1T-A52B">Mistral Large 4</a>.</p>
+<blockquote>
+<p>Mistral Large 4 Le Chonk (Le Chonk) is a 1-trillion-parameter multimodal model, now available with improved coding,
+cybersecurity, and reasoning efficiency. It leads open-weight benchmarks in coding and defensive security while
+offering three reasoning modes for cost-performance balance. Fully open-weight and European-trained, it empowers
+sovereign AI with customizable, self-hosted deployment options.</p>
+</blockquote>
+<p><a href="https://mistral.ai/news/mistral-large-4-oss/">See the press release</a>.</p>
+<p>The native DSpark Speculative decoding is also supported via the <code>--speculative-drafter-model=native</code> flag.</p>
+<figure>
+  <figcaption>Decode throughput, mistralai/Mistral-Large-4-1T-A52B, bs=1, 4xGB300 <span>(tok/s)</span></figcaption>
+  
+</figure><pre><code>$ docker run -p 8000:8000 --shm-size=32GB --gpus=all -e HF_TOKEN -it zmlai/llmd:cuda \
+    --model=hf://mistralai/Mistral-Large-4-1T-A52B
+</code></pre><p>Sadly, we could not bring it to AMD due to <a href="https://www.mail-archive.com/amd-gfx@lists.freedesktop.org/msg152088.html">a bug in the <code>amdgpu</code> driver that’s now
+been fixed but not released</a>. We are actively
+<a href="https://zml.ai/posts/llmd-20261029.0/monitoring_the_situation.jpeg">monitoring the situation</a>.</p>
+<p>Even though it should work, we haven’t tested it on Google TPUs because, again, we could not get any.</p>
+<h2 id="glm-52-and-glm-53">GLM 5.2 and GLM 5.3</h2>
+<p>This release also brings support for the <a href="https://huggingface.co/collections/zai-org/glm-52">GLM 5.2</a> and
+<a href="https://huggingface.co/collections/zai-org/glm-53">GLM 5.3</a> series of models.</p>
+<h2 id="lfm-3">LFM 3</h2>
+<p>This release brings support for the <a href="https://huggingface.co/LiquidAI/LFM3-1.7B">LFM 3</a> series of models, in all flavours
+(BF16, FP8 and NVFP4).</p>
+<p>This model is great at agentic tasks and following instructions. Combined with our NVFP4 support on Metal, it makes for a great
+fully local combination, especially when paired with the <a href="https://lightpanda.io/docs/usage/mcp">Lightpanda MCP</a>:</p>
+<figure>
+  <figcaption>Decode throughput, LiquidAI/LFM3-1.7B, bs=1, zml/llmd 20261029.0, M3 Max <span>(tok/s)</span></figcaption>
+  
+</figure><p><img src="https://zml.ai/posts/llmd-20261029.0/dsh.png" alt="">
+</p>
+<h2 id="try-it-today">Try it today</h2>
+<h2 id="nvidia">NVIDIA</h2>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --shm-size=256GB --gpus=all -e HF_TOKEN -it zmlai/llmd:cuda \
+    --model=hf://LiquidAI/LFM3-1.7B-FP8
+</code></pre></div><h2 id="amd">AMD</h2>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --shm-size=256GB --device=/dev/kfd --device=/dev/dri -e HF_TOKEN -it zmlai/llmd:rocm \
+    --model=hf://LiquidAI/LFM3-1.7B-FP8
+</code></pre></div><h2 id="intel">Intel</h2>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --device=/dev/dri -e HF_TOKEN -it zmlai/llmd:oneapi \
+    --model=hf://LiquidAI/LFM3-1.7B
+</code></pre></div><h2 id="google-tpu">Google TPU</h2>
+<div><pre><code data-language="bash">docker run --net=host --privileged -e HF_TOKEN -it zmlai/llmd:tpu \
+    --model=hf://LiquidAI/LFM3-1.7B
+</code></pre></div>
+<div><pre><code data-language="bash">brew install zml/zml/llmd
+llmd --model=hf://LiquidAI/LFM3-1.7B-FP8 --batch-size=4
+</code></pre></div>
+      </div>
+
+      
+        
+      
+    </div>
+  </article>
+  
+    
+
+  
+
+      </main>
+      
+    </div></div>
