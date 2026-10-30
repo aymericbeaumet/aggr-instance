@@ -1,0 +1,90 @@
+<div id="readability-page-1" class="page">
+<h3>Nicolas Seriot</h3>
+<h4><a href="https://seriot.ch/computation/index.html">Computation</a> &gt; How curl was accidentally Turing-complete for nine months</h4>
+<p><em>29th October 2026</em></p>
+<p>From curl 8.12 through 8.16, config files could slice variable values and include other config files without an explicit depth cap. Together, these features let curl simulate any two-counter Minsky program. Under the usual idealization of unbounded strings and resources, this construction was Turing-complete.</p>
+<p>Curl 8.17.0 added a five-level include cap that breaks this reduction.</p>
+<p><strong>Update 2026-10-30</strong>: Jonathan Tremesaygues wrote me: <em>I couldn't help but implement “99 Bottles of Beer on the Wall”</em> <a href="https://seriot.ch/resources/99_bottles.tar.gz">99_bottles.tar.gz</a></p>
+<h3>Minsky 2-Counter Reduction</h3>
+<p>A counter value <code>n</code> is represented by <code>n</code> copies of <code>x</code>.</p>
+<p>Each instruction state uses one or more config files, with file names acting as labels, and <code>expand-config</code> selecting the next file.</p>
+<p>Syntax:</p>
+<ul>
+<li><code>{{b}}</code> expands the current value</li>
+<li><code>[0-0]</code> keeps only the first byte (<code>x</code> or empty)</li>
+<li><code>[1-]</code> keeps everything except the first byte</li>
+<li>empty slices yield empty strings (<a href="https://github.com/curl/curl/blob/curl-8_12_0/docs/cmdline-opts/variable.md">doc</a>)</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Minsky</th>
+<th>Curl config</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Register <code>R</code></td>
+<td>Variable <code>r</code> (<code>R</code> is the number of <code>x</code> bytes)</td>
+</tr>
+<tr>
+<td><code>INC(R)</code></td>
+<td><code>expand-variable = "r={{r}}x"</code></td>
+</tr>
+<tr>
+<td><code>DEC(R)</code></td>
+<td><code>expand-variable = "r[1-]={{r}}"</code></td>
+</tr>
+<tr>
+<td><code>JZ(R, _, _x)</code></td>
+<td><code>expand-variable = "t[0-0]={{r}}"</code><br><code>expand-config = "state_{{t}}.conf"</code></td>
+</tr>
+<tr>
+<td><code>JMP(S)</code></td>
+<td><code>expand-config = "S.conf"</code></td>
+</tr>
+<tr>
+<td>Halt</td>
+<td>No further <code>expand-config</code></td>
+</tr>
+</tbody>
+</table>
+<p>With that, we can compile any two-counter program into curl config files.</p>
+<h3>PoC: Adding 2 + 3</h3>
+<p>Four files in <a href="https://seriot.ch/resources/curl_addition.zip">curl_addition.zip</a> compute 2 + 3.</p>
+<p><img src="https://seriot.ch/resources/curl_config.png" width="400"></p>
+<p>Build a local curl 8.12.0 binary if needed:</p>
+<pre><code>mkdir -p /tmp/curl-tc-build
+cd /tmp/curl-tc-build
+curl -fsSLO https://curl.se/download/curl-8.12.0.tar.gz
+tar -xzf curl-8.12.0.tar.gz
+cd curl-8.12.0
+./configure --without-ssl --disable-shared --disable-manual --disable-docs
+make -j4
+</code></pre>
+<p>Then, from the <code>addition/</code> directory, run:</p>
+<pre><code>/tmp/curl-tc-build/curl-8.12.0/src/curl -q -s -K main.conf
+</code></pre>
+<p>Expected output:</p>
+<pre><code>A=xxxxx B=
+</code></pre>
+<h3>Runtime Bounds</h3>
+<p>The reduction assumes unbounded counters and unbounded steps. The real binary has neither:</p>
+<ul>
+<li><strong>Expanded content (curl's own limit).</strong> Each expansion is capped at <code>MAX_EXPAND_CONTENT</code> = 10,000,000 bytes (<a href="https://github.com/curl/curl/blob/curl-8_12_0/src/var.c#L42"><code>src/var.c</code></a>).</li>
+<li><strong>Step count.</strong> There is no loop: each step is a nested <code>--config</code> that returns only at halt. Every level uses a C stack frame and keeps its config file open until it finishes. In a minimal countdown loop on 8.12, an 8 MB stack allowed 922 steps before a segfault.</li>
+<li><strong>Retained variable versions.</strong> Reassignment <a href="https://github.com/curl/curl/blob/curl-8_12_0/src/var.c#L347-L370">adds a new entry</a> while retaining the old one until <a href="https://github.com/curl/curl/blob/curl-8_12_0/src/var.c#L58-L78">cleanup</a>. Memory use and some variable lookups grow with the number of steps.</li>
+</ul>
+<h3>History and Version Support</h3>
+<ul>
+<li>curl 8.3 (2023-09): Variables expansion</li>
+<li>curl 8.12 (2025-02): Byte-range assignment</li>
+<li>curl 8.17 (2025-11): <a href="https://github.com/curl/curl/blob/curl-8_17_0/src/tool_parsecfg.h#L28-L30">five-level cap</a> defeats the reduction</li>
+</ul>
+<p>The <a href="https://github.com/curl/curl/pull/19168">pull request</a> says the cap prevents a config file from including itself indefinitely. Its <a href="https://github.com/curl/curl/blob/curl-8_17_0/tests/data/test774">regression test</a> does exactly that and expects an error. The public explanation does not discuss Turing completeness or why the cap is five.</p>
+<p>A Bash <code>while</code> loop can complement bounded curl by invoking a config once per step and carrying the counters and instruction label between invocations. The repetition then comes from Bash, so this is a composition rather than curl-alone Turing completeness.</p>
+<h3>Security impact</h3>
+<p>None.</p>
+
+
+</div>
