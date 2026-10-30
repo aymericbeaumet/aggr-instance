@@ -1,0 +1,46 @@
+---
+title: The $6.3B Binance hack was pulled off in just 20 minutes
+link: https://www.wired.com/story/the-dollar63-billion-binance-hack-was-pulled-off-in-just-20-minutes/
+source: hnrss-org
+published: 2026-10-30T12:50:01Z
+updated: 2026-10-30T12:50:01Z
+first_seen: 2026-10-30T18:48:04.665156877Z
+authors:
+- domhudson
+content: extracted
+html: 2026-10-30-the-6-3b-binance-hack-was-pulled-off-in-just-20-minutes.html
+remote_preview:
+  url: https://media.wired.com/photos/6ae463bdc091c8b8d1ec019e/191:100/w_1280,c_limit/102026-Binance%20Hacked.jpg
+---
+
+Multiple crypto-tracing firms say notorious North Korean hackers TraderTraitor may be behind the largest digital heist in history—with billions of crypto likely gone for good.
+
+Cryptocurrency firms and investigators are racing to freeze and track down billions of dollars of [stolen digital cash](https://www.wired.com/story/27-year-old-codebreaker-busted-myth-bitcoins-anonymity/) following what appears to be the largest crypto heist of all time. On Thursday, starting at around 4pm ET, hackers started quickly siphoning around $6.3 billion in cryptocurrencies, spread across multiple blockchains, from wallets belonging to crypto exchange [Binance](https://www.wired.com/story/trumps-cz-pardon-has-the-crypto-world-bracing-for-impact/).
+
+Following the theft, Binance almost immediately suspended all deposits and withdrawals from its services as part of its investigation into the hack and [says](https://x.com/binance/status/2115993361517891592) it is working to identify who was behind the breach. The company, along with other crypto firms, says it has so far been able to freeze around half of the stolen funds—essentially stopping hackers moving the money further or trying to cash it out. Much of the remaining crypto may not be possible to freeze, however.
+
+Three crypto tracing firms have been quick to link the attack potentially to North Korean hackers. “We think North Korea is likely responsible,” Tom Robinson, chief scientist and cofounder of Elliptic, tells WIRED. “If North Korea is behind it, this one theft would almost double everything the regime has stolen in crypto to date.”
+
+The majority of the stolen crypto was taken in a period of around 20 minutes on October 29, according to analysis by crypto tracing firm TRM Labs. Wallets belonging to Binance across at least ten blockchains—including Ethereum, Bitcoin, Tron and Solana—were drained and sent to multiple addresses controlled by a single attacker, according to TRM’s [analysis](https://www.trmlabs.com/resources/blog/north-korea-steals-usd-6-36-billion-from-binance-in-the-largest-hack-in-history). “Preparation began at least 36 hours before the theft,” TRM says in a blog post. The company says one of the attacker’s wallets received three small withdrawals during a test period, before later expanding the operations.
+
+“Early on October 29, the operator deployed a first piece of code for the attack and tested it on two wallets,” TRM says. “Later that day, it rehearsed the final version on a third wallet, then routed the test funds back to itself. Four hours after that rehearsal, the same code was installed on a Binance hot wallet.” Hot wallets are cryptocurrency wallets that are internet connected and allow crypto exchanges to handle customer withdrawals. Analysts say the funds were drained from hot wallets across the impacted blockchains.
+
+The tactics used in the hack appear to mimic previous methods used by an elite subset of North Korean hackers, known by the name [TraderTraitor](https://www.wired.com/story/tradertraitor-north-korea-crypto-theft/). Crypto tracing firms TRM Labs and Chainalysis both say they believe TraderTraitor may be behind the attack, while Robinson says Elliptic hasn’t specifically tied it to the group but sees overlaps in the activity.
+
+Neither Binance nor law enforcement officials have named any suspected links between the attack and North Korean hackers. Over recent years, North Korean hackers have repeatedly targeted cryptocurrency firms and [stolen hundreds of millions](https://www.wired.com/story/north-korea-cryptocurrency-theft-ethereum/) in crypto heists. Multiple North Korean hacking groups can target companies in the sector, but TraderTraitor have become specialists, pulling off infrequent but high profile attacks.
+
+Within North Korea’s [sprawling](https://www.wired.com/story/north-korean-hacker-group-apt37/) [hacking](https://www.wired.com/story/ai-tools-are-helping-mediocre-north-korean-hackers-steal-millions/) [operations](https://www.wired.com/story/north-korea-hackers-indictment-cryptocurrency-sony-swift/)—often designed to earn money for the highly sanctioned and repressive regime—TraderTraitor has stood out in recent years for its sophistication and targeting of crypto and decentralized finance companies. Last year, the FBI [named](https://www.fbi.gov/investigate/cyber/alerts/2025/north-korea-responsible-for-1-5-billion-bybit-hack) TraderTraitor as being responsible for the $1.5 billion hack against crypto exchange Bybit.
+
+Binance did not answer WIRED’s questions about whether it believes North Korean hackers are behind the colossal heist, pointing towards a [statement](https://x.com/binance/status/2116089661408108712) saying it will cover all losses from the hack and is working with law enforcement officials to identify who is responsible.
+
+“Our initial investigation suggested that the security incident may have involved a compromised laptop, however, our subsequent investigation has uncovered additional points of breach,” the company says in a statement. “This was a complex attack, and we are doing all we can in coordination with law enforcement to resolve it.”
+
+“These folks in particular are somewhat artists in terms of getting into these distributed finance organizations,” Rafe Pilling, a senior director of threat intelligence at security company Sophos, tells WIRED. “TraderTraitor seems to focus on these larger operations. In the past, they’ve developed their own fake applications and tried to use those to get inside organizations.”
+
+TRM and [Chainalysis](https://www.chainalysis.com/blog/binance-exploit-latest-findings-and-response/) have initially linked the attack to TraderTraitor and say the determinations are based on their analysis of both on-chain and off-chain activity. “The strongest evidence emerged when Chainalysis investigators observed, in real time, funds stolen from Binance commingling with funds stolen in last month’s [Bitget exploit](https://www.trmlabs.com/resources/blog/bitget-loses-usd-3516-million-in-hot-wallet-breach-in-likely-north-korea-attack), which had been attributed to North Korean actors,” a research blog from Chainalysis says.
+
+“Binance says the attack began with a compromised engineer’s laptop. Targeting crypto company staff is a TraderTraitor hallmark,” Elliptic’s Robinson says. “The attacker funded their wallet through Tornado Cash and rehearsed the attack in advance, as in Bybit.”
+
+While around $3 billion of cryptocurrency was initially frozen in the aftermath of the attack, it is likely those behind it could still potentially take away huge sums as not all of the stolen crypto can be frozen. Research from Chainalysis says the company is seeing money “laundering patterns we have not seen before” and that thousands of transactions being quickly processed indicates that they are using “automation to obscure the trail of funds.”
+
+Elliptic’s Robinson says that around $2.8 billion, or around 44 percent of the total amount stolen, has been frozen by crypto companies and exchanges so far, with almost all of this being stablecoins. “The remaining $3.3 billion is mostly Bitcoin, Ether, and XRP, which no one can freeze,” Robinson says. “It can only be stopped when it reaches an exchange or other service. Some will be caught over the coming months, but I don’t expect the frozen share to rise much further.”
