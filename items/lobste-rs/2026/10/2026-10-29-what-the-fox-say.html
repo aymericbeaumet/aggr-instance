@@ -1,0 +1,463 @@
+<div id="readability-page-1" class="page"><div>
+                <p>
+There is an old Norse board game, which in Sweden is played under the name
+<i>Starve the Fox</i>, or just <i>the Fox Game</i>. According to Wikipedia, <i>Fox and
+Geese</i> is a simplified version of it played in English speaking countries.
+</p>
+
+<p>
+In <i>Starve the Fox</i>, one player plays as the foxes, and one player plays as the
+sheep. The rules are asymmetric, and obviously the game is almost always won by
+the fox player …
+</p>
+
+<p>
+… or is it? Let’s find out.
+</p>
+<section id="outline-container-game-rules">
+<h2 id="game-rules"><a href="#game-rules">Game rules</a></h2>
+<div id="text-orgb2e30fc">
+<p>
+This is what the board looks like in its starting position.
+</p>
+
+
+<p><img src="https://entropicthoughts.com/image/what-the-fox-say_01.png" alt="what-the-fox-say_01.png">
+</p>
+
+<p>
+The orange circles with the letter F in them are the two pieces the fox player
+starts with. The white circles with the letter S in them are the 20 pieces the
+sheep player starts with. Green circles represent empty locations pieces can
+move into. The fox and the sheep players take turns moving one piece of their
+own. Pieces can only move one step at a time, along the lines on the board, and
+cannot pass through each other or occupy the same location.
+</p>
+
+<p>
+After that, though, rules are asymmetric. First, the rules for the sheep player:
+</p>
+
+<dl>
+<dt>Goal</dt><dd>Fill the pen, which is the top-centre 3×3 square the fox starts in.
+The sheep player wins when nine of its pieces to occupy the box bounded by
+corners at <code>c5</code> and <code>e7</code>.</dd>
+<dt>Movement</dt><dd>Not backwards. In other words, moves that reduce the rank of the
+sheep are not legal.</dd>
+<dt>Attack</dt><dd>If the sheep player manages to trap a fox such that it cannot move
+at the end of the turn, that fox is removed from the board. This gives the
+sheep an alternate victory condition: if they manage to remove both foxes,
+they can no longer prevent the sheep from filling the pen, so the sheep win right
+away.</dd>
+</dl>
+
+<p>
+The fox player moves first at the start of the game.<label for="fn.1">1</label><span><sup>1</sup> Though my analysis
+indicates that the first-move advantage is very small in this game, so it
+probably doesn’t matter too much who wins.</span> Its rules are:
+</p>
+
+<dl>
+<dt>Goal</dt><dd>Prevent the sheep from filling the pen.</dd>
+<dt>Movement</dt><dd>Any direction.</dd>
+<dt>Attack</dt><dd>The fox can eat sheep by jumping over them. If there is an open
+location two steps away in a straight line from the fox, and a sheep on the
+location in between (i.e. this type of configuration: <code>F—S—O</code>), then the fox
+can move to the open location two steps away, and the sheep in between is
+removed. When fewer than nine sheep remain, they can no longer fill the pen
+and the fox wins.</dd>
+</dl>
+
+<p>
+It doesn’t take much to realise that this is a <i>loopy</i> game, meaning it can get
+into positions where the best moves for both players are to shuffle their pieces
+back and forth, repeating previous positions over and over and not making any
+progress. I have only heard rules explained in the presence of children, and
+they don’t specify what happens in such situations. In the analysis below, I’ve
+considered the game a draw after a stretch of 40 moves with no progress.
+Progress is easily measured in terms of sheep rank, since sheep cannot go
+backward.
+</p>
+</div>
+<div id="outline-container-the-foxes-are-assumed-to-be-overpowered">
+<h2 id="the-foxes-are-assumed-to-be-overpowered"><a href="#the-foxes-are-assumed-to-be-overpowered">The foxes are assumed to be overpowered</a></h2>
+<div id="text-org708c81e">
+<p>
+I don’t remember playing this game when I was young, but it was a favourite of
+my wife’s late grandfather, and that half of her family knows it well. It is
+common wisdom in her family that the fox player needs to blunder badly for the
+sheep to win. Her entire family believes the game is heavily tilted in favour of
+the fox. I have played the game a few times, and indeed it has been easier for
+me to win when playing as fox.
+</p>
+
+<p>
+I have an unhealthy relationship with strategy games like these. I simply <i>must</i>
+put them through computer analysis to figure them out. I don’t know why. It’s
+just something that happens. I used to write tree search algorithms manually,
+but I have realised that <a href="https://openspiel.readthedocs.io/en/latest/intro.html">OpenSpiel provides a generic tree search
+supporting most of the things</a> I’ve ever found myself needing to support, so I
+can write the game rules in Python and hook into OpenSpiel to analyse it.
+</p>
+
+<p>
+Well, consider the rules above. How often do you think the fox wins, between two
+equal players? Write down your guess, and you’ll learn how good your sense of
+this is.
+</p>
+</div>
+</div>
+</section>
+<section id="outline-container-a-somewhat-strong-computer-opponent">
+<h2 id="a-somewhat-strong-computer-opponent"><a href="#a-somewhat-strong-computer-opponent">A somewhat strong computer opponent</a></h2>
+<div id="text-orga823262">
+<p>
+The first stop for a problem like this is plain Monte Carlo tree search (<abbr>mcts</abbr>)
+with random rollouts to the end for leaf scoring. In un-optimised Python, this
+managed to perform about 1,000 search iterations per second when playing <i>Starve
+the Fox</i>. I gave this algorithm a thinking budget of just under a second, and
+played against it, both as the fox player and the sheep player. In those games,
+it seemed clear that the fox would win most of the time.<label for="fn.2">2</label><span><sup>2</sup> Unless the sheep
+forced a draw, which they can do as long as there’s enough of them, thanks to
+the loopy nature of the game.</span> The algorithm playing itself got a similar
+result: around 85&nbsp;% of games were won by the foxen.
+</p>
+
+<p>
+With so much corroborating evidence, I was close to calling the experiment
+finished. I didn’t expect deeper search to improve things by much, because the
+branching factor is relatively low, in part thanks to the constraints on sheep
+movement.
+</p>
+
+<p>
+But then just to be sure, I tried one last game. I played as fox, and the
+computer played sheep with a search budget of 8,000 iterations. Although it
+still didn’t play particularly well, it managed to exploit two of my blunders,
+and actually get into a winning position. With the sheep! That caught my
+interest, and it meant the experiment wasn’t over at all, but might actually
+need deeper search to more accurately reflect the strategy possible.
+</p>
+</div>
+<div id="outline-container-what-this-says-about-the-game">
+<h2 id="what-this-says-about-the-game"><a href="#what-this-says-about-the-game">What this says about the game</a></h2>
+<div id="text-org7176620">
+<p>
+I didn’t realise it right away, but what happened in that high search budget
+game was that we learned something about the nature of <i>Starve the Fox</i>.
+</p>
+
+<p>
+The sheep side requires deeper thinking than the fox side to play well. Since
+the sheep, in isolated conflicts with foxes, are so underpowered, <i>they must
+move the mass of the entire flock in coordination to beat the foxes</i>, and with
+one movement per turn, that requires strategising over many turns.<label for="fn.3">3</label><span><sup>3</sup> In fact,
+the sheep player isn’t really moving sheep as much as they’re moving the holes
+in the flock to make sure the holes stay away from the sheep closest to the
+foxen.</span> This is a <i>fantastic</i> property of the game, because it (a) is
+thematically smashing, and (b) means a child can play an adult and both
+still have fun; the child gets to play the fox side and the adult just has to
+think harder.
+</p>
+</div>
+</div>
+<div id="outline-container-speeding-up-the-computer-opponent">
+<h2 id="speeding-up-the-computer-opponent"><a href="#speeding-up-the-computer-opponent">Speeding up the computer opponent</a></h2>
+<div id="text-orgb497f2f">
+<p>
+However, I didn’t want to wait for 16,000 iterations or whatever’s needed for
+the plain <abbr>mcts</abbr> to play a very strong game. One of the more expensive parts of
+that search algorithm are the random rollouts to score leaves in the search
+tree. A trick to make leaf scoring faster is to cut off the rollouts well before
+the game ends<label for="fn.4">4</label><span><sup>4</sup> The depth at which to truncate rollouts depends on both the
+complexity of the game and the quality of the rollout policy. For completely
+random rollouts, it may even be desirable to cut them off at depth zero – i.e.
+not perform any random moves at all, because they make the scored state less
+representative of the end state than the earlier leaf node was. In the case of
+<i>Starve the Fox</i>, stopping the rollout after 8 plies seemed to yield the best
+results with the first draft of the heuristic function, but it’s possible with a
+stronger heuristic function shorter rollouts would be even better, because they
+buy time for more tree search at the cost of not evaluating as far into the
+future.</span>, and then use a heuristic function to score the positions in games that
+haven’t yet terminated when the rollout is truncated. The heuristic value is
+scaled to be smaller in magnitude than the score given to a terminated game, so
+that the tree search will prioritise the win/loss signal over the heuristic when
+it can see both.
+</p>
+
+<p>
+But this means a heuristic function is needed. A primitive one might be based on
+material, like “number of sheep alive” or based on progress, like “total rank
+gained by sheep”. A more sophisticated one might include both of those
+variables, and more. If we didn’t have computers, we’d probably be best off by
+picking out <a href="https://entropicthoughts.com/arithmetic-models-better-than-you-think">the top three variables and weighing them equally</a>.
+</p>
+
+<p>
+But we have computers, so we can do better. What we do is play the weak tree
+search<label for="fn.5">5</label><span><sup>5</sup> Search budget of maybe 0.5 seconds per ply, scoring leaves by random
+rollouts to the end.</span> against itself a bunch of times. From each of those games
+we sample one random position<label for="fn.6">6</label><span><sup>6</sup> Only one position to avoid having to deal with
+the strong correlation between consecutive positions in the same game.</span>, record
+how the game ended, and then train a regression model to predict the game
+outcome based on the game state in those sampled positions. The weights we get
+out of the regression minimise square loss, which is probably what we want for a
+heuristic function.
+</p>
+
+<p>
+Once we have those weights, we can create a new generation of the tree search
+using the same search budget, but with truncated rollouts and applying the
+learned heuristic function. This gets to play against the previous generation to
+confirm it is indeed better, and if it is, it plays itself a bunch of times
+again, and we sample new positions, and fit the regression again. Since it’s
+playing better than the previous generation, it will find ways to win from
+positions where the previous generation did not. Thus, the heuristic function’s
+prediction of outcome – assuming skilled play on both sides – will become more
+accurate.
+</p>
+
+<p>
+We repeat that a few times, and what we get is a decently strong opponent, even
+at short thinking time budgets. Well, at least it reliably sweeps the floor with
+me, regardless of which side it plays.
+</p>
+</div>
+</div>
+<div id="outline-container-the-learned-evaluation-function">
+<h2 id="the-learned-evaluation-function"><a href="#the-learned-evaluation-function">The learned evaluation function</a></h2>
+<div id="text-org17ad170">
+<p>
+Maybe the trained weights tells us something about what good positions look
+like, which might help us get better at the game, too. Since we haven’t seen the
+link function<label for="fn.7">7</label><span><sup>7</sup> It’s a hyperbolic tangent to map the raw score (real number,
+infinite support) onto the range [−1, +1] indicating “sure loss” and “sure win”
+respectively, with a draw having value zero. But we’d also need the bias term
+(roughly +1) to convert it into the final value, which isn’t really a
+probability but almost.</span>, we can’t do anything with the absolute values of these
+weights, but their relative sizes are more interesting anyway.
+</p>
+
+<ul>
+<li><i>Number of sheep eaten so far</i>: favours the fox with +0.036 per sheep</li>
+<li><i>Number of sheep that can be eaten, fox to move</i>: favours the fox with +0.096 per sheep</li>
+<li><i>Number of sheep that can be eaten, sheep to move</i>: favours the fox with +0.035 per sheep</li>
+<li><i>Number of candidate moves of the fox player</i>: favours the fox with +0.021 per move</li>
+<li><i>Number of ranks gained by sheep in total</i>: favours the sheep with +0.0034 per rank</li>
+<li><i>Number of sheep in the pen</i>: favours the sheep with +0.017 per sheep</li>
+</ul>
+
+<p>
+Although it’s tempting, it would be improper to interpret these right away,
+because the heuristic function trained here includes one more thing. It’s also
+trained weights for specific locations on the board, which answers the question
+of how valuable it is for a player to occupy specific positions on the board, in
+general.
+</p>
+
+<p>
+The values of the board positions absorb some of the coefficients from the
+variables above. For example, the list above indicates the value of a sheep in
+the pen as 0.017, but the least valuable pen position has value 0.11, compared
+to the average outside-pen position with value 0.09. Thus, the value of a sheep
+in the pen (compared to having it outside the pen) is never less than
+0.11−0.09+0.017=0.04. On average it is 0.08, which is much higher than the list
+above would make us believe.
+</p>
+
+<p>
+Here are the rest of the board values for the sheep player.
+</p>
+
+<pre><code>7               0.21  0.13  0.21              | 0.18
+6               0.11  0.16  0.11              | 0.13
+5   0.08  0.16  0.14  0.13  0.14  0.16  0.08  | 0.13
+4   0.05  0.12  0.10  0.13  0.10  0.12  0.05  | 0.10
+3   0.12  0.11  0.10  0.13  0.10  0.11  0.12  | 0.11
+2               0.02  0.05  0.02              | 0.03
+1               0.06  0.12  0.06              | 0.08
+     a     b     c     d     e     f     g    | mean</code></pre>
+
+
+<p>
+This tells us that a sheep in the <code>c7</code> position is worth 0.23, with most of the
+value coming from the position itself, and only a small amount coming from the
+general value of the <i>number of sheep in the pen</i> variable. Here are some other observations:
+</p>
+
+<ul>
+<li>All positions in rank 2 are bad, because sheep there are exposed to being
+eaten, and not contributing to the goal either.</li>
+<li>Positions along the edges but not in the corner, like <code>b3</code>, <code>c3</code>, <code>c6</code>, and
+<code>d7</code> are generally worse than their corner neighbours, because of the risk of being eaten.</li>
+<li>A position like <code>a5</code> is bad because a sheep stuck in there only has one move,
+and it is blocked by a fox at <code>c5</code>. I suppose <code>a4</code> is bad for similar reasons:
+it doesn’t leave the sheep much choice about where to go. (That said, <code>a5</code> has
+one redeeming quality: it protects a sheep at the more valuable <code>b5</code> position
+from being eaten.)</li>
+<li>Other than ranks 2 and 4, which both are outside the pen and have a heightened
+risk of being eaten, the value of the ranks increases as they get closer to
+the pen.</li>
+<li>I am surprised that the <code>d6</code> cell is so valuable for sheep! I don’t know why.
+Possibly related to mobility.</li>
+</ul>
+
+<p>
+These position values also help us interpret the macro-scale variables from
+before:
+</p>
+
+<ul>
+<li>The average value of a sheep gaining a rank is 0.02 favouring the sheep.</li>
+<li>The average value of having a sheep in the pen (compared to outside) is 0.08 favouring the sheep.</li>
+<li>The average value of starting a turn being able to eat a sheep is 0.20 favouring the fox.</li>
+<li>The average value of an eaten sheep is 0.15 favouring the fox.</li>
+</ul>
+
+<p>
+The value of an eaten sheep is a nice, intuitive scale for these values. We can
+express all the others in terms of <i>sheep value</i>, similar to how in chess they
+measure things in pawn value. Under that conversion, the sheep player needs to
+gain a total of nine ranks to offset the loss of a sheep.
+</p>
+
+<p>
+It may also seem like it is a good trade (net sheep value +0.07) to sacrifice a
+sheep to get two others into the pen. However, intentionally sacrificing a sheep
+means putting it into a position where the fox is able to eat it, which is worse
+than just having lost a sheep. The trade actually has net sheep value −0.27. I
+don’t know why an imminent feeding is worse for the sheep than an eaten sheep,
+but I suspect it’s because it allows the fox to jump two positions, and thus
+move quicker across the board.<label for="fn.8">8</label><span><sup>8</sup> And logic would have us conclude that this
+ability to move two places (in isolation, separate from any eating that would
+happen as a side effect) is, on average, worth a whopping 0.2 sheep value!</span>
+</p>
+
+<p>
+Enough about sheep. The individual-position values for the fox player are
+</p>
+
+<pre><code>7               0.30  0.30  0.30              | 0.30
+6               0.29  0.30  0.29              | 0.29
+5   0.33  0.41  0.37  0.36  0.37  0.41  0.33  | 0.37
+4   0.34  0.37  0.39  0.37  0.39  0.37  0.34  | 0.37
+3   0.34  0.37  0.34  0.35  0.34  0.37  0.34  | 0.35
+2               0.32  0.31  0.32              | 0.32
+1               0.33  0.29  0.33              | 0.32
+     a     b     c     d     e     f     g    | mean</code></pre>
+
+<p>
+These position values are flatter across the board, with an average
+corresponding to 2.3 sheep value – each living fox is worth just over two living
+sheep. There is some advantage for the fox to be out in the middle of the field,
+in ranks 4 and 5. The fox does not want to find itself inside the pen, because
+then sheep in the field get the opportunity to rearrange themselves with
+impunity. The foxes should, all else equal, stick around in the middle 5×2
+rectangle bounded by <code>b4</code> and <code>f5</code>.
+</p>
+
+<p>
+It seems that <code>b5</code> (and its mirror image <code>f5</code>) are some of the most valuable
+points for both fox and sheep and I’m not sure why.
+</p>
+</div>
+</div>
+</section>
+<section id="outline-container-getting-good-with-puzzles">
+<h2 id="getting-good-with-puzzles"><a href="#getting-good-with-puzzles">Getting good with puzzles</a></h2>
+<div id="text-orgc067073">
+<p>
+Let’s say we still don’t feel like we’ve learned enough, and want to improve
+even more at the game. We have game records from when the algorithm
+played itself, where all kinds of interesting situations have shown up. What we
+can do is create <i>Starve the Fox</i> puzzles. These would be used like tsumego or
+chess puzzles: they plop the player down in an interesting situation with a
+given objective, and then the player must figure out the one next move that
+achieves the objective. Here are some examples of situations that make for good
+puzzles:
+</p>
+
+<ul>
+<li>Sheep to play: trap a fox within N turns.</li>
+<li>Fox to play: survive a forced trap for N turns.</li>
+<li>Fox to play: eat a sheep without getting trapped within N turns.</li>
+<li>Sheep to play: prevent a sheep loss for N turns.</li>
+<li>Sheep to play: fill the pen within N turns.</li>
+<li>Fox to play: prevent the pen from being filled for N turns.</li>
+</ul>
+
+<p>
+The parameter N controls both the difficulty of the puzzle<label for="fn.9">9</label><span><sup>9</sup> And I have to
+admit I have failed some where N=1, i.e. I just needed to spot the direct
+capture or whatever the case may be …</span> and the compute cost to find the right
+situations in the self-play records. A cheap filter can quickly eliminate most
+positions as uninteresting, but then many of the puzzle types require a complete
+search to depth N before we know that the situation would make for a proper
+puzzle. For example, “eat a sheep without getting trapped” means we first have
+to find a situation in which a sheep can be eaten, and then also make sure there
+is no follow-up trap within the same N turns. Such a follow-up would be a
+refutation to the solution: the sheep wouldn’t be lost, it would merely be
+sacrificed to trap the fox.
+</p>
+
+<p>
+I only tried generating puzzles with N lower than four, but that alone gave some
+2000 puzzles. If I worked through all of those, I’m sure I would end up playing
+a much meaner sheep game. Alas, of all the things I could get skilled at, this
+is very low on my not-so-well prioritised list.
+</p>
+
+<p>
+But in case someone else is interested in spending time to get good at <i>Starving
+the Fox</i>, <a href="https://xkqr.org/fox-game-puzzles/">here’s a decent set of puzzles</a> to get you started.
+</p>
+</div>
+</section>
+<section id="outline-container-language-models-and-me">
+<h2 id="language-models-and-me"><a href="#language-models-and-me">Language models and me</a></h2>
+<div id="text-org6503133">
+<p>
+As a meta-reflection, this is the sort of project I would not have attempted
+before the developments we’ve seen to language model harnesses in the past year
+or so. Even if the language models themselves have not gotten better, the
+harnesses have gotten better at pushing them into actively producing feedback,
+which in turn lets them generate code satisfying specifications more reliably.
+</p>
+
+<p>
+But satisfying specifications doesn’t mean good code. It’s generated over 3,000
+lines of Python implementation, 1,000 lines of tests, and 500 lines of <abbr>html</abbr>,
+all in the dense code style modern language models tend to generate. It’d expand
+to a total of over 6,000 lines if formatted like a human. The code is
+unnecessarily complex and rigid. If I cared, I could refactor it to much higher
+quality, shrinking it in size maybe to around 4500 lines, which seems
+appropriate for this size of functionality when the code is well-written. That’d
+be a <a href="https://entropicthoughts.com/llms-and-almost-good-code">complexity reduction of 25&nbsp;%</a>.
+</p>
+
+<p>
+But for this? I don’t care about that. I don’t care about the code. I would not
+be sad if this code disappeared tomorrow. I would also never end up manually
+writing 4,500 lines of code to learn more about an old Nordic board game. I like
+programming, but I have much more interesting programming projects on my plate.
+</p>
+</div>
+</section>
+<section id="outline-container-the-win-chance-for-the-fox">
+<h2 id="the-win-chance-for-the-fox"><a href="#the-win-chance-for-the-fox">The win chance for the fox</a></h2>
+<div id="text-org872ae86">
+<p>
+Oh, I almost forgot. Under these rules, with a strong-ish search, the sheep
+win about 50&nbsp;% of the time. When they cannot win, they can usually force a draw,
+which appens 35&nbsp;% of the time. The fox wins 15&nbsp;% of the time.
+</p>
+
+<p>
+This is not a solution – we don’t know if perfect play means the sheep always
+win, or the fox always wins, but the fox is certainly not so overpowered as my
+wife’s family assumes.
+</p>
+</div>
+</section>
+
+            </div></div>
