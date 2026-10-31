@@ -1,0 +1,944 @@
+<div id="readability-page-1" class="page"><div>
+<h2>Switch lowering in GCC</h2>
+<hr>
+<p><strong>2024-01-14</strong></p>
+<h3 id="introduction">Introduction</h3>
+
+<p>We have seen in a <a href="https://xoranth.net/verb-parse/">previous post</a> that switch statements are more complex than they seem.
+The compiler is able to implement them as a decision tree (even though maybe it shouldn't).
+Is that everything it can do?</p>
+<p><em>In this post, I'll focus on <code>gcc</code>. All optimizations, except the bitset lowering, translate to clang. I'll be using the <code>-O3</code> optimization flag unless indicated otherwise.</em></p>
+<p><em>I've also slightly edited <code>gcc</code> code and removed certain assertions for brevity.</em> </p>
+<h3 id="examples">Examples</h3>
+<p>Let us start with a simple example. 
+A function that takes two integers <code>x</code> and <code>val</code>. Depending on the value of <code>x</code>, it calls a corresponding function (<code>f0</code>, <code>f1</code>, and so forth) with <code>val</code> as an argument and returns the result.
+Were we to implement this manually, we'd would use an array of function pointers, where the input serves as the index into the array.</p>
+<div>
+<div>
+    <pre><code data-language="c">int f0(int val);
+int f1(int val);
+int f2(int val);
+int f3(int val);
+int f4(int val);
+
+int compact(int x, int val) {
+    switch (x) {
+        case 0:
+            return f0(val);
+        case 1:
+            return f1(val);
+        case 2:
+            return f2(val);
+        case 3:
+            return f3(val);
+        case 4:
+            return f4(val);
+        default:
+            return 0;
+    }
+    return 0;
+}
+</code></pre>
+
+</div>
+
+<div>
+    <pre><code data-language="asm">compact:
+	mov	eax, edi
+	mov	edi, esi
+	cmp	eax, 4
+	ja	.L2
+	jmp	[QWORD PTR .L4[0+rax*8]]
+.L4:
+	.quad	.L8
+	.quad	.L7
+	.quad	.L6
+	.quad	.L5
+	.quad	.L3
+.L5:
+	jmp	f3
+.L3:
+	jmp	f4
+.L8:
+	jmp	f0
+.L7:
+	jmp	f1
+.L6:
+	jmp	f2
+.L2:
+	xor	eax, eax
+	ret
+</code></pre>
+
+</div>
+
+</div>
+<p>The compiler agrees with this approach, and transforms the switch statement into a jump table.</p>
+<p>Moreover, it is able to identify when the values are offset by a constant:</p>
+<div>
+<div>
+    <pre><code data-language="c">int f0(int val);
+int f1(int val);
+int f2(int val);
+int f3(int val);
+int f4(int val);
+
+int compact(int x, int val) {
+    switch (x) {
+        case 97:
+            return f0(val);
+        case 98:
+            return f1(val);
+        case 99:
+            return f2(val);
+        case 100:
+            return f3(val);
+        case 101:
+            return f4(val);
+        default:
+            return 0;
+    }
+    return 0;
+}
+</code></pre>
+
+</div>
+
+<div>
+    <pre><code data-language="asm">compact:
+	lea	eax, [rdi-97]
+	cmp	eax, 4
+	ja	.L2
+	mov	edi, esi
+	jmp	[QWORD PTR .L4[0+rax*8]]
+.L4:
+	.quad	.L8
+	.quad	.L7
+	.quad	.L6
+	.quad	.L5
+	.quad	.L3
+.L5:
+	jmp	f3
+.L3:
+	jmp	f4
+.L8:
+	jmp	f0
+.L7:
+	jmp	f1
+.L6:
+	jmp	f2
+.L2:
+	xor	eax, eax
+	ret
+</code></pre>
+
+</div>
+
+</div>
+<p>Our intuition suggests that the more sparse the values, the less advantageous the jump table conversion is.</p>
+<p>Through experimentation, we find that <code>gcc</code> considers the threshold to be around eight jump table entries per <code>case</code> label.</p>
+<p>In other words, the following function compiles to a jump table:</p>
+<div>
+<div>
+    <pre><code data-language="c">int f0(int val);
+int f1(int val);
+int f2(int val);
+int f3(int val);
+int f4(int val);
+
+int compact_7(int x, int val) {
+    switch (x) {
+        case 0:
+            return f0(val);
+        case 7:
+            return f1(val);
+        case 14:
+            return f2(val);
+        case 21:
+            return f3(val);
+        case 34:
+            return f4(val);
+        default:
+            return 0;
+    }
+    return 0;
+}
+</code></pre>
+
+</div>
+
+<div>
+    <pre><code data-language="asm">compact_7:
+	mov	eax, edi
+	mov	edi, esi
+	cmp	eax, 34
+	ja	.L2
+	jmp	[QWORD PTR .L4[0+rax*8]]
+.L4:
+	.quad	.L8
+	.quad	.L2
+	; ...
+	.quad	.L2
+	.quad	.L7
+	.quad	.L2
+	; ...
+	.quad	.L2
+	.quad	.L6
+	.quad	.L2
+	; ...
+	.quad	.L2
+	.quad	.L5
+	.quad	.L2
+	; ...
+	.quad	.L2
+	.quad	.L3
+.L2:
+	xor	eax, eax
+	ret
+.L8:
+	jmp	f0
+.L7:
+	jmp	f1
+.L6:
+	jmp	f2
+.L5:
+	jmp	f3
+.L3:
+	jmp	f4
+</code></pre>
+
+</div>
+
+</div>
+<p>But this other function is expanded as a tree of comparisons:</p>
+<div>
+<div>
+    <pre><code data-language="c">int f0(int val);
+int f1(int val);
+int f2(int val);
+int f3(int val);
+int f4(int val);
+
+int sparse_8(int x, int val) {
+    switch (x) {
+        case 0:
+            return f0(val);
+        case 8:
+            return f1(val);
+        case 16:
+            return f2(val);
+        case 24:
+            return f3(val);
+        case 40:
+            return f4(val);
+        default:
+            return 0;
+    }
+    return 0;
+}
+</code></pre>
+
+</div>
+
+<div>
+    <pre><code data-language="asm">sparse_8:
+	mov	eax, edi
+	mov	edi, esi
+	cmp	eax, 16
+	je	.L2
+	jle	.L10
+	cmp	eax, 24
+	je	.L7
+	cmp	eax, 40
+	jne	.L1
+	jmp	f4
+.L10:
+	test	eax, eax
+	je	.L4
+	cmp	eax, 8
+	jne	.L1
+	jmp	f1
+.L1:
+	xor	eax, eax
+	ret
+.L4:
+	jmp	f0
+.L7:
+	jmp	f3
+.L2:
+	jmp	f2
+</code></pre>
+
+</div>
+
+</div>
+<p>Here's the comparison tree visualized for clarity:</p>
+
+
+
+
+
+
+
+<p>A couple of observations:</p>
+
+<ol>
+<li>We've only tried equally spaced values so far. Can the compiler identify transformations that are profitable on a subset of all cases?</li>
+<li>So far each <code>case</code> led to a different result. What if we had different cases with the same result?</li>
+<li>The switch in <code>sparse_8</code> could be simplified by dividing <code>x</code> by eight before the jump. Interestingly, <code>gcc</code> <em>doesn't</em> find this simplification.</li>
+</ol>
+<p>Let's dig into 1. and 2.</p>
+<h4 id="outliers">Outliers</h4>
+<p>Altering our first example by including an outlier value shows that the compiler is able to recognize dense subsets of cases.</p>
+<div>
+<div>
+    <pre><code data-language="c">int f0(int val);
+int f1(int val);
+int f2(int val);
+int f3(int val);
+int f4(int val);
+int f5(int val);
+
+int outlier(int x, int val) {
+    switch (x) {
+        case 1:
+            return f0(val);
+        case 2:
+            return f1(val);
+        case 3:
+            return f2(val);
+        case 4:
+            return f3(val);
+        case 5:
+            return f4(val);
+        case 100:
+            return f5(val);
+        default:
+            return 0;
+    }
+    return 0;
+}
+</code></pre>
+
+</div>
+
+<div>
+    <pre><code data-language="asm">outlier:
+	mov	eax, edi
+	mov	edi, esi
+	cmp	eax, 5
+	jg	.L2
+	test	eax, eax
+	jle	.L1
+	cmp	eax, 5
+	ja	.L4
+	jmp	[QWORD PTR .L6[0+rax*8]]
+.L6:
+	.quad	.L4
+	.quad	.L4
+	.quad	.L9
+	.quad	.L8
+	.quad	.L7
+	.quad	.L5
+.L2:
+	cmp	eax, 100
+	jne	.L1
+	jmp	f5
+.L7:
+	jmp	f3
+.L5:
+	jmp	f4
+.L9:
+	jmp	f1
+.L8:
+	jmp	f2
+.L4:
+	jmp	f0
+.L1:
+	xor	eax, eax
+	ret
+</code></pre>
+
+</div>
+
+</div>
+<p>The compiler emits a branch for case 100, but emits a jump table for case 1 through 5.</p>
+<h4 id="contiguous">Contiguous</h4>
+<p>In our examples so far, each case statement lead to a different code block. Let's test what happens when multiple <code>case</code> labels invoke the same function.</p>
+<div>
+<div>
+    <pre><code data-language="c">int f1(int val);
+int f2(int val);
+int f3(int val);
+int f4(int val);
+int f5(int val);
+
+int blocks_2(int x, int val) {
+    switch (x) {
+        case 0:  case 1:  case 2:  case 3:
+            return f1(val);
+        case 21:  ...  case 24:
+            return f2(val);
+        case 42:  ...  case 45:
+            return f3(val);
+        case 63:  ...  case 66:
+            return f4(val);
+        case 84:  ...  case 87:
+            return f5(val);
+        default:
+            return 0;
+    }
+    return 0;
+}
+</code></pre>
+
+</div>
+
+<div>
+    <pre><code data-language="asm">blocks_2:
+	mov	eax, edi
+	mov	edi, esi
+	cmp	eax, 45
+	jg	.L2
+	cmp	eax, 41
+	jg	.L3
+	cmp	eax, 3
+	jg	.L4
+	test	eax, eax
+	js	.L1
+	jmp	f1
+.L2:
+	cmp	eax, 66
+	jg	.L8
+	cmp	eax, 62
+	jle	.L1
+	jmp	f4
+.L4:
+	sub	eax, 21
+	cmp	eax, 3
+	ja	.L1
+	jmp	f2
+.L8:
+	sub	eax, 84
+	cmp	eax, 3
+	ja	.L1
+	jmp	f5
+.L3:
+	jmp	f3
+.L1:
+	xor	eax, eax
+	ret
+</code></pre>
+
+</div>
+
+</div>
+<p>We have 20 case labels, with values between 0 and 87. The compiler could lower this <code>switch</code> to a jump table with 88 entries.
+Our hypothesis for the heuristic is that a jump table conversion is profitable when its size is smaller than <code>8 * num_case_labels</code>.
+Since <code>88 &lt; 20 * 8</code>, the conversion should be profitable in this case, however <code>gcc</code> opted to lower the switch to a sequence of comparisons.</p>
+<p>To better understand why, let's examine a specific block of <code>case</code> labels.</p>
+<div>
+<div>
+    <pre><code data-language="c">int blocks_2(int x, int val) {
+    switch (x) {
+        // ...
+        case 42:  case 43:  case 44:  
+        case 45:
+            return f3(val);
+        // ...
+    }
+    return 0;
+}
+</code></pre>
+
+</div>
+
+<div>
+    <pre><code data-language="asm">blocks_2:
+	mov	eax, edi ; Move `val` to $eax
+	mov	edi, esi
+	cmp	eax, 45
+	; If val &lt;= 45, do _not_ jump
+	jg	.L2
+	cmp	eax, 41
+	; If val &gt;= 42, jump to L3
+	jg	.L3
+	; ...
+.L2:
+; ...
+.L3:
+        ; We reach L3 only if 42 &lt;= val &lt;= 45
+        jmp	f3        ; Call f3(val)
+; ...
+</code></pre>
+
+</div>
+
+</div>
+<p>The compiler realizes that the cases are contiguous and can be implemented with two comparisons instead of four.
+If the input of the jump table heuristic is the number of <em>comparisons</em> instead of <em>case labels</em>, things work out:</p>
+<p>We have a total of 10 comparisons. Since <code>10 * 8 &lt; 88</code>, our revised heuristic suggests that a jump table transformation is unprofitable.</p>
+
+<h4 id="non-contiguous">Non-contiguous</h4>
+<p>Let us try a non-contiguous case.</p>
+<div>
+<div>
+    <pre><code data-language="c">int f1(int val);
+
+int bittest(int x, int val) {
+    switch (x) {
+        case '0':  case '2':  case '4':  
+        case '5':  case '7':  case '9':  
+        case 'A':  case 'C':  case 'E':
+            return f1(x);
+        default:
+            return 0;
+    }
+    return 0;
+}
+</code></pre>
+
+</div>
+
+<div>
+    <pre><code data-language="asm">bittest:
+	lea	eax, [rdi-48]
+	cmp	eax, 21
+	ja	.L1
+	mov	edx, 2753205  ; ???
+	bt	rdx, rax
+	jc	.L7
+.L1:
+	xor	eax, eax
+	ret
+.L7:
+	jmp	f1
+</code></pre>
+
+</div>
+
+</div>
+<p>The compiler emits non-intuitive machine code. Why is there no <code>cmp</code> nor jump tables? Where does the constant <code>2753205</code> come from?</p>
+<p>An hint comes from the instruction <code>bt</code>. According to the <a href="https://www.felixcloutier.com/x86/bt">Intel docs</a>, <code>bt</code>:</p>
+<blockquote>
+<p>Selects the bit in a bit string (specified with the first operand, called the bit base) at the bit-position designated by the bit offset (specified by the second operand) and stores the value of the bit in the CF flag.</p>
+</blockquote>
+<p>If we examine the binary representation of <code>2753205</code>, we find that it is in fact a bitset. The bits that are set to one correspond to the ASCII values of the case labels, each value being reduced by 48.</p>
+
+
+
+<h3 id="implementation">Implementation</h3>
+<p>We've encountered several distinct lowering strategies employed by gcc. For a more in-depth understanding, we can delve into the compiler's source code.</p>
+
+<p>The compiler pass that responsible for lowering <code>switch</code> statements is the (appropriately named) <code>pass_lower_switch</code>, which in turn calls <code>analyze_switch_statement</code>.</p>
+<p>Since <code>gcc</code> source can be daunting to follow, I'll provide a step-by-step commented version below.
+Following this, I will break down each section to explain its functionality.</p>
+
+<pre><code data-language="cpp">bool switch_decision_tree::analyze_switch_statement () 
+{
+    unsigned l = gimple_switch_num_labels (m_switch);
+    auto_vec&lt;cluster *&gt; clusters;
+    // ...
+
+    compute_cases_per_edge ();
+</code></pre>
+<p>Some preamble code. <code>m_switch</code> points to a gimple object. Gimple is the internal representation used by <code>gcc</code>.
+Through this, we extract the overall count of cases and the individual counts of cases for each outgoing edge.</p>
+
+
+<p>We also allocate a vector that will record the lowering strategy chosen for each case label.</p>
+<pre><code data-language="cpp">    for (unsigned i = 1; i &lt; l; i++)
+    {
+        tree elt = gimple_switch_label (m_switch, i);
+	// ...
+        tree low = CASE_LOW (elt);
+        tree high = CASE_HIGH (elt);
+
+        profile_probability p
+            = case_edge-&gt;probability.apply_scale (1, (intptr_t) (case_edge-&gt;aux));
+        clusters.quick_push (new simple_cluster (low, high, elt, case_edge-&gt;dest, p));
+        // ...
+    }
+</code></pre>
+
+<p>More setup code. We notice that gimple has a concept of high and low value for each label. That is, contiguous <code>case</code> labels have already joined together at this stage.</p>
+
+<p>For each case label, we allocate a <code>simple_cluster</code>. This cluster serves as a record, capturing the range of values associated with the label, the relevant output edge, and the likelihood of this cluster being chosen. This probability comes from profile-guided optimization. By default it is uniform among case labels.</p>
+<pre><code data-language="cpp">    // ...
+    vec&lt;cluster *&gt; output = bit_test_cluster::find_bit_tests (clusters);
+</code></pre>
+<p>We transform the vector of clusters we have created. The name <code>bit_test_cluster</code> hints to the bitset lowering strategy we saw before.</p>
+<pre><code data-language="cpp">    /* Find jump table clusters.  */
+    vec&lt;cluster *&gt; output2;
+    auto_vec&lt;cluster *&gt; tmp;
+    // ...
+    
+    for (unsigned i = 0; i &lt; output.length (); i++) {
+        cluster *c = output[i];
+        if (c-&gt;get_type () != SIMPLE_CASE) {
+            if (!tmp.is_empty ()) {
+                // ... See below for what's here
+                tmp.truncate (0);
+            }
+            output2.safe_push (c); 
+        }
+        else
+            tmp.safe_push (c);
+    }
+</code></pre>
+<p>This section allocates a vector for the transformed cases and a scratch vector.
+Any case that wasn't altered during the bitset transformation process is gathered in this scratch vector. These cases are then processed and cleared whenever we come across an optimized cluster.</p>
+<p>Essentially, in this section we are looking for sequences of case labels that couldn't be converted into bitset clusters.</p>
+<pre><code data-language="cpp">                vec&lt;cluster *&gt; n = jump_table_cluster::find_jump_tables (tmp);
+                output2.safe_splice (n);
+                n.release ();
+</code></pre>
+<p>We attempt to convert these consecutive labels into a jump table and add the outcome to the output.</p>
+<pre><code data-language="cpp">    /* We still can have a temporary vector to test.  */
+    if (!tmp.is_empty ()) {
+        vec&lt;cluster *&gt; n = jump_table_cluster::find_jump_tables (tmp);
+        output2.safe_splice (n);
+        n.release ();
+    }
+</code></pre>
+<p>This is a coda for the loop above.</p>
+<pre><code data-language="cpp">    // ...
+
+    bool expanded = try_switch_expansion (output2);
+    release_clusters(output2);
+    return expanded;
+}
+</code></pre>
+<p>Whatever is left goes through another pass, which turns the switch statement into a decision tree.
+The bitsets and jump table are leaves of the decision tree.</p>
+<h4 id="bitsets">Bitsets</h4>
+<p>Let's dig further into <code>bit_test_cluster::find_bit_tests</code>. The high level structure of the code is as follow.</p>
+<p>Initially, we aim to find the optimal method to bundle all clusters into bitsets. Optimality, in this context, refers to minimizing the number of bitsets used. We do so using dynamic programming.</p>
+<p>Subsequently, we iterate over the bitsets and apply a profitability heuristic. If the bitsets meet this heuristic, we emit a <code>bit_test_cluster</code>; otherwise, we keep the original <code>simple_cluster</code>s.</p>
+<pre><code data-language="cpp">vec&lt;cluster *&gt; bit_test_cluster::find_bit_tests (vec&lt;cluster *&gt; &amp;clusters)
+{
+    // ...
+
+    unsigned l = clusters.length ();
+    auto_vec&lt;min_cluster_item&gt; min;
+    // ...
+
+    min.quick_push (min_cluster_item (0, 0, 0));
+    for (unsigned i = 1; i &lt;= l; i++)
+    {
+        /* Set minimal # of clusters with i-th item to infinite.  */
+        min.quick_push (min_cluster_item (INT_MAX, INT_MAX, INT_MAX));
+
+        for (unsigned j = 0; j &lt; i; j++)
+        {
+            if (min[j].m_count + 1 &lt; min[i].m_count
+                    &amp;&amp; can_be_handled (clusters, j, i - 1))
+                min[i] = min_cluster_item (min[j].m_count + 1, j, INT_MAX);
+        }
+
+        gcc_checking_assert (min[i].m_count != INT_MAX);
+    }
+</code></pre>
+<p>For the dynamic programming, we'll use a vector of <code>min_cluster_item</code> structures.
+Each <code>min_cluster_item</code> has three components:</p>
+<ul>
+<li>The first records how many bitsets do we need to represent the first <em>i</em> case labels, where <code>i</code> is the index in the vector.</li>
+<li>The second records the <strong>start</strong> of the last bitset.</li>
+<li>The third is unused.</li>
+</ul>
+<p>The dynamic programming is as follows. We want to find the minimum number of bitsets to represent the first <em>i</em> case labels.</p>
+<p>The base case is straightforward, a single case label can be represented by a single bitset.</p>
+
+<p>Suppose we have already have found the optimal number of bitsets for the first <em>j</em> case label, for all 
+.
+We define 
+ to be the optimal number of splits for the first <code>i</code> elements. This means we already computed 
+, and are now seeking 
+.</p>
+<p>If the range 
+ of case labels can be represented as a bitset cluster, it must be true that</p>
+
+<p>Conversely, assume we have the optimal assignment for the first <em>i</em> labels. If the last bitset starts at label 
+, this assignment is also optimal when restricted to 
+. Were this not the case, we could improve the assignment on 
+ as well.</p>
+<p>Therefore, it must be that:</p>
+
+<p>These conditions are exactly what the <code>if</code> statement in the code above checks for.</p>
+<p>The <code>can_be_handled</code> function controls whether a range of <code>case</code> labels can be turned into a bitset test. It tests two criteria:</p>
+<ul>
+<li>The <em>combined</em> range of all the case labels must be smaller than the width of a register. On contemporary systems, the combined range should be less than 64.</li>
+<li>The case labels must have at most 3 <em>unique</em> outgoing edges. </li>
+</ul>
+<p>If there is more than one edge, we emit a cascade of bit tests.</p>
+<pre><code data-language="cpp">    vec&lt;cluster *&gt; output;
+    // ...
+    
+    /* Find and build the clusters.  */
+    for (unsigned end = l;;)
+    {
+        int start = min[end].m_start;
+
+        if (is_beneficial (clusters, start, end - 1))
+        {
+            bool entire = start == 0 &amp;&amp; end == clusters.length ();
+            output.safe_push (new bit_test_cluster (clusters, start, end - 1, entire));
+        }
+        else
+            for (int i = end - 1; i &gt;= start; i--)
+                output.safe_push (clusters[i]);
+
+        end = start;
+
+        if (start &lt;= 0)
+            break;
+    }
+
+    output.reverse ();
+    return output;
+}
+</code></pre>
+<p>Now we convert only bitsets that satisfy the <code>is_beneficial</code> test. 
+In the code <code>count</code> represents the number of case labels handled by the cluster, while <code>uniq</code> denotes the number of distinct outgoing edges.</p>
+<pre><code data-language="cpp">bool bit_test_cluster::is_beneficial (unsigned count, unsigned uniq)
+{
+    return (((uniq == 1 &amp;&amp; count &gt;= 3)
+              || (uniq == 2 &amp;&amp; count &gt;= 5)
+              || (uniq == 3 &amp;&amp; count &gt;= 6)));
+}
+</code></pre>
+<h4 id="jump-tables">Jump tables</h4>
+<p>The logic for jump table conversion mirrors the one used for bit test conversion.
+It leverages dynamic programming to identify "clusters" that can be profitably converted 
+to a jump table.</p>
+<p>Let's delve into the code. </p>
+<pre><code data-language="cpp">vec&lt;cluster *&gt; jump_table_cluster::find_jump_tables (vec&lt;cluster *&gt; &amp;clusters)
+{
+    if (!is_enabled ())
+        return clusters.copy ();
+
+    unsigned l = clusters.length ();
+    auto_vec&lt;min_cluster_item&gt; min;
+    min.reserve (l + 1);
+</code></pre>
+<p>We start by preallocating a vector of <code>min_cluster_item</code>. We'll use this vector
+to keep track of the best jump table assignments for consecutive <code>case</code> clusters.</p>
+<pre><code data-language="cpp">    min.quick_push (min_cluster_item (0, 0, 0));
+</code></pre>
+<p>We also push the base case for dynamic programming. This corresponds
+to using a single jump table for the whole <code>switch</code>.</p>
+<p>Let's focus now on the main loop.</p>
+<pre><code data-language="cpp">    unsigned HOST_WIDE_INT max_ratio = /* Used in the main heuristic. See next snippet. */;
+                
+    for (unsigned i = 1; i &lt;= l; i++)
+    {
+        // NOTE(xoranth): Base case
+        min.quick_push (min_cluster_item (INT_MAX, INT_MAX, INT_MAX));
+        
+        /* Pre-calculate number of comparisons for the clusters.  */
+        HOST_WIDE_INT comparison_count = 0;
+        for (unsigned k = 0; k &lt;= i - 1; k++)
+        {
+            simple_cluster *sc = static_cast&lt;simple_cluster *&gt; (clusters[k]);
+            // NOTE(xoranth): get_comparison_count is 2 for contiguous case 
+            // labels, and 1 otherwise
+            comparison_count += sc-&gt;get_comparison_count ();
+        }
+
+        for (unsigned j = 0; j &lt; i; j++)
+        {
+            unsigned HOST_WIDE_INT s = min[j].m_non_jt_cases;
+            if (i - j &lt; case_values_threshold ())
+                s += i - j;
+            
+            /* Prefer clusters with smaller number of numbers covered.  */
+            if (/* Check if new split is better. See next snippet */) 
+            {
+                // NOTE(xoranth): Update best score.
+                min[i] = min_cluster_item (min[j].m_count + 1, j,
+					   s /* `s` is the number of unhandled cases */);
+            }
+
+            simple_cluster *sc = static_cast&lt;simple_cluster *&gt; (clusters[j]);
+            comparison_count -= sc-&gt;get_comparison_count ();
+        }
+    }
+</code></pre>
+<p>The dynamic programming loop mirrors the one we used for bitsets. 
+We want to find the minimum number of jump tables to represent the first i case labels.</p>
+<p>We iterate over splits at the <code>j</code>-th case label, for <code>j &lt; i</code>. During each iteration we track the best scoring split.
+The special case <code>j == 0</code> represents a single jump table for the entire <code>switch</code> statement.</p>
+<p>Inside this inner loop we also keep track of:</p>
+<ol>
+<li>How many distinct jump tables we would need to lower the switch.</li>
+<li>The <strong>start</strong> of the <em>last</em> jump table of the decomposition.</li>
+<li>How many cases <em>cannot</em> be handled by a jump table. In the code, this is the accumulator <code>s</code>.</li>
+</ol>
+<p>Point 1. and 2. are analogous to the bitset lowering pass, while 3. is new and specific to jump tables.</p>
+<p>Namely, there is some overhead to dispatching to a jump table, due to the indirect jump and the need to check bounds.
+Therefore <code>gcc</code> requires a minimum amount of <code>case</code> labels to generate a jump table. </p>
+<p>If a split would generate a jump table that is too small, the size of the jump table is added to an accumulator <code>s</code>, which is used as a tie-breaker between different split candidates.</p>
+<p>To compute the scoring, we need the comparison count between <code>j</code>-th and the <code>i</code>-th case label. We compute it summing up the number of comparisons for all labels, and decreasing the count as we progress in the inner loop.</p>
+<p>We also need the number of unhandled <code>case</code> labels. We determine it comparing the size of the jump table to the result of the <code>case_values_threshold</code> function. This function is architecture dependent and takes into account the presence of switch-case specific instructions, but on modern x64 and Arm64 machines, it defaults to 5.</p>
+<pre><code data-language="cpp">unsigned int default_case_values_threshold (void) {
+    return (targetm.have_casesi () ? 4 : 5);
+}
+</code></pre>
+<p>Let's now focus on the main heuristic, starting with how <code>max_ratio</code> is computed. I've reproduced below the main loop, omitting lines unrelated to the main heuristic.</p>
+<p>We've seen in the examples section that gcc uses the ratio between jump table entries and comparisons as a metric for the lowering the heuristic. The code below shows that distinct ratios are used when optimizing for speed (flags <code>-O[123|fast]</code>) or size (flag <code>-Os</code>). Specifically, a ratio of 8 is used when optimizing for speed, while a ratio of 2 is used when optimizing for size.</p>
+<pre><code data-language="cpp">    unsigned HOST_WIDE_INT max_ratio
+        = (optimize_insn_for_size_p ()
+                ? param_jump_table_max_growth_ratio_for_size    // This is `2`
+                : param_jump_table_max_growth_ratio_for_speed); // This is `8`
+
+    for (unsigned i = 1; i &lt;= l; i++)
+    {
+        /* Set minimal # of clusters with i-th item to infinite.  */
+        min.quick_push (min_cluster_item (INT_MAX, INT_MAX, INT_MAX));
+
+        // NOTE(xoranth): Compute comparison count, see previous snippet
+
+        for (unsigned j = 0; j &lt; i; j++)
+        {
+            // NOTE(xoranth): Compute unhandled cases, see previous snippet
+            
+            /* Prefer clusters with smaller number of numbers covered.  */
+            if ((min[j].m_count + 1 &lt; min[i].m_count)
+               || (min[j].m_count + 1 == min[i].m_count &amp;&amp; s &lt; min[i].m_non_jt_cases)
+               &amp;&amp; can_be_handled (clusters, j, i - 1, max_ratio, comparison_count)) 
+            {
+                min[i] = min_cluster_item (min[j].m_count + 1, j,
+					   s /* `s` is the number of unhandled cases */ );
+            }
+
+            // NOTE(xoranth): Update comparison count, see previous snippet
+        }
+    }
+</code></pre>
+<p>Now onto the main loop. Given two splits, we prefer the one that results in fewer jump tables being emitted.
+Or, if they would result in the same number of jump tables, we prefer the one that handles the most <code>case</code> labels.
+We also ignore splits that would result in unprofitable jump tables, where profitability is checked by the <code>can_be_handled</code> function.</p>
+<p>The <code>can_be_handled</code> condition, checks for overflow and compares the ratio of case labels to jump table entries:</p>
+<pre><code data-language="cpp">bool jump_table_cluster::can_be_handled (const vec&lt;cluster *&gt; &amp;clusters,
+                                         unsigned start, unsigned end,
+                                         unsigned HOST_WIDE_INT max_ratio,
+                                         unsigned HOST_WIDE_INT comparison_count)
+{
+    /* If the switch is relatively small such that the cost of one
+       indirect jump on the target are higher than the cost of a
+       decision tree, go with the decision tree.
+
+       [...]
+
+       For algorithm correctness, jump table for a single case must return
+       true.  We bail out in is_beneficial if it's called just for
+       a single case.  */
+    if (start == end)
+        return true;
+
+    unsigned HOST_WIDE_INT range = get_range (clusters[start]-&gt;get_low (), clusters[end]-&gt;get_high ());
+    /* Check for overflow.  */
+    // ...
+
+    return lhs &lt;= max_ratio * comparison_count;
+}
+</code></pre>
+<p>The coda of the function also mirrors the one for bitset clusters.
+It iterates over all jump tables in reverse order, and prunes the ones that fail the <code>is_beneficial</code> check.</p>
+<pre><code data-language="cpp">    vec&lt;cluster *&gt; output;
+    output.create (4);
+
+    /* Find and build the clusters.  */
+    for (unsigned int end = l;;)
+    {
+        int start = min[end].m_start;
+
+        /* Do not allow clusters with small number of cases.  */
+        if (is_beneficial (clusters, start, end - 1))
+            output.safe_push (new jump_table_cluster (clusters, start, end - 1));
+        else
+            for (int i = end - 1; i &gt;= start; i--)
+                output.safe_push (clusters[i]);
+        end = start;
+
+        if (start &lt;= 0) break;
+    }
+
+    output.reverse ();
+    return output;
+}
+</code></pre>
+<p>The <code>is_beneficial</code> check for jump tables aims to prune small jump tables. It compares the number of case labels to <code>case_values_threshold</code>.</p>
+<pre><code data-language="cpp">bool jump_table_cluster::is_beneficial (const vec&lt;cluster *&gt; &amp;, unsigned start, unsigned end) {
+    if (start == end) return false;
+    return end - start + 1 &gt;= case_values_threshold ();
+}
+</code></pre>
+<h4 id="binary-tree">Binary tree</h4>
+<p>If <code>gcc</code> cannot emit a bitset cluster or a jump table, it falls back to a binary
+tree of comparison.</p>
+<p>In emitting the tree, it takes into account the probability of each case label
+cluster. The probability can be obtained via profile-guided optimization, or with
+the <code>__builtin_expect_with_probability</code> builtin.</p>
+<p>The code is pretty straightforward.</p>
+<pre><code data-language="cpp">void switch_decision_tree::balance_case_nodes (case_tree_node **head, case_tree_node *parent) 
+{
+    case_tree_node *np = *head;
+    if (np) {
+        int i = 0;
+        case_tree_node **npp, *left;
+        profile_probability prob = profile_probability::never ();
+</code></pre>
+<p>Sum probability of all case labels.</p>
+<pre><code data-language="cpp">        /* Count the number of entries on branch.  Also count the ranges.  */
+        while (np) {
+            i++;
+            prob += np-&gt;m_c-&gt;m_prob;
+            np = np-&gt;m_right;
+        }
+</code></pre>
+<p>Split the case label list such that both halves have equal probability.</p>
+<pre><code data-language="cpp">        if (i &gt; 2) {
+            npp = head;
+            left = *npp;
+	    // NOTE(xoranth): this divides prob by 2.
+            profile_probability pivot_prob = prob.apply_scale (1, 2);
+
+            while (1) {
+                /* Skip nodes while their probability does not reach that amount.  */
+                prob -= (*npp)-&gt;m_c-&gt;m_prob;
+                if ((prob.initialized_p () &amp;&amp; prob &lt; pivot_prob) || ! (*npp)-&gt;m_right)
+                    break;
+                npp = &amp;(*npp)-&gt;m_right;
+            }
+
+            np = *npp;
+            *npp = 0;
+            *head = np;
+            np-&gt;m_parent = parent;
+            np-&gt;m_left = left == np ? NULL : left;
+</code></pre>
+<p>Recurse in both halves to build the binary tree.</p>
+<pre><code data-language="cpp">            balance_case_nodes (&amp;np-&gt;m_left, np);
+            balance_case_nodes (&amp;np-&gt;m_right, np);
+            np-&gt;m_c-&gt;m_subtree_prob = np-&gt;m_c-&gt;m_prob;
+            if (np-&gt;m_left)
+                np-&gt;m_c-&gt;m_subtree_prob += np-&gt;m_left-&gt;m_c-&gt;m_subtree_prob;
+            if (np-&gt;m_right)
+                np-&gt;m_c-&gt;m_subtree_prob += np-&gt;m_right-&gt;m_c-&gt;m_subtree_prob;
+        } else {
+	    // [...] Base case
+        }
+    }
+}
+</code></pre>
+<h3 id="conclusion">Conclusion</h3>
+<p>We've seen the heuristics and lowering strategies <code>gcc</code> employs when compiling switch statements, including:</p>
+<ul>
+<li>Compressing multiple <code>case</code> labels into a bitset.</li>
+<li>Transforming the <code>switch</code> statement into a jump table.</li>
+<li>Transforming the <code>switch</code> statement into a binary decision tree.</li>
+</ul>
+<p>For anyone interested in delving deeper, I'd suggest examining the <code>gcc</code> <a href="https://github.com/gcc-mirror/gcc/blob/master/gcc/tree-switch-conversion.cc">source code</a>, and reading <a href="https://www.researchgate.net/publication/245584786_A_Superoptimizer_Analysis_of_Multiway_Branch_Code_Generation">this paper</a>.</p>
+<p><em>Finally, I want to thank B.X.V., C.P., and V.P. for their feedback when writing this post</em></p>
+ </div></div>
