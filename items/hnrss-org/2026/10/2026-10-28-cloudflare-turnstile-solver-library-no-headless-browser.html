@@ -1,0 +1,268 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text">
+<p dir="auto">cfsolve is a Rust library and command line tool that solves Cloudflare Turnstile
+widgets and challenge pages without a headless browser. It returns a Turnstile
+token for widgets or a <code>cf_clearance</code> cookie for challenge pages.</p>
+<p dir="auto">Turnstile widgets can be solved using the page URL, the sitekey, and optionally the
+page's HTML (this should not be required in most cases).  Challenge pages require a direct
+fetch or the HTML of the page.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Browser profiles</h2><a id="user-content-browser-profiles" aria-label="Permalink: Browser profiles" href="#browser-profiles"></a></p>
+<p dir="auto">cfsolve impersonates a specific browser, described by a profile file. One is
+included: <code>profiles/safari-26-ios.json</code> (Safari on iPhone).</p>
+<p dir="auto">Each profile references recorded responses to the challenge's browser checks,
+stored as JSON in a directory. Keep each profile with its directory when you
+copy. Producing these files requires some manual (or AI) effort though it can
+be greatly aided by solving challenges in a real web browser with the proxy
+set to the address of a running <code>capture-proxy</code>, which records the decoded
+payloads sent to Cloudflare.  Currently only Safari and Chrome(ium) profile
+types are supported.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Building</h2><a id="user-content-building" aria-label="Permalink: Building" href="#building"></a></p>
+<p dir="auto">You need the Rust version pinned in <code>rust-toolchain.toml</code>, plus CMake, a C/C++
+compiler, libclang, and Git (to patch and build BoringSSL).</p>
+<div dir="auto" data-snippet-clipboard-copy-content="cargo build --release --bin challenge"><pre><code data-language="shell">cargo build --release --bin challenge</code></pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Command line tool</h2><a id="user-content-command-line-tool" aria-label="Permalink: Command line tool" href="#command-line-tool"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="./target/release/challenge --page 'https://example.com/login' /tmp/solve \
+  --solve --fingerprint profiles/safari-26-ios.json"><pre><code data-language="shell">./target/release/challenge --page 'https://example.com/login' /tmp/solve \
+  --solve --fingerprint profiles/safari-26-ios.json</code></pre></div>
+<p dir="auto">On success it prints the token (or <code>cf_clearance=...</code>) and sends progress
+to stderr. The directory argument holds all requests and responses for
+debugging, so it must be empty or not exist yet.</p>
+<p dir="auto">By default it solves the first Turnstile widget on the page, or clears
+the challenge page. To pick one widget when the page has several, pass its
+sitekey, with its action and cData when the site sets them. With <code>--sitekey</code>,
+it fails on a challenge page.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="./target/release/challenge --page 'https://example.com/login' /tmp/solve \
+  --solve --fingerprint profiles/safari-26-ios.json \
+  --sitekey 'SITEKEY' --action 'login' --cdata 'CUSTOM_DATA'"><pre><code data-language="shell">./target/release/challenge --page 'https://example.com/login' /tmp/solve \
+  --solve --fingerprint profiles/safari-26-ios.json \
+  --sitekey 'SITEKEY' --action 'login' --cdata 'CUSTOM_DATA'</code></pre></div>
+<p dir="auto">If you only have a sitekey, add <code>--blank-page</code> and set <code>--page</code> to the
+site's real URL.</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--fingerprint &lt;file&gt;</code></td>
+<td>Browser profile file to use. Required.</td>
+</tr>
+<tr>
+<td><code>--page &lt;url&gt;</code></td>
+<td>The page with the widget, or the challenge page.</td>
+</tr>
+<tr>
+<td><code>--solve</code></td>
+<td>Solve the widget or challenge. Without this, cfsolve stops after sending the widget's first payload.</td>
+</tr>
+<tr>
+<td><code>--sitekey &lt;key&gt;</code></td>
+<td>Select a widget by sitekey.</td>
+</tr>
+<tr>
+<td><code>--action &lt;value&gt;</code>, <code>--cdata &lt;value&gt;</code></td>
+<td>Override the widget's action and cData. This needs <code>--sitekey</code>.</td>
+</tr>
+<tr>
+<td><code>--blank-page</code></td>
+<td>Skip loading the page. Render the widget on a blank page at the page URL. This needs <code>--solve</code> and <code>--sitekey</code>.</td>
+</tr>
+<tr>
+<td><code>--proxy &lt;url&gt;</code></td>
+<td>Send every request through an <code>http://</code>, <code>https://</code>, <code>socks5://</code>, or <code>socks5h://</code> proxy. Put credentials in the URL, as in <code>socks5h://user:password@host:1080</code>.</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>Show help.</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Library</h2><a id="user-content-library" aria-label="Permalink: Library" href="#library"></a></p>
+<p dir="auto">Add cfsolve as a path dependency and copy its <code>[patch]</code> section, since
+Cargo only reads patches from the top-level <code>Cargo.toml</code>:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="[dependencies]
+cfsolve = { path = &quot;/path/to/cfsolve&quot;, default-features = false }
+tokio = { version = &quot;1&quot;, features = [&quot;macros&quot;, &quot;rt-multi-thread&quot;] }
+
+[patch.crates-io]
+btls-sys = { path = &quot;/path/to/cfsolve/vendor/btls-sys&quot; }
+wreq = { path = &quot;/path/to/cfsolve/vendor/wreq&quot; }
+http2 = { path = &quot;/path/to/cfsolve/vendor/http2&quot; }"><pre><code data-language="toml">[dependencies]
+cfsolve = { path = "/path/to/cfsolve", default-features = false }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[patch.crates-io]
+btls-sys = { path = "/path/to/cfsolve/vendor/btls-sys" }
+wreq = { path = "/path/to/cfsolve/vendor/wreq" }
+http2 = { path = "/path/to/cfsolve/vendor/http2" }</code></pre></div>
+<p dir="auto"><code>default-features = false</code> turns off the internal tools so only the solver remains.
+Use the Rust version in <code>rust-toolchain.toml</code> or newer.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="use cfsolve::{Browser, Options, PageSource, Turnstile};
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let browser = Browser::read(&quot;/path/to/cfsolve/profiles/safari-26-ios.json&quot;)?;
+    let options = Options::default();
+
+    let turnstile = Turnstile {
+        url: &quot;https://example.com/login&quot;.parse()?,
+        page: PageSource::Navigate,
+        widget: None,
+    };
+    let token = browser.solve_turnstile(turnstile, &amp;options).await?;
+    println!(&quot;{token}&quot;);
+
+    let cleared = browser.clear(&amp;&quot;https://example.com/&quot;.parse()?, &amp;options).await?;
+    println!(&quot;cf_clearance={}&quot;, cleared.clearance);
+    println!(&quot;{} cookies; protected page: {}&quot;, cleared.cookies.len(), cleared.page.url);
+    Ok(())
+}"><pre><code data-language="rust">use cfsolve::{Browser, Options, PageSource, Turnstile};
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let browser = Browser::read("/path/to/cfsolve/profiles/safari-26-ios.json")?;
+    let options = Options::default();
+
+    let turnstile = Turnstile {
+        url: "https://example.com/login".parse()?,
+        page: PageSource::Navigate,
+        widget: None,
+    };
+    let token = browser.solve_turnstile(turnstile, &amp;options).await?;
+    println!("{token}");
+
+    let cleared = browser.clear(&amp;"https://example.com/".parse()?, &amp;options).await?;
+    println!("cf_clearance={}", cleared.clearance);
+    println!("{} cookies; protected page: {}", cleared.cookies.len(), cleared.page.url);
+    Ok(())
+}</code></pre></div>
+<p dir="auto">Load a <code>Browser</code> once and share it. Concurrent operations each get their own
+connections and cookies.</p>
+<p dir="auto">Send the <code>cf_clearance</code> cookie from the same IP address and user agent
+as the profile, or Cloudflare will reject it.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Turnstile with a sitekey or your own HTML</h3><a id="user-content-turnstile-with-a-sitekey-or-your-own-html" aria-label="Permalink: Turnstile with a sitekey or your own HTML" href="#turnstile-with-a-sitekey-or-your-own-html"></a></p>
+<p dir="auto"><code>PageSource::Navigate</code> fetches the page. With only a URL and sitekey, use
+<code>PageSource::Blank</code> and specify the widget:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="use cfsolve::{PageSource, Turnstile, Widget};
+
+let turnstile = Turnstile {
+    url: &quot;https://example.com/login&quot;.parse()?,
+    page: PageSource::Blank,
+    widget: Some(Widget {
+        sitekey: &quot;SITEKEY&quot;.into(),
+        action: Some(&quot;login&quot;.into()),
+        cdata: None,
+    }),
+};
+let token = browser.solve_turnstile(turnstile, &amp;options).await?;"><pre><code data-language="rust">use cfsolve::{PageSource, Turnstile, Widget};
+
+let turnstile = Turnstile {
+    url: "https://example.com/login".parse()?,
+    page: PageSource::Blank,
+    widget: Some(Widget {
+        sitekey: "SITEKEY".into(),
+        action: Some("login".into()),
+        cdata: None,
+    }),
+};
+let token = browser.solve_turnstile(turnstile, &amp;options).await?;</code></pre></div>
+<p dir="auto">Set <code>action</code> and <code>cdata</code> to the values the site uses, or <code>None</code> when the site
+doesn't set them. You can also pass a <code>Widget</code> with <code>PageSource::Navigate</code> to pick
+one widget out of several or to supply one the site adds with JavaScript.</p>
+<p dir="auto">For a page you have already loaded, such as one behind a login, pass its URL and
+HTML:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="PageSource::Html {
+    html: std::fs::read_to_string(&quot;account.html&quot;)?,
+    referrer_policy: None, // Or the response's Referrer-Policy header.
+}"><pre><code data-language="rust">PageSource::Html {
+    html: std::fs::read_to_string("account.html")?,
+    referrer_policy: None, // Or the response's Referrer-Policy header.
+}</code></pre></div>
+<p dir="auto">The widget runs in a cross-site iframe, so you don't need your login cookies.
+With <code>Html</code>, <code>widget: None</code> solves the first widget on the page, while <code>Blank</code>
+always needs a <code>Widget</code> and renders it on a blank page at the site's URL.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Challenge pages</h3><a id="user-content-challenge-pages" aria-label="Permalink: Challenge pages" href="#challenge-pages"></a></p>
+<p dir="auto"><code>browser.clear(&amp;url, &amp;options)</code> fetches the page and clears the challenge. The
+<code>Clearance</code> it returns contains the <code>cf_clearance</code> cookie, all cookies for the
+page, and the protected page. It fails with <code>Error::NotChallenged</code> when there's
+no challenge.</p>
+<p dir="auto">If you fetched the challenge page yourself, pass the response as a
+<code>FetchedPage</code> to <code>browser.clear_fetched(page, &amp;options)</code>. Use the same IP and user
+agent as the profile.</p>
+<p dir="auto">If you don't know whether a URL shows a widget or a challenge page, use
+<code>browser.solve</code>, which covers both cases:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="use cfsolve::Outcome;
+
+match browser.solve(&amp;url, &amp;options).await? {
+    Outcome::Token(token) =&gt; println!(&quot;{token}&quot;),
+    Outcome::Cleared(cleared) =&gt; println!(&quot;cf_clearance={}&quot;, cleared.clearance),
+}"><pre><code data-language="rust">use cfsolve::Outcome;
+
+match browser.solve(&amp;url, &amp;options).await? {
+    Outcome::Token(token) =&gt; println!("{token}"),
+    Outcome::Cleared(cleared) =&gt; println!("cf_clearance={}", cleared.clearance),
+}</code></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Options</h3><a id="user-content-options" aria-label="Permalink: Options" href="#options"></a></p>
+<p dir="auto">Set a proxy per operation through <code>Options</code>, using HTTP, HTTPS, or SOCKS5:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="let options = cfsolve::Options {
+    proxy: Some(&quot;socks5h://127.0.0.1:1080&quot;.into()),
+    ..Default::default()
+};"><pre><code data-language="rust">let options = cfsolve::Options {
+    proxy: Some("socks5h://127.0.0.1:1080".into()),
+    ..Default::default()
+};</code></pre></div>
+<p dir="auto">Library operations are silent by default. For progress messages and debug files,
+implement <code>Sink</code> and set <code>options.sink</code> to <code>Some(Arc::new(your_sink))</code>.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Errors</h3><a id="user-content-errors" aria-label="Permalink: Errors" href="#errors"></a></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Cause</th>
+<th>Retry?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Error::Network</code></td>
+<td>Connection failed.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>Error::Rejected</code></td>
+<td>Cloudflare rejected the solution.</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>Error::Blocked</code></td>
+<td>The site returned an error page instead of a challenge.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>Error::Challenged</code></td>
+<td>You asked for a Turnstile token but got a challenge page.</td>
+<td>Yes, after clearing it</td>
+</tr>
+<tr>
+<td><code>Error::NotChallenged</code></td>
+<td>You asked for a challenge clearance but there was no challenge.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>Error::Config</code></td>
+<td>Invalid profile or options.</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>Error::Unsupported</code></td>
+<td>Any other failure, such as a new challenge build or a page with no widget.</td>
+<td>No</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h2 tabindex="-1" dir="auto">License</h2><a id="user-content-license" aria-label="Permalink: License" href="#license"></a></p>
+<p dir="auto">MIT, except for the patched dependencies in <code>vendor/</code>, which keep their own
+licenses.</p>
+</article></div></div>

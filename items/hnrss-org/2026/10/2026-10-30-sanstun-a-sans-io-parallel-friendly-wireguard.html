@@ -1,0 +1,148 @@
+<div id="readability-page-1" class="page"><div><p>Today, we are announcing <a href="https://github.com/firezone/sanstun"><code>sanstun</code></a>: a sans-IO Rust implementation of the WireGuard® state machine, optimized for ease of use, security and performance through a parallel-friendly and idiomatic API.</p>
+<h2 id="what-is-sans-io"><a href="#what-is-sans-io">What is sans-IO?</a></h2>
+<p>sans-IO is the idea that you design your system such that IO and side-effects are cleanly separated from the state and "business logic".
+The IO in sans-IO doesn't just mean file or network IO.
+It also includes things like time and randomness!</p>
+<p>Due to their lack of side-effects, sans-IO components compose very well and are relatively easy to test.
+The design also avoids problems like function coloring and plays well with Rust's ownership rules.</p>
+<p>The code examples and references in this post are in Rust but sans-IO isn't Rust-specific at all.
+Its patterns and ideas can be applied in any language.
+For a more in-depth explanation, our <a href="https://www.firezone.dev/blog/sans-io">sans-IO post</a> is a good place to start.</p>
+<h2 id="history"><a href="#history">History</a></h2>
+<p>When we first built Firezone, we reached for <a href="https://github.com/cloudflare/boringtun"><code>boringtun</code></a> as our WireGuard implementation.
+<code>boringtun</code> more or less did what we wanted, but over time, we found ourselves patching our fork over and over with bug fixes as well as API additions.
+The goal was to allow these patches to still be upstreamed, so we always kept the existing API working the way it was.</p>
+<p>What we found was that retaining 100% API compatibility with upstream was increasingly difficult as our product requirements evolved.
+One of the first big changes we made to <code>boringtun</code> was to make it fully sans-IO with regard to time handling (<a href="https://github.com/firezone/boringtun/pull/5">firezone/boringtun#5</a>).
+This meant adding new APIs for everything with a <code>_at</code> suffix that would take an <code>Instant</code>.
+sans-IO time handling is very important if you want to accurately simulate an entire system.
+See <a href="https://www.firezone.dev/blog/finding-bugs-you-didnt-think-to-test-for">this blog post</a> to learn more about how we do that.</p>
+<p>Another thing we feature-flagged was internal buffering.
+At first, it seems convenient that <code>boringtun</code> establishes a session automatically if you don't have one yet (or anymore) and you are trying to send a packet.
+Internal buffering, however, comes with several problems:</p>
+<ol>
+<li>At some point, the buffer needs to be drained.
+<code>boringtun</code> solves this by requiring you to call <code>decapsulate</code> with a zero-length datagram.
+Rather unintuitive.</li>
+<li>It incurs additional allocations (at least in the way it was implemented in <code>boringtun</code>).</li>
+<li>Buffer sizes should be configurable / tunable.</li>
+</ol>
+<p>All of these problems point at the same solution: Just don't buffer in the library.
+It simplifies the interface and the implementation on both sides.</p>
+<p>The <a href="https://github.com/cloudflare/boringtun/compare/master...firezone:boringtun:master">full list</a> of patches and fixes is pretty long.
+Even excluding dependency bumps, that is more than 70 PRs.
+Several of them are fixes for edge-cases we discovered.
+Others add new APIs or make certain aspects configurable.</p>
+<p>After more than 2 years of using and patching <code>boringtun</code>, we had a pretty good idea of what the overall API of a userspace WireGuard implementation should be.
+Now it exists as <code>sanstun</code>.</p>
+<h2 id="a-better-sans-io-api"><a href="#a-better-sans-io-api">A better sans-IO API</a></h2>
+<p>The core building blocks of the sans-IO API are now:</p>
+<ul>
+<li>Handling inbound packets:
+<ul>
+<li><code>Tunnel::handle_handshake_initiation</code></li>
+<li><code>Tunnel::handle_handshake_response</code></li>
+<li><code>Tunnel::handle_cookie_reply</code></li>
+<li><code>Tunnel::begin_decapsulate</code> &amp; <code>Tunnel::commit_decapsulate</code></li>
+</ul>
+</li>
+<li>Handling outbound packets: <code>Tunnel::begin_encapsulate</code></li>
+<li>Handling timer updates: <code>Tunnel::handle_timeout</code> &amp; <code>Tunnel::poll_timeout</code></li>
+<li>Handling events: <code>Tunnel::poll_event</code></li>
+</ul>
+<p>Without internal buffering, there is no API contract that requires you to call certain APIs in a loop, which fits much better into the overall sans-IO model.
+To send a packet, you call <code>Tunnel::begin_encapsulate</code>.
+It is up to you to buffer the packet if you don't have a session yet.
+Creating a new session means sending a handshake.
+You can initiate a new handshake at any point with <code>Tunnel::initiate_handshake</code>.</p>
+<p>The design of these APIs is very deliberate and will make more sense if we quickly recap the WireGuard protocol.</p>
+<h2 id="wireguard-protocol"><a href="#wireguard-protocol">WireGuard protocol</a></h2>
+<p>WireGuard's message format supports 4 types of messages: handshake init, handshake response, cookie reply and encrypted data.</p>
+<p>Every WireGuard session starts with a Diffie-Hellman key exchange which is a moderately expensive operation.
+WireGuard's design ensures that exposing an endpoint doesn't open up a DoS opportunity.</p>
+<p>Anyone who knows the endpoint's public key can easily create bogus handshake initiations and forge the source IP of the incoming UDP packet.
+The receiving WireGuard implementation has to run its half of the DH operations before it can tell that the supplied handshake data is bogus.
+But at that point, the CPU resources have already been spent.
+Send enough handshake initiations and the receiving end will spend all its CPU cycles on handling irrelevant handshakes.</p>
+<p>To prevent this, WireGuard specifies a cookie mechanism that forces the remote to prove ownership of its claimed source IP, which in turn allows rate-limiting handshakes per source IP.</p>
+<p>These rate limits apply to an entire WireGuard interface and not just to a single tunnel.</p>
+<p>Once a handshake has been completed, both peers can exchange encrypted data packets with a symmetric cipher.
+As part of the handshake, the peers also exchange their locally-chosen session indices.
+These indices enable de-multiplexing of tunnels as well as multiple sessions within a tunnel.</p>
+<h2 id="mapping-protocol-invariants-to-api-design"><a href="#mapping-protocol-invariants-to-api-design">Mapping protocol invariants to API design</a></h2>
+<p>If you are working in a language like Rust, chances are you enjoy using types.
+And using types well means enforcing invariants at compile-time such that you can't even ship a certain bug in the first place.
+For example, forgetting to apply the rate limiter to a message would be pretty bad because it doesn't show up under normal operation.
+Similarly, routing an incoming packet to the wrong tunnel is something that will only show up in production.</p>
+<p>A good API design makes it impossible to build things that are broken and also guides you along in understanding how the protocol works.</p>
+<h2 id="one-interface-many-tunnels"><a href="#one-interface-many-tunnels">One interface, many tunnels</a></h2>
+<p>A WireGuard interface is identified by a single key and a tunnel is a connection between two interfaces.
+Any time we want to send a packet, we therefore need to specify which tunnel it should be sent on and when we receive a packet, we need to figure out which tunnel it belongs to.</p>
+<p>In <code>sanstun</code>, these concepts directly map to the <code>Interface</code> and <code>Tunnel</code> types.
+All inbound packets go through <code>Interface::receive</code>.
+That is the only public API that parses a raw datagram.
+It parses the packet, applies rate limits and hands you back a <code>ReceivedMessage</code> with one enum variant per WireGuard message type, or a cookie reply to send back if the interface is under load.
+These then map directly to the corresponding functions on a <code>Tunnel</code>: <code>Tunnel::handle_handshake_initiation</code>, etc.
+Handshake initiations are routed by the initiator's static public key.
+All other messages expose <em>which</em> <code>Tunnel</code> they should be dispatched to, identified by a <code>TunnelId</code>.</p>
+<figure data-canvas="paper" data-build=""><p></p><figcaption>Every inbound datagram has to go through <code>Interface::receive</code>.</figcaption></figure>
+<p>Under the hood, <code>sanstun</code> does a lot of things for you here.
+It parses the tunnel index and extracts the upper 24 bits, it applies rate limits, generates cookie replies and validates handshake messages.</p>
+<p>Crucially, the constructors for types like <code>HandshakeInitiation</code> are all crate-private.
+Even though <code>Tunnel</code> exposes a public <code>handle_handshake_initiation</code> function, the only way to call that is by going through <code>Interface::receive</code> first to obtain such a type.
+And <code>Interface::receive</code> protects your application by applying the rate limiter, all without you having to think about it.</p>
+<h2 id="parallel-crypto"><a href="#parallel-crypto">Parallel crypto</a></h2>
+<p>One of the best features of <code>sanstun</code> is its parallel-friendly API for encrypting and decrypting packets.</p>
+<p>On a protocol level, WireGuard doesn't share any state between tunnels.
+Therefore, parallelizing a WireGuard implementation across peers is very easy.</p>
+<p>But what about parallelizing work within a single tunnel?
+WireGuard operates on layer 3, and thus a single session with another peer carries the traffic of many individual network flows.
+Even if we handle tunnels to different peers on different threads, all network flows (i.e., unique 5-tuples) toward the same host or subnet will be processed sequentially, effectively bounded by how fast the CPU is at ChaCha20-Poly1305, WireGuard's cipher for data packets.
+To protect against replay by malicious on-path observers, WireGuard data packets have a monotonically increasing packet counter.
+This counter is scoped to a single session and therefore would require synchronization if we were to access this state from multiple threads simultaneously.</p>
+<p>To avoid this, <code>sanstun</code> separates the bookkeeping from the actual encryption and decryption.
+Calling <code>Tunnel::begin_encapsulate</code> doesn't in fact encrypt anything.
+It checks for the current session, reserves a packet counter, advances timer state and then hands you a <code>PendingEncapsulate</code>:</p>
+<div><pre><code data-language="rust">impl PendingEncapsulate {
+    pub fn encrypt&lt;'a&gt;(self, plaintext: &amp;[u8], dst: &amp;'a mut [u8]) -&gt; Result&lt;DataMessage&lt;'a&gt;, Error&gt; {
+        // ...
+    }
+}
+</code></pre></div>
+<p><code>PendingEncapsulate</code> implements <code>Send</code> and can thus be transferred to another thread to perform the bulk of the work.
+Running <code>cargo bench data_path</code> in the <code>sanstun</code> repository showcases the effect of this split:</p>
+<div><pre><code>data_path/64B/begin_encapsulate
+                        time:   [20.785 ns 20.828 ns 20.869 ns]
+data_path/64B/encrypt   time:   [226.15 ns 226.22 ns 226.29 ns]
+data_path/64B/begin_decapsulate
+                        time:   [37.600 ns 37.675 ns 37.744 ns]
+data_path/64B/decrypt   time:   [205.78 ns 205.83 ns 205.87 ns]
+data_path/64B/commit_decapsulate
+                        time:   [17.486 ns 17.529 ns 17.575 ns]
+
+data_path/1280B/begin_encapsulate
+                        time:   [20.785 ns 20.828 ns 20.869 ns]
+data_path/1280B/encrypt time:   [933.49 ns 933.54 ns 933.59 ns]
+data_path/1280B/begin_decapsulate
+                        time:   [37.606 ns 37.681 ns 37.751 ns]
+data_path/1280B/decrypt time:   [914.81 ns 914.89 ns 914.97 ns]
+data_path/1280B/commit_decapsulate
+                        time:   [17.657 ns 17.707 ns 17.764 ns]
+</code></pre></div>
+<p>As expected, the bookkeeping parts (<code>begin_encapsulate</code>, <code>begin_decapsulate</code> and <code>commit_decapsulate</code>) do not scale with packet size.
+What does scale with packet size are the <code>encrypt</code> and <code>decrypt</code> functions.
+At a packet size of 1280 bytes, the bookkeeping part of encrypting a new packet is only 2%.
+If we move the actual encryption to another thread, this hints at a potential speedup of more than 45x!</p>
+<p>An effective speedup of 45x is hard to achieve in practice because it ignores the cost of passing <code>PendingEncapsulate</code> to another thread and assumes no other overhead is introduced.
+Nevertheless, being able to offload the crypto to worker threads allows for some great throughput improvements.</p>
+<figure data-canvas="paper" data-build=""><p></p><figcaption>The owner thread only does the bookkeeping, while encryption and decryption run on worker threads.</figcaption></figure>
+<p>Being a sans-IO library, <code>sanstun</code> doesn't concern itself with how exactly you want to parallelize your crypto.
+If you want to keep it simple, you can also just call <code>encrypt</code> and <code>decrypt</code> inline and not bother with parallelization at all.</p>
+<p>The key thing we wanted to achieve with <code>sanstun</code>'s API design was to enable parallel crypto while keeping everything around <code>Interface</code> single-threaded.
+This lets the internal rate limiter work without locks or atomic counters and take advantage of Rust's borrow checker, all while combining state from multiple tunnels.</p>
+<h2 id="closing"><a href="#closing">Closing</a></h2>
+<p>With <code>sanstun</code>, our fork at <a href="https://github.com/firezone/boringtun"><code>firezone/boringtun</code></a> is now deprecated.
+If you are building on top of WireGuard, whether that's a VPN, a mesh network or something else entirely, we hope <code>sanstun</code> makes your life a little easier.
+It is available on <a href="https://crates.io/crates/sanstun">crates.io</a>.</p>
+<p><code>sanstun</code> is open source under the Apache 2.0 license.
+Check it out on <a href="https://github.com/firezone/sanstun">GitHub</a>; issues and pull requests are welcome!</p></div></div>
