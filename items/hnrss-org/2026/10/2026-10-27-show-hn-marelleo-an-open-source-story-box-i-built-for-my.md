@@ -1,0 +1,266 @@
+---
+title: 'Show HN: Marelleo, an open-source story box I built for my kids using ESP32'
+link: https://zebra.rodeo/en/blog/marelleo/
+source: hnrss-org
+published: 2026-10-27T15:24:36Z
+updated: 2026-10-27T15:24:36Z
+first_seen: 2026-10-31T19:30:57.182345052Z
+authors:
+- foOg
+content: extracted
+html: 2026-10-27-show-hn-marelleo-an-open-source-story-box-i-built-for-my.html
+remote_preview:
+  url: https://zebra.rodeo/assets/images/marelleo/og.jpg
+---
+
+## It started as an irritation on holiday
+
+Last summer, on holiday with friends and a small tribe of children, I came across the [Toniebox](https://tonies.com/fr-fr/concept/). And honestly, I thought it was great. The child puts a figurine on the box, the story starts. They take it off, it stops. No screen, no menu, no parent to go and fetch. A two year old gets it in one second, which is roughly the highest level of usability anyone can reach.
+
+The gesture is perfect. The business model, much less so. All these boxes work the same way: the object sells for a more or less reasonable price, and the money is made afterwards, on the content. Whether it’s the [Lunii](https://lunii.com/en-gb) and its closed catalogue, the [Yoto](https://yotoplay.com/) and its card packs, or the Toniebox and its figurines, every new story is a purchase, from a catalogue I don’t choose, on an object I don’t control. You’re not buying a player, you’re buying a subscription dressed up as a wooden toy. And that genuinely annoys me.
+
+Meanwhile, I had been telling myself for years that I wanted to do electronics. Not as a dabbler: actually understand it. Except I knew nothing about it. I own a soldering iron that comes out every three years to reattach a headphone wire, never to build anything. The kind of guy who knows what a resistor is without ever having had to choose one.
+
+The two urges met in the car on the way home. That would be my project. An RFID reader, a tag, a box that plays an audio track depending on what you put on it. Not to make a product. Just for my kids, and to learn.
+
+Two discoveriesv0
+
+## The breadboard, or the right to get it wrong
+
+I already knew what I didn’t want. A Raspberry Pi is a full computer just to play an MP3: too big, too hungry, and it takes twenty seconds to boot. A child putting a figurine down does not wait twenty seconds, they wander off and play. At the other end, the genuinely low level chips, the ones you program in C with a 400 page datasheet, are far too steep for a beginner who would like to hear a story that same evening.
+
+While reading around, I came across the two things that made the project possible. First the **[ESP32 development board](https://www.amazon.fr/s?k=esp32)**: a microcontroller with WiFi built in, beefy enough to decode MP3, simple enough to program like an Arduino, and sold for a handful of euros. Then the **[breadboard](https://www.amazon.fr/s?k=breadboard)**, that perforated plate where you push components in without soldering anything.
+
+It sounds like a detail. It is the whole project tipping over. On a breadboard, getting it wrong costs nothing: you unplug, you start again, nothing is damaged. When you’re learning, that is exactly the property you need.
+
+So I read documentation, I talked it through with Claude, I drew wiring diagrams in a notebook. And very quickly, far too quickly to feel earned, I had a circuit that played an audio track when you put a tag on it. It was ugly, a plate of copper spaghetti, the speaker lying bare on the table. But it worked. A few hours, and I had a thing that told stories. I don’t think I had been that pleased with something made by my own hands since childhood.
+
+![An ESP32 plugged into a white breadboard, linked by a dozen coloured wires to a red NFC reader whose LED is lit.](https://zebra.rodeo/assets/images/marelleo/breadboard.jpg)\
+The first circuit. An ESP32 on the breadboard, the NFC reader at the end of a few wires, a red LED saying it's alive. Not a single solder joint.
+
+What caught fire
+
+## The potentiometer, the smoke, and the smell of ski wax
+
+What came next is less glorious. To set the volume I added a potentiometer, that little rotary knob which is nothing more than a variable resistor. Except that wired wrong, it no longer sets anything at all: it becomes a plain wire between plus and minus. That has a name, it’s called a short circuit, and it heats up terrifyingly fast.
+
+It smoked. And it gave off a very particular smell, which took me a good while to place before it hit me all at once: **ski wax**. Burning wax. I recognise it instantly now, and it is never good news.
+
+The battery was the other piece of work, and the one that made me think. You don’t connect a lithium cell to two wires and move on. You need a charge controller, a dedicated chip that decides when and how to fill it, that stops at the right moment and cuts out before anything stupid happens. You also need to fasten it down properly, because a lithium battery rattling around inside an enclosure and getting pinched is precisely the scenario in those videos nobody wants to watch.
+
+And then a stupid detail: my battery’s connector did not match the one on the charging board. Two little white plugs that look alike, two different pitches, incompatible. So I did what you do at eleven at night on a Tuesday when you’re nearly there: **I cut the connector off and soldered the battery straight on.**
+
+Immediate consequence, which I had not seen coming: no connector any more, therefore no way to unplug anything, and no switch anywhere in the circuit. The box was **permanently on**. Twenty four hours a day. A lithium cell hastily soldered into an object that never turns off, sitting in a child’s bedroom. Written down like that, it needs no comment.
+
+That is the moment I stopped treating this lightly. Not out of fear, but because I understood that I was no longer tinkering with a gadget on the corner of a table: I was placing an electrical object into my children’s daily life. Everything else in the project follows from that realisation.
+
+Workshop notev1
+
+### From breadboard to perfboard
+
+The first consequence was leaving the breadboard, and it wasn’t only about safety.
+
+A breadboard holds by friction. Every wire is held by a tiny spring, which is wonderful for trying things and disastrous for lasting. Move the circuit and a contact is lost, and the fault that follows is far worse than a clean failure: it is intermittent. You hunt a bug in your code for an hour and a half, you reread the same function twenty times, and it’s a wire that no longer touches.
+
+![A green perfboard with an ESP32 and several small modules soldered onto it.](https://zebra.rodeo/assets/images/marelleo/pastilles.jpg)\
+The same circuit as on the breadboard, but soldered. It survives being moved across the table, which is already a lot.
+
+The next step is **perfboard**: the same grid of holes, but on a printed circuit, with every component soldered in. You lose the right to be wrong, you gain a circuit that holds together. That’s where I really learned to solder, and above all where I understood that my repair soldering had nothing to do with manufacturing soldering. Repairing is remaking a joint that existed. Building is making a hundred in a row, all clean, all identical, knowing that the hundred and first is the one that will fail.
+
+The enclosure
+
+## My kids unscrewed the knob until the wires tore off
+
+For the enclosure I got very lucky: **[François Lagunas](https://www.linkedin.com/in/lagunas/)** lent me his 3D printer and helped me through the first attempts. Without him I would still be cutting cardboard with a ruler. I drew my models in Fusion 360 on the free hobbyist licence, and printed.
+
+![The 3D model of the enclosure in Fusion 360: a cube with rounded edges, a circle on top, a cylindrical knob and the name engraved on the front face.](https://zebra.rodeo/assets/images/marelleo/fusion.jpg)\
+The enclosure in Fusion 360. The circle on top marks where the figurine goes, the hole beside it takes the button, and the slot on the side lets the USB-C through.
+
+The first version was too big and too fragile. And quality control arrived faster than expected, in the shape of three children aged 21 months, 5 and 7.
+
+They broke the knob by turning it like animals. The volume knob ended up spinning with no end stop, round and round, and as it turned it **wound the wires around themselves until it tore every one of them off**. I opened the box onto a little nest of twisted copper. That’s where I learned the most important rule of the entire project: a five year old does not turn a knob, they unscrew it. And they don’t stop when it resists. They stop when it gives.
+
+![A potentiometer held between two fingers, five coloured wires soldered to its tabs.](https://zebra.rodeo/assets/images/marelleo/potentiometre.jpg)\
+The potentiometer and its five tabs: three for the volume, two for the switch that turns the box off at the end of travel. Those are the wires that wound themselves up.
+
+So I started over. I took every measurement again with callipers, component by component, so that each hole would land exactly where it should and each part would be held by plastic rather than by its wires. I thickened the walls, added pockets, lowered the height. Version after version, the object stopped looking like a prototype and started looking like an object.
+
+Still in the spirit of nothing being allowed to give, I also abandoned self tapping screws. Screwing straight into printed plastic holds once, twice, and on the third go the material splits along the layers: the hole holds nothing any more and the part is fit for reprinting. The real answer is called a **brass insert**. You set it on the hole, come down on it with the tip of the soldering iron, the brass heats up, melts the plastic around itself and sinks in. As it cools you have a metal thread captured in the part, which you can screw and unscrew a hundred times.
+
+![The bottom of the printed enclosure with brass inserts sunk into the plastic at the four corners.](https://zebra.rodeo/assets/images/marelleo/inserts.jpg)\
+The brass inserts sunk in with the soldering iron. Four minutes of work, and screws you can undo as often as you like.
+
+And then came the only test that no technical argument passes on my behalf: **my wife liked the box.** Not politely: she put it on the living room shelf, among the objects you don’t tidy away when someone rings the doorbell. That also settles the cube shape, which I wasn’t sure about. An object for children that you don’t need to hide is an object that ends up being used.
+
+In the opening photo, all of that is still visible: a **circle engraved on the top**, which says where to put the figurine because the antenna sits right underneath, the volume knob beside it, the play button, and the name raised in the front wall. The figurines are painted wooden people with an NFC sticker glued under their feet. Any object would do: a toy car, a token, a flat pebble. The child decides what tells what, and that is exactly what I wanted.
+
+The boardv2
+
+## I wanted nothing left dangling
+
+At that point I had a version that worked pretty well. But a wired circuit, however well soldered, is still a wired circuit. There is always a cable pulling on a joint, a module hanging off its legs, a connector that works loose when you shake it. And I had just spent a few weeks measuring, very empirically, how much my children shake things.
+
+So I changed category and set about designing a **printed circuit board**. Everything that was scattered, brought together on a single board: the power supply, the charger, the amplifier, the SD card reader, the connectors. Every part in its place, nothing moving, nothing sticking out.
+
+I used Claude to go from my wired circuit to a clean schematic, and that is where the division of labour became interesting. It reads a datasheet very well, spots that a pin needs a pull-up, works out a value, fetches a footprint from the library rather than copying it from memory. But it cannot route. Routing, that is to say physically drawing the path of every copper track between components without ever crossing another, is something I did by hand, in KiCad. **491 tracks.** Entire evenings spent moving lines by a tenth of a millimetre to squeeze a connection between two pads eight tenths apart.
+
+![A KiCad screenshot showing the board routing: a green rectangle covered in red tracks, connectors labelled around the edges, and a hatched area at the top marked KEEP-OUT ZONE under the antenna.](https://zebra.rodeo/assets/images/marelleo/kicad.jpg)\
+The routing file. Every red line is a copper track placed by hand. At the top, the hatched area under the WiFi module's antenna: no copper is allowed through there, or the range collapses.
+
+That file has to be gone over with a magnifying glass before you send it, for a very concrete reason: you don’t order a single board. The minimum is five, manufactured and assembled in one go. One mistake in there isn’t a touch-up job, it is five boards for the bin and the whole invoice.
+
+So I had it reread the entire schematic, line by line. It found three things I would never have seen, and each one would have cost the order.
+
+Workshop note
+
+### The three mistakes caught before the order
+
+**The resistor that would have killed everything.** To produce the 3.3 V the processor needs, I use a step-down converter, and I had put two resistors around it forming a divider. That is the normal way to set the output voltage. Except the chip I had picked comes in two families: an adjustable one, and a **fixed output** one. I had taken the fixed one. With my divider, the regulation would have read a voltage far lower than reality, concluded the output was too weak, and pushed. The arithmetic gives **13.7 V on a rail meant for 3.3**. The WiFi module, the SD card, the NFC reader: all dead within a second of power-up.
+
+**The diode the wrong way round.** In KiCad, pad number 1 of a diode is the cathode, and my file placed it the other way round. A reversed diode at that spot means the 5 V doesn’t come out, so the 3.3 V doesn’t exist, so the board doesn’t start at all. Five mute boards in one go, with no way of noticing without having them made.
+
+**And the checker that checked nothing.** KiCad automatically verifies that tracks respect minimum clearances. Mine was configured with a minimum clearance of **zero**. It ran, it reported zero errors, and it approved absolutely anything, silently. That is the worst kind of bug: the tool that reassures you.
+
+Once, the roles reversed and it gave me a silly amount of pleasure: **I** was the one who spotted that two components in my bill of materials were out of stock, before it did. We turned that into a small program that queries the manufacturer’s catalogue and returns the stock and price of each part number, so that it never happens blind again. A part number is not a given: you recheck it on the day of the order, not the day before.
+
+Delivery
+
+## 160 euros of boards, and nothing happens
+
+I ordered from [JLCPCB](https://jlcpcb.com/), who manufacture the board and populate it. For **160 euros I got five, already assembled**, enough to keep one and give the rest to cousins and friends. Opening that parcel was one of the very good moments of the project. Green boards, crisp, components perfectly aligned, my name written on them, out of a file I had drawn on my sofa.
+
+![The finished green printed board, with the ESP32 module, the microSD holder, several white connectors along the edges and the name Marelleo in silkscreen.](https://zebra.rodeo/assets/images/marelleo/carte.jpg)\
+The board as received from JLCPCB, components placed. My name in silkscreen, and 491 hand-drawn tracks underneath.
+
+First contact with the manufactured object: I can’t plug the USB in. The factory had added a small strip of material under the socket, a breakaway tab used to hold the board during assembly, which you’re meant to snap off on arrival. I had to work up the nerve to break it by hand on a thirty euro board. That took me a good ten minutes of contemplation.
+
+Then I plug it in and test. And nothing happens. The NFC reader’s LED blinks, but no figurine is recognised, nothing plays, nothing appears on the network. Nothing.
+
+I spent a quarter of an hour telling myself I was an old fool who had just burned 160 euros on useless boards, and that it served me right. A genuinely bad moment. Then I went looking, methodically, unplugging the harnesses one by one.
+
+The culprit came down to two wires. **I had swapped the two middle conductors on the NFC reader’s ribbon**, the ones carrying the serial link. That link always crosses over: what one transmits, the other has to listen to. Wired straight, both ends talk at the same time and nobody listens. The module powers up, its LED blinks away happily, and it never answers. It is the kind of fault that looks serious and is just carelessness.
+
+And the best part comes last. I had fixed the cable, and it still didn’t work. For two stacked reasons: first, the program questions the reader **only once, at startup**, so until you restart, the repair is invisible. Second, the power switch cuts nothing at all while USB is plugged in, because it acts on the battery’s transistor and USB feeds the board by another path. So I was spending my time “restarting” a board that wasn’t restarting, to test a repair that was already done.
+
+Cable finally unplugged and plugged back in, the long awaited line dropped onto the console:
+
+console
+
+PN532 pret
+
+bibliotheque : 4 figurine(s)
+
+volume : 3 \[3-21\]
+
+And for thirty seconds I thought it was still broken, because I couldn’t hear anything. The volume knob had been left at the bottom of its travel, at minimum. There is a poetic justice in ending a day of debugging on a volume problem.
+
+But other than that: **the board worked first time, with no rework at all.** Not a single flying wire, not a track to scrape, not a resistor to replace. For a first board designed by someone who didn’t know what a footprint was three months earlier, I really did not expect that.
+
+All that was left was to assemble everything into the enclosure, this time for good.
+
+The software
+
+## “Dad, we’ve already heard that one”
+
+That remark is what set off the entire software side, and it brings us back to the starting point. A box with a frozen catalogue, even a catalogue of my own, becomes exactly the problem I wanted to avoid. The content had to belong to us, and it had to be able to change with no tool, no cable, and no me.
+
+### Everything goes through a web page, because there is no screen
+
+The box serves its own page. You type its address into a browser, from a phone or a computer, and you see the figurines, the stories present on the SD card and what is playing right now. Nothing to install, nothing to update, no account.
+
+For the very first start-up it **opens its own WiFi network**. A phone that connects to it brings up the setup page on its own, exactly like in a hotel: the box answers its own address to any domain name question, which makes the phone open the page without being asked. You pick your network from a list, type the password, it joins the house and closes its own network behind it.
+
+The first version did that over Bluetooth. It worked, but it needed a dedicated app, which is untenable for an object you’d like to give away, and the Bluetooth stack weighed **300 KB of memory**, nine per cent of everything the chip has, to be used exactly once in the life of the box. I threw it out without regret.
+
+### Your own MP3s
+
+You send files from the page, they land on the SD card, you associate them with a figurine. A figurine carries **as many tracks as you like**, in whatever order you like, and they play through to the last one without looping. That opens everything up: recording your own voice to tell the kids a story when you’re away, putting on the songs they ask for on repeat, dropping in whatever you find online. MP3 and M4A, the two formats that come out of a phone or a Mac without converting anything.
+
+### One figurine, one URL, and it’s a radio
+
+A track doesn’t have to be a file. You can give a figurine a **web address**, and the box connects to it and plays the stream as it arrives, storing nothing. It opens the connection, receives the audio in small pieces, decodes them and sends them to the amplifier while always keeping a few seconds in reserve, to absorb the network’s hiccups. If the connection drops it retries several times before giving up, because a home WiFi has its holes and a two year old should not have to understand why the music stopped.
+
+So my children have radio stations that look like little wooden people, and I find that very satisfying.
+
+### And it updates itself over WiFi
+
+This is the part I’m proudest of, because it solves a problem specific to finished objects. The box is screwed shut, assembled, sitting in the living room. If I want to fix something, I’m not going to take it apart every fortnight. So it fetches its new versions on its own.
+
+It queries a fixed address, written into the program and deliberately **impossible to change from the network**. That is a security choice: a box that accepted being told where to look for its software would accept being made to install anything, and someone on the same WiFi would be enough.
+
+If a newer version exists, a button appears in the page. It downloads it into a **second memory area**, the one that isn’t running, checks the fingerprint of the file it received, and only switches over if everything is intact. A power cut in the middle of a transfer therefore never leaves it mute: at worst it restarts on the old version, as if nothing had happened.
+
+Workshop note
+
+### The safety net, and the time it would have been useless
+
+That leaves the nightmare of a closed object: a version that starts correctly but whose networking is broken. It is valid, the box switches to it, and there is no longer any path to fix it. Hence a **trial period**: a freshly installed version has to prove it can connect. Three start-ups without ever seeing the network, and the box goes back to the previous one by itself, before it even turns its radio on.
+
+**It has earned its keep.** A version I had published was reopening its setup portal even though it knew the house network perfectly well: it was reading its saved credentials too early, before the radio had started, and concluding it had none. I had nothing to do. After three start-ups it went back to the previous version on its own, and I could repair it at my leisure.
+
+Same family of mistake, funnier: each box opens a network carrying the last four digits of its hardware address, so that two boxes in the same house stay distinct. Except I was reading that address before the radio started, at which point it answers six zeros. **Every box in the world would have been called Marelleo-0000.**
+
+And once, the net could have done nothing at all. My publishing script was only compiling one of the two hardware variants, the prototype. The printed board would have received the other one’s image: audio and SD card pinouts swapped, memory looked for on the wrong bus, and a header announcing 16 MB of memory on a chip that has 8. The worst part is that the trial period would not even have caught it, **since the WiFi itself would have worked perfectly**. It would have gone deaf and blind while believing itself in good health. We found that just before pressing the button.
+
+One last anecdote, for anyone the detail amuses. One day the update started failing with no error message at all: the transfer would start, make progress, and the box would restart suddenly, in silence. Now, a silent failure says a lot. No error means the program had no time to write one, so it didn’t stop, it was interrupted. The download task had 8 KB of stack, and I had put a 4 KB buffer in it. There was nothing left for the encrypted handshake of the secure connection. **The silence itself was the clue.**
+
+What it turned into
+
+### Three kids, three uses I hadn’t planned for
+
+This is the best moment of the project, and it was in no specification. Each of them made the box their own, and none of the three ways is the one I had imagined.
+
+A figurine on top, a story playing. Among the other objects it doesn't look out of place, and that's about all I was asking of it.
+
+#### 7 years
+
+Her music playlists on one figurine, her stories on another, and podcasts about insects. She chooses, she asks for additions, she runs her own catalogue.
+
+#### 5 years
+
+Stories. Lots of stories, chained on a single figurine through to the last track, and replayed until I know them by heart.
+
+#### 21 months
+
+Her lullabies, and her toddler podcasts live. Thank you France Inter and Radio Pomme d'Api.
+
+One figurine, one gesture, and each of them has their own box inside the same box. That is exactly what I was after at the start, and it arrived through software rather than through a catalogue. The difference fits in one sentence: nobody sells me the content, and nobody can take it away from me.
+
+Collateral damage
+
+## I bought a 3D printer and built a workshop in the basement
+
+There is one consequence I hadn’t foreseen, and it isn’t about the box.
+
+I was starting to seriously abuse François’s kindness, since his printer had produced every one of my enclosures. And above all, I was enjoying all of this far too much: the evenings, the weekends, perfectly indefensible hours spent getting obsessive about a two millimetre fillet or the depth of a pocket. I decided this would not be my last electronics project, because I genuinely love it. So I bought a [Bambu Lab A1](https://eu.store.bambulab.com/fr/products/a1).
+
+I told myself it was a useful purchase: spare parts you stop rebuying, toys you repair instead of throwing away, custom storage. All of that is true. It wasn’t the reason.
+
+And I installed it in the living room. A machine half a metre across, which blows, vibrates, runs for fourteen hours at a stretch and smells of hot plastic, in the middle of the room where Marceau is learning to walk. At the time it seemed perfectly reasonable. I was shown the door in no uncertain terms, and entirely deservedly: you do not install a production unit in a living room.
+
+![The nozzle of a 3D printer laying molten plastic onto the bed.](https://zebra.rodeo/assets/images/marelleo/impression.jpg)\
+Watching a printer work is a trap: you sit down for five minutes and lose an hour.
+
+So I ran a network line over the mains down to the basement and set up a print station there. And it is frankly better than I imagined: I start a print from the sofa, it runs in the dark two floors below, and I go down to collect the part the next morning. No more noise and no more smell of hot plastic upstairs, and a living room that stays a living room. The fifth version of the enclosure came out of there. It’s the one in the opening photo.
+
+It's all online
+
+## If you want to build one
+
+I’ve put everything you need in a public repository: **[github.com/Zebra-Rodeo/marelleo](https://github.com/Zebra-Rodeo/marelleo)**.
+
+The three enclosure parts to print, the board’s manufacturing files ready to drop into JLCPCB along with the bill of materials and component positions, the firmware source, and documentation that starts from zero: what to buy and for how much, what order to go about it in, the pinout of the module version, and the traps that cost me evenings. All MIT licensed, so do what you like with it.
+
+You can start with the breadboard version, without soldering once, and only order the board if you catch the bug. That’s the path I took, and the one I’d recommend: the breadboard is the place where being wrong costs nothing.
+
+And there are two ways to use it. Rebuild it as is, following the files, and get the same box my kids have. Or take it as a starting point: a different enclosure, a different speaker, different buttons, the code changed to your taste. Only one thing to know in that case, and it’s written in large letters in the repository: the firmware is written for that exact assembly, the pinout lives in the code, and a wire moved means a line to change. I flagged it because it is exactly the sort of detail that has you hunting a fault for an evening.
+
+If you build one, I’d really like to see it.
+
+The name
+
+### Where Marelleo comes from
+
+From *marelle*, the French word for hopscotch, the game where you move forward by putting a foot down on a square. But mostly from **Mar**ceau, **Ell**a and L**éo**nie, to whom the box belongs.
+
+Thanks to François Lagunas for the printer, the advice and the patience. And to my wife, who has lived for months with this project spread across evenings and weekends, and who said yes to the printer before I could get a single argument out.
