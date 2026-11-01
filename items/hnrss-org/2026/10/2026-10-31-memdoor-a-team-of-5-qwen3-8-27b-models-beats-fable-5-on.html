@@ -1,0 +1,175 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc" id="readme"><article itemprop="text">
+<p dir="auto">Five small models solve a programming problem together: a planner, two
+ideators, a solver and a manager, plus a repair worker. Each starts from a
+fresh context and talks only through files on disk. A script that runs the
+samples decides success, not a model. It is the method of
+<a href="https://github.com/slee-persis/GVS5H">GVS5H</a> (Lee, 2026), written as a
+<a href="https://github.com/guregodevo/memdoor/blob/main/README.md">Memdoor</a> workflow: eight YAML files, no code, no model
+named.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">The result</h2><a id="user-content-the-result" aria-label="Permalink: The result" href="#the-result"></a></p>
+<p dir="auto">The authors' harness rebuilt on the same model, Qwen3.8-27B, with their
+prompts, loop and 128K reply cap. The first ten problems of their
+LiveCodeBench Hard list, five passes each, graded on every hidden test with
+their corrected grader:</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>pass</th>
+<th>this workflow</th>
+<th>authors' harness</th>
+<th>Fable 5, one call</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>10</strong> / 10</td>
+<td>9</td>
+<td>7</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>10</strong> / 10</td>
+<td>10</td>
+<td>8</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>10</strong> / 10</td>
+<td>10</td>
+<td>10</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>10</strong> / 10</td>
+<td>9</td>
+<td>8</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>9</strong> / 10</td>
+<td>10</td>
+<td>7</td>
+</tr>
+<tr>
+<td>mean</td>
+<td><strong>9.8</strong></td>
+<td>9.6</td>
+<td>8.0</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">The authors' two columns are the regraded result files in their repository,
+the numbers in their paper. Our column is
+<a href="https://github.com/guregodevo/memdoor/blob/main/examples/workflows/team-solve/bench/results/parity-5pass"><code>bench/results/parity-5pass/</code></a>: all 50 runs,
+each with every request and reply, the program, the grader's output and the
+cost. A run took a median of 40 minutes and $0.39; the 50 cost $35.79.</p>
+<p dir="auto">What this does and does not show:</p>
+<ul dir="auto">
+<li>Ten problems, five passes, not the authors' 100. On a sample this small,
+9.8 and 9.6 are the same number. The claim is parity with their harness, not
+a gain on it.</li>
+<li>The contests date from spring 2025 and the model may have seen them in
+training. Contamination cannot be ruled out, for any column.</li>
+<li>Fable 5's column is one call per problem, from the authors' files. It was
+not run in this harness.</li>
+<li>The loop sees only the public samples; the score is the hidden tests.</li>
+<li>The model ran on OpenRouter, not a local machine.</li>
+<li>The one lost problem: the manager invented a wrong counterexample and the
+team rewrote a correct program. Twice elsewhere a correct program was
+overwritten and then recovered. Both gaps are the authors' loop, kept as is.</li>
+</ul>
+<p dir="auto">The parity check (every request byte for byte against their code), the hosts,
+the changes it took and the first run's findings are in <a href="https://github.com/guregodevo/memdoor/blob/main/examples/workflows/team-solve/NOTES.md">NOTES.md</a>.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Run it</h2><a id="user-content-run-it" aria-label="Permalink: Run it" href="#run-it"></a></p>
+<div data-snippet-clipboard-copy-content="curl -fsSL https://memdoor.ai/install.sh | bash
+memdoor connect openrouter        # or anthropic, openai, gemini, chatgpt
+# or no key: memdoor connect local   (Ollama, llama.cpp, vLLM, LM Studio; Ollama needs a 32K window, not its 4K default)
+git clone --depth 1 https://github.com/guregodevo/memdoor
+
+mkdir -p ~/.memdoor/workflows
+cp -r memdoor/examples/workflows/team-solve ~/.memdoor/workflows/
+mkdir my-problem &amp;&amp; cd my-problem
+cp -r ../memdoor/examples/workflows/team-solve/sample/* .    # task.md + tests/1.in … 5.out
+memdoor workflow run team-solve --wait   # exit 0 when every sample passes"><pre><code>curl -fsSL https://memdoor.ai/install.sh | bash
+memdoor connect openrouter        # or anthropic, openai, gemini, chatgpt
+# or no key: memdoor connect local   (Ollama, llama.cpp, vLLM, LM Studio; Ollama needs a 32K window, not its 4K default)
+git clone --depth 1 https://github.com/guregodevo/memdoor
+
+mkdir -p ~/.memdoor/workflows
+cp -r memdoor/examples/workflows/team-solve ~/.memdoor/workflows/
+mkdir my-problem &amp;&amp; cd my-problem
+cp -r ../memdoor/examples/workflows/team-solve/sample/* .    # task.md + tests/1.in … 5.out
+memdoor workflow run team-solve --wait   # exit 0 when every sample passes
+</code></pre></div>
+<p dir="auto">For your own problem, replace <code>task.md</code> and put paired <code>tests/N.in</code> /
+<code>tests/N.out</code> beside it. The program is <code>solution.py</code>, read from stdin,
+compared to the samples with <code>diff</code>; it needs Python 3 and bash. <code>/workflow</code>
+in <code>memdoor tui</code> draws the run live.</p>
+<p dir="auto">The steps name no model: whatever <code>/model</code> is pinned to answers, a local one
+included (<a href="https://memdoor.ai/docs/providers#a-local-runtime-no-key" rel="nofollow">how to connect one</a>).
+To change a role, change its prompt in <code>steps/</code>.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">How it works</h2><a id="user-content-how-it-works" aria-label="Permalink: How it works" href="#how-it-works"></a></p>
+<div data-snippet-clipboard-copy-content="plan ──┬── ideate-a ──┬── solve ── test ── review ── repair ── verify
+       └── ideate-b ──┘"><pre><code>plan ──┬── ideate-a ──┬── solve ── test ── review ── repair ── verify
+       └── ideate-b ──┘
+</code></pre></div>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>step</th>
+<th>kind</th>
+<th>reads</th>
+<th>writes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plan</code></td>
+<td>agent</td>
+<td><code>task.md</code></td>
+<td><code>plan.md</code>, <code>notes.md</code></td>
+</tr>
+<tr>
+<td><code>ideate-a</code>, <code>ideate-b</code></td>
+<td>agent, in parallel</td>
+<td>the plan</td>
+<td>a proposal each: the most direct provable algorithm, and one from another family</td>
+</tr>
+<tr>
+<td><code>solve</code></td>
+<td>agent</td>
+<td>both proposals</td>
+<td><code>solution.py</code>, the decision in <code>notes.md</code></td>
+</tr>
+<tr>
+<td><code>test</code></td>
+<td>command</td>
+<td><code>tests/</code></td>
+<td><code>test-output.log</code> (never fails the run)</td>
+</tr>
+<tr>
+<td><code>review</code></td>
+<td>agent</td>
+<td>the test output</td>
+<td>repair instructions in <code>notes.md</code></td>
+</tr>
+<tr>
+<td><code>repair</code></td>
+<td>agent</td>
+<td>the instructions</td>
+<td>a fixed <code>solution.py</code>, or nothing</td>
+</tr>
+<tr>
+<td><code>verify</code></td>
+<td>command</td>
+<td><code>tests/</code></td>
+<td>the verdict: a nonzero exit fails the run</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">Every agent prompt says "fresh context, read the files, do not rely on chat".
+The paper credits that ledger discipline for the gain. Each step is one YAML
+file in <code>steps/</code>, in the format of <a href="https://github.com/guregodevo/mario">mario</a>,
+the engine underneath; <code>requires:</code> is the DAG.</p>
+</article></div></div>
