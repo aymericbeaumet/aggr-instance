@@ -1,0 +1,83 @@
+<div id="readability-page-1" class="page"><div>
+      <article>
+        <header>
+          
+          <time datetime="2026-10-29">Oct 29, 2026</time>
+        </header>
+        <p>A small-scale rule of thumb. This article will land much better with a concrete
+example, but I am drawing a blank here, so you gotta just blindly trust my say
+so!</p>
+        <p>When implementing a software module, it’s often a case that you are writing a
+public function <code>foo</code>, and at least part of what <code>foo</code> does is already handled
+by another public function <code>bar</code>. The DRY instinct encourages you to call
+<code>bar()</code> from within <code>foo</code>. This usually creates problems down the line. Instead,
+create a new <em>private</em> function and refactor both <code>foo</code> and <code>bar</code> to call that
+shared helper:</p>
+
+        <figure>
+          <pre><code>// BAD
+pub fn foo() void {
+    return bar(.{ .frobnicate = true });
+}
+
+pub fn bar(options: struct {
+    frobnicate: bool = false,
+}) void {
+    // ...
+}</code></pre>
+        </figure>
+
+        <figure>
+          <pre><code>// GOOD
+pub fn foo() void {
+    return helper(.frobnicate);
+}
+
+pub fn bar() void {
+    return helper(.transmogrify);
+}
+
+fn helper(mode: enum { frobnicate, transmogrify }) void {
+    // ...
+}</code></pre>
+        </figure>
+        <p>Rationale: the goal of a public API is to provide an interface that works best
+at the call site. If parts of public API are re-used to implement the rest of
+the API, then there’s a tension between making the interface convenient for the
+outside user and making it convenient to use from within abstraction itself.
+Namely, functions tend to grow optional parameters that should never be set by
+the user. Crucially, the parameter growth and interface degradation can happen
+<em>after</em> the original code sharing.</p>
+        <p>By proactively making the shared implementation private, the tension is defused.
+You still might need to tinker with <code>helper</code> signature until it does everything
+it needs to do, but, because the helper is private, this is a cheap, local
+change.</p>
+        <p>A notable exception to this rule of thumb are “shortcut” APIs, where a public
+function is <em>defined</em> as a commonly used chain of calls to other public
+functions. There, the rule is the opposite — <em>no</em> private calls are allowed,
+to make sure that it is a genuine shortcut, and not a midlayer mistake.</p>
+        <p>P.S. While researching if anyone wrote a better blog post already, I stumbled
+upon a fun stack overflow question, asking, paraphrasing:</p>
+
+        <figure>
+          <blockquote>
+            <p>I’ve heard that it is bad when a public function calls another public
+function. Is this really so?</p>
+          </blockquote>
+        </figure>
+        <p>The most upvoted answer explains that it is indeed bad, because this makes
+mocking to test a single method in isolation more complicated. Which is, imo, a
+natural, but horrible consequence of misguided approach to testing. You
+shouldn’t be mocking your methods, you should mock your IO. And, similarly, you
+shouldn’t test methods, but rather software functionality (unless you are
+building a public library with a stable API, which is a fun and important, but
+very narrow fraction of software development).</p>
+        <p>The accepted answer says that this recommendation makes no sense if it is not
+backed by an industry wide or an organizational standard. Which somehow manages
+to make even less sense — you shouldn’t follow the guideline rules because
+they are written in sanctified ink! Rather, you should apply each particular
+rule because of the underlying reasons that motivate the rule. Guidelines and
+best practices articles can concentrate lots of good reasoning in a single
+place, but they don’t absolve you from thinking!</p>
+      </article>
+    </div></div>
