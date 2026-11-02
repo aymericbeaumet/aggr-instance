@@ -1,0 +1,98 @@
+<div id="readability-page-1" class="page"><div>
+<p>Contributed by
+<a href="https://nxdomain.no/~peter/blogposts/">Peter N. M. Hansteen</a>
+on <time datetime="2026-11-01T10:59:39Z">2026-11-01</time>
+from the most excellent file shredder dept.</p><p>
+As <em><a href="https://www.undeadly.org/cgi?action=article;sid=20260918115729">previously</a></em> reported, Ori Bernstein is working on GEFS, the "Good Enough File System" imported to <em><a href="https://www.openbsd.org/">OpenBSD</a></em>, and his <em><a href="https://2026.eurobsdcon.org/">EuroBSDCon 2026</a> <a href="https://events.eurobsdcon.org/2026/talk/NVMSCJ/">presentation</a></em> was very well received. In fact, the video is among the most frequently played from the conference.
+</p><p>
+Now Ori has followed up with more evolved code that includes several important steps towards makin the new file system fit for general use. In a <a href="https://marc.info/?l=openbsd-tech&amp;m=179346643071941&amp;w=2">message</a> to <code>tech@</code>, Ori writes:
+</p><blockquote>
+<pre><code>List:       openbsd-tech
+Subject:    Re: GEFS on OpenBSD: A very early preview
+From:       ori () eigenstate ! org
+Date:       2026-10-31 17:08:42
+
+So, it's probably time for a few updates. First
+off, thanks to Martijn, and everyone else who
+tried it out and sent patches.
+
+Everything is updated and rebased, and the diff
+has been regenerated with all of the lastest.</code></pre>
+</blockquote>
+
+<blockquote>
+<pre><code>I've gone through a the error handling code. In
+theory the filesystem will handle errors mostly
+correctly. There are probably still places where
+theory diverges from reality. I've also forward
+ported most of the important bugfixes from 9front.
+
+The file system now leaves the first FS block
+unused by default -- we can put disklabels there,
+which makes it hard to put the superblock there as
+well.
+
+Some userspace tools have been done (you can now
+mkfs on openbsd!), but snapshot control hasn't.
+I'm thinking we have a userspace 'gefs' program
+that lets you handle this, trying to keep the
+interface similar to the 9front ctl file. The
+commands below should suffice:
+
+  gefs debug [0|1]
+  gefs usereserve
+  gefs retain snap timespec
+  gefs snap name newname
+  gefs fork name newname
+
+The consistency protocol is still the biggest
+missing piece; I've been reading the old code
+for softupdates, since it had the same flavor
+of problem.
+
+what gefs wants, in the ideal case, is some way
+to put ordering barriers in the commit phases,
+while still accepting new block i/o, something
+like the following sequence of steps:
+
+	0) normal use, generate dirty blocks and
+	  write back in any order.
+      holding mutlk {
+		1) barrier(), ensure that all blocks
+		 written before the commit will be
+		 on disk before the commit finishes
+		2) enqueue free list/deadlist data
+		3) prepare arena header/footer + superblock
+	 }
+	4) enqueue arena headers
+	5) barrier()
+	6) enqueue superblock
+	7) enqueue arena footers
+	8) wait for enqueued blocks to hit disk
+	9) free blocks no longer used by previous gen
+
+on 9front, I have a priority queue of blocks that
+are sorted by (gen, addr) tuples, which means that
+writes within a generation are flushed to disk as
+sequentially as they can be, while not crossing
+generation boundaries.
+
+I'm currently thinking I'll implement the same in
+OpenBSD -- launch syncer kprocs that do synchronous
+I/O to the block device. If we kick things out of
+cache and write it back to disk early, that should
+generally be safe -- The only blocks the buffer
+cache must not reorder are the arena headers and
+superblocks, so a flag to pin them unwritten may
+be all that's needed here.
+
+I'm open to other ideas, though.
+
+Quoth ori@eigenstate.org:</code></pre>
+</blockquote>
+<p>
+Followed by a quoted part of the <a href="https://marc.info/?l=openbsd-tech&amp;m=178948744271633&amp;w=2">previous message</a> that has the links to the code and documentation.
+</p><p>
+If you are as excited as we are about this new file system development and are in a position to test, please do.
+
+</p></div></div>
