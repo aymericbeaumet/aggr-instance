@@ -1,0 +1,53 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text">
+<p dir="auto">An image format tuned for extreme decompression speed.</p>
+<p dir="auto">This image format originated as an experiment to see what image quality and performance were possible for DVI output on an RP2350 microcontroller. On devices of that class, it's common to use low bit depth images and palette lookup. There's a budget of approximately 6 cycles per pixel, and that's enough for a pixel fetch, palette lookup, and store into the line buffer, but not a lot of room to spare.</p>
+<p dir="auto">The nibnib format uses a palette at its core, but surpasses palette images in quality because the palette stores a <em>delta</em> rather than the absolute color, vastly improving soft regions. It achieves its extreme speed by decoding two pixels at a time, from a single byte of input, thus attaining 4bpp compression.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">How it works</h2><a id="user-content-how-it-works" aria-label="Permalink: How it works" href="#how-it-works"></a></p>
+<p dir="auto">The decompression process is simple and deterministic. There are many choices when encoding; the algorithm is asymmetric in that regard.</p>
+<p dir="auto">Decoding works in pixel pairs. The last decoded pixel is doubled up. Then we read a byte from the input stream, and look it up in the palette. That 32-bit value is added to the doubled-up previous pixel, yielding two 16bpp (RGB 565 format) pixels. The low 16 bits are the left pixel. That's it.</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/raphlinus/nibnib/blob/main/images/algorithm.png"><img src="https://github.com/raphlinus/nibnib/raw/main/images/algorithm.png" alt="A diagram of how the algorithm works"></a></p>
+<p dir="auto">Here's the inner loop (lightly adapted from the Rust source):</p>
+<div dir="auto" data-snippet-clipboard-copy-content="    // first two pixels copied from src[0..4], initializing pix
+    for x in 1..(width / 2) {
+        let inp = src[x + 3];
+        pix = ((pix &gt;&gt; 16) * 0x10001).wrapping_add(pal[inp as usize]);
+        out[x * 2] = pix &amp; 0xffff;
+        out[x * 2 + 1] = pix &gt;&gt; 16;
+    }"><pre><code data-language="rust">    // first two pixels copied from src[0..4], initializing pix
+    for x in 1..(width / 2) {
+        let inp = src[x + 3];
+        pix = ((pix &gt;&gt; 16) * 0x10001).wrapping_add(pal[inp as usize]);
+        out[x * 2] = pix &amp; 0xffff;
+        out[x * 2 + 1] = pix &gt;&gt; 16;
+    }</code></pre></div>
+<p dir="auto">The RP2350 on-the-fly decoder implementation is included in the <code>image</code> demo of the <a href="https://github.com/raphlinus/vic-2350">vic-2350</a> repo.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">The simple encoder</h2><a id="user-content-the-simple-encoder" aria-label="Permalink: The simple encoder" href="#the-simple-encoder"></a></p>
+<p dir="auto">As with many image compression formats, nibnib is defined by the decoding process, which is deterministic and straightforward. Encoding is fundamentally a search through the space of possible encoded images to find one that decodes to a (hopefully) high quality replica of the original. In nibnib, this search is quite asymmetrical; the current encoder is orders of magnitude slower than decoding. By contrast, in JPEG, the DCT transform is invertible by its mathematical nature, and quantization is also easy; at baseline, encoding and decoding are about the same speed, though search can be used to fine-tune parameters and micro-optimize quality.</p>
+<p dir="auto">Nibnib has two main dimensions for the search: choice of palette, and selection of codewords. For the initial version, the palette has a cube of small delta values plus a block of random values, chosen by weighted Gaussians. The cube is necessary to ensure that values near 0 and full scale can be attained without risk of overflow; without the cube entries, you get bad artifacts. First is the original image, then the image encoded with a random-only palette, finally with both the cube and random values.</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/raphlinus/nibnib/blob/main/images/flowers7.png"><img src="https://github.com/raphlinus/nibnib/raw/main/images/flowers7.png" alt="A test image"></a></p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/raphlinus/nibnib/blob/main/images/no_cube.png"><img src="https://github.com/raphlinus/nibnib/raw/main/images/no_cube.png" alt="An image encoded with artifacts"></a></p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/raphlinus/nibnib/blob/main/images/with_cube.png"><img src="https://github.com/raphlinus/nibnib/raw/main/images/with_cube.png" alt="An image encoded with fewer artifacts"></a></p>
+<p dir="auto">The random Gaussian process was refined on an ad-hoc basis, using guesses about reasonable values. In particular, the delta between the two pixels gives a tradeoff between sharpness and noise; keeping it small makes the image smoother at the cost of reduced ability to encode sharp edges.</p>
+<p dir="auto">In the current encoder, the palette is not chosen adaptively based on the input image, but that is most definitely an opportunity to improve quality.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Floyd-Steinberg error diffusion</h2><a id="user-content-floyd-steinberg-error-diffusion" aria-label="Permalink: Floyd-Steinberg error diffusion" href="#floyd-steinberg-error-diffusion"></a></p>
+<p dir="auto">The basic encoding loop is conceptually straightforward, but the details are a bit subtle.</p>
+<p dir="auto">Conceptually, it simply tries all 256 palette entries, and chooses the one with the minimum error. Then it takes that error and distributes it using <a href="https://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering" rel="nofollow">Floyd-Steinberg</a> weights. Subsequent pixels fit not the source pixel value, but the source pixel plus errors from previous iterations, weighted.</p>
+<p dir="auto">The loop as described above is quite similar to error diffusion with a quantized palette, a very popular technique. However, that's usually done with one pixel at a time, while the nibnib algorithm generates two pixels at a time. The palette entry is chosen to minimize the error of <em>both</em> pixels, giving somewhat higher weight to the sum rather than the difference, modeling the fact that the human visual system is more sensitive to lower spatial frequencies.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Future improvements</h2><a id="user-content-future-improvements" aria-label="Permalink: Future improvements" href="#future-improvements"></a></p>
+<p dir="auto">What's presented is a basic, working image compression technique. Quality can be improved significantly by tuning both major aspects of the search: coming up with an optimized palette, and also a deeper search for error-minimizing pixels. For <em>this</em> pixel, two choices might have roughly equal error, but one might make the search for the <em>next</em> to be considerably more favorable.</p>
+<p dir="auto">Currently, the artifacts trail to the right of sharp edges, but that's a consequence of the greedy search. It's not hard to see how to make encoding work right to left (or even boustrophedonically, alternating direction each row) while decoding is still left to right, as the addition step is invertible in practice (there's a bit of subtlety around the interaction of the carry and the pixel duplication).</p>
+<p dir="auto">Both improvements would slow the encoder down considerably, though decoding speed would be unchanged. Another direction is to make the encoder faster. For example, brute force search through palette entries can almost certainly be improved, perhaps in combination with making the palette more structured. All these improvements can be made with the existing decoder.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Image format</h2><a id="user-content-image-format" aria-label="Permalink: Image format" href="#image-format"></a></p>
+<p dir="auto">The image format is extremely unsophisticated: 2 bytes each for width and height, then 256 32-bit palette entries, then the rows in order.</p>
+<p dir="auto">Each row begins with two pixels (RGB 565 each), followed by ((width - 2) / 2) bytes, each indexing the palette. The row stride is rounded up to a multiple of 4 bytes.</p>
+<p dir="auto">Currently there's no other metadata; the format is not intended for archival, and is much more likely to be used when integrated tightly with the decoder.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">License</h2><a id="user-content-license" aria-label="Permalink: License" href="#license"></a></p>
+<p dir="auto">Licensed under either of</p>
+<ul dir="auto">
+<li>Apache License, Version 2.0
+(<a href="https://github.com/raphlinus/nibnib/blob/main/LICENSE-APACHE">LICENSE-APACHE</a> or <a href="http://www.apache.org/licenses/LICENSE-2.0" rel="nofollow">http://www.apache.org/licenses/LICENSE-2.0</a>)</li>
+<li>MIT license
+(<a href="https://github.com/raphlinus/nibnib/blob/main/LICENSE-MIT">LICENSE-MIT</a> or <a href="http://opensource.org/licenses/MIT" rel="nofollow">http://opensource.org/licenses/MIT</a>)</li>
+</ul>
+<p dir="auto">at your option.</p>
+</article></div></div>
