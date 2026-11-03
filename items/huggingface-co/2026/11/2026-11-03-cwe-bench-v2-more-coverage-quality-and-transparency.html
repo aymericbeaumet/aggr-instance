@@ -1,0 +1,49 @@
+<div id="readability-page-1" class="page"><div> 
+<p><a href="https://cwe-bench.com/" rel="nofollow">CWE-bench</a> is designed to test the limits of frontier cyber capabilities. In our continued pursuit to push the horizon at <a href="https://collinear.ai/" rel="nofollow">Collinear AI</a>, CWE-bench v2 opens up a <a href="https://huggingface.co/datasets/collinear-ai/cwe-bench">public set of 100 tasks</a> that anyone can run and evaluate their models on. The setup is the same as before. An agent gets a checkout of a real open-source repository and a short instruction, with the goal of finding and fixing a security weakness without breaking existing functionality. Scoring is fully programmatic, so results are deterministic and anyone can reproduce them without extra cost. All our programmatic checks have been curated with the help of LLM judge panels that shape them towards the direction of hardness and fairness. We also maintain a <a href="https://www.cwebench.com" rel="nofollow">held-out set</a>, so that we can keep tracking progress on tasks no model has seen. To evaluate your model on the held-out set, contact <a href="mailto:cyber@collinear.ai" rel="nofollow">cyber@collinear.ai</a>.</p>
+<p>Our goal is to be exhaustive. A defender has to anticipate the ways an attacker could get in, and get it right every single time. These 100 tasks cover 91 different CWEs, spanning a wide range of vulnerability classes. A model that does well here has to understand the multiple weakness surfaces that a potential attacker can exploit. Recognising a familiar pattern is not enough.</p>
+<p>As part of our meticulous effort to keep improving quality, for every task we checked that the following questions were true:</p>
+<ul>
+<li>Does the instruction read like a realistic instruction and not an evaluation setting?</li>
+<li>Can every graded behaviour be inferred from the instruction?</li>
+<li>Does the verifier check for correct behaviour and not for specific structure of one fix?</li>
+<li>Does the starter code fail and the reference fix pass?</li>
+<li>Does the original functionality still work with the new fix?</li>
+<li>Do the verifiers fail memorized solutions like the known upstream patch?</li>
+</ul>
+<p>Every task was also reviewed by hand. Open-sourcing the set is part of the same effort to improve quality. We welcome feedback on any task, and contributions to the public set.</p>
+<h2>
+	<a id="results" href="#results" rel="nofollow">
+		
+	</a>
+	<span>
+		Results
+	</span>
+</h2>
+<p>Results are tracked in two places on the Hub. The <a href="https://huggingface.co/datasets/collinear-ai/cwe-bench">leaderboard on the CWE-bench dataset page</a> covers open-weight models and updates on its own: labs and the community add a result by opening a PR on the model's repo with a results file (<a href="https://huggingface.co/docs/hub/eval-results#adding-evaluation-results">how</a>). For the full comparison, including API-only models such as Gemini, Claude and GPT, see the <a href="https://huggingface.co/spaces/collinear-ai/cwe-bench-leaderboard">CWE-bench leaderboard Space</a>, where new models are added through a PR on the Space.</p>
+<p>Open-weight models, from the dataset page:</p>
+
+
+<p>All evaluated models, including API-only ones:</p>
+
+
+<p>Of the 11 models evaluated, Gemini 4 Argon leads with 67.8% pass@1 and 81.0% pass@4, just ahead of Claude Opus 5.5 (67.3% pass@1, 78.0% pass@4). 95 tasks are solved by at least one model, an indication that the tasks are indeed solvable. However, even the leader fails 19% of the set on every attempt, so the long tail is far from solved. The public set, the grader and the harness are open. Run your model, and tell us where it stands.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/cwe-bench/pareto.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/cwe-bench/pareto.png" alt="CWE-bench v2: pass@1 against average cost per rollout, with the Pareto frontier"></a></p>
+<p>On cost, DeepSeek V4.1 Flash (1017), Claude Opus 5.5 and Gemini 4 Argon form the Pareto frontier: DeepSeek reaches 57.0% pass@1 at $0.04 per rollout, Opus adds ten points at $1.83, and Gemini edges ahead at $3.92.</p>
+<h2>
+	<a id="run-it-from-the-hub" href="#run-it-from-the-hub" rel="nofollow">
+		
+	</a>
+	<span>
+		Run it from the Hub
+	</span>
+</h2>
+<p>Every task is a self-contained <a href="https://harborframework.com/" rel="nofollow">Harbor</a> task (a Dockerized environment, an instruction, and a deterministic verifier), and the dataset ships a <code>registry.json</code>. Harbor can therefore run the whole benchmark straight from the Hugging Face repo, without cloning anything yourself:</p>
+<pre><code data-language="bash">harbor run --repo "https://huggingface.co/datasets/collinear-ai/cwe-bench" -d cwe-bench@2.0 -k 4 \
+  --agent &lt;agent&gt; --model &lt;model&gt; --env docker \
+  --allow-agent-host &lt;model API host&gt;
+</code></pre>
+<p><code>-k 4</code> runs 4 attempts per task, and the reported score is the mean reward over all 400 trials. The dataset is gated: accept its access conditions on the <a href="https://huggingface.co/datasets/collinear-ai/cwe-bench">dataset page</a> first. Harbor fetches the tasks with git, so also save your HF token to git's credential helper once:</p>
+<pre><code data-language="bash">hf auth login --token $HF_TOKEN --add-to-git-credential
+</code></pre>
+<p>The tasks are also tagged <code>rl-environment</code>: the same environments and verifiers can provide rewards for training defensive agents, not just for evaluating them.</p>
+</div></div>
