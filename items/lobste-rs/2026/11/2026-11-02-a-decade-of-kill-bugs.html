@@ -1,0 +1,220 @@
+<div id="readability-page-1" class="page"><article>
+      <hr>
+      <p>On the morning of September 24th 2026, <a href="https://endcrawl.com">Endcrawl</a> had a brief outage. I'd just typed:</p><div><pre><code>sudo kill -TERM -1490947</code></pre></div>
+<p>And instantly all services went down.</p>
+<p>Right away I blamed myself. Maybe I mistyped that number! Maybe my code had a signal handling bug. Maybe I don't understand Unix as well as I think I do. Maybe I'm an idiot!</p>
+<p>As it turned out, the outage was caused by a bug in <a href="https://man7.org/linux/man-pages/man1/kill.1.html"><code>kill(1)</code></a>.</p>
+<p>This is really surprising. The <code>kill</code> program is 50 years old. Its <a href="https://pubs.opengroup.org/onlinepubs/9699919799/utilities/kill.html">spec</a> is simple and stable. It's probably exercised a billion times a day.</p>
+<p>A bug in <code>kill</code> was so surprising that, once I'd found it, I couldn't stop there. I needed to know how this bug came to be, and what had led the programmers so badly astray. When I eventually found the root cause, there was an even bigger surprise. It had led to not just one bug, but a whole series of <code>kill</code> bugs that shipped in Ubuntu 14, 16, 18, 22 and 24 LTS.</p>
+<p>This post documents a decade of <code>kill</code> bugs, then makes some recommendations.</p>
+<h2 id="an-outage-not-understood-happens-again"><a href="#an-outage-not-understood-happens-again">An Outage Not Understood Happens Again</a></h2>
+<p>Back to the outage. I scrambled to put the fire out. After that came a surprise second fire. By the end of all this I was pretty demoralized. I was ready to accept that I'd made a dumb mistake and ready to get on with the work day. There was this nagging feeling though…</p>
+<p>Remember that <a href="https://www.youtube.com/watch?v=kCXTq-fWWio">final scene</a> in Burn After Reading?</p>
+<blockquote>
+<p>"What did we learn Palmer?"</p>
+<p>"I don't know sir."</p>
+<p>"I don't f**king know either. I guess we learned not to do it again."</p>
+<p>"Yes sir."</p>
+<p>"Although I'm f**ked if I know what we did..."</p>
+</blockquote>
+<p>What had just happened? Was I about to be hit with a third outage? How could I be sure?</p>
+<p>An outage not understood is an outage that happens again. That nagging feeling I had was a call to understand. With a sigh, I put all my other work on hold and started a proper post mortem.</p>
+<h2 id="the-proximate-cause"><a href="#the-proximate-cause">The Proximate Cause</a></h2>
+<p>Let's examine the command that caused the outage:</p><div><pre><code>sudo kill -TERM -1490947</code></pre></div>
+<p>The negative number here is a <a href="https://en.wikipedia.org/wiki/Process_group">process group identifier</a>, or pgid for short. A pgid is like a pid, but identifies a group of related processes. By convention, killing a positive number sends a signal to a single process, while killing a negative number signals all processes in that process group.</p>
+<p>I was attempting to cancel a big Endcrawl 7k test render. A normal person would have killed one of the processes involved and let failures cascade to the others. But killing the whole group simultaneously strikes me as cleaner.</p>
+<p>Process group signaling isn't some exotic operation. You use it all the time. Every time you <code>^C</code> a command, the tty sends <code>SIGINT</code> to the foreground process group. Interactive shells run all but the simplest commands in a new process group, which among other things makes <a href="https://en.wikipedia.org/wiki/Job_control_(Unix)">job control</a> possible.</p>
+<p>Process group signaling is in fact an awesome Unix innovation. I love it so much I <a href="https://github.com/bruceg/daemontools-encore/pull/16">added it to daemontools</a>, where <code>svc -+h</code> now avoids orphans in a multiprocess service bounce.</p>
+<p>At any rate, imagine my surprise when the command didn't just kill those render processes, but killed <em>all processes on the machine</em> save one!</p>
+<h2 id="the-bug"><a href="#the-bug">The Bug</a></h2>
+<p>Here's the relevant snippet from <a href="https://gitlab.com/procps-ng/procps/-/releases/v4.0.4">procps 4.0.4</a>, the provider of <code>/bin/kill</code> in Ubuntu 24.04 LTS. Can you spot the bug?</p><div><pre><code>opterr=0; /* suppress errors on -123 */
+while ((i = getopt_long(argc, argv, "l::Ls:hVq:", longopts, &amp;optindex)) != -1)
+  switch (i) {
+    /* ... */
+    case '?':
+      if (!isdigit(optopt)) {
+        xwarnx(_("invalid argument %c"), optopt);
+        print_usage(stderr);
+      } else {
+        /* Special case for signal digit negative
+         * PIDs */
+        pid = (long)('0' - optopt);
+        if (!execute_kill((pid_t) pid, signo, use_sigqueue, sigval))
+          exitvalue = EXIT_FAILURE;
+        exit(exitvalue);
+      }
+    /* ... */
+  }</code></pre></div>
+<p>My initial guess was wrong. There's no underflow or overflow bug with <code>-1490947</code>.</p>
+<p>Notice we're in the unrecognized option switch case. Here's what <a href="https://man7.org/linux/man-pages/man3/getopt.3.html"><code>getopt(3)</code></a> says about unrecognized options:</p>
+<blockquote>
+<p>By default, <code>getopt()</code> prints an error message on standard error, places the erroneous option character in optopt, and returns <code>'?'</code> as the function result.</p>
+</blockquote>
+<p>Aha. The <code>optopt</code> variable only holds the first character after the dash, not the whole negative pid. When character <code>1</code> is subtracted from character <code>0</code> we get a pid of <code>-1</code>. What happens when you kill pid <code>-1</code>? <a href="https://man7.org/linux/man-pages/man2/kill.2.html">Bad things</a>:</p>
+<blockquote>
+<p>If pid equals -1, then sig is sent to every process for which the calling process has permission to send signals, except for process 1 (init). </p>
+</blockquote>
+<p>This ran as root, so the misparsing of <code>-1490947</code> as <code>-1</code> killed every process but init. Bug found, mystery solved.</p>
+<h2 id="wait-but-why"><a href="#wait-but-why">Wait But Why</a></h2>
+<p>Except for me this just raised more questions. Why is the code assuming the unrecognized option is a "signal [sic] digit negative PID"? Why is the single digit negative pid case special, and what handles the general case of a multidigit negative pid?</p>
+<p>Moreover, how could a bug like this exist in 2026, and in a Ubuntu LTS release no less? Has it always been there?</p>
+<p>No, that couldn't be. I've killed process groups in the past. And the <code>kill -TERM -12345</code> thing is an ancient Unix incantation. This used to work dammit!</p>
+<p>Thinking back, I could vaguely remember some negative pid kills gone awry. Never in an "oops this killed everything in sight" way. More in a "weird, nothing happened" way, or a "poof there goes my shell" way. Minor ways more easily shrugged off as user error.</p>
+<p>It turns out I wasn't imagining these. The last decade has been a rough one for negative pid killers. There have been no less than <strong>FOUR</strong> distinct bugs around negative pids. And they all shipped in Ubuntu LTS versions.</p>
+<h2 id="the-history"><a href="#the-history">The History</a></h2>
+<p>Before I tell the tale of four bugs, let's go even farther back in Unix history.</p>
+<p>In the beginning Unix had processes. By 1973 it had the <code>kill(1)</code> program. But it took a decade to evolve process groups as we now know them. It wasn't until <a href="https://www.tuhs.org/cgi-bin/utree.pl?file=V9/cmd/kill.c">Unix V9 in 1986</a> that you could kill a process group via negative pid. Near as I can tell, negative pid killing has worked fine in the BSDs all these years.</p>
+<p>In the early 90s this thing called Linux came along. Although Linux initially borrowed a lot of BSD code for its userland, by the late 90s this approach was in legal jeopardy. Everything had to be rewritten, every wheel reinvented. And quickly. It was an exciting time to be a unix programmer.</p>
+<p>And so it came to pass that Linux's <code>kill</code> was <strike>reinvented</strike> written by <a href="https://lwn.net/Articles/851716/">Albert Calahan</a>. After Albert DoSed himself by forking 5 children, Debian downstream maintainer <a href="https://dropbear.xyz/software/">Craig Small</a> took over poor old neglected <a href="https://gitlab.com/procps-ng/procps">procps</a>.</p>
+<p>Negative pid killing seems to have worked fine until 2013. Then the trouble began.</p>
+<h3 id="bug-1-ubuntu-14-cant-kill-1"><a href="#bug-1-ubuntu-14-cant-kill-1">Bug 1: Ubuntu 14 Can't Kill -1</a></h3>
+<p>Ubuntu 14.04 LTS included procps 3.3.9. Prior to this, the <code>kill</code> code did what the BSDs do and used pointer arithmetic to walk and parse <code>argv</code>.</p>
+<p>Personally I'm fond of that approach. Stallman isn't so fond of it though. In GNU world, you're supposed to standardize command line parsing via <code>getopt</code>. This is probably a good idea in the general case, but as we'll see, it was probably the wrong choice in the specific case of <code>kill(1)</code>.</p>
+<p>Here's the relevant code after the conversion to <code>getopt</code>:</p><div><pre><code>opterr=0; /* suppress errors on -123 */
+while (loop == 1 &amp;&amp; (i = getopt_long(argc, argv, "l::Ls:hV", longopts, NULL)) != -1)
+  switch (i) {
+    /* ... */
+    case '?':
+      if (!isdigit(optopt)) {
+        xwarnx(_("invalid argument %c"), optopt);
+        kill_usage(stderr);
+      }
+      loop=0;
+      break;
+    /* ... */
+  }
+
+argc -= optind + sigopt;
+argv += optind;
+
+for (i = 0; i &lt; argc; i++) {
+  pid = strtol_or_err(argv[i], _("failed to parse argument"));
+  if (!kill((pid_t) pid, signo))
+    continue;
+  exitvalue = EXIT_FAILURE;
+  continue;
+}</code></pre></div>
+<p>The code worked fine for multidigit negative pids. However, if you were one of those <strike>freaks</strike> creative sysadmins who delighted in a <code>kill -HUP -1</code> now and again to restart all your services, you noticed a bug: nothing happened.</p>
+<p>The bug is due to <a href="https://www.matejka.ninja/software/argv.html#bundled-options">option bundling</a>.</p>
+<ol>
+<li>
+<p><strong>Multidigit case</strong>: With <code>kill -HUP -123</code>, <code>getopt</code> acts as if <code>-1</code>, <code>-2</code>, and <code>-3</code> were all separately passed. The unrecognized option case will be hit three times, and only at <code>-3</code> will the <code>-123</code> argument be consumed by incrementing <code>optind</code>. Because the code breaks out of the <code>getopt</code> loop early at <code>-1</code>, an unconsumed <code>-123</code> argument correctly makes it to the pid killer.</p>
+</li>
+<li>
+<p><strong>Single digit case</strong>: With <code>kill -HUP -1</code>, however, <code>getopt</code> has fully consumed that argument and incremented <code>optind</code> before we break out of the loop. The pid killer sees no arguments and nothing happens.</p>
+</li>
+</ol>
+<h3 id="bug-2-ubuntu-16-accidentally-kills-1"><a href="#bug-2-ubuntu-16-accidentally-kills-1">Bug 2: Ubuntu 16 Accidentally Kills -1</a></h3>
+<p>A cure was in order. Unfortunately it was worse than the disease.</p>
+<p>Ubuntu 16.04 LTS shipped with procps 3.3.10. The <code>kill -HUP -1</code> bug was fixed at the expense of multidigit negative pid kills: a <code>kill -TERM -12345</code> now killed everything.</p>
+<p>This is the same bug that caused the outage under Ubuntu 24. We reviewed this <a href="#the-bug">above</a>. The only mystery here is why procps circa Ubuntu 24 resurrected the known-buggy code circa Ubuntu 16. My best guess is that the following bugs were deemed even worse.</p>
+<h3 id="bug-3-ubuntu-18-segfaults-killing-1"><a href="#bug-3-ubuntu-18-segfaults-killing-1">Bug 3: Ubuntu 18 Segfaults Killing -1</a></h3>
+<p>Ubuntu 18.04 LTS shipped with procps 3.3.12.</p>
+<p>This attempted to fix multidigit negative pid killing. Instead of parsing <code>optopt</code>, which only corresponds to a single bundled character like <code>-1</code> when <code>-123</code> is passed, the new code stops and tries to parse the whole argument:</p><div><pre><code>opterr=0; /* suppress errors on -123 */
+while (loop == 1 &amp;&amp; (i = getopt_long(argc, argv, "l::Ls:hV", longopts, NULL)) != -1)
+  switch (i) {
+    /* ... */
+    case '?':
+      if (!isdigit(optopt)) {
+        xwarnx(_("invalid argument %c"), optopt);
+        kill_usage(stderr);
+      } else {
+        /* Special case for signal digit negative
+         * PIDs */
+        pid = atoi(argv[optind]);
+        if (kill((pid_t)pid, signo) != 0)
+        exitvalue = EXIT_FAILURE;
+        exit(exitvalue);
+      }
+      loop=0;
+      break;
+    /* ... */
+  }</code></pre></div>
+<p>This works correctly for multidigit negative pids. But if you passed a single digit negative pid, as in a <code>kill -TERM -1</code>, the pid argument was fully consumed, and <code>optind</code> would run off the end of <code>argv[]</code>. Segfault!</p>
+<h3 id="bug-4-ubuntu-22-kills-your-shell"><a href="#bug-4-ubuntu-22-kills-your-shell">Bug 4: Ubuntu 22 Kills Your Shell</a></h3>
+<p>Ubuntu 22.04 LTS shipped with procps 3.3.17.</p>
+<p>This fixed the segfault by ensuring <code>optind</code> never ran off the end of <code>argv[]</code>:</p><div><pre><code>opterr=0; /* suppress errors on -123 */
+while ((i = getopt_long(argc, argv, "l::Ls:hVq:", longopts, NULL)) != -1)
+  switch (i) {
+    /* ... */
+    case '?':
+      if (!isdigit(optopt)) {
+        xwarnx(_("invalid argument %c"), optopt);
+        kill_usage(stderr);
+      } else {
+        /* Special case for signal digit negative
+         * PIDs */
+        pid = atoi(argv[optind-1]);
+        if (kill((pid_t)pid, signo) != 0)
+        exitvalue = EXIT_FAILURE;
+        exit(exitvalue);
+      }
+      xerrx(EXIT_FAILURE, _("internal error"));
+    /* ... */
+  }</code></pre></div>
+<p>Once again, it seems the contributor didn't understood how <code>getopt</code> option bundling interacts with <code>optind</code>, and hopefully by this point you're developing some sympathy for them. With this patch a <code>kill -TERM -1</code> works correctly and no longer segfaults. But multidigit negative pid killing was broken for a second time, in a brand new way.</p>
+<p>Suppose we try to <code>kill -TERM -123</code>. Thanks to option bundling, <code>optind</code> isn't incremented yet when we hit the unrecognized option case. Per some <a href="#oh-were-halfway-there">quirky behavior noted below</a>, <code>argv[optind-1]</code> is now the string <code>kill</code>.</p>
+<p>How does <a href="https://man7.org/linux/man-pages/man3/atoi.3.html"><code>atoi(3)</code></a> handle a non-numeric string like <code>"kill"</code>? It returns <code>0</code>.</p>
+<p>And what does the <a href="https://man7.org/linux/man-pages/man2/kill.2.html">kill</a> system call do with zero?</p>
+<blockquote>
+<p>If pid equals 0, then sig is sent to every process in the process group of the calling process.</p>
+</blockquote>
+<p>Because it's a simple command, your shell won't isolate <code>kill -TERM -123</code> in a new process group. So this bug will unexpectedly kill your shell. Poof!</p>
+<h2 id="what-did-we-learn-palmer"><a href="#what-did-we-learn-palmer">What Did We Learn, Palmer?</a></h2>
+<p>There are several takeaways.</p>
+<h3 id="the-narrow-learning"><a href="#the-narrow-learning">The Narrow Learning</a></h3>
+<p>For one, the way <code>getopt</code> only advances <code>optind</code> with the final bundled option is deeply non-obvious. I didn't find evidence that any contributor understood this. I didn't understand it myself at first. That took careful study.</p>
+<p>It's a real surprise. Surprising behavior like this should be avoided.</p>
+<p>I feel this learning is too myopic though. Can one even avoid this surprising <code>getopt</code> behavior? You can't disable option bundling.</p>
+<h3 id="the-broader-learning"><a href="#the-broader-learning">The Broader Learning</a></h3>
+<p>Getopt Considered Harmful.</p>
+<p>Well okay, at least in this specific case. The <code>kill(1)</code> program is just an unusual beast. It accepts options that are actually signal names, like <code>-KILL</code>. You can also specify that same signal by number, like <code>-9</code>. And pgids are negative numbers that look deceptively like options.</p>
+<p>How should a command line like <code>kill -1 -9</code> be interpreted?</p>
+<ul>
+<li>Should it send SIGHUP to pgid 9?</li>
+<li>Should it send SIGKILL to pgid 1, aka everything?</li>
+<li>Should it send SIGTERM, the default signal, to pgids 1 and 9?</li>
+</ul>
+<p>All of these interpretations are potentially valid if any <code>argv</code> element can be an option or a pid.</p>
+<p>The solution is to instead parse <code>argv</code> positionally. Don't use <code>getopt</code> here. Abandon capabilities like option bundling and option reordering that are more footgun than feature in this context. The <a href="https://pubs.opengroup.org/onlinepubs/9699919799/utilities/kill.html">POSIX spec</a> says that only <code>argv[1]</code> can specify the signal to send, and arguments beyond that are pids and pgids. These are nice simplifying assumptions.</p>
+<p>I think the old-school Unix and BSD approach is the right one. Have a look at FreeBSD's <a href="https://github.com/freebsd/freebsd-src/blob/bd4975e5fb051c2b2e8d5218940b7e8ef87b5bdf/bin/kill/kill.c#L53-L136">kill.c</a>. Like ancestral Unix did back in the 70s, it parses <code>argv</code> positionally. The approach is simple and the code is simple. By contrast with Linux's <code>kill</code>, FreeBSD's <code>kill</code> has had no command line parsing bugs.</p>
+<p>I do regard <code>getopt</code> dogma as the real root cause of the outage.</p>
+<h3 id="oh-were-halfway-there"><a href="#oh-were-halfway-there">Oh, We're Halfway There</a></h3>
+<p>If abandoning <code>getopt</code> for "primitive" <code>argv</code> parsing still feels sinful, just look at what procps does before even calling <code>getopt_long</code>:</p><div><pre><code>if (argc &lt; 2)
+  print_usage(stderr);
+
+signo = skill_sig_option(&amp;argc, argv);
+if (signo &lt; 0)
+  signo = SIGTERM;
+
+opterr=0; /* suppress errors on -123 */
+while ((i = getopt_long(argc, argv, "l::Ls:hVq:", longopts, &amp;optindex)) != -1)
+/* ... */</code></pre></div>
+<p>What does <code>skill_sig_option</code> do?</p><div><pre><code>int skill_sig_option(int *argc, char **argv)
+{
+  int i;
+  int signo = -1;
+  for (i = 1; i &lt; *argc; i++) {
+    if (argv[i][0] == '-') {
+      signo = signal_name_to_number(argv[i] + 1);
+      if (-1 &lt; signo) {
+        memmove(argv + i, argv + i + 1,
+            sizeof(char *) * (*argc - i));
+        (*argc)--;
+        return signo;
+      }
+    }
+  }
+  return signo;
+}</code></pre></div>
+<p>It scans <code>argv</code> looking for the first signal spec. If it finds a <code>-KILL</code>, a <code>-9</code>, or similar, it modifies <code>argv</code> in place (!) so <code>getopt</code> doesn't have to deal with that.</p>
+<p>This is already "primitive" <code>argv</code> parsing! We're halfway there.</p>
+<h3 id="some-final-practical-advice"><a href="#some-final-practical-advice">Some Final Practical Advice</a></h3>
+<p>The previous takeaways were aimed at software developers. For users of <code>kill</code>, I'd recommend the following.</p>
+<p>First, use <code>--</code> to separate options from pids and pgids:</p><div><pre><code>kill -TERM -1490947     # no
+kill -TERM -- -1490947  # yes</code></pre></div>
+<p>The second form is parsed correctly even by the buggy procps versions listed above.</p>
+<p>Second, kill with least privilege. If I'd done a <code>sudo -u render kill</code> instead of a <code>sudo kill</code>, it would have only killed in-flight renders instead of all processes on the box. I feel a little insane recommending this kind of defensive tool usage — let's be clear, we're defending against bugs in <code>kill</code>, a small, mature, widely-used and very important tool — but here we are.</p>
+<p>Finally, the good news is that a <a href="https://lists.ubuntu.com/archives/ubuntu-sponsors/2026-September/088746.html">bugfix for Ubuntu 24</a> is already on its way at the time of publication. I still favor a simplifying rewrite of procps's <code>kill</code> though.</p>
+      <hr>
+    </article></div>
