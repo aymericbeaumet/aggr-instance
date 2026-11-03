@@ -1,0 +1,166 @@
+<div id="readability-page-1" class="page"><div><p>In brief, it’s this: whenever you are doing a bugfix, do it in two commits.</p>
+<ol>
+<li><strong>Write a passing test that exemplifies the buggy behaviour.</strong></li>
+<li><strong>Fix the bug and also fix the test we just wrote.</strong></li>
+</ol>
+<p>For example,</p>
+<pre><code data-language="python">def add(a, b):
+   return a + b + 1</code></pre>
+<p>and through your keen eye you observe that this addition function is buggy. You therefore write a test that records the bad behaviour,</p>
+<pre><code data-language="diff">Commit 1
+
+diff --git a/test_arith.py b/test_arith.py
+--- a/test_arith.py
++++ b/test_arith.py
+@@ -0,0 +1,2 @@
++def test_add(a, b):
++   assert add(2, 2) == 5</code></pre>
+<p>Then comes the bugfix,</p>
+<pre><code data-language="diff">Commit 2
+
+diff --git a/arith.py b/arith.py
+--- a/arith.py
++++ b/arith.py
+@@ -1,2 +1,2 @@
+ def add(a, b):
+-   return a + b + 1
++   return a + b
+diff --git a/test_arith.py b/test_arith.py
+--- a/test_arith.py
++++ b/test_arith.py
+@@ -1,2 +1,2 @@
+ def test_add(a, b):
+-   assert add(2, 2) == 5
++   assert add(2, 2) == 4</code></pre>
+<h2>BUT Y THO</h2>
+<p>Three reasons:</p>
+<ol>
+<li>Clearly shows exactly how the bug currently behaves</li>
+<li>Demonstrable proof that the bugfix actually fixed the bug</li>
+<li>CI still passes at every commit</li>
+</ol>
+<p>The traditional way to do this is to do a bugfix and add a test in the same commit. But what if the test accidentally already passed before the alleged bugfix and the alleged bugfix didn’t actually work? In that case the added test gives false confidence that the bugfix worked.</p>
+<h2>Alright, show me</h2>
+<p>Here’s a less obvious example.</p>
+<p>Suppose we want to make sure users are not underage,</p>
+<pre><code data-language="python">def age_in_years(birthday, today):
+    return today.year - birthday.year
+
+def can_access(birthday, today):
+    return 18 &lt;= age_in_years(
+        birthday,
+        today
+    )</code></pre>
+<p>You notice that this age check is buggy. It’s only considering the years. If it’s October 2026, but you were born on December 2008, you are not 18 yet.</p>
+<p>To fix it, the problem is just an off-by-one.</p>
+<pre><code data-language="diff">diff --git a/dates.py b/dates.py
+--- a/dates.py
++++ b/dates.py
+@@ -4,7 +4,7 @@ def age_in_years(birthday, today):
+     return today.year - birthday.year
+
+ def can_access(birthday, today):
+-    return 18 &lt;= age_in_years(
++    return 18 &lt; age_in_years(
+         birthday,
+         today
+     )
+diff --git a/test_date.py b/test_date.py
+--- a/test_date.py
++++ b/test_date.py
+@@ -0,0 +1,5 @@
++def test_can_access():
++   assert can_access(
++       date(2007, 1, 1),
++       date(2026, 1, 1)
++   )</code></pre>
+<p>The astute reader will observe the problem isn’t in the <code>can_access</code> function but in the age calculation. The bugfix isn’t an actual bugfix and the proposed test actually passes both before and after the proposed fix.</p>
+<p>The <em>Kluever Maneuver</em> would have prevented this. </p>
+<p>We wrongly check that someone born on New Year’s Eve in 2008 is eighteen on New Year’s Day in 2026.</p>
+<pre><code data-language="diff">commit 1
+
+diff --git a/test_date.py b/test_date.py
+--- a/test_date.py
++++ b/test_date.py
+@@ -0,0 +1,5 @@
++def test_can_access():
++   assert can_access(
++       date(2008, 12, 31),
++       date(2026, 1, 1)
++   )</code></pre>
+<p>Then we fix the age calculation and flip the test.</p>
+<pre><code data-language="diff">commit 2
+
+diff --git a/dates.py b/dates.py
+--- a/dates.py
++++ b/dates.py
+@@ -1,7 +1,10 @@
++from dateutil.relativedelta import relativedelta
+
+ def age_in_years(birthday, today):
+-    return today.year - birthday.year
++    return relativedelta(
++        today,
++        birthday
++    ).years
+
+ def can_access(birthday, today):
+     return 18 &lt;= age_in_years(
+diff --git a/test_date.py b/test_date.py
+--- a/test_date.py
++++ b/test_date.py
+@@ -1,5 +1,5 @@
+ def test_can_access():
+-   assert test_can_access(
++   assert not test_can_access(
+        date(2008, 12, 31),
+        date(2026, 1, 1)
+    )</code></pre>
+<h2>Shouldn’t we use <code>XFAIL</code> instead?</h2>
+<p>Okay, first of all, not every testing framework has an <code>XFAIL</code> equivalent (sigh, Java…).</p>
+<p>Setting that aside, a positive passing test isn’t completely logically equivalent to a positive failing test. Going back to our addition example, if we were to add this test,</p>
+<pre><code data-language="diff">Commit 1
+
+diff --git a/test_arith.py b/test_arith.py
+--- a/test_arith.py
++++ b/test_arith.py
+@@ -0,0 +1,2 @@
++@pytest.mark.xfail
++def test_add(a, b):
++   assert add(2, 2) == 4</code></pre>
+<p>This test only tells us that the current addition isn’t four, but it doesn’t tell us exactly what the addition is. Depending on the nature of the bug, a positive failing test might not exemplify as clearly what exactly the bug is. Knowing that two plus two is five might make it easier to understand how to fix the bug.</p>
+<p>That being said, using <code>XFAIL</code>  is in general roughly equivalent. If for some reason we can’t currently fix the bug right now, only record it, an <code>XFAIL</code> is better, since we expect we’ll be carrying this around for a longer time.</p>
+<h2>What about bug tracking?</h2>
+<p>Ah, yes, it’s also a good idea to log a bug in your tracker.</p>
+<p>Reference the bug in your first commit.</p>
+<pre><code data-language="diff">add a test showing the bug
+
+diff --git a/test_arith.py b/test_arith.py
+--- a/test_arith.py
++++ b/test_arith.py
+@@ -0,0 +1,2 @@
++FIXME: bug #1729
++def test_add(a, b):
++   assert add(2, 2) == 5</code></pre>
+<p>Record the fix in the second commit:</p>
+<pre><code data-language="diff">remove off-by-one error
+
+fixes: #1729
+
+diff --git a/arith.py b/arith.py
+--- a/arith.py
++++ b/arith.py
+@@ -1,2 +1,2 @@
+ def add(a, b):
+-   return a + b + 1
++   return a + b
+diff --git a/test_arith.py b/test_arith.py
+--- a/test_arith.py
++++ b/test_arith.py
+@@ -1,2 +1,2 @@
+-FIXME: bug #1729
+ def test_add(a, b):
+-   assert add(2, 2) == 5
++   assert add(2, 2) == 4</code></pre>
+<h2>Okay but why “Kluever Maneuver”?</h2>
+<p>Oh. Because my colleague <a href="https://github.com/kluever">Kurt Kluever</a> taught it to me, and I immediately think back to him when I think of this technique. He usualy calls it “terrible tests”, as in “Jordi, can you please write a terrible test for this?” and off I go to write a test asserting something I know to be wrong.</p></div></div>
