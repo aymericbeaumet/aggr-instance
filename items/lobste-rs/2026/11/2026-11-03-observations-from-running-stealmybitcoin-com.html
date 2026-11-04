@@ -1,0 +1,153 @@
+<div id="readability-page-1" class="page"><div>
+      
+      <details>
+        <summary>Table of Contents</summary>
+        <nav id="TableOfContents">
+  <ul>
+    <li><a href="#the-question">The Question</a></li>
+    <li><a href="#the-results">The Results</a></li>
+    <li><a href="#the-experiment">The Experiment</a></li>
+    <li><a href="#timeline">Timeline</a></li>
+    <li><a href="#difficulties-along-the-way">Difficulties Along the Way</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+  </ul>
+</nav>
+      </details>
+      
+      <p>Last week, I saw an article on the front page of the New York Times <a href="https://www.nytimes.com/2026/10/21/us/politics/php-vulnerability-ai-openai-cybersecurity.html" target="_blank" rel="noopener">website</a> reporting that a critical vulnerability in PHP had been found. The article, and <a href="https://www.theguardian.com/technology/2026/oct/22/websites-across-world-hit-by-millions-of-attempts-to-exploit-php-code-flaw" target="_blank" rel="noopener">others</a> <a href="https://www.cbsnews.com/news/php2shell-vulnerability-ai-security-flaw/" target="_blank" rel="noopener">like</a> <a href="https://apnews.com/article/php-vulnerabilities-security-threat-38d37c4c18bf8355b02d85b5a73ed642" target="_blank" rel="noopener">it</a>, claimed any attacker could achieve arbitrary remote code execution on any of the millions of running PHP services worldwide simply by sending a few unauthenticated web requests that exploited the PHP2Shell vulnerability.</p>
+<p>My office Slack was buzzing, as were several of my Signal chats with colleagues and friends across the security community.</p>
+<p>Rumors swirled about how in-the-wild exploitation caused one tech company to break embargo and leak news of the vulnerability hours before the rest of the community could coordinate disclosure. That hackers were <em>already</em> hacking websites, in the wild, with this exploit and that every hour mattered to get the patches rolled out across 70% of the internet.</p>
+<h2 id="the-question">The Question</h2>
+<p>Was PHP2Shell the hallmark of a new era whereby uplifted randos could hack any website with a few well-crafted prompts to an AI model?</p>
+<p>I looked out my window, expecting perhaps to see the dull apocalyptic glow of fires on the horizon as society collapsed in real time. Nothing.</p>
+<p>While online articles and tweets made the rounds about the eleven alarm cyberapocalypse upon us, I struggled to find any reference to a specific website that had been hacked.</p>
+<p>Over the following days, a few iconoclasts had pointed out that the vulnerability was rather fiddly in practice (<a href="https://eliastaylor.com/noexploit/" target="_blank" rel="noopener">Elias Taylor</a>; <a href="https://blog.luitjes.it/posts/i-want-my-wednesday-back/" target="_blank" rel="noopener">Lucas Luitjes</a>) and that hacker groups, while initially quite excited by the exploit’s potential, had started to view it as impractical or difficult (<a href="https://www.kelacyber.com/blog/php2shell-underground-response/" target="_blank" rel="noopener">KELA</a>).</p>
+<p>Yet at the same time, the national and international press continued to cover a herculean emergency effort to hunt down and patch PHP-based websites across the internet.</p>
+<p>Rather than wait around and wonder, I decided to try to figure things out for myself. I had two fundamental questions:</p>
+<ol>
+<li>Was PHP2Shell actually exploitable outside of a lab environment?</li>
+<li>Would relatively unskilled attackers with access to AI and the PHP source code be able to exploit this class of vulnerability?</li>
+</ol>
+<h2 id="the-results">The Results</h2>
+<p>Directly, the answers to the questions are:</p>
+<h3 id="1-was-php2shell-actually-exploitable-outside-of-a-lab-environment">1) Was PHP2Shell actually exploitable outside of a lab environment?</h3>
+<p><strong>Yes.</strong> Absolutely. The challenge winner, who has posted a <a href="https://github.com/KillaBoi/StealMyBitcoin-PoC" target="_blank" rel="noopener">writeup</a>, exploited my server directly over an open internet connection and did so using the PHP2Shell vulnerability (e.g. he did not exploit some other vulnerability in my setup). He did this through a specially crafted exploit which targeted the specific configuration of my PHP installation and the ways in which it was set up on the server.</p>
+<h3 id="2-would-relatively-unskilled-attackers-with-access-to-ai-and-the-php-source-code-be-able-to-exploit-this-class-of-vulnerability">2) Would relatively unskilled attackers with access to AI and the PHP source code be able to exploit this class of vulnerability?</h3>
+<p><strong>Not yet.</strong> Of tens of thousands of people who attempted the exploit - including in a 9 hour period when the challenge was active after the first successful solve (more on that below…) - only two managed to trigger the <code>print-flag</code> binary and only one, the winner of the challenge, managed to do so in such a way as to extract useful content from the application.</p>
+<h2 id="the-experiment">The Experiment</h2>
+<p>The core idea was pretty simple. I’d rent a cheap VPS for a few weeks, slap a PHP website on it along with the key to a bitcoin wallet, and then wait and see if anyone managed to drain the wallet. Miraculously, the domain name “stealmybitcoin.com” was available, so I took this as a sign from the fates themselves that this experiment had the mandate of heaven.</p>
+<p>I slapped $500 of bitcoin into a clean wallet, rented a $2.50/month Debian VPS from a web hosting provider, and told Codex to make me a basic webpage and stick it on the internet with PHP. I configured the server such that a single executable binary <code>print-flag</code> had permissions to read a <code>flag</code> file containing the WIF, took down my firewall, and posted the link to Hacker News to see if anyone would give the challenge a shot.</p>
+<figure>
+  <div>
+    <p><img alt="Screenshot of the challenge landing page" srcset="https://pavursec.com/blog/stealmybitcoin/               /blog/stealmybitcoin/challenge-landing-page_hu7c355689413d8c2ac11ec25fb3ef8e8b_520195_45574f297f8bdb2334fbcf9ee809dc52.webp 400w,
+               /blog/stealmybitcoin/challenge-landing-page_hu7c355689413d8c2ac11ec25fb3ef8e8b_520195_d3443adb0cb55e1f33128d0ae96fa7e4.webp 760w,
+               /blog/stealmybitcoin/challenge-landing-page_hu7c355689413d8c2ac11ec25fb3ef8e8b_520195_1200x1200_fit_q75_h2_lanczos_3.webp 1200w" src="https://pavursec.com/blog/stealmybitcoin/challenge-landing-page_hu7c355689413d8c2ac11ec25fb3ef8e8b_520195_45574f297f8bdb2334fbcf9ee809dc52.webp" width="760" height="438" loading="lazy" data-zoomable=""></p>
+  </div></figure>
+
+<p>Things got a little crazy from there. Within the first hour of posting, the link had climbed to the front page of Hacker News (where it stayed for essentially an entire day) and my $2.50/month VPS was under so much load I couldn’t maintain an SSH session.</p>
+<p>I eventually scaled my VPS up from 1 vCPU, 500 MB RAM and 10GB of disk space all the way to 2 vCPU, 4096 MB RAM, and 80 GB of SSD. Over the course of the challenge my VPS host temporarily took my site down once because they suspected it was subject to a Distributed Denial of Service attack and once because “we have determined your CPU resource utilization profile is excessive.”</p>
+<p>Additionally, due to the nature of the exploit, people were pretty continuously taking down individual PHP workers from high request load, partially successful memory exploitation attempts, and general shenanigans.</p>
+<p>Eventually I managed to get things into a relatively steady state (e.g. most people could connect to the website most of the time), with regular resets and health checks standing in for true high-availability hosting. Once the link dropped off the front page of Hacker News, traffic quieted down quite a bit as well.</p>
+<h3 id="some-stats">Some Stats</h3>
+<p>Due to flaky monitoring, it’s hard to get representative statistics regarding visitor count and traffic patterns. I had set up some pretty reliable logging so I could know if/when the <code>print-flag</code> binary was called and some best-effort logging of web request headers and payloads so I could hopefully understand what happened around that time; for the first few hours of virality, I was blowing through my logrotate configuration (for ~80MB of storage) roughly every 4 minutes thanks to the attention on the site.</p>
+<p>As a result, logs of certain PHP crashes and activity around the <code>print-flag</code> file were essentially complete over the duration of the challenge. Broader web request logging only covered 600-ish of the challenge’s 1,600-ish minute duration.</p>
+<p>During the 10 hours when I had reliable web request logging:</p>
+<ul>
+<li>Around <strong>20,000</strong> unique IP addresses engaged with the challenge in some substantive way (rather than just visiting the home page).</li>
+<li>Around <strong>120,000</strong> distinct source IPs visited the site.</li>
+<li>The server recieved more than <strong>13 million</strong> HTTP requests.</li>
+<li>At peak load, the server received over <strong>18,000</strong> requests a minute.</li>
+</ul>
+<p>There’s no statistically credible way to extrapolate over the missing netflow data, but I can confidently say that tens of thousands of players attempted to steal my bitcoin.</p>
+<p>I had much more reliable logs of PHP server errors and <code>print-flag</code> executions since they were not rotated under heavy load and were relatively low volume. In these logs, over 26-ish hours, I observed:</p>
+<ul>
+<li>Approximately <em>2,075</em> distinct PHP <code>SIGSEGV </code>events. While these could be caused by other bugs in PHP, they are not something you’d typically expect to see and may roughly correlate with attempts that were closer to triggering the exploit.</li>
+<li>Only <em>two</em> IPs managed to trigger the <code>print-flag</code> executable and only <em>one</em> person did so in such a way that data was exfiltrated successfully from the server.</li>
+</ul>
+<h2 id="timeline">Timeline</h2>
+<table>
+<thead>
+<tr>
+<th>Date and time UTC</th>
+<th>Event</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Oct. 24, 20:30</td>
+<td>Challenge timer starts.</td>
+</tr>
+<tr>
+<td>Oct. 24, 20:30</td>
+<td>I publish “Show HN: Steal My Bitcoin” (<a href="https://news.ycombinator.com/item?id=50224916%29" target="_blank" rel="noopener">https://news.ycombinator.com/item?id=50224916)</a>.</td>
+</tr>
+<tr>
+<td>Oct. 25, 01:14</td>
+<td>First recorded PHP SIGSEGV after the challenge timer started. Note: it predates <code>php-version.php</code>, seven subsequent PHP SIGSEGVs occurred on this first version of the challenge.</td>
+</tr>
+<tr>
+<td>Oct. 25, 12:59</td>
+<td>I add <code>php-version.php</code>, which returns the PHP version and UTC time.</td>
+</tr>
+<tr>
+<td>Oct. 25, 15:44</td>
+<td>I add <code>ping.php</code>, a small POST endpoint that returns pong for message=ping.</td>
+</tr>
+<tr>
+<td>Oct. 25, 15:47</td>
+<td>A PHP process successfully runs <code>print-flag</code>. This execution is associated with the eventual winner. The <code>ping.php</code> page was not utilized in the exploit chain.</td>
+</tr>
+<tr>
+<td>Oct. 25, 20:32</td>
+<td>I receive an email from the winner asking if I had the incorrect bitcoin wallet address for the key on the server. The winner provides the exact flag, timestamp, IP address, and payload associated with the 15:47 event listed above along with a writeup describing the winning exploit.</td>
+</tr>
+<tr>
+<td>Oct. 25, 21:06</td>
+<td>I review the winner’s claims against the server logs and validate that the flag is an exact match for the flag on the server and matches the web traffic logs surrounding the successful execution.</td>
+</tr>
+<tr>
+<td>Oct. 25, 22:38</td>
+<td>I post the solve announcement on Hacker News (<a href="https://news.ycombinator.com/item?id=50236736%29" target="_blank" rel="noopener">https://news.ycombinator.com/item?id=50236736)</a>.</td>
+</tr>
+<tr>
+<td>Oct. 25, ~22:59</td>
+<td>I review the winner’s final writeup and transfer the wallet contents directly.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="difficulties-along-the-way">Difficulties Along the Way</h2>
+<p>My original expectation is that this would be a low traffic honeypot. A few people would poke at it on Hacker News and then it would eventually get snagged by some botnet/scanner/automated exploitation tool that would steal my bitcoin. I’d write a little blog post about the logs from the hour or so around the exploit and then move on.</p>
+<p>I didn’t remotely expect it to go viral in the way that it did. The virality was nice - it brought a lot of eyes on the challenge, got me a quick answer to my research question, and some people even chipped in and increased the size of the bitcoin prize wallet.</p>
+<p>The virality was also rough in that suddenly many <em>actual</em> PHP security experts (and many non-experts too) had <em>opinions</em> about me, my motivations, and my web administration skills!</p>
+<h3 id="what-should-the-backend-do">What should the backend do?</h3>
+<p>The first critique was that the server was unexploitable. Some claimed that it was literally just an nginx page (e.g. no PHP at all), while others claimed that the specific configuration of the server made it impossible to exploit.</p>
+<p>I’m still not 100% sure how correct these claims were, as some people were causing SIGSEGVs to throw on the original version of the challenge.</p>
+<p>However, I did make several modifications to the website that I felt were fair adjustments to increase the feasibility of the challenge without just deliberately making the server vulnerable.</p>
+<p>First, I added a <code>php-version.php</code> page, which was served alongside the already PHP-hosted <code>index.html</code> page, in case the active participation of the PHP interpreter was necessary for the exploit. While some of the early reporting on PHP2Shell suggested this maybe wasn’t a strict requirement of exploitation (e.g. <a href="https://www.wiz.io/blog/php2shell-php-rce" target="_blank" rel="noopener">https://www.wiz.io/blog/php2shell-php-rce</a> : “Exploitation does not depend on a flaw in the application’s code: even a simple “Hello World” application running on an affected PHP version can be vulnerable.”), it seems plausible to me that the part of the PHP SAPI server that serves <code>.html</code> files could be immune to these tasks.</p>
+<p>I also added a <code>ping.php</code> page that responds with the word <code>pong</code> whenever someone POSTS the value <code>ping</code> to the server. This very simple application was added in case exploitation required PHP to dynamically react to user-supplied input. To me these two requirements (reacts to user-supplied input, runs .php pages) are pretty universal across real-world applications, so adding support for these code paths did not undermine the spirit of the challenge.</p>
+<p>There was some other feedback, which I largely ignored, requesting specific variants of the PHP applications, or modifications to the (very basic) nginx proxy configuration I put in front of the website to help with routing, challenge isolation, and logging. It’s possible that if I made further modifications in this vein, more people would’ve been able to solve the challenge. There is no specific evidence to prove that this would be the case.</p>
+<h3 id="whats-a-bitcoin-key-anyways">What’s a bitcoin key anyways?</h3>
+<p>The second major hosting issue I had is more easily expressed by a video. This is how I exported the WIF private key for my bitcoin wallet that I used in the challenge (Note: the wallet shown here is a different empty wallet. Please don’t use this key since I’ve recorded a video of it online!):</p>
+<video controls="" autoplay="" muted="" loop="" playsinline="" preload="metadata" poster="https://pavursec.com/blog/stealmybitcoin/challenge-landing-page.png">
+  <source src="https://pavursec.com/blog/stealmybitcoin/wallet-video-smbc.mp4" type="video/mp4">
+  Your browser does not support embedded video. <a href="https://pavursec.com/blog/stealmybitcoin/wallet-video-smbc.mp4">Download the video</a>.
+</video>
+<p>I thought I was putting the key to the wallet in the challenge based on this flow. Turns out I wasn’t. The WIF I exported turned out to be a parent key in a derivation path for the wallet address holding the bitcoin. I’m still not entirely sure which combination of credentials I <em>should’ve</em> provided to make the bitcoin stealable. If I run future challenges of this nature, I’ll probably make the flag the full wallet recovery key instead of any individual private key.</p>
+<p>So the winner got the real bitcoin key from the server, but couldn’t use it to move any of the money in the branch wallet derived from that parent key.</p>
+<p>Luckily, they reached out over email and provided exceptionally detailed proof including: the full text of the wallet key on the server, its hash, the exact timestamp when they exploited the server, the exact IP address they used to exploit the server, the exact payload they used to exploit the server, AI chat turns from when they developed the exploit, and a full writeup of the exploit they used.</p>
+<p>With this information I was able to pull up the full trace in my logs, match down to the second the exploitation time with my logs on the <code>print-flag</code> binary and confirm that they did in fact know the full value of the <code>flag</code> file on the server.</p>
+<p>Congrats to the winner for not only solving the challenge, but also solving the secret hidden challenge of keeping excellent exploit logs!</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>So what did I learn from this experience?</p>
+<p>I launched the website out of a degree of skepticism around the breathless reporting of a serious PHP CVE despite a dearth of real-world victims of this attack.</p>
+<p>To be honest, I think that was a <strong>bad take</strong> on my part. PHP2Shell is the real deal. It’s an exploitable vulnerability and a sufficiently motivated adversary, with the help of AI, can absolutely use it to hack a website even when they do not have direct access to memory addresses or the physical server to tailor their exploitation pathway.</p>
+<p>If you are running a PHP-based website today, you should absolutely patch PHP2Shell.</p>
+<p>I fully expect over the coming months we will see more and more working general purpose exploit chains for PHP2Shell.</p>
+<p>If you operate a service that is sufficiently valuable or public enough to warrant specialized attention, my experience with stealmybitcoin.com makes me believe it is a matter of when, not if, someone could target a working PHP2Shell exploit specifically to your system configuration.</p>
+<p>On the flip side, I believe stealmybitcoin.com tells us a lot about the current state of AI-assisted cyber exploitation. Out of tens of thousands of people attempting to hack a website with a publicly known (and exploitable!) CVE on it, only two managed to get close to triggering the vulnerability.</p>
+<p>While some of the server-side changes I made to make exploitation easier may have had an impact (e.g. the winner solved the challenge about 3 hours after I added <code>php-version.php</code> to the server), many thousands of hackers were unable to trigger the flag binary over the 9-ish hours between the winner’s successful solve and the time when I took the challenge offline.</p>
+<p>It’s pretty clear that we aren’t at a time, yet, where an inexpert attacker can take a top LLM + a <em>difficult</em> CVE (like PHP2Shell was) and turn it into a reliable cyber-attack tool.</p>
+<p>It does seem that we’re drawing closer to that point every day though. I don’t think there’s any good way to stuff this cat back into the bag, but I do hope that hard work over the coming months across the open source and systems security ecosystem will make it so that hard exploits remain hard.</p>
+<p>As someone who has spent a good chunk of my career doing offensive security research, PHP2Shell seems like another example of why enabling good people to find bugs quickly and publicly, so that everyone can get a jump on patching them, is as important as it has ever been.</p>
+
+    </div></div>
