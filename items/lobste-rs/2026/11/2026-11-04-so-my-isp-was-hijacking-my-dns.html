@@ -1,0 +1,33 @@
+<div id="readability-page-1" class="page"><div>
+<p>It was just a boring Saturday afternoon, and I thought I'd fix some of the problems with my homelab. One of those problems was that an external site my Podman container was trying to talk to just wasn't working.</p>
+<p>I kept getting "Site cannot be reached" almost immediately. This made me suspect something was wrong with my DNS setup, so I started doing a <code>dig</code> on the domain. I tried different providers, Google DNS, Cloudflare, pretty much everyone. Almost all of them returned the same IP address. But as soon as I tried Cloudflare's DoH endpoint, I got a completely different IP address.</p>
+<p>"Huh?" was my exact reaction.</p>
+<p>I took the IP I got from the first DNS resolution and tried to look up who owned it. Lo and behold, it was my goddamn ISP. That's when I realised my ISP was hijacking my DNS queries and returning a tampered IP address.</p>
+<p><img src="https://www.karthihegde.dev/posts/assets/dns/plaintext_dns.png" alt="A plaintext DNS query returning my ISP's IP address" loading="lazy">
+  <img src="https://www.karthihegde.dev/posts/assets/dns/encrypted_dns.png" alt="The same query over Cloudflare's DoH endpoint returning the real IP address" loading="lazy">
+  <img src="https://www.karthihegde.dev/posts/assets/dns/ip_info.png" alt="IP ownership lookup showing the tampered address belongs to my ISP" loading="lazy"></p>
+<p>Well, the obvious answer was DoT (DNS over TLS) or DoH (DNS over HTTPS). <a href="https://x.com/karthihegde/status/2116533888025874611">I made a tweet about this, and it somehow blew up</a>.</p>
+<p>But going through the replies, I noticed quite a few misconceptions and questions that I couldn't answer one by one.</p>
+<p>So I figured I'd use this article to address some of those questions and clear up a few misconceptions along the way.</p>
+<h2>I self host Unbound I am safe</h2>
+<p>For those of you who don't know, Unbound is basically a DNS resolver, kind of like what Cloudflare runs at <code>1.1.1.1</code>. The difference is, you can run it locally. It works by querying DNS servers to figure out the IP address for a domain, starting at the root nameservers and eventually making its way to the domain's authoritative nameserver.</p>
+<p>Now here's the catch. DNS resolution doesn't happen over a single connection. Your resolver might have to talk to multiple nameservers to figure out an IP address, and these queries are traditionally sent over plaintext DNS, usually UDP. Which means, you guessed it, your ISP can snoop on or even tamper with your DNS traffic.</p>
+<p>But you can also configure a <a href="https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html#forward-zone-options">forward-zone</a> in Unbound. Instead of resolving DNS queries itself, Unbound can forward them to another DNS resolver. And if that resolver supports DoT, the connection to it is encrypted, which means your ISP can't casually snoop on or tamper with your DNS queries in transit.</p>
+<h2>Just use DNSSEC</h2>
+<p>It's understandable why someone would assume DNSSEC is what protects them here. I mean, it has DNS and Security right in the name. And in a way, it does, but it works through verification, not encryption.</p>
+<p>You see, DNSSEC doesn't encrypt your DNS traffic before sending it to a resolver. It uses cryptographic signatures to verify that the DNS data is authentic and hasn't been tampered with. But the problem here remains the same: your DNS traffic is still unencrypted in transit. Which means, your ISP can still snoop on it or mess with the responses.</p>
+<p>And for DNSSEC validation to work, the domain you're querying needs to have DNSSEC properly configured, with valid signatures and a chain of trust. And here's another problem: <a href="https://defaults.exposed/methodology/dnssec">according to the October 2026 Defaults.Exposed census</a>, only 7.03% of graded domains have a valid, fully validating DNSSEC chain.</p>
+<p>If a tampered response fails DNSSEC validation, your resolver will return SERVFAIL instead of handing you that bogus IP address.</p>
+<h2>DoH and DoT are not Tamper free</h2>
+<p>And yes, this is true. DoT and DoH rely on you trusting the DNS resolver you're sending your queries to. They encrypt the connection, so your ISP can't casually snoop on or tamper with your DNS traffic in transit. But that doesn't mean the resolver itself can't mess with your responses. You're still putting your trust in whoever runs that DNS server.</p>
+<h2>Your ISP can snoop on the sites regardless</h2>
+<p>Indeed. Although your regular internet traffic is encrypted with TLS, your ISP can see the hostname during the TLS handshake (SNI). They can also figure out which site you're visiting just from the destination IP sometimes.</p>
+<p>Unless, of course, you tunnel your traffic through a VPN. I use Mullvad through Tailscale's exit node feature.</p>
+<p>Of course, this just shifts some of the trust to your VPN provider. But that's a story for another day.</p>
+<h2>So what does my setup look like?</h2>
+<p>I've been using Pi-hole/AdGuard for over 3 years now. That's actually what got me into self-hosting in the first place.</p>
+<p>But there's another reason I don't route every single container through my local DNS server. When I'm updating containers, if something goes wrong and my DNS server goes down, I don't want that to take down DNS resolution for other containers that depend on it. So for some containers, I wanted an external DNS resolver as a fallback.</p>
+<p>Right now, I use AdGuard for my DNS, with <code>dnscrypt-proxy</code> handling the upstream DNS queries over DNSCrypt, so my DNS traffic is encrypted in transit. For containers where I really can't afford DNS failures, I also have Cloudflare configured as a fallback. My local AdGuard is still the primary DNS for them, though.</p>
+<p>I also run NixOS on my servers, and my <a href="https://github.com/dracarys18/dotfiles">dotfiles</a> are open source if you're interested</p>
+
+    </div></div>
