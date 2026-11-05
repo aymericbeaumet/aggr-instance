@@ -1,0 +1,212 @@
+---
+title: Have I befriended a murderer?
+link: https://longreads.com/2026/11/03/murder-friendship-doubt/
+source: hnrss-org
+published: 2026-11-04T18:40:54Z
+updated: 2026-11-04T18:40:54Z
+first_seen: 2026-11-05T02:15:24.192048012Z
+authors:
+- gmays
+labels:
+- diana garbutt
+- edward abel smith
+- england
+- longreads
+- marriage
+- murder
+- post office
+- relationships
+- robin garbutt
+- true crime
+- yorkshire
+content: extracted
+html: 2026-11-04-have-i-befriended-a-murderer.html
+remote_preview:
+  url: https://i0.wp.com/longreads.com/wp-content/uploads/2026/10/Red-Tinted-Image-Edit.png?fit=2400%2C1400&ssl=1
+---
+
+For five years, I’ve investigated a man convicted of bludgeoning his wife to death. Somewhere along the way, the line between journalism and friendship blurred.
+
+![](https://i0.wp.com/longreads.com/wp-content/uploads/2024/12/longreads-logo-sm-rgb.png?w=512&ssl=1)
+
+## Thoughtful stories for thoughtless times.
+
+Longreads has published hundreds of original stories—personal essays, reported features, reading lists, and more—and more than 14,000 editor’s picks. **And they’re all funded by readers like you.** Become a member today.
+
+*[Edward Abel Smith](https://www.edwardabelsmith.com/)* *| Longreads | November 3, 2026 | 5,962 words (21 minutes)*
+
+On a sunny Saturday morning earlier this year, I was driving my two daughters to the playground through patchy phone signal when a voicemail notification appeared. Pressing play impatiently, an upbeat voice with a north of England accent bellowed through the car’s loudspeaker: “Hi Ed. I’ve just been flicking through *The Times*, and I’ve seen you’ve been chosen as their book of the week. Bloody well done, my friend! I am super proud.”
+
+I was stunned. My book, *A Hateful Decision*, about Churchill’s attack on the French navy during the Second World War, had just been published. Being named *The Times* Book of the Week was, without question, the highlight of my writing career. But the way this news was delivered felt profoundly weird. The man who had congratulated me—referring to me as his “friend” with such sincerity—was Robin Garbutt, and he’d called from Wealstun Prison, where he was, and still is, serving a life sentence for the murder of his wife, Diana. She was killed in her bed, beaten so brutally that her face was barely recognizable by the time the police got there.
+
+* * *
+
+In 2021, I was researching a possible sequel to my first book, a biography of Ian Fleming, the creator of James Bond. While at the National Archives in West London, partly through a filing error and partly through my own boredom, I found myself looking at recent criminal case files rather than the wartime naval intelligence records I had come for. One caught my eye immediately: Diana Garbutt, a woman murdered in the flat above the post office she ran with her husband Robin in the North Yorkshire village of Melsonby.
+
+The only available document for her murder was the judge’s summing up, and it was damning. Robin had called the emergency services on the morning of March 23, 2010, saying their post office had been robbed at gunpoint. After the perpetrators left, he claimed he had run upstairs to find Diana dead. But no one in the village had seen any evidence of the robbery, even though it was a busy morning. The paramedics who first attended Diana noted that she had rigor mortis—a sign she had died many hours before Robin claimed the robbery took place. It appeared Robin had invented the robbery to cover his own murderous tracks. The descriptions of the wounds she had sustained in her final moments of life were horrific. As I read on, I felt nothing but contempt for her husband. The judge made it clear to the jury that he believed Robin to be a killer. Ten of the 12 jurors agreed, and Robin was found guilty by a majority verdict.
+
+When I got home from the archives, I looked up the case online, curious to know what had become of Robin. There was a strange sense of relief to learn he was still behind bars. But as I scanned through the search results, something made me double-take: a website dedicated to Robin Garbutt. What kind of convicted murderer has his own website? It turned out his family had set one up, maintaining throughout that he was innocent of killing his wife. I was, of course, skeptical; a lot of people in prison claim they should never have been convicted. But what struck me about Robin’s website was the list of supporters: family, childhood friends, and a remarkable number of Melsonby residents, a village of fewer than 800 people.
+
+* * *
+
+Getting in touch with Robin was surprisingly straightforward. The “contact us” section of his website directed me to his friend Jane Metcalfe—a proud woman from the same part of the country as Robin, and someone who would rather use ten words when one would suffice. She was desperate for more media attention for the case. A new author was hardly what she had in mind, but she graciously stuck with me, suggesting I write to Robin directly. We started to exchange letters through a system called eMates. I would type a letter to Robin, which would be printed and delivered to his cell. For an extra 26 pence, I could include a response sheet, on which he would write a reply by hand.
+
+Over the next six months of writing to each other, Robin would instruct Jane to send me documents from his case. I started to build up my own archive of police reports, trial transcripts, and witness statements, all arriving in hard copy through the post. Thanks to years of reading and watching fictional detectives like Sherlock Holmes and Miss Marple, a surprising amount of the prosecution documents made sense to me. But there was one element I still couldn’t understand: What type of person could murder their wife in such a merciless way? For someone painted as so gentle by those who knew him, it just did not add up. Perhaps he was a psychopath? That possibility scared me the most. At the same time, I was desperate to find out more—to the point I thought I might scrap Ian Fleming and write a book about the murder instead.
+
+When I broached the topic with Robin in one of my many letters to him, he suggested we should meet. I jumped at the chance, due to curiosity as much as anything else. As far as I was aware, I had never met a convicted murderer. I had certainly never set foot in a prison. As a director in a large corporation, it was a far cry from the air-conditioned London offices I was used to.
+
+> But there was one element I still couldn’t understand: What type of person could murder their wife in such a merciless way?
+
+Jane was instrumental in the coordination, kindly collecting me from York Station, where she brushed aside my outstretched hand in favor of a warm bear hug. The half-hour drive to Wealstun Prison was conducted at such speed I was no longer frightened by the prospect of entering a high-security prison so much as making it there in one piece. Jane did not look at the road nearly as much as I would have liked, either, but in fairness maybe she did not need to—she had made this journey so many times before. Her red Ford Fiesta told its own story: a flyer tucked in the windscreen declaring Robin’s conviction the country’s worst miscarriage of justice, the back seat buried under the paperwork of his various appeals. By the time we pulled up outside the prison, I had been given the full case for Robin’s innocence at considerable volume. Then Jane drove off and left me alone in front of a great fence that seemed to swallow the sky.
+
+Visiting a prison for the first time is not unlike catching a flight. There are the same queues, the same searches, the same surrendering of your belongings, the same slow procession through a series of checkpoints, each one deeper into the complex than the last. Eventually, I was shown into the visiting room—a vast, gymnasium-sized space of plastic chairs and laminate tables, with a small canteen in one corner and a children’s play area in the other. I bought two cheese toasties and two coffees and sat down to wait.
+
+When Robin walked in, my first thought was how little he matched what I had expected. He was tall and trim, calm in a way that seemed entirely unperformed. The man who had been photographed entering court looking gaunt and hollow-eyed had filled out; more than a decade of prison routine seemed, paradoxically, to have done him good.
+
+He sat down, thanked me for the sandwich and drink, let me flounder through some small talk about the weather, and then, with the patience of someone who has had a great deal of practice at waiting, he broke in gently. “If you write a book about me,”  he said, “it’s important that you feel you can ask me anything, even if it might seem really insensitive. You need to make up your own mind about who you think killed Diana. I’ll tell you the facts. Anything you want to know, I will tell you. But I won’t try to persuade you either way.”
+
+It was a disarming thing to say. I noticed, as he spoke, that he twisted the wedding ring on his finger—slowly, almost unconsciously, as though it were a habit he was no longer aware of.
+
+I liked Robin immediately. He was warm, he put me at ease, and there was a tiredness about him—heavy bags under his eyes, a particular quality of sadness—that felt, even then, at odds with the version of him the prosecution had described. But underneath the warmth of the visit was a thought I couldn’t quite shake: that this was precisely how a guilty man would want to come across. There was an uneasy feeling that I was being played. I wrote in my notebook on the train back to London, “Can I imagine R standing over his wife’s bed with a metal pole, brutally beating her to death while she slept?”
+
+* * *
+
+After my first visit, Robin began calling me. Usually once a week, at lunchtime, when he and his fellow inmates were locked in their cells, a quiet hour that became, for both of us, a kind of fixed point in the week.
+
+He had only been at Wealstun for a few months when we first made contact. Before that, he had spent over a decade at HMP Frankland, one of Britain’s highest-security prisons, nicknamed “Monster Mansion.” Wealstun brought an important change: a telephone in his cell, rather than a queue for the communal phones. For Robin, it meant a small measure of privacy. For me, it meant he could call any day. If I missed a call, he couldn’t try again for another hour, and I had no way of calling him back. So whenever his number appeared on my screen, I stopped whatever I was doing and answered. I found myself ducking into storerooms, or stepping out of meetings with a vague excuse, or pressing the phone to my ear in empty corridors while colleagues walked past, entirely unaware of who I was talking to.
+
+> I noticed, as he spoke, that he twisted the wedding ring on his finger—slowly, almost unconsciously, as though it were a habit he was no longer aware of.
+
+Our conversations had a rough structure. We would begin with pleasantries—how the week had been, what we had each been doing. And it was here, every time, that I would catch myself. I found myself talking down my own life: glossing over a weekend away, understating the dinner with friends, mentioning my newborn daughter only briefly and moving on. Because on the other end of the line was a man who had spent the weekend sitting in a cell. There is no natural way to bridge that distance. Instead, I minimized it, which came across as guarded and standoffish. But despite my awkwardness, Robin always stayed interested in my life; I found myself touched.
+
+We would then move on to his case. Robin’s life is consumed by the process of trying to overturn his conviction through an arduous, complicated, and deeply flawed system that moves at a snail’s pace. I had never heard of the Criminal Cases Review Commission (CCRC) before I started speaking to Robin. It is now a body I could lecture on at length, should anyone be foolish enough to listen. In brief, the CCRC is an independent organization that screens claims of miscarriage of justice, deciding which cases merit referral to the Court of Appeal and which are rejected before they can get there. Robin refers to his dealings with the CCRC as a game of Whac-A-Mole: Each time a prosecution pillar is addressed, the CCRC pulls up another point to dismiss his application.
+
+* * *
+
+The motive the police gave for Diana’s murder was financial: Robin had been stealing from the Post Office and murdered his wife when she found out, inventing the robbery to cover both the killing and the missing money. But when Robin first applied to the CCRC in 2015, he pointed out that Post Office records for the six years he had worked there—which the Post Office had previously failed to disclose—showed that the spending patterns the prosecution used to indicate theft were entirely normal for their branch throughout his and Diana’s tenure. The CCRC accepted this was significant. They rejected the application anyway.
+
+My own research into their finances has done little to simplify the picture. The Garbutts lived on the premises of their business, making it almost impossible to draw a clean line between personal and company expenditure. By all accounts, they were just getting by, though with some exceptions: over £5,000 spent on weekend retreats, a holiday to America, and tickets to Glastonbury. Such expenses weren’t impossible on their income, but they sat uneasily against the broader picture of a couple living hand to mouth. What impressed me when discussing this with Robin was his ability to never come across as bitter toward those who implicated him. His arguments were never personal against anyone—even though he was accusing them of causing his wrongful conviction.
+
+The fraud motive still never quite added up, especially when I considered a separate scandal surrounding the Post Office’s Horizon computer system. In 2019, investigations and a campaign by a handful of wrongfully convicted individuals revealed a huge miscarriage of justice: hundreds of subpostmasters in Britain wrongly prosecuted for financial discrepancies caused by faulty Horizon software—the same software used to generate the financial records for Robin’s post office. I am not suggesting Horizon exonerates Robin. But it raises the possibility that the prosecution’s motive is built on data from deeply unreliable software. For me, that’s important.
+
+* * *
+
+Robin applied to the CCRC again in 2017, this time targeting the question of opportunity. The expert who analyzed Diana’s stomach contents had placed Diana’s time of death between 2:30 a.m. and 4:30 a.m.—a window that made Robin the only person who could have killed her. But Robin’s legal team argued to the CCRC that an independent pathologist found this expert’s methodology to be flawed.
+
+This timeline had other issues, too. Robin had been running the village shop within his post office branch since 4:30 a.m. on the morning of the murder—supposedly with his dead wife upstairs—serving a steady stream of around 70 locals and commuters from Scotch Corner, one of the busiest junctions in the north of England. David Harper, the milkman, was among the first, arriving at around 5:15 a.m. “I had a nice chat with Robin as I always would,” he recalled. “He was his usual friendly, affable, and personable self.” At around 6:45 a.m., Robin’s friend Brian Hird came in for his copy of *The* *Northern Echo*. “He was just his normal cheery self,” Brian told me. As Brian was paying, he heard something from behind the counter. “It sounded like a woman’s voice coming from the stairs behind the shop,” he explained in Robin’s trial. “I think she just said one word, ‘Robin.’ I was sure it had come from their apartment.” If Brian was right, then Diana was alive at 6:45 a.m.—over an hour and a half after the prosecution’s suggested window closed. For reasons that have never been fully explained, the jury did not accept his account. Robin has never understood why. Brian remains a friend and still sometimes visits Robin in prison, along with dozens of others who have stood by him all these years.
+
+But if Diana was not killed before 4:30 a.m., when did she die? I have spent much of the last five years obsessing over 79 seconds. That is the window between the post office safe being remotely unlocked at 8:35:54 a.m. on March 23, 2010, and Robin’s 999 emergency call being received at 8:37:13 a.m. In that time, according to Robin, a man in a balaclava appeared, pointed a gun at him, and said, “Don’t do anything stupid. We have your wife.” Robin then had to bolt the front door, fill a holdall bag from the safe and the till, let the robber leave through the back, run upstairs to find Diana, and call the emergency services.
+
+> If Brian was right, then Diana was alive at 6:45 a.m.—over an hour and a half after the prosecution’s suggested window closed.
+
+I have put the timeline to investigators, criminologists, and former police officers. The broad consensus is that it was possible, but only just. Measuring the dimensions of the shop to the stairs and up to the bedroom, I have recreated the steps at home several times, and in the allotted time. But “if Robin had killed her,” one of his friends from the village asked me, “why would he have given himself such a short window of time?” It is the same kind of question I hear time and again, no matter which side of the argument someone is on. If they believe Robin is guilty, then they say, “That does not make sense; he is lying.” And if they believe Robin is innocent, then they say, “Robin would make up something more believable to cover his tracks.” For me, 79 seconds is tight. But it is not impossible, and impossibility is the only thing that would have settled it for me.
+
+The CCRC accepted that the initial pathologist’s evidence should be removed from the prosecution case. They rejected Robin’s application anyway.
+
+* * *
+
+The third CCRC application, submitted in 2019, added grounds related to the murder weapon. The pole used to beat Diana to death was found on a wall near the post office a few days after the crime. But footage from a local television crew, time-stamped from the day after the murder, showed that the wall was empty—meaning the pole could not have been placed there by Robin on the night of the murder, as the prosecution had claimed. DNA analysis also revealed that the officer who had spotted the murder weapon had left his DNA not only on the bar itself, but at the crime scene, in a property he maintained he had never entered. None of Robin’s DNA was found on the murder weapon. The CCRC accepted these points. The application was rejected anyway.
+
+It has been suggested to me that there was something nefarious going on with the policeman whose DNA was discovered at the scene. He was on holiday for the week of the murder, but he decided to return to work several days early, at which point he found the murder weapon. He didn’t explain his premature return. And he could not recollect what he had been doing at the time of the murder. No alibi. No attempt at an alibi. My efforts to track him down for an explanation, or to obtain a comment from North Yorkshire Police, have so far been unsuccessful.
+
+But having learned so much about this case, I feel the DNA can be explained by simple incompetence. There is plenty of evidence for that. The judge in Robin’s trial described North Yorkshire Police’s investigation as having a “regrettable lack of professionalism.” When investigators compared crime scene photographs taken on the day of the murder to ones taken afterward, they noticed discrepancies: bedside table lamps that had mysteriously disappeared, later found to have been moved to the back of the wardrobe. A clump of hair on the bed—matching neither Robin’s short gray nor Diana’s dark brown—bagged as evidence, then subsequently lost. An investigation riddled with errors like these is also one where a police officer’s DNA ending up on a murder weapon is, at least, explicable.
+
+Until learning all this, I had been working from a position of skepticism about Robin’s innocence, looking for reasons to doubt the verdict. I soon found myself doing the opposite: looking for reasons to trust the investigation. I struggled to find them.
+
+* * *
+
+By the time I first met him, Robin was working on his fourth CCRC application with his pro bono legal team. He described it as his “last chance,” although I wondered whether he had said the same about the previous three. At the time of writing, that application has been sitting with the CCRC for two years. Every three months, Robin receives an update letter. Each one contains a variation of the same sentence: that his case officer is “familiarising myself with the issues in your case.” Robin will often talk very calmly, in a measured way, about the CCRC, and end with the same sentence: “Anyway, sorry to rant, Ed.”
+
+Something kept catching, like a loose thread. I did not trust the investigation. But the CCRC might still know something I did not—with their unfettered access to police databases, internal memos, and forensic evidence. A flawed institution is not automatically a wrong one.
+
+> An investigation riddled with errors like these is also one where a police officer’s DNA ending up on a murder weapon is, at least, explicable.
+
+After his fourth application was submitted, I did something I had been avoiding for a long time. I put it to Robin directly: Perhaps the CCRC, for all its faults, had looked at the full picture and reached the right conclusion. That perhaps he was guilty. That perhaps he had murdered his wife. I had been dancing around the question since the moment I first walked into Wealstun Prison. Asking it out loud felt like a betrayal—of the connection we had built, of the hours he had given me, of the trust he had extended to a stranger. But I also knew that if I never asked it, I would always wonder.
+
+The disappointment in his voice surprised me, not because I expected him to react any differently, but because it was the first time he had not been his deliberately optimistic self.
+
+“Ah, um,” he stuttered, then breathed out heavily. “I don’t really know what to say,” he continued, so obviously deflated.
+
+“Do you mind me mentioning it?” I asked, as the silence on the other end of the phone started to unnerve me.
+
+“No, gosh, no,” Robin replied, seemingly snapping out of his melancholy. “It is the waiting for news,” he added matter-of-factly. “The fear and dread that they are going to deliver another nail in the coffin. It is exhausting. The stress is something to add to the bucket of pain.”
+
+Whenever I finished my conversations with Robin, I usually returned to whatever I’d been doing—another mind-numbing meeting, an overly complex spreadsheet, a pointless conference call. But after this one, I needed time to reflect. His reaction stayed with me. Robin had always struck me as emotionally consistent: calm, friendly, and honest. Hearing the dissatisfaction in his voice when I suggested the CCRC could be right was unnerving. It must have been a double sucker punch: I was questioning his innocence while defending the institution he blamed for keeping him locked up so long.
+
+What surprised me most was my own reaction. I was genuinely worried I’d upset Robin—not that he might stop talking to me, ending my plans for a book, but that he could be sitting in his cell, sadly pinching the bridge of his nose the way he did when I’d met him, because of me. It was the first moment I realized Robin might be becoming more than the subject of my research. He might be becoming a friend. And I wasn’t only troubled by having upset him. Robin hadn’t actually answered my question; the one that suggested he might be guilty.
+
+* * *
+
+The following week, Robin didn’t call. It wasn’t unheard of for him to miss a week: Despite prison life seemingly leaving him to watch time pass, he actually had a job running admissions as lorryloads of young men arrived each week. Phone calls were also expensive, and sometimes he simply couldn’t afford one. But with no way to reach him, a nagging feeling took hold that he was upset with me.
+
+Another week later, an A5 envelope arrived in the post. On the back, in tiny writing: Robin Garbutt and his seven-digit prisoner number. I could feel there was something inside besides the card. With excitement, I tore it open.
+
+*Ed,*
+
+*I’m very conscious that you have very little paperwork on my case, despite everything Jane has sent. Anyhow, when at Frankland, I applied for and was given a laptop solely for my case—on it was tonnes of paperwork, legal letters, CCRC stuff plus a PDF file of all my solicitor’s correspondence. This file will show you the layout of the house and post office, there are no horrific scenes of Di, but some distressing ones of blood—so not nice. When I left Frankland they put all that onto a ‘dongle’ which is enclosed. It is my only one (!!) so we will want it back in your own time—no rush at all.*
+
+*That’s me Ed. Take great care and speak soon.*
+
+*Many thanks,*
+
+*Robin*
+
+It took months to wade through what was on the stick. The material was vast: witness statements; unused evidence; legal correspondence; letters Robin had sent to lawyers, forensic experts, and private investigators around the world, begging for help and, in most cases, receiving no reply. Reading them was quietly devastating.
+
+There were also spreadsheets he had meticulously compiled: “Timeline for Moor Road and the Shop 6.30 to 8.30” runs 240 rows deep, cataloguing every witness’s recollection from the morning of the murder, each one cross-referenced to a statement number. I pictured Robin in his cell in the small hours, tapping away on his laptop while over 800 fellow inmates slept around him.
+
+> And I wasn’t only troubled by having upset him. Robin hadn’t actually answered my question; the one that suggested he might be guilty.
+
+What struck me first was not what was in the files. It was the fact that he had sent them at all. I had just confronted him with the possibility that he was guilty—the most direct challenge I had put to him in months of conversation. His response was not to go quiet, not to cut me off, not to become defensive or combative. He had flooded me with everything he had. His only copy. A man with nothing to hide, or a man who had calculated, very precisely, that transparency was his best remaining move. I genuinely could not tell which.
+
+Among the files were some truly fascinating nuggets, some of which made me question the case in its entirety. Buried in one of the tedious police reports was a reference to the discovery of underwear found at the top of the contents in Robin and Diana’s outside bin, stained with what appeared to be rust, consistent with that found on the murder weapon. Apart from that paragraph, it was not mentioned again. It took considerable searching before I found a witness statement, taken from one of Robin’s neighbors more than six months after the murder. “I have also today been shown some pictures of a pair of grey Calvin Klein boxer shorts, which were labelled as exhibit KC8. I can say that I have boxer shorts like this. I think that I had two pairs and when I checked today, I only have one pair left.” This piece of evidence was never explored further, and the underwear was never tested to establish whether the brown substance was rust from the murder weapon.
+
+Then there was a Crimestoppers report stating that a man who lived nearby had been seen with a firearm and a large amount of cash the day after the murder, boasting that he had “bashed her around the head.” What was most interesting was the timing. I have not been able to establish exactly when the tip was submitted, but several days passed after the murder before police released details of how Diana had been killed. Had this tip come in before that information was made public, it could be very significant. I have since tracked down the person named in the report. His address, age, and name match a man currently serving a lengthy sentence for trying to rob a safe in a shop in Manchester, 100 miles from Melsonby, with an imitation firearm. He has not responded to my attempt to contact him.
+
+These were the first credible alternatives I had come across. I was now not just considering whether Robin might not have murdered Diana—I was looking at other suspects. But the nature of Diana’s murder gave me pause. It seemed personal. The ruthlessness of the beating she sustained while she slept pointed to someone who knew her. Someone who resented her. Not a stranger.
+
+I had been sitting with that thought for some time when a name began to crop up in witness statements from Diana’s family and school friends: her stepfather. The statements referred to her troubled relationship with him and alleged that she had sustained sexual abuse at his hands throughout her childhood, which had never been reported. In the months before her murder, however, she had apparently told members of her family that she had finally built up the courage to go to the police. Her stepfather has since died, so the full truth may never be known.
+
+Each of these threads complicated the picture further without resolving it. I had begun with one question—*Did Robin kill Diana?*—and ended up with several more, each pointing in a different direction.
+
+Around this time, I started working with a production company on a documentary that would become “Murder at the Post Office,” a three-part television series for Sky. The question of how to frame Robin on screen was one I avoided as long as possible. In print, ambiguity is easier to sustain; you can hold two possibilities open simultaneously and let the reader sit with the tension. Television is less forgiving. Producers want a direction. I found myself in conversations about whether Robin should be presented as likely innocent, contested, or unknown—and I realized I genuinely did not know which category I believed he belonged in. I settled on contested. It felt the most honest. Robin watched the documentary when it aired. He called me the following week. He was grateful, he said. He thought it was fair. I was relieved, then immediately suspicious of my own relief. Why did his approval matter to me? I was supposed to be a journalist, not his advocate.
+
+* * *
+
+I still regularly make the eight-hour round trip from my home in the South of England up to Yorkshire to see Robin. I spend more time with him than many of my other friends. Each visit reminds me of the power of face-to-face conversation in a world that is moving increasingly online. Being able to look Robin in the eye as he answers a question gives me a perspective no phone call can replicate. Since the awkwardness of suggesting he could actually be guilty, I have felt freer to challenge him when we are together, to ask the questions that have been nagging at me. Was his marriage to Diana as happy as he makes out? From speaking to some people who still live in Melsonby, I had heard rumors of Diana seeking comfort elsewhere. Robin was quick to dismiss this. “Every marriage goes through difficulties, Ed,” he said calmly. “We had our tough patches, but we were happier than ever by the time she was taken from us.”
+
+> A man with nothing to hide, or a man who had calculated, very precisely, that transparency was his best remaining move. I genuinely could not tell which.
+
+One of the unexpected consequences of spending five years on this case has been getting to know Diana. Not literally, of course; I never met her. But through her letters, her photographs, the testimonies of her family and friends, a person has gradually come into focus. A woman who, like all of us, was imperfect, but also deeply loyal, loving, and by all accounts great fun. The more I have learned about her, the more I have felt a responsibility toward her. Whatever the truth turns out to be—whether it was Robin who killed her, or someone else entirely—Diana deserves better than to remain a footnote in someone else’s story. That feeling has kept me going on the days when the case has felt too complicated, too unresolvable, and too consuming to continue with.
+
+It also makes me wary of Robin. The what-ifs constantly circle. The question I find myself asking is no longer simply whether Robin is innocent or guilty, but whether he is the person who killed Diana. It has become personal. When I sit across from Robin in the visiting room, listening to him talk about her with what seems genuine tenderness, I cannot always hold those two things together: the man in front of me and what was done to her. Yet some days the contradiction is easy to set aside, and it is just a husband sitting across from me, eager to talk about his wife. Robin will dig deep into the back of his mind for seemingly mundane moments from their past. The time they could not find the car keys. When she found his hidden stash of biscuits. The dinner party they hosted in fancy dress. Although I have so many questions circling in my mind about their respective lives, one thing I am certain of is how much Robin loved Diana. Whether he killed her in a fit of rage or not, there is no question that he worshipped her.
+
+* * *
+
+I have recently allowed myself to lean toward a belief in Robin’s innocence, or at least toward a version of events in which the truth is considerably more complicated than the one a jury was asked to believe. I haven’t concluded, of course; I am not sure I will ever conclude.
+
+Five years ago, I believed I could read people. I prided myself on it. It is, after all, a useful quality in business: the ability to size someone up quickly, to sense when you are being told what you want to hear. I assumed that five years of phone calls and prison visits, of watching Robin answer difficult questions, of learning when he deflects and when his tone changes, would have sharpened that instinct further. Instead, the opposite has happened. All our time together has— unintentionally—created a relationship, and my vision is clouded. I find myself second-guessing judgments I would once have made instinctively at work, with my friends and even my family. There is always a small voice now, asking whether I am simply a bad judge of character who got lucky, or unlucky, with Robin. Because the truth is that he is the only person on the planet who knows what happened in that bedroom to Diana.
+
+My current relationship with Robin is still confusing. Our conversations are not like my conversations with other friends. I am still restrained. We rarely talk about films, or sport, or what we did at the weekend in any sustained way; when we do, those exchanges feel slightly performative on both sides, as though we are both trying to prove to the other, and perhaps to ourselves, that this is a normal relationship. It is not. The case is always underneath everything, even though I am yet to write that book. I have not found the right angle to tell Diana’s story.
+
+But over time, I have, gradually, found myself opening up a little more to Robin. When my second child was born at the start of 2022, among the well wishes that arrived at our home was a card he had sent. According to the British justice system, one of the oldest and most revered on the planet, it was a card from a murderer. And yet here he was, sharing the moment with me, becoming in some small way part of my life alongside my family, my closest friends, my colleagues.
+
+I have become more conscious of this recently. Whenever Robin calls, I still try to answer. Often it will be over the weekend, when I am with my family.
+
+On one crisp, bright morning, I was in the garden speaking to Robin while trying to play hide-and-seek with my two daughters.
+
+“Daddy, who are you speaking to?” my eldest asked.
+
+“Robin,” I replied, apologizing down the phone, embarrassed by our opposing situations.
+
+“Is he your friend?” she asked, with a child’s complete innocence. She looked at me for an answer. On the other end of the phone, Robin waited too, silent.
+
+“Yes, darling,” I replied. What else could I say?
+
+* * *
+
+*[Edward Abel Smith](https://www.edwardabelsmith.com/) is an author, producer, and investigative journalist. His work has covered some of the UK’s most serious claims of miscarriages of justice, including his multimillion-downloaded podcast about convicted nurse serial killer Lucy Letby*, Was There Ever A Crime. *His latest book*, Murders in the Dark&*nbsp;(DK, March 2027), reopens the case of the 1942 London Blackout Ripper and reveals new evidence that the wrong man may have gone to the gallows.*
+
+*Editor: [Carolyn Wells](https://x.com/wells_ca) \
+Fact-checker: [Julie Schwietert Collazo](https://www.instagram.com/collazoprojects/)\
+Copyeditor: [Brendan Fitzgerald](https://longreads.com/brendan-fitzgerald/)*
