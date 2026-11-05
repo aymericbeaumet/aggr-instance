@@ -1,0 +1,213 @@
+<div id="readability-page-1" class="page">
+
+<header>
+  <div>
+    
+    <p>so openssh on musl linux (alpine, openwrt, buildroot, yocto, and a lot of the docker images you've pulled) has had a little problem since 2016.</p>
+    <p>accounts that should never take a password at all (root, your key-only deploy user, ldap users, the default user on alpine's aws and azure images) take any password longer than 256 characters.</p>
+    <p aria-label="yes, any password. yes. i know. yes."><span>yes, any password.</span> <span>yes.</span> <span>i know.</span> <span>yes.</span></p>
+  </div>
+  <figure id="hero-term" aria-label="terminal recording of the attack">
+    
+    <pre><code></code></pre>
+  </figure>
+  
+</header>
+
+
+
+<div id="scrolly">
+
+    <article data-step="0">
+      <p>1980</p>
+      <h2>the first star</h2>
+      <p>back in old unix your password hash just sat in <code>/etc/passwd</code>, right next to your username. in a file everyone could read.</p>
+      <p>in 1980 bill joy put a <code>*</code> there for an account called <code>daemon</code>. nobody's supposed to ever log in as it.</p>
+      <p>a <code>*</code> isn't a hash, so no password can match it. unix still does this today</p>
+      <a href="https://github.com/dspinellis/unix-history-repo/blob/BSD-3/etc/passwd" target="_blank" rel="noopener"><p><span>3bsd · /etc/passwd · 1980</span><i></i><i></i><i></i></p><p><b>Address</b><span>github.com/dspinellis/unix-history-repo/blob/BSD-3/etc/passwd</span></p><img width="2560" height="480" src="https://sshhole.com/receipts/3bsd-passwd.png" alt="daemon:*:1:1:The devil himself:/:" loading="lazy"></a>
+      <p>the next field is the real name. he wrote "the devil himself"</p>
+    </article>
+
+    <article data-step="1">
+      <p>1990s</p>
+      <h2>how sshd checks your password</h2>
+      <p>ok so these days the hash lives in <code>/etc/shadow</code> and looks like <code>$6$abc$k2P9…</code>. the <code>$6$</code> means sha512, <code>abc</code> is the salt, the rest is the actual hash</p>
+      <p>you type your password, sshd hashes it with that same salt and checks if it comes out identical. same = you're in. that's it</p>
+      <p>and if the field is just <code>*</code>? there's nothing to match. type whatever you want, it's never getting you in</p>
+    </article>
+
+    <article data-step="2">
+      <p>1990s</p>
+      <h2>the fine print</h2>
+      <p>one more rule. if <code>crypt()</code> can't do its job, it returns NULL. like if the salt asks for some algorithm the system doesn't have, there's nothing to compute, so you get NULL instead of a hash</p>
+      <a href="https://pubs.opengroup.org/onlinepubs/7908799/xsh/crypt.html" target="_blank" rel="noopener"><p><span>the single unix spec · crypt() · 1997</span><i></i><i></i><i></i></p><p><b>Address</b><span>pubs.opengroup.org/onlinepubs/7908799/xsh/crypt.html</span></p><img width="3936" height="1000" src="https://sshhole.com/receipts/posix-crypt.png" alt="RETURN VALUE: Upon successful completion, crypt() returns a pointer to the encoded string. Otherwise it returns a null pointer and sets errno to indicate the error." loading="lazy"></a>
+      <p>pretty clear.</p>
+      <p>except a lot of programs never check for NULL. they just compare whatever <code>crypt()</code> gives back with the stored field, hit the NULL, and crash</p>
+    </article>
+
+    <article data-step="3">
+      <p>2012</p>
+      <h2>crypt stops saying NULL</h2>
+      <p>so musl (the libc under alpine) goes ok fine, <code>crypt()</code> just won't return NULL anymore. if it fails, it returns a single character instead. that character can never match a real password, so programs don't crash, they just see a wrong password</p>
+      <p>now guess which character they picked for that</p>
+      <p><span>"</span><span>"</span></p>
+      <p>yep. the star. again.</p>
+      <a href="https://git.musl-libc.org/cgit/musl/commit/?id=b3c4cc121f70faea45389fe7ddc1127ed5cbd8bb" target="_blank" rel="noopener"><p><span>musl · b3c4cc12 · aug 2012</span><i></i><i></i><i></i></p><p><b>Address</b><span>git.musl-libc.org/cgit/musl/commit/?id=b3c4cc12</span></p><img width="3280" height="1320" src="https://sshhole.com/receipts/musl-b3c4cc12.png" alt="make crypt return an unmatchable hash rather than NULL on failure. always &quot;succeeding&quot; but giving an unmatchable hash is reportedly a better behavior than failing on error." loading="lazy"></a>
+      <p>"reportedly."</p>
+      <a href="https://git.musl-libc.org/cgit/musl/commit/?id=b3c4cc121f70faea45389fe7ddc1127ed5cbd8bb" target="_blank" rel="noopener"><p><span>musl · b3c4cc12 · the diff</span><i></i><i></i><i></i></p><p><b>Address</b><span>git.musl-libc.org/cgit/musl/commit/?id=b3c4cc12</span></p><img width="3040" height="1072" src="https://sshhole.com/receipts/musl-b3c4cc12-diff.png" alt="diff of crypt_des.c: removed the comment 'Should not happen.' and 'return NULL;', added: return (setting[0]=='*') ? &quot;x&quot; : &quot;*&quot;;" loading="lazy"></a>
+      <p>"should not happen" gone, NULL gone, <code>"*"</code> in</p>
+    </article>
+
+    <article data-step="4">
+      <p>2012</p>
+      <h2>three weeks later</h2>
+      <p>then musl adds sha512 crypt. the thing is, sha512crypt gets slower the longer the password is, so someone could send one giant password and keep your server busy for a long time. so musl just caps it at 256 bytes and refuses anything longer</p>
+      <a href="https://git.musl-libc.org/cgit/musl/commit/?id=88bf5a8a8d7d796f63cca8589f4de67aa8345f1a" target="_blank" rel="noopener"><p><span>musl · 88bf5a8a · aug 29 2012</span><i></i><i></i><i></i></p><p><b>Address</b><span>git.musl-libc.org/cgit/musl/commit/?id=88bf5a8a</span></p><img width="3280" height="1440" src="https://sshhole.com/receipts/musl-88bf5a8a.png" alt="add sha256/sha512 crypt. Rich Felker, 2012-08-29." loading="lazy"></a>
+      <p>twenty days after the "*" commit btw</p>
+      <a href="https://git.musl-libc.org/cgit/musl/tree/src/misc/crypt_sha512.c?id=88bf5a8a8d7d796f63cca8589f4de67aa8345f1a#n189" target="_blank" rel="noopener"><p><span>musl · crypt_sha512.c @ 88bf5a8a</span><i></i><i></i><i></i></p><p><b>Address</b><span>git.musl-libc.org/cgit/musl/tree/src/misc/crypt_sha512.c?id=88bf5a8a</span></p><img width="3040" height="2080" src="https://sshhole.com/receipts/musl-keymax.png" alt="key limit is not part of the original design, added for DoS protection. #define KEY_MAX 256. if (i &gt; KEY_MAX) return 0;" loading="lazy"></a>
+      <p>so past 256 bytes crypt fails. and when crypt fails… it says <code>"*"</code>.</p>
+      <a href="https://git.musl-libc.org/cgit/musl/tree/src/crypt/crypt_sha512.c#n8" target="_blank" rel="noopener"><p><span>musl · crypt_sha512.c</span><i></i><i></i><i></i></p><p><b>Address</b><span>git.musl-libc.org/cgit/musl/tree/src/crypt/crypt_sha512.c</span></p><img width="3040" height="800" src="https://sshhole.com/receipts/musl-sha512-header.png" alt="on error &quot;*&quot; is returned." loading="lazy"></a>
+      <p>literally in the comment the whole time</p>
+    </article>
+
+    <article data-step="5">
+      <p>2016</p>
+      <h2>sshd borrows bob's salt</h2>
+      <p>CVE-2016-6210. ask sshd about a user that doesn't exist and it says no instantly, cause there's nothing to hash. real users take a few ms longer. so just time it and you know who exists</p>
+      <p>the fix is kinda funny. no real hash to check? sshd grabs some other account's salt and hashes your password anyway, just to waste the same amount of time. still a no, just a slower no</p>
+            <a href="http://lists.mindrot.org/pipermail/openssh-commits/2016-July/005428.html" target="_blank" rel="noopener"><p><span>openssh-commits · jul 2016</span><i></i><i></i><i></i></p><p><b>Address</b><span>lists.mindrot.org/pipermail/openssh-commits/2016-July/005428.html</span></p><img width="3280" height="1440" src="https://sshhole.com/receipts/openssh-9286875a7.png" alt="Determine appropriate salt for invalid users." loading="lazy"></a>
+      <p>"for invalid users." and also, it turns out, real users with a <code>*</code>.</p>
+    </article>
+
+    <article data-step="6">
+      <p>2019 → 2022</p>
+      <h2>the fix for the fix</h2>
+      <p><b>2019.</b> turns out alpine's docker images had no root password. at all. CVE-2019-5021. alpine fixes it by locking root with <code>!</code></p>
+      <p>but without pam, <code>!</code> also kills ssh keys. and cloud images log in with keys.</p>
+      <p><b>2022.</b> alpine 3.16 switches root to <code>*</code>. still locked, keys work again</p>
+      <a href="https://gitlab.alpinelinux.org/alpine/aports/-/commit/fbe926afc76de76e07d078f266badc4144dde8e3" target="_blank" rel="noopener"><p><span>alpine aports · fbe926af · shipped in 3.16, 2022</span><i></i><i></i><i></i></p><p><b>Address</b><span>gitlab.alpinelinux.org/alpine/aports/-/commit/fbe926af.patch</span></p><img width="2800" height="1800" src="https://sshhole.com/receipts/alpine-fbe926af.png" alt="this still forbids password login but allows logins via ssh keys with pam disabled. # make sure root login is disabled. root:! becomes root:*" loading="lazy"></a>
+      <p>narrator: it did not.</p>
+    </article>
+
+    <article data-step="7">
+      <p>2016 → 2026</p>
+      <h2>ten quiet years</h2>
+      <p>why did nobody notice? well, maybe someone did. maybe someone pasted the wrong thing into a password prompt, half a slack message or a whole ssh key, and it just let them in. you've never pasted the wrong thing into a password prompt?? amazing. a fresh box with no passwords set isn't affected. a <code>*</code> in shadow needs a wrong try first. openssh tests on openbsd and glibc, musl doesn't test sshd, and most distros go through pam, which never even calls crypt for a <code>*</code>.</p>
+      <p>so as far as anyone knows, nobody noticed. as far as anyone knows.</p>
+      <p>some people got really close though</p>
+      <a href="https://bugs.debian.org/714219" target="_blank" rel="noopener"><p><span>libc-alpha · debian #714219 · 2013</span><i></i><i></i><i></i></p><p><b>Address</b><span>sourceware.org/legacy-ml/libc-alpha/2013-07/msg00046.html</span></p><img width="3040" height="1200" src="https://sshhole.com/receipts/libc-alpha-2013.png" alt="The scheme of returning * or x, which are never valid matches, comes from dalias from musl, and I think it is the best compromise/solution." loading="lazy"></a>
+      <p>a debian dev asks glibc to copy musl's <code>"*"</code>. six years later debian moves to libxcrypt, which says <code>"*0"</code>, and closes the bug. one character away.</p>
+      <a href="https://www.openwall.com/lists/musl/2024/12/31/2" target="_blank" rel="noopener"><p><span>musl mailing list · dec 2024</span><i></i><i></i><i></i></p><p><b>Address</b><span>openwall.com/lists/musl/2024/12/31/2</span></p><img width="3040" height="1280" src="https://sshhole.com/receipts/musl-list-2024.png" alt="Sure there's no reason it couldn't have been 257 or 300 or whatever, but either way you'd get things like this when software has bugs in handling the condition." loading="lazy"></a>
+      <p>this thread is about busybox <code>passwd</code> breaking on a 257 character password. same <code>"*"</code>, same limit. nobody says "sshd"</p>
+      <a href="http://lists.mindrot.org/pipermail/openssh-commits/2026-October/013271.html" target="_blank" rel="noopener"><p><span>openssh-commits · 30 oct 2026</span><i></i><i></i><i></i></p><p><b>Address</b><span>lists.mindrot.org/pipermail/openssh-commits/2026-October/013271.html</span></p><img width="3280" height="1440" src="https://sshhole.com/receipts/openssh-84f8f4666.png" alt="fix fake password salt generation for bcrypt hashes" loading="lazy"></a>
+      <p>a security review fixes <code>pick_salt()</code>. the bug is four lines below it. four days before i found it.</p>
+    </article>
+
+    <article data-step="8">
+      <p>nov 2026</p>
+      <h2>how i ran into it</h2>
+      <p>i was messing around with openssh, mostly the boring parts where it talks to libc, like the password code. people don't really look at that stuff, they look at the crypto. so i built sshd every way i could think of (glibc, musl, pam, no pam, shadow, no shadow) and threw like 17,600 weird logins at it. weird hashes, broken accounts, passwords way too long</p>
+      <p>oh did i say "i"? sorry. i had agent swarms. a lot of them. let's not get into it</p>
+      <p>every build agreed on every login. except musl without pam. that one said yes to things it shouldn't</p>
+    </article>
+
+  </div>
+
+<main>
+
+<section id="comic">
+  <p>tl;dr</p>
+  <figure><img width="1236" height="914" src="https://sshhole.com/comic.svg" alt="six panel comic: 1980 daemon gets a star; 2012 musl crypt returns star instead of NULL; 2016 openssh borrows bob's salt; 2021 alpine changes root from ! to star, narrator: it did not; 2016 to 2026 a cat sleeps on a server; 2026 me and some agents, 300 A's give uid 0"></figure>
+</section>
+
+<section id="tryit">
+  <h2>try it</h2>
+  <p>one debian box, one alpine box. type stuff. it all runs right here in your browser, nothing gets sent anywhere</p>
+  <div>
+    <div>
+      
+      <div><p><span>256</span></p><p><span>1024</span></p></div>
+      <p><span id="len">0</span> bytes</p>
+    </div>
+    <div>
+      <div data-libc="glibc">
+        <p>debian · glibc</p>
+        <p>crypt(pw, bob's salt)</p>
+        
+        <p>alice's field</p>
+        <p>*</p>
+        
+      </div>
+      <div data-libc="musl">
+        <p>alpine · musl</p>
+        <p>crypt(pw, bob's salt)</p>
+        
+        <p>alice's field</p>
+        <p>*</p>
+        
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="exposure">
+  <h2>are you affected?</h2>
+  <ul id="checks">
+    <li><span></span><span>is your sshd running on <strong>musl</strong>? (alpine, openwrt, buildroot, yocto)</span></li>
+    <li><span></span><span>is it <strong>not using pam</strong>? alpine's <code>openssh-server</code> doesn't by default, or maybe you set <code>UsePAM no</code></span></li>
+    <li><span></span><span>are <strong>password logins</strong> still on? they are by default</span></li>
+    <li><span></span><span>is there an account with just <code>*</code> as its password? key-only users, ldap users, root on alpine</span></li>
+    <li><span></span><span>and some <em>other</em> account with a real password?</span></li>
+    <li><span></span><span>then that <code>*</code> account takes any password between 257 and 1024 characters</span></li>
+  </ul>
+  <p>on alpine's official aws and azure images that's the default <code>alpine</code> user, and it has passwordless <code>doas</code>. so it's root</p>
+  <p>on debian, ubuntu, fedora or anything else with glibc? going through pam? dropbear? openbsd? you're fine</p>
+</section>
+
+<section id="fix">
+  <h2>what now</h2>
+  <figure>
+    <p><span></span><span></span><span></span><em>you</em></p>
+    <pre><code># update. openssh 10.6p2 fixes it.
+$ apk upgrade openssh
+
+# can't update yet? turn password logins off.
+$ echo "PasswordAuthentication no" &gt; /etc/ssh/sshd_config.d/00-no-passwords.conf
+$ rc-service sshd restart</code></pre>
+  </figure>
+</section>
+
+</main>
+
+<div id="check">
+    <p>one more thing</p>
+    <h2>did you get hacked? check.</h2>
+    <figure id="darklog">
+      <p><span></span><span></span><span></span><em>root@your-box</em></p>
+      <pre><code></code></pre>
+    </figure>
+    <p>see a line like that? an account with no password just took a password</p>
+  </div>
+
+<section id="bye">
+  <p>if that's the case…</p>
+  <p>i'm sorry.</p>
+  <p>you got hacked.</p>
+  <div>
+    <p>by an</p>
+    <p><span>*</span><span>sshole</span></p>
+  </div>
+</section>
+
+
+
+
+
+
+
+
+
+
+
+
+</div>

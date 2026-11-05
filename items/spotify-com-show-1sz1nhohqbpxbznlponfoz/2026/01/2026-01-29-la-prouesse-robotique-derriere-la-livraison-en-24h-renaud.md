@@ -14,7 +14,7 @@ extra:
   audio_length: 23289800
   audio_type: audio/mpeg
   audio_url: https://sphinx.acast.com/p/acast/s/micode-underscore/e/69708a1d6a445e577f23e39b/media.mp3
-  duration_seconds: 1653
+  duration_seconds: 1632
   thumbnail: https://assets.pippa.io/shows/6139142f588d8c5deac642d6/0c0bb4ea-fc49-4e08-ad1e-ca16c269ab5a.jpeg
 ---
 
