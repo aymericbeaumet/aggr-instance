@@ -1,0 +1,108 @@
+<div id="readability-page-1" class="page"><div>
+        <p>Article</p>
+        
+        
+          <p>More models, less waiting.</p>
+        
+        
+          <p><span>November 6, 2026</span>
+            
+            
+              <span>inference / serving / NVIDIA / AMD / TPU / Metal / Intel</span></p>
+        
+      </div><div>
+        <p>We are pleased to announce the release of <code>zml/llmd 20261106.0</code>. This week, we are bringing two new models,
+asynchronous scheduling in beta, and more performance work across our backends.</p>
+<h2 id="beam-10-and-ripple">Beam-1.0 and Ripple</h2>
+<p>This release brings support for <a href="https://huggingface.co/reflection/Beam-1.0-501B-A23B">Reflection’s Beam 1.0</a> and
+Day 1 support for <a href="https://huggingface.co/ricursiveAI/Ripple-65B-Preview">Ricursive’s Ripple</a> (well, technically Day 0, but
+we didn’t want to derail the release).</p>
+<p>We’re pretty happy with the performance:
+<img src="https://zml.ai/posts/llmd-20261106.0/ripple.png" alt="">
+</p>
+<p>The list of models supported by zml/llmd is growing, here is a full list of the supported models:</p>
+<ul>
+<li>Qwen 2, 3, 3.5, 3.6 and 3.8 series (dense and MoE)</li>
+<li>Gemma 3 and 4 series (dense and MoE)</li>
+<li>LFM2.5 series</li>
+<li>Mistral 3 and Ministral series</li>
+<li>Llama 2 and 3 series</li>
+<li>Poolside Laguna S 2.1</li>
+<li>DeepSeek 4.1 Flash</li>
+<li>Muse Glimmer</li>
+<li>Qwen3.8 Flash Next</li>
+<li>Xiaomi MiMo V2.6</li>
+<li>Mistral Large 4</li>
+<li>GLM 5.2</li>
+<li>GLM 5.3</li>
+<li>LFM 3</li>
+<li>Beam 1.0</li>
+<li>Ripple 65B</li>
+</ul>
+<h2 id="asynchronous-scheduling-beta">Asynchronous scheduling beta</h2>
+<p>We have added asynchronous scheduling to Llama and Gemma 4. The idea is simple: while the accelerator is running
+one step, the CPU can prepare the next one. Less time waiting between steps.</p>
+<p>You can enable it with <code>--async-scheduling</code>. It is opt-in for now. Speculative decoding still uses the synchronous
+path, and Llama’s asynchronous path also works with data parallelism. The next release should bring more models on board.</p>
+<p><em>This is in beta. Once we are satisfied with the performance and stability, we will make it the default.</em></p>
+<h2 id="data-parallelism-beta">Data parallelism beta</h2>
+<p>Llama now supports <code>--data-parallel</code>. This distributes requests and their KV caches across groups of devices.
+We also improved weight sharding for this configuration to reduce communication between those groups.</p>
+<p>For example, <code>--data-parallel=2</code> splits the work across two groups.</p>
+<p>On 2×RTX 5090, our Llama development benchmark went from 700 to 1,600 tok/s with <code>--data-parallel=2</code>,
+<code>--batch-size=16</code> and <code>--token-batch-size=256</code>. That’s a 2.3× improvement to the data-parallel path.
+The same benchmark with <code>--data-parallel=1</code> stays at roughly 2,000 tok/s, so the best configuration
+still depends on the workload.</p>
+<p><em>This is still in beta.</em></p>
+<h2 id="faster-lfm-3">Faster LFM 3</h2>
+<p>Last week, we brought LFM 3 to zml/llmd. This week, we improved how its embeddings are sharded across devices,
+which improves throughput when running it on multiple GPUs.</p>
+<h2 id="faster-prefill">Faster prefill</h2>
+<p>The hill climb continues. This week, we worked on Gated DeltaNet, with new CuTe kernels for NVIDIA
+and Fly kernels for AMD. The NVIDIA and AMD implementations improve prefill performance over the previous Triton backend.</p>
+<p>On a single MI300X, running Qwen3.8-27B with 32K-token prompts and <code>bs=16</code>, time to first token improves as follows
+(using <code>z-lab/Qwen3.8-27B-DFlash2</code> for speculative decoding):</p>
+<figure>
+  <figcaption>Time to first token, Qwen3.8-27B, bs=16, 32K-token prompts, 1xMI300X, less is better <span>(s)</span></figcaption>
+  
+</figure>
+<p>That’s about 12.5% less waiting for ordinary prefill and 14.5% less with speculative decoding.</p>
+<p>DeepSeek-V4.1 also gets optimized mHC kernels for NVIDIA Blackwell and AMD MI300X.</p>
+<p>At 8,192 tokens, our DeepSeek prefill benchmark goes from 35,016 to 40,115 tok/s, a 14.6% improvement
+from the combined kernel and sharding changes.</p>
+<p>The mHC kernel benchmarks also show where some of that improvement comes from.</p>
+<p>At 32,768 tokens:</p>
+<figure>
+  <figcaption>mHC execution time, 32768 tokens, less is better <span>(µs)</span></figcaption>
+  
+</figure>
+<p>We also removed unnecessary waits in the Qwen 3.8 Flash Next and MiMo-V2.6 forward passes.</p>
+<h2 id="serving-improvements">Serving improvements</h2>
+<p>A few fixes also made it into this release:</p>
+<ul>
+<li>Cache hits are now reported in API usage responses through <code>prompt_tokens_details.cached_tokens</code>.</li>
+<li>Prompts that exceed the context limit return HTTP <code>400</code> with <code>context_length_exceeded</code>. Unsupported
+<code>response_format</code> values also return HTTP <code>400</code>.</li>
+<li>When <code>enable_thinking</code> is omitted, we now respect the model’s default. This fixes Gemma 4’s default behaviour.</li>
+<li>We fixed KV-cache matching in LFM 2 and an issue with grouped-weight packing.</li>
+<li><a href="https://github.com/krallin/tini">Tini</a> is now the default entrypoint for all zml/llmd container images, which should
+improve signal handling and shutdown behaviour.</li>
+</ul>
+<h2 id="try-it-today">Try it today</h2>
+<p><strong>NVIDIA</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --shm-size=256GB --gpus=all -e HF_TOKEN -it zmlai/llmd:cuda \
+    --model=hf://Qwen/Qwen3.8-Flash-Next
+</code></pre></div><p><strong>AMD</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --shm-size=256GB --device=/dev/kfd --device=/dev/dri -e HF_TOKEN -it zmlai/llmd:rocm \
+    --model=hf://Qwen/Qwen3.8-Flash-Next
+</code></pre></div><p><strong>Intel</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --device=/dev/dri -e HF_TOKEN -it zmlai/llmd:oneapi \
+    --model=hf://Qwen/Qwen3.8-27B
+</code></pre></div><p><strong>Google TPU</strong></p>
+<div><pre><code data-language="bash">docker run --net=host --privileged -e HF_TOKEN -it zmlai/llmd:tpu \
+    --model=hf://Qwen/Qwen3.8-27B
+</code></pre></div><p><strong>Apple Metal</strong></p>
+<div><pre><code data-language="bash">brew install zml/zml/llmd
+llmd --model=hf://LiquidAI/LFM3-1.7B-FP8 --batch-size=4
+</code></pre></div>
+      </div></div>
