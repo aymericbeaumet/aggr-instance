@@ -1,0 +1,381 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text"><div dir="auto">
+  <a href="https://www.rivet.dev" rel="nofollow">
+    <themed-picture data-catalyst-inline="true"><picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/rivet-dev/rivet/raw/main/.github/media/logo/icon-text-white.svg" alt="Rivet">
+      <img src="https://github.com/rivet-dev/rivet/raw/main/.github/media/logo/icon-text-black.svg" alt="Rivet" height="75">
+    </picture></themed-picture>
+  </a>
+  <p dir="auto"><h3 tabindex="-1" dir="auto">Fast, high-density, scalable orchestration with Rivet Actors.<br>Built on S3 at SSD speeds.</h3><a id="user-content-fast-high-density-scalable-orchestration-with-rivet-actorsbuilt-on-s3-at-ssd-speeds" aria-label="Permalink: Fast, high-density, scalable orchestration with Rivet Actors.Built on S3 at SSD speeds." href="#fast-high-density-scalable-orchestration-with-rivet-actorsbuilt-on-s3-at-ssd-speeds"></a></p>
+  <p dir="auto">
+    4.99 ms p99 cold starts, 72 KB RAM per Actor, scales to billions
+  </p>
+  <p dir="auto">
+    <a href="https://www.rivet.dev/docs" rel="nofollow">Quickstart</a> •
+    <a href="https://www.rivet.dev/actors/docs" rel="nofollow">Documentation</a> •
+    <a href="https://www.rivet.dev/blog" rel="nofollow">Blog</a> •
+    <a href="https://www.rivet.dev/discord" rel="nofollow">Discord</a> •
+    <a href="https://x.com/rivet_dev" rel="nofollow">X</a>
+  </p>
+</div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">What is Rivet?</h2><a id="user-content-what-is-rivet" aria-label="Permalink: What is Rivet?" href="#what-is-rivet"></a></p>
+<p dir="auto">Rivet Actors are long-lived processes with in-memory state, a SQLite database, WebSockets, and scheduling. You can create one for each agent, user, session, or tenant.</p>
+<ul dir="auto">
+<li><strong>72 KB per Actor</strong>: Actors share a node process instead of each booting a sandbox, so one server holds hundreds of thousands.</li>
+<li><strong>4.99 ms p99 cold starts</strong>: No image pull and no VM boot.</li>
+<li><strong>Built for scale</strong>: All data lives in S3, so a cluster scales to billions of Actors.</li>
+<li><strong>Hibernates when idle, wakes on demand</strong>: Idle Actors cost nothing and wake on the next request with nothing lost.</li>
+<li><strong>SQLite backed by S3, at SSD speeds</strong>: 1.07 ms durable writes and 1.36 ms reads at p99, for about 10.4× less than replicated SSD storage.</li>
+</ul>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Use cases</h3><a id="user-content-use-cases" aria-label="Permalink: Use cases" href="#use-cases"></a></p>
+<ul dir="auto">
+<li><strong><a href="https://www.rivet.dev/guides/ai-agent" rel="nofollow">Durable &amp; multiplayer AI agents</a></strong>: memory that survives restarts, shared live with every client</li>
+<li><strong><a href="https://www.rivet.dev/workflows/docs" rel="nofollow">Workflows</a></strong>: multi-step operations that replay instead of starting over</li>
+<li><strong><a href="https://www.rivet.dev/dynamic-apps/docs" rel="nofollow">AI-generated apps</a></strong>: run the apps and Actors your agent generates</li>
+<li><strong><a href="https://www.rivet.dev/guides/collaborative-text-editor" rel="nofollow">Collaborative editing</a></strong>: one Actor per document, synced to every editor</li>
+</ul>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Example</h3><a id="user-content-example" aria-label="Permalink: Example" href="#example"></a></p>
+<p dir="auto">A minimal agent written from scratch. For a ready-made agent, use <a href="https://www.rivet.dev/agents/docs/quickstart/" rel="nofollow">Pi Durable</a>.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="// server.ts
+import { actor, setup } from &quot;rivetkit&quot;;
+import { db } from &quot;rivetkit/db&quot;;
+import { streamText } from &quot;ai&quot;;
+import { openai } from &quot;@ai-sdk/openai&quot;;
+
+// One Actor per agent, created on first use: agent.getOrCreate([&quot;agent-123&quot;])
+export const agent = actor({
+  // 1. SQLite: every agent has its own database, so history survives restarts
+  db: db({
+    onMigrate: async (db) =&gt; {
+      await db.execute(&quot;CREATE TABLE IF NOT EXISTS messages (role TEXT, content TEXT)&quot;);
+    },
+  }),
+
+  // 2. In-memory state: plain variables that live with the Actor, with no database round trip
+  createVars: () =&gt; ({ online: new Map&lt;string, string&gt;() }),
+
+  // 3. WebSockets: each client holds a live connection, and the Actor pushes to all of them
+  onDisconnect: (c, conn) =&gt; {
+    c.vars.online.delete(conn.id);
+    c.broadcast(&quot;online&quot;, [...c.vars.online.values()]);
+  },
+
+  actions: {
+    join: (c, user: string) =&gt; {
+      c.vars.online.set(c.conn.id, user);
+      c.broadcast(&quot;online&quot;, [...c.vars.online.values()]);
+    },
+
+    sendMessage: async (c, text: string) =&gt; {
+      // Save the message
+      await c.db.execute(&quot;INSERT INTO messages VALUES (?, ?)&quot;, &quot;user&quot;, text);
+      const messages = await c.db.execute(&quot;SELECT role, content FROM messages&quot;);
+
+      // Stream tokens to every connected client
+      const response = streamText({ model: openai(&quot;gpt-5&quot;), messages });
+      for await (const delta of response.textStream) {
+        c.broadcast(&quot;token&quot;, delta);
+      }
+
+      // Save the response
+      await c.db.execute(&quot;INSERT INTO messages VALUES (?, ?)&quot;, &quot;assistant&quot;, await response.text);
+    },
+  },
+});
+
+export const registry = setup({ use: { agent } });"><pre><code data-language="ts">// server.ts
+import { actor, setup } from "rivetkit";
+import { db } from "rivetkit/db";
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+// One Actor per agent, created on first use: agent.getOrCreate(["agent-123"])
+export const agent = actor({
+  // 1. SQLite: every agent has its own database, so history survives restarts
+  db: db({
+    onMigrate: async (db) =&gt; {
+      await db.execute("CREATE TABLE IF NOT EXISTS messages (role TEXT, content TEXT)");
+    },
+  }),
+
+  // 2. In-memory state: plain variables that live with the Actor, with no database round trip
+  createVars: () =&gt; ({ online: new Map&lt;string, string&gt;() }),
+
+  // 3. WebSockets: each client holds a live connection, and the Actor pushes to all of them
+  onDisconnect: (c, conn) =&gt; {
+    c.vars.online.delete(conn.id);
+    c.broadcast("online", [...c.vars.online.values()]);
+  },
+
+  actions: {
+    join: (c, user: string) =&gt; {
+      c.vars.online.set(c.conn.id, user);
+      c.broadcast("online", [...c.vars.online.values()]);
+    },
+
+    sendMessage: async (c, text: string) =&gt; {
+      // Save the message
+      await c.db.execute("INSERT INTO messages VALUES (?, ?)", "user", text);
+      const messages = await c.db.execute("SELECT role, content FROM messages");
+
+      // Stream tokens to every connected client
+      const response = streamText({ model: openai("gpt-5"), messages });
+      for await (const delta of response.textStream) {
+        c.broadcast("token", delta);
+      }
+
+      // Save the response
+      await c.db.execute("INSERT INTO messages VALUES (?, ?)", "assistant", await response.text);
+    },
+  },
+});
+
+export const registry = setup({ use: { agent } });</code></pre></div>
+<div dir="auto" data-snippet-clipboard-copy-content="// client.ts (frontend or backend)
+import { createClient } from &quot;rivetkit/client&quot;;
+import type { registry } from &quot;./server&quot;;
+
+const client = createClient&lt;typeof registry&gt;();
+
+// Open a WebSocket connection to the agent
+const agent = client.agent.getOrCreate([&quot;agent-123&quot;]).connect();
+
+// Listen for realtime events
+agent.on(&quot;online&quot;, users =&gt; console.log(&quot;online:&quot;, users));
+agent.on(&quot;token&quot;, delta =&gt; process.stdout.write(delta));
+
+// Call actions on the Actor
+await agent.join(&quot;nathan&quot;);
+await agent.sendMessage(&quot;how many r's in strawberry?&quot;);"><pre><code data-language="ts">// client.ts (frontend or backend)
+import { createClient } from "rivetkit/client";
+import type { registry } from "./server";
+
+const client = createClient&lt;typeof registry&gt;();
+
+// Open a WebSocket connection to the agent
+const agent = client.agent.getOrCreate(["agent-123"]).connect();
+
+// Listen for realtime events
+agent.on("online", users =&gt; console.log("online:", users));
+agent.on("token", delta =&gt; process.stdout.write(delta));
+
+// Call actions on the Actor
+await agent.join("nathan");
+await agent.sendMessage("how many r's in strawberry?");</code></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Why run agents on Rivet Actors?</h3><a id="user-content-why-run-agents-on-rivet-actors" aria-label="Permalink: Why run agents on Rivet Actors?" href="#why-run-agents-on-rivet-actors"></a></p>
+<p dir="auto">Each Actor gives the agent a <strong>long-lived process</strong> for long agent turns, <strong>in-memory state</strong> for context, a <strong>WebSocket server</strong> for multiplayer, <strong>durable SQLite storage</strong> for session transcripts and agent artifacts, and <strong>hibernation</strong> when idle.</p>
+<p dir="auto">Most of an agent's time is spent <strong>waiting on inference</strong>. When the agent loop runs inside a sandbox, you pay for a whole VM that sits <strong>mostly idle</strong> with low CPU usage.</p>
+<p dir="auto">Rivet Actors run the agent loop outside of the sandbox instead, often called <strong>"separating the head from the hands."</strong> The agent's state, memory, and context live in the Actor, and it reaches the sandbox through tools only when it needs to run code. This uses a fraction of the memory and limits the <strong>blast radius</strong> and <strong>trust boundary</strong> of the code it runs. Read more about <a href="https://www.rivet.dev/blog/2026-07-27-run-your-harness-outside-the-sandbox/" rel="nofollow">running the harness outside of the sandbox</a>.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Do I need a sandbox with a Rivet Actor?</h3><a id="user-content-do-i-need-a-sandbox-with-a-rivet-actor" aria-label="Permalink: Do I need a sandbox with a Rivet Actor?" href="#do-i-need-a-sandbox-with-a-rivet-actor"></a></p>
+<p dir="auto">Often not. An agent needs a sandbox only to run code it writes. Developers on Rivet use three patterns:</p>
+<ul dir="auto">
+<li><strong>Agents with tools</strong>: Many agents only need tool calls, MCP, and APIs, such as customer support or personal agents. No sandbox needed.</li>
+<li><strong>Agents with a lightweight sandbox</strong>: <a href="https://www.rivet.dev/agentos/docs" rel="nofollow">agentOS</a> provides Linux-compatible sandboxing for JS and Python using V8 and WebAssembly, with full POSIX filesystems, networking stacks, and process trees. It covers most workloads, like data analysis, file processing, evals, and code mode.</li>
+<li><strong>Agents with a full sandbox</strong>: Keep your existing sandbox provider and expose its shell and filesystem to the agent as tools, such as a <code>bash</code> tool that runs commands in the sandbox. The Actor reattaches to it across sleeps and restarts. See the <a href="https://github.com/rivet-dev/rivet/blob/main/examples/sandbox-coding-agent">sandbox coding agent example</a>.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Getting Started</h2><a id="user-content-getting-started" aria-label="Permalink: Getting Started" href="#getting-started"></a></p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Use with your coding agent</h3><a id="user-content-use-with-your-coding-agent" aria-label="Permalink: Use with your coding agent" href="#use-with-your-coding-agent"></a></p>
+<p dir="auto">Paste this prompt into Claude Code, Cursor, Codex, or any coding agent:</p>
+<div data-snippet-clipboard-copy-content="Run npx skills add rivet-dev/skills, then ask me what to build and run it locally."><pre><code>Run npx skills add rivet-dev/skills, then ask me what to build and run it locally.
+</code></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Start from scratch</h3><a id="user-content-start-from-scratch" aria-label="Permalink: Start from scratch" href="#start-from-scratch"></a></p>
+<p dir="auto">Rivet ships libraries built on top of Actors for common use cases.</p>
+<ul dir="auto">
+<li><strong><a href="https://www.rivet.dev/actors/docs" rel="nofollow">Actors</a></strong>: Long-lived processes with state, realtime, and scheduling built in.</li>
+<li><strong><a href="https://www.rivet.dev/agents/docs" rel="nofollow">Agents</a></strong>: Durable agents built on Actors, with memory that survives restarts.</li>
+<li><strong><a href="https://www.rivet.dev/workflows/docs" rel="nofollow">Workflows</a></strong>: Multi-step operations built on Actors that replay instead of starting over.</li>
+<li><strong><a href="https://www.rivet.dev/agentos/docs" rel="nofollow">agentOS</a></strong>: Run the code your agent writes, securely, with granular control over network access, filesystem access, and resource limits.</li>
+<li><strong><a href="https://www.rivet.dev/dynamic-apps/docs" rel="nofollow">Dynamic Apps</a></strong> (preview): A backend per user, deployed the moment it is generated.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">How Actors compare to sandboxes</h2><a id="user-content-how-actors-compare-to-sandboxes" aria-label="Permalink: How Actors compare to sandboxes" href="#how-actors-compare-to-sandboxes"></a></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Rivet Actor</th>
+<th>Sandbox</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cold start (p99)</td>
+<td><strong>4.99 ms</strong></td>
+<td>1.70 s</td>
+</tr>
+<tr>
+<td>Memory per instance</td>
+<td><strong>72.4 KB</strong></td>
+<td>512 MiB</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td><strong>SQLite on S3</strong></td>
+<td>Disk per sandbox</td>
+</tr>
+<tr>
+<td>Storage cost</td>
+<td><strong>10.4× cheaper</strong></td>
+<td>Replicated SSDs</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<details>
+<summary>Benchmark details &amp; methodology</summary>
+<ul dir="auto">
+<li><strong>Rivet numbers</strong> come from the published <a href="https://github.com/rivet-dev/bench-rivet-actors-vs-durable-objects">Rivet Actors vs Cloudflare Durable Objects benchmark</a>, run on Rivet 3.0.3. Its repository has the raw samples and the scripts to reproduce them.</li>
+<li><strong>Sandbox numbers</strong> are for <a href="https://e2b.dev" rel="nofollow">E2B</a>: 512 MiB is its default memory allocation from <a href="https://docs.e2b.dev/billing" rel="nofollow">E2B's billing documentation</a> as of November 4, 2026, and 1.70 s is the p99 cold start from <a href="https://www.computesdk.com/benchmarks/sandboxes/burst-tti" rel="nofollow">ComputeSDK's October 30, 2026 sandbox benchmark</a>.</li>
+<li><strong>Storage cost</strong> compares S3 Standard with three Amazon EBS gp3 copies at AWS list prices.</li>
+<li>Sources, dates, and the full method are at <a href="https://www.rivet.dev/docs/benchmarking/" rel="nofollow">rivet.dev/docs/benchmarking</a>.</li>
+</ul>
+</details>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Features</h2><a id="user-content-features" aria-label="Permalink: Features" href="#features"></a></p>
+<ul dir="auto">
+<li><strong>Fault tolerance</strong>: If a node goes down, its Actors move elsewhere with their state intact.</li>
+<li><strong>HTTP &amp; WebSocket networking</strong>: Call an Actor over HTTP or hold a live WebSocket to it.</li>
+<li><strong>End-to-end type safety</strong>: Typed clients for your backend and React hooks for your frontend.</li>
+<li><strong>Cron &amp; scheduling</strong>: Wake an Actor on a schedule or at a time it sets for itself.</li>
+<li><strong>Actor-to-Actor calls</strong>: Actors call each other by key across the cluster.</li>
+<li><strong>Scoped JWTs</strong>: Give each client a <a href="https://www.rivet.dev/docs/jwt" rel="nofollow">JWT</a> scoped to the Actors it may reach.</li>
+<li><strong>OpenTelemetry</strong>: Traces, metrics, and logs in OTel format.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Deployment Options</h2><a id="user-content-deployment-options" aria-label="Permalink: Deployment Options" href="#deployment-options"></a></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Get started</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Local &amp; self-host</strong></td>
+<td>Run Rivet locally while you build. In production, run the control plane on Docker, Kubernetes, or a VM. S3 is the only dependency.</td>
+<td><a href="https://www.rivet.dev/docs/deploy/self-host/control-plane/" rel="nofollow">Self-hosting docs</a></td>
+</tr>
+<tr>
+<td><strong>Rivet Cloud</strong></td>
+<td>Fully managed, dedicated clusters on AWS or GCP in any region. Run your nodes on Rivet Cloud or bring your own.</td>
+<td><a href="https://dashboard.rivet.dev" rel="nofollow">Dashboard</a></td>
+</tr>
+<tr>
+<td><strong>BYOC</strong></td>
+<td>The control plane runs inside your own VPC on AWS, GCP, or Azure, fully managed by Rivet. Your data never leaves your cloud.</td>
+<td><a href="https://www.rivet.dev/docs/deploy/byoc/" rel="nofollow">BYOC docs</a></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">Every option runs the same control plane, from local dev to production. <a href="https://www.rivet.dev/talk-to-an-engineer" rel="nofollow">Talk to an engineer →</a></p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Works with the tools you already use</h2><a id="user-content-works-with-the-tools-you-already-use" aria-label="Permalink: Works with the tools you already use" href="#works-with-the-tools-you-already-use"></a></p>
+<p dir="auto">Typed SDKs for your backend and React hooks for your frontend. Rivet runs on native Node.js and Bun with no custom runtime, so your existing packages, tooling, and tests work unchanged.</p>
+<p dir="auto"><strong>Deploy nodes on</strong>: <a href="https://www.rivet.dev/docs/deploy/self-host/nodes/docker-compose/" rel="nofollow">Docker Compose</a> • <a href="https://www.rivet.dev/docs/deploy/self-host/nodes/kubernetes/" rel="nofollow">Kubernetes</a> • <a href="https://www.rivet.dev/docs/deploy/self-host/nodes/vm/" rel="nofollow">VM &amp; bare metal</a> • <a href="https://www.rivet.dev/docs/deploy/self-host/nodes/hetzner/" rel="nofollow">Hetzner</a> • <a href="https://www.rivet.dev/docs/deploy/self-host/nodes/aws-ecs/" rel="nofollow">AWS ECS</a> • <a href="https://www.rivet.dev/docs/deploy/self-host/nodes/railway/" rel="nofollow">Railway</a> • <a href="https://www.rivet.dev/docs/deploy/self-host/nodes/render/" rel="nofollow">Render</a></p>
+<p dir="auto"><strong>Frameworks</strong>: <a href="https://www.rivet.dev/actors/docs/clients/react" rel="nofollow">React</a> • <a href="https://github.com/rivet-dev/rivet/blob/main/examples/ai-agent-effect">Effect</a></p>
+<p dir="auto"><strong>Runtimes</strong>: <a href="https://www.rivet.dev/actors/docs/quickstart/backend" rel="nofollow">Node.js</a> • <a href="https://www.rivet.dev/actors/docs/quickstart/backend" rel="nofollow">Bun</a> • <a href="https://www.rivet.dev/actors/docs/quickstart/rust" rel="nofollow">Rust</a></p>
+<p dir="auto"><strong>Tools</strong>: <a href="https://www.rivet.dev/actors/docs/testing" rel="nofollow">Vitest</a> • <a href="https://www.rivet.dev/docs/tracing" rel="nofollow">OpenTelemetry</a> • <a href="https://www.rivet.dev/actors/docs/logging" rel="nofollow">Pino</a> • <a href="https://github.com/rivet-dev/rivet/blob/main/examples/ai-agent">AI SDK</a> • <a href="https://github.com/rivet-dev/rivet/blob/main/rivetkit-openapi">OpenAPI</a> • <a href="https://github.com/rivet-dev/rivet/blob/main/rivetkit-asyncapi">AsyncAPI</a></p>
+<p dir="auto"><a href="https://github.com/rivet-dev/rivet/issues/new">Request an integration →</a></p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">FAQ</h2><a id="user-content-faq" aria-label="Permalink: FAQ" href="#faq"></a></p>
+<details>
+<summary><b>Does Rivet have BYOC?</b></summary>
+<p dir="auto">Yes. Rivet deploys into your own cloud account, including air-gapped environments: the control plane and storage run inside your VPC while Rivet operates them. See the <a href="https://www.rivet.dev/docs/deploy/byoc/" rel="nofollow">BYOC docs</a>.</p>
+</details>
+<details>
+<summary><b>Does Rivet have a cloud?</b></summary>
+<p dir="auto">Yes. <a href="https://dashboard.rivet.dev" rel="nofollow">Rivet Cloud</a> runs fully managed, dedicated clusters on AWS or GCP in any region. It can run your app's Docker image as <a href="https://www.rivet.dev/docs/deploy/cloud/compute/" rel="nofollow">nodes on Rivet Cloud</a>, or you can <a href="https://www.rivet.dev/docs/deploy/self-host/nodes/" rel="nofollow">bring your own nodes</a>.</p>
+</details>
+<details>
+<summary><b>Can I self-host Rivet?</b></summary>
+<p dir="auto">Yes. Rivet is fully self-hostable; see the <a href="https://www.rivet.dev/docs/deploy/self-host/control-plane/" rel="nofollow">self-hosting docs</a>. The control plane runs anywhere a container runs, with guides for Docker Compose, Kubernetes, VMs and bare metal, Hetzner, Railway, Render, and AWS ECS. For enterprise support with a self-hosted deployment, <a href="https://www.rivet.dev/enterprise/" rel="nofollow">contact us</a>.</p>
+</details>
+<details>
+<summary><b>Do I still need Postgres, FoundationDB, or NATS?</b></summary>
+<p dir="auto">No. An object storage bucket is the only dependency: there is no database to run and no message bus, and control plane instances find each other through the bucket. Rivet works with Amazon S3, Google Cloud Storage, Azure Blob Storage, and any S3-compatible store such as MinIO, Cloudflare R2, or Hetzner Object Storage. A local filesystem backend is available for trying Rivet on one machine.</p>
+</details>
+<details>
+<summary><b>Is Rivet open-source?</b></summary>
+<p dir="auto">Yes. Rivet is open source under the permissive Apache 2.0 license. You're looking at it.</p>
+</details>
+<details>
+<summary><b>Are Rivet Actors only for agents?</b></summary>
+<p dir="auto">No. Rivet is a general actor platform at its core, with nothing specific to agents. For agents, you can use the optional <a href="https://www.rivet.dev/agents/docs/quickstart/" rel="nofollow">agent library</a>, which runs Pi Durable on Rivet Actors, or write your own agent from scratch.</p>
+</details>
+<details>
+<summary><b>How does Rivet compare to sandboxes?</b></summary>
+<p dir="auto">A sandbox boots a VM or container per agent, which is slow to start and sits mostly idle. A Rivet Actor runs inside a shared node process: 72 KB and 4.99 ms p99 to start, versus 512 MiB and 1.70 s for a sandbox, and it hibernates when idle. To run untrusted code your agent writes, use <a href="https://www.rivet.dev/agentos/docs" rel="nofollow">agentOS</a>.</p>
+</details>
+<details>
+<summary><b>How does Rivet compare to Cloudflare Durable Objects?</b></summary>
+<p dir="auto">Rivet is often used as an open-source alternative to Cloudflare Durable Objects that is easy to self-host and scales. It also fixes many of the constraints of Durable Objects: no 128 MB memory cap, bottomless storage instead of a 10 GB SQLite limit, Actors are not randomly evicted, and you control the runtime because Actors run on vanilla Node.js or Bun instead of a custom runtime. Rivet also adds built-in connection handling, event broadcasting, durable scheduling and cron, full Vitest support, lifecycle hooks for draining, and control over Actor upgrades. See the <a href="https://www.rivet.dev/actors/compare/rivet-actors-vs-cloudflare-durable-objects/" rel="nofollow">Cloudflare Durable Objects comparison</a>.</p>
+</details>
+<details>
+<summary><b>Does Rivet use a custom V8 runtime?</b></summary>
+<p dir="auto">No. Rivet runs on native Node.js and Bun, so your existing packages, tooling, and tests work unchanged.</p>
+</details>
+<details>
+<summary><b>Is Rivet like Erlang, Akka, or Orleans?</b></summary>
+<p dir="auto">Rivet implements the virtual actor pattern, which is closest to Orleans, but focuses on what modern workloads need: SQLite persistence instead of simple JSON stores and support for modern runtimes. Erlang and Akka do not provide virtual actors out of the box, though ecosystem packages exist that offer functionality comparable to Rivet Actors.</p>
+</details>
+<details>
+<summary><b>Does Rivet require microVMs, gVisor, or nested virtualization?</b></summary>
+<p dir="auto">No. Rivet only needs a standard process that connects to the control plane over WebSocket. That process can be Node.js, Bun, Rust, or anything else.</p>
+</details>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Projects in This Repository</h2><a id="user-content-projects-in-this-repository" aria-label="Permalink: Projects in This Repository" href="#projects-in-this-repository"></a></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Project</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/rivet-dev/rivet/blob/main/rivetkit-typescript">RivetKit TypeScript</a></td>
+<td>Client &amp; server library for building Actors</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rivet-dev/rivet/blob/main/rivetkit-rust">RivetKit Rust</a></td>
+<td>Rust SDK</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rivet-dev/rivet/blob/main/rivetkit-python">RivetKit Python</a></td>
+<td>Python client (experimental)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rivet-dev/rivet/blob/main/rivetkit-swift">RivetKit Swift</a></td>
+<td>Swift client (experimental)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rivet-dev/rivet/blob/main/engine">Control Plane</a></td>
+<td>Rust control plane that schedules, routes, and persists Actors</td>
+</tr>
+<tr>
+<td>↳ <a href="https://github.com/rivet-dev/rivet/blob/main/engine/packages/pegboard">Pegboard</a></td>
+<td>Actor scheduling &amp; networking</td>
+</tr>
+<tr>
+<td>↳ <a href="https://github.com/rivet-dev/rivet/blob/main/engine/packages/guard">Guard</a></td>
+<td>Traffic routing proxy</td>
+</tr>
+<tr>
+<td>↳ <a href="https://github.com/rivet-dev/rivet/blob/main/engine/packages/epoxy">Epoxy</a></td>
+<td>Multi-region KV store (EPaxos)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rivet-dev/rivet/blob/main/docs">Documentation</a></td>
+<td>Source for <a href="https://www.rivet.dev/actors/docs" rel="nofollow">rivet.dev/actors/docs</a></td>
+</tr>
+<tr>
+<td><a href="https://github.com/rivet-dev/rivet/blob/main/examples">Examples</a></td>
+<td>Runnable examples</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Community</h2><a id="user-content-community" aria-label="Permalink: Community" href="#community"></a></p>
+<ul dir="auto">
+<li><a href="https://www.rivet.dev/discord" rel="nofollow">Discord</a> - Chat with the community</li>
+<li><a href="https://x.com/rivet_dev" rel="nofollow">X/Twitter</a> - Follow for updates</li>
+<li><a href="https://github.com/rivet-dev/rivet/discussions">GitHub Discussions</a> - Ask questions</li>
+<li><a href="https://github.com/rivet-dev/rivet/issues">GitHub Issues</a> - Report bugs</li>
+<li><a href="https://www.rivet.dev/talk-to-an-engineer" rel="nofollow">Talk to an engineer</a> - Discuss your use case</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">License</h2><a id="user-content-license" aria-label="Permalink: License" href="#license"></a></p>
+<p dir="auto"><a href="https://github.com/rivet-dev/rivet/blob/main/LICENSE">Apache 2.0</a></p>
+</article></div></div>
