@@ -1,0 +1,158 @@
+<div id="readability-page-1" class="page"><div aria-label="Content">
+        <article itemscope="" itemtype="http://schema.org/BlogPosting">
+
+  
+
+  <div itemprop="articleBody">
+    <p>My first month working on Rust compiler performance for
+<a href="https://hexcat.nl/">Hexcat</a> is over and it’s time to see some of what’s
+happened since my <a href="https://nnethercote.github.io/2026/09/30/how-to-speed-up-the-rust-compiler-in-september-2026.html">last
+post</a>.</p>
+
+<h2 id="spans">Spans</h2>
+
+<p><em>Spans</em> are a critical data structure in the Rust compiler. Every AST, HIR, and
+MIR node carries a span. Each span has four fields recording the following.</p>
+<ul>
+  <li>A source location (<code>lo</code> and <code>hi</code>). A crate’s source files are concatenated
+into a single buffer, and these are indices into that buffer.</li>
+  <li>Possibly some hygiene and provenance data (<code>context</code>), relevant for macros
+and other things.</li>
+  <li>Possibly an extra relative position (<code>parent</code>) that is used to minimize the
+compile time impact of small changes to source locations, such as those
+caused by inserting a single line at the start of a file.</li>
+</ul>
+
+<p>Each of the four fields is 32 bits, resulting in 16 bytes of data. But most of
+the time these 16 bytes can be compressed into one of three 8-byte inline
+formats, and the remaining cases are interned into a global table. This works
+by taking advantage of patterns in the data: many source locations have a small
+length (i.e. a small difference between <code>lo</code> and <code>hi</code>); many spans have a zero
+context and/or parent, and the non-zero contexts and parents are typically
+small integers; parents are only used in incremental builds.</p>
+
+<p><a href="https://github.com/rust-lang/rust/pull/163857">#163857</a>: In this PR I replace
+the old compression scheme with one that is simpler and more efficient. For
+incremental builds we now typically intern around 1% of spans compared to
+20-40% with the old scheme. (In non-incremental builds we typically intern
+fewer than 0.1%.) Also, we can always store the context field inline even in
+the interned case, which is useful because we often read the context by itself.
+This change reduced instruction counts across many benchmarks, in the best
+cases by more than 3%, and the cycle count improvements were even higher.
+Incremental builds saw the largest improvements due to less interning.</p>
+
+<p><a href="https://github.com/rust-lang/rust/pull/163971">#163971</a>: In this PR <a href="https://github.com/joshtriplett">Josh
+Triplett</a> took advantage of the new
+representation to micro-optimize a number of span operations. This reduced
+instruction counts across many benchmarks, in the best case by more than 2%.</p>
+
+<p><a href="https://github.com/rust-lang/rust/pull/164291">#164291</a>: In this PR I tried
+using a pattern type to give <code>Span</code> a niche so that <code>Option&lt;Span&gt;</code> would be the
+same size as <code>Span</code>. It worked but didn’t help performance because we don’t use
+<code>Option&lt;Span&gt;</code> much, and it made the code more complicated. So I abandoned it.</p>
+
+<p><a href="https://github.com/rust-lang/rust/pull/163628">#163628</a>: During metadata
+encoding/decoding and stable hashing we typically need to get information
+about the same parent span from a hash table over and over. In this PR I put a
+single-entry cache in front of that hash table, which avoids the hash table
+lookup in most cases. This reduced instruction counts on many benchmarks, in
+the best case by more than 4%, mostly benefiting incremental compilation.</p>
+
+<h2 id="new-trait-solver">New trait solver</h2>
+
+<p><a href="https://github.com/rust-lang/rust/pull/163981">#163981</a>,
+<a href="https://github.com/rust-lang/rust/pull/164234">#164234</a>,
+<a href="https://github.com/rust-lang/rust/pull/165160">#165160</a>:
+In these three PRs I focused on the compilation time of
+<a href="https://github.com/diesel-rs/diesel">Diesel</a>, a crate for which the
+in-development new trait solver is slower than the old trait solver. I did
+a dozen or so micro-optimizations across the three PRs, such as early returns
+on hot paths, avoiding allocations, avoiding some recomputations, and
+optimizing some special cases. These reduced the instruction count overhead of
+the new solver on a <code>Check Full</code> build from 1.49x to 1.16x, and other new
+solver benchmarks like <code>typenum</code> and <code>nalgebra</code> also saw improvements. There is
+still more work to be done but this is good progress.</p>
+
+<h2 id="miscellaneous">Miscellaneous</h2>
+
+<p><a href="https://github.com/rust-lang/rust/pull/164236">#164236</a>: In this PR I
+rearranged some code to avoid doing some unnecessary work in an early return
+case, reducing instruction counts for many benchmarks, in the best case by over
+4%.</p>
+
+<p><a href="https://github.com/rust-lang/rust/pull/165022">#165022</a>: In this PR I removed
+the <code>AttrTokenStream</code> and <code>AttrTokenTree</code> types. These mirrored the
+widely-used <code>TokenStream</code> and <code>TokenTree</code> types but were only used for <code>cfg</code>
+processing. This change was mostly about making the code simpler, but it also
+avoided some token stream conversions, reducing instruction counts on a range
+of benchmarks: by 4% on the <code>deep-vector</code> stress test, and by less than 1% on
+some real world cases.</p>
+
+<p><a href="https://github.com/rust-lang/rust/pull/164965">#164965</a>: In this PR I avoided
+the creation of one type variable per element in literals requiring type
+inference like <code>vec![1, 2, 3, 4]</code>. This was a huge win (8-12% cycle count
+reduction) for the <code>deep-vector</code> stress test containing a <code>vec</code> literal
+with more than 100,000 elements… and didn’t help with any other benchmarks.
+Sometimes big wins on stress tests translate to smaller wins on real code, and
+sometimes they don’t. I ended up merging this change anyway because it was very
+simple and did improve an error message in one test.</p>
+
+<p><a href="https://github.com/rust-lang/rust/pull/164341">#164341</a>: In this PR I added
+some additional cases to an early return when processing coercions. This
+reduced instruction counts across numerous benchmarks, mostly by less than 1%.</p>
+
+<p><a href="https://github.com/rust-lang/rust/pull/165112">#165112</a>: There is an existing
+<code>trivial_consts</code> mechanism in the compiler that skips entire passes (including
+borrow checking) for trivial consts like <code>const N: usize = 0</code>, to reduce
+compile times. In this draft PR I have extended this mechanism so it also
+avoids building MIR for these consts. In the best case (<code>libc</code>) it reduces
+instruction counts by up to 6%, but <code>trivial_consts</code> is already tricky and
+somewhat controversial, so the path forward here is unclear. More details are
+in the <a href="https://rust-lang.zulipchat.com/#narrow/channel/131828-t-compiler/topic/.60trivial_consts.60.20without.20MIR/with/636155146">Zulip
+thread</a>.</p>
+
+<p><a href="https://github.com/rust-lang/rust/pull/164484">#164484</a>: In this PR <a href="https://github.com/TaKO8Ki">Takayuki
+Maeda</a> introduced a sparse encoding mechanism for
+metadata. This increased instruction counts slightly, but cycle counts and
+wall-times were neutral, and more importantly it reduced metadata sizes by up
+to 37% and max RSS (peak memory) by up to 7%.</p>
+
+<h2 id="hexcatconf">Hexcatconf</h2>
+
+<p>In October I also travelled to Delft to attend
+<a href="https://hexcat.nl/conf2026/">Hexcatconf</a>, a small meetup featuring twenty-ish
+people from Hexcat, RustNL, and elsewhere. A long trip, but well worth it! It
+was great to catch up with some familiar faces, make some new friends, and
+learn more about some of the things people are working on. Thank you to Mara
+Bos for organizing the event.</p>
+
+<h2 id="overall-progress">Overall progress</h2>
+
+<p>The wall-time measurements for the period 2026-09-28 to 2026-11-02 that meet
+the “relevant” threshold can be seen
+<a href="https://perf.rust-lang.org/compare.html?start=c1070d69382b8d2f2eb65119c738a77d9e324c9e&amp;stat=wall-time&amp;tab=compile&amp;end=ae36fe22c7e590df40ffd53ac25fea35597c3f3d">here</a>.
+It’s a sea of green, with improvements on 236 tests across 45 benchmarks, a
+number of them being double-digit percentages, and regressions on just four
+tests across three benchmarks.</p>
+
+<p>If we expand the selection to include “non-relevant” results (i.e. those below
+the variance thresholds) the results are slightly more mixed (599 improvements
+vs. 90 regressions) which is to be expected for the relatively short period of
+one month. Overall we see a very healthy mean wall-time reduction of 2.85%, and
+an even better mean max-RSS (peak memory) reduction of 4.46%. Good news, which
+hopefully <a href="https://github.com/rust-lang/goals/issues/789">will continue</a>.</p>
+
+<p>Finally, the instruction count changes <a href="https://perf.rust-lang.org/compare.html?start=2026-01-01&amp;stat=instructions%3Au&amp;tab=compile&amp;end=ae36fe22c7e590df40ffd53ac25fea35597c3f3d&amp;nonRelevant=true">since the start of the
+year</a>
+show something remarkable: out of 561 measurements there are 560 improvements
+and a single regression, and the second-worst improvement is 3.10%. This
+observation came from <a href="https://github.com/panstromek">Matyáš Racek</a>; in fact,
+when he mentioned it a few weeks ago every single result was green. It is
+fantastic to see the compiler and related tools continually getting faster even
+as new features are added to the language and toolchain. Well done to the many
+people who have contributed to this achievement. Let’s keep going!</p>
+
+  </div>
+</article>
+
+      </div></div>
