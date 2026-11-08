@@ -1,0 +1,397 @@
+<div id="readability-page-1" class="page"><div>
+<br>
+<a href="https://acid.vegas/">
+	<span>ACIDVEGAS</span>
+	<span>most dangerous motherfuck   x   come get some</span>
+</a>
+<a href="https://acid.vegas/assets/hardcore.wav"><img src="https://acid.vegas/i/crowdkill.gif" alt=""></a>
+<nav>
+	<span>x</span>
+	<a href="https://acid.vegas/blog/">blog</a>
+	<span>x</span>
+</nav>
+
+
+<span>2026-11-06</span>
+<p>Port 0 is the port you are not supposed to use, so nobody looks there. So we put an IRC network on it. Then I got curious whether anyone else had, and scanned all of IPv4 for port 0. Turns out we weren't alone, and some of our neighbours really shouldn't be there.</p>
+
+<p>Ask any program to listen on port 0 and it will hand you a socket on port 47193...or 58037...or whatever the kernel felt like that day. Port 0 is not a port you can have. It is the number you pass when you want the operating system to pick one for you.</p>
+
+<p>But a TCP header is just bytes. The destination port field is 16 bits wide, and <code>0x0000</code> fits in 16 bits as well as anything else does. Nothing on the wire stops a packet from being addressed to port 0. Your tools will refuse it, your browser will block it, and your scanner's default port list skips it, because everyone agrees it isn't a real port.</p>
+
+<p>Which makes it a pretty good place to hide things, whether anyone meant to or not. So we did some TCP cowboy shit &amp; port scanned the entire fucking internet for open ports on port 0, which uncovered some interesting unexpected findings.</p>
+
+<h2>What Port 0 Actually Is</h2>
+
+<p>The standards are thin on this. <a href="https://www.rfc-editor.org/rfc/rfc9293">RFC 9293</a>, the 2022 consolidation of the TCP spec, defines the source and destination port as "16 bits" and leaves it there. It has no rule against zero.</p>
+
+<p>IANA lists <code>0/tcp</code> and <code>0/udp</code> as <b>Reserved</b>, pointing at <a href="https://www.rfc-editor.org/rfc/rfc6335">RFC 6335</a>. That RFC splits the port space into System (0–1023), User (1024–49151) and Dynamic (49152–65535) ranges, and explains what "Reserved" means:</p>
+
+<blockquote>Reserved port numbers include values at the edges of each range, e.g., 0, 1023, 1024, etc., which may be used to extend these ranges or the overall port number space in the future.</blockquote>
+
+<p>So port 0 is not forbidden. It is set aside. The only place zero has a defined protocol meaning is UDP: <a href="https://www.rfc-editor.org/rfc/rfc768">RFC 768</a> makes the source port optional, and "if not used, a value of zero is inserted." TCP has nothing like that.</p>
+
+<h2>Why You Can't Listen On It</h2>
+
+<p>Port 0's reputation comes from the sockets API, not the wire. When you call <code>bind()</code> with <code>sin_port = 0</code>, you are not asking for port 0. You are asking for <i>any</i> port. The <code>ip(7)</code> man page lists every case where Linux hands out an ephemeral port: <code>bind()</code> with port 0, <code>listen()</code> on an unbound socket, <code>connect()</code> on an unbound socket, and <code>sendto()</code> on an unbound datagram socket.</p>
+
+<p>The range comes from <code>net.ipv4.ip_local_port_range</code>, which defaults to <code>32768 60999</code> on Linux, not the 49152–65535 that IANA calls Dynamic. And asking for port 0 needs no privileges. <code>__inet_bind()</code> only checks <code>CAP_NET_BIND_SERVICE</code> when the requested port is non-zero.</p>
+
+<p>How the kernel picks is more interesting than I expected. In <code>net/ipv4/inet_connection_sock.c</code> (v6.8), <code>inet_csk_find_open_port()</code> starts at a random offset and then does this:</p>
+
+<pre><code>offset = get_random_u32_below(remaining);
+/* __inet_hash_connect() favors ports having @low parity
+ * We do the opposite to not pollute connect() users.
+ */
+offset |= 1U;</code></pre>
+
+<p>It walks the range in steps of two. The function above it says it outright: <i>"We try to allocate an odd port (and leave even ports for connect())."</i> Outgoing connections go through <code>__inet_hash_connect()</code> in <code>inet_hashtables.c</code>, which implements RFC 6056 Algorithm 4 (double-hash port selection) and takes the <i>even</i> ports first. The kernel splits the range by parity so servers asking for "any port" and clients making outbound connections don't fight over the same numbers. If <code>SO_REUSEADDR</code> is set, <code>bind()</code> also tries the lower half of the range before the upper half.</p>
+
+<p>That is easy to test. On a stock Ubuntu box running Linux 6.8:</p>
+
+<div>
+<table>
+<tbody><tr><th>Test</th><th>Result</th></tr>
+<tr><td>2,000 × <code>bind(("127.0.0.1", 0))</code></td><td>ports 32777–60997, <b>2,000 / 2,000 odd</b></td></tr>
+<tr><td>same, with <code>SO_REUSEADDR</code></td><td>ports 32773–46835 (lower half only), all odd</td></tr>
+<tr><td><code>listen()</code> with no <code>bind()</code></td><td>port 58037</td></tr>
+<tr><td>300 × <code>connect()</code> with no <code>bind()</code></td><td>source ports 32772–60998, <b>300 / 300 even</b></td></tr>
+</tbody></table>
+</div>
+
+<p>So when your program says "listen on port 0", the kernel hears "give me an odd number between 32768 and 61000." No normal program can listen on port 0.</p>
+
+<h2>So We Did It Anyways</h2>
+
+<img src="https://acid.vegas/blog/the-port-that-does-not-exist/did-it-anyway.jpg" alt="Toad on a skateboard: call the cops, I dont give a fuck">
+
+<p>You can bypass all of this with raw sockets, but if you just want to cheat, you can simply forward the port to another with iptables/nftables. As a fun proof of concept, I set up my IRC network at <code>irc.supernets.org</code> to accept plaintext connections on port <b>0</b> and SSL connections on port <b>1</b>. JUST TO FLEX. 😎</p>
+
+<pre><code>-A PREROUTING -p tcp -m tcp --dport 0 -j REDIRECT --to-ports 6667
+-A PREROUTING -p tcp -m tcp --dport 1 -j REDIRECT --to-ports 6697</code></pre>
+
+<p>A SYN arrives for port 0, netfilter rewrites the destination to 6667 where the ircd is actually listening, and the reply is rewritten back on the way out. The ircd never knows. Port 1 does the same for TLS on 6697.</p>
+
+<h2>Talking To Port 0 Is Its Own Problem</h2>
+
+<p>Getting a server onto port 0 was the easy part. Getting a <i>client</i> there is where tools give up. I pointed everything I had at our own server on port 0:</p>
+
+<div>
+<table>
+<tbody><tr><th>Client</th><th>Result</th></tr>
+<tr><td>OpenBSD <code>nc</code></td><td><code>nc: port number too small: 0</code></td></tr>
+<tr><td><code>telnet</code> (inetutils)</td><td><code>Port number 0 is out of range.</code></td></tr>
+<tr><td>Chromium</td><td><code>net::ERR_UNSAFE_PORT</code> (port 1 too)</td></tr>
+<tr><td><code>socat</code></td><td>connects, works</td></tr>
+<tr><td>Python <code>asyncio</code></td><td>connects, works</td></tr>
+<tr><td>Python <code>ssl</code> on a blocking socket</td><td><code>BlockingIOError</code></td></tr>
+</tbody></table>
+</div>
+
+<p>That last one is strange, because the TCP connection underneath it is fine. The problem is that the kernel says it isn't, and it does that on purpose. Here is <code>inet_getname()</code> in <code>net/ipv4/af_inet.c</code>, which backs <code>getpeername()</code>:</p>
+
+<pre><code>if (peer) {
+	if (!inet-&gt;inet_dport ||
+	    (((1 &lt;&lt; sk-&gt;sk_state) &amp; (TCPF_CLOSE | TCPF_SYN_SENT)) &amp;&amp;
+	     peer == 1)) {
+		release_sock(sk);
+		return -ENOTCONN;
+	}</code></pre>
+
+<p>Linux uses "destination port is 0" as its internal marker for "this socket isn't connected to anything." A socket that really is connected to port 0 trips that check, so <code>getpeername()</code> returns <code>ENOTCONN</code> on a working connection.</p>
+
+<p>Python's <code>ssl.wrap_socket()</code> calls <code>getpeername()</code> to decide whether the socket is connected, gets <code>ENOTCONN</code>, decides it isn't, switches to non-blocking and tries a <code>recv(1)</code>, gets <code>EAGAIN</code>, and raises <code>BlockingIOError</code>. The TCP connection is fine. It just reports that it doesn't exist. Python's <code>asyncio</code> does TLS through memory buffers instead of <code>wrap_socket()</code>, never asks, and works.</p>
+
+<h2>Scanning The Internet For Port 0</h2>
+
+<p>You can't scan port 0 with <code>connect()</code>-based tools for all the reasons above, but masscan doesn't use the kernel's TCP stack. It builds its own SYN packets, so port 0 is just another number.</p>
+
+<p><b>1,173,626</b> addresses answered with a SYN-ACK.</p>
+
+<p>That sounds like a lot of people using port 0. It isn't. Grouped by <code>/24</code>, the responses are packed into a few thousand dense blocks:</p>
+
+<div>
+<table>
+<tbody><tr><th>Hosts answering per /24</th><th>/24s</th><th>IPs</th></tr>
+<tr><td>1</td><td>28,370</td><td>28,370</td></tr>
+<tr><td>2 – 10</td><td>10,253</td><td>34,654</td></tr>
+<tr><td>11 – 100</td><td>1,747</td><td>53,022</td></tr>
+<tr><td>101 – 200</td><td>865</td><td>138,300</td></tr>
+<tr><td>201 – 256</td><td>3,751</td><td>919,280</td></tr>
+</tbody></table>
+</div>
+
+<p>8% of those <code>/24</code>s hold 78% of the responding IPs. Whole blocks answer on every address: <code>172.65.0.0/16</code> returned 65,534 of 65,536. That isn't 65,534 servers. It's a firewall or router at the edge answering the SYN for everything behind it. <b>1,116,675</b> addresses completed the handshake and never sent a single byte.</p>
+
+<h2>94% Of The Banners Are A Load Balancer Complaining</h2>
+
+<p>56,951 addresses did send something. Almost all of it looked like this:</p>
+
+<pre><code>BIG-IP: [0x31dbae9:14718] {peer} TCP retransmit timeout
+BIG-IP: [0x31dbae9:4992] {peer} TCP RST from remote system
+BIG-IP: [0x2bd2afd:5226] SYN timeout (server not responding)</code></pre>
+
+<p>F5 BIG-IP load balancers write the reason for a reset into the RST packet, and masscan saved it as a banner. That's <b>53,741</b> of the 56,951 (94%), and 46,583 of them are in <code>132.246.0.0/16</code> alone. Drop those, plus 305 hosts returning the same fixed <code>(Ref.Id: ?...?)</code> token, and <b>2,905 addresses</b> are left. That's about 0.25% of everything that answered.</p>
+
+<h2>What's Actually On Port 0</h2>
+
+<div>
+<table>
+<tbody><tr><th>Service</th><th>IPs</th><th>Notes</th></tr>
+<tr><td>SSH</td><td>748</td><td>653 OpenSSH (9 of them OpenSSH_for_Windows), 72 dropbear, one <code>SSH-1.99-OpenSSH_3.9p1</code></td></tr>
+<tr><td>MySQL / MariaDB</td><td>215</td><td>versions 3.23 through 11.8, mostly 5.x</td></tr>
+<tr><td>Telnet</td><td>211</td><td>router logins, power switches, rack PDUs</td></tr>
+<tr><td>HTTP</td><td>159</td><td>router admin pages, <code>micro_httpd</code>, building controllers</td></tr>
+<tr><td>FTP</td><td>105</td><td>FileZilla, Microsoft FTP, ProFTPD, GNU inetutils, vsFTPd, Serv-U, lots of NAS boxes</td></tr>
+<tr><td>SMTP</td><td>80</td><td>Postfix, Exchange, Stalwart, spam gateways (masscan called them FTP)</td></tr>
+<tr><td>DVR / camera protocols</td><td>44</td><td>binary recorder protocols</td></tr>
+<tr><td>sshd refusing</td><td>43</td><td><code>Exceeded MaxStartups</code> instead of a banner</td></tr>
+<tr><td>VNC</td><td>39</td><td>RFB 3.3 through 4.1, one with no authentication</td></tr>
+<tr><td>OpenVPN</td><td>21</td><td>TCP mode, server hard-reset packets</td></tr>
+<tr><td>Phone system call logs</td><td>21</td><td>Avaya IP Office SMDR, more on this below</td></tr>
+</tbody></table>
+</div>
+
+<p>Nobody is running anything exotic on port 0. It's the same stuff that's on every other port: SSH, databases, telnet, FTP. What stands out is how much of it is embedded gear. dropbear, <code>micro_httpd</code>, NAS certificates from QNAP, Synology and Buffalo, DVRs, power switches. Some of it clearly comes from one device model rolled out across an ISP:</p>
+
+<ul>
+	<li><b>VERO S.A (Brazil)</b>: 145 addresses across six ASNs, all registered as "America-NET Ltda." 132 show the identical telnet <code>login:</code> prompt. The other 13 print a CLI or shell error instead.</li>
+	<li><b>ALFANET (Azerbaijan)</b>: 32 addresses, every one <code>SSH-2.0-dropbear_0.48</code>.</li>
+	<li><b>Great Plains Communications (US)</b>: 20 of the 23 "Residential Gateway" login pages.</li>
+	<li><b>INVITECH (Hungary)</b>: 17 FTP servers announcing <code>AMG1001-T10A FTP version 1.0</code>, with clocks set to early 2000 or 2036.</li>
+	<li><b>Telekom Srbija</b>: 13 identical <code>MySQL 4.1.22-community-nt</code>, an ancient Windows MySQL build.</li>
+</ul>
+
+<p>My guess is that nobody at those ISPs picked port 0 on purpose: a port-forward or NAT rule shipped in a CPE config with the external port left at zero, and the device honored it. Then there are the hosting providers. GigaCloud (Ukraine), VDCBY (Belarus) and SiS Distribution (Thailand) have SSH on port 0 with 18, 13 and 10 different SSH version strings. Different builds means different machines, so these are individual customers, not one firmware image.</p>
+
+<p>GigaCloud also accounts for 16 of the 80 mail servers on port 0, mostly Ukrainian organisations: <code>mail.dtek-kem.com.ua</code> (DTEK, the Ukrainian energy company), <code>smtp01.health24.ua</code>, <code>mx.eastenergy.com.ua</code>, <code>mail.citrus.com.ua</code>, and two government servers, <code>mail.depfin.dn.gov.ua</code> and <code>mail.sed-rada.gov.ua</code>. Why they all share this setup, I don't know. Elsewhere in mail: a Uruguayan government host, <code>prod-carbonium01.rionegro.gub.uy</code>, and <code>mssante.elsan.care</code> (62.106.147.123), a submission server for MSSanté, the French national secure health messaging system, run by the private hospital group Elsan. When masscan poked it, it replied:</p>
+
+<pre><code>220 mssante.elsan.care MSSPRO LPS AUTH_CLI submission server
+501 2.7.0 Error: I can break rules, too. Goodbye.</code></pre>
+
+<p>Weird...</p>
+
+<p>The rest of the router logins look the same as they would on port 80. A D-Link DSL-2740B (37.103.36.12 and two others), with "admin" already filled in as the username: two in French at Orange and Nerim in France, one in English at Wind Tre in Italy. A Linksys "Router Access" page in El Salvador (200.31.162.80). A plain "Sign in" form titled "Router Admin" on seven cloud servers: four at Hetzner, two at Online SAS, one at DigitalOcean.</p>
+
+<img src="https://acid.vegas/blog/the-port-that-does-not-exist/residential-gateway.png" alt="A Residential Gateway router login page served on TCP port 0">
+
+<img src="https://acid.vegas/blog/the-port-that-does-not-exist/dlink.png" alt="D-Link DSL-2740B router login page with the username prefilled as admin, served on TCP port 0">
+
+<img src="https://acid.vegas/blog/the-port-that-does-not-exist/linksys.png" alt="Linksys Router Access login page served on TCP port 0">
+
+<p>One didn't bother with a login at all. A 3G/4G "Wireless Mobile Router" on China Unicom (183.93.33.155) serves its full status page on port 0 to anyone who asks: its WAN IP, LAN, WAN and wireless MAC addresses, SSID, firmware build, uptime, memory usage and whether DHCP is on.</p>
+
+<img src="https://acid.vegas/blog/the-port-that-does-not-exist/4g-router.png" alt="Chinese 3G/4G Wireless Mobile Router status page showing WAN IP, MAC addresses and SSID without authentication, served on TCP port 0">
+
+<h2>Some Of It Runs Buildings</h2>
+
+<p>Browsers won't open a URL with <code>:0</code> in it, so to see the web interfaces I ran a small relay: listen on a local port, connect out to the target on port 0, pipe the bytes through, and point headless Chromium at the local port. 160 addresses speak HTTP on port 0, and 85 rendered a page.</p>
+
+<img src="https://acid.vegas/blog/the-port-that-does-not-exist/gira.png" alt="Gira HomeServer 4 start page with visualization, debug and HS-Monitor links, served on TCP port 0">
+
+<p>A <b>Gira HomeServer 4</b> (46.186.48.86), a KNX home and building automation controller, with its start page, debug page and monitor links sitting on port 0.</p>
+
+<img src="https://acid.vegas/blog/the-port-that-does-not-exist/trane.png" alt="Trane Tracer Synchrony building controller login page served on TCP port 0">
+
+<p>A <b>Trane Tracer Synchrony</b> login (201.171.202.25), which is HVAC and building control.</p>
+
+<h2>Some Of It Runs Machines</h2>
+
+<p>The web pages were the easy part to read. The more interesting devices don't speak HTTP. They send binary the moment you connect, and figuring out what they are meant matching bytes against nmap's probe database, Wireshark dissectors and, in one case, a disassembled vendor client.</p>
+
+<p><b>A Beckhoff PLC with its screen open to anyone.</b> 46.178.29.102, on Proximus in Belgium, sends this on connect:</p>
+
+<pre><code>30 01 00 00 05 6d 6d 6a 56 05 00 00 00 03 00 00 ...  "CBx063" ... "CX5120" ...</code></pre>
+
+<p>The CX5120 is a Beckhoff embedded PC running Windows CE, the kind that runs TwinCAT and drives a machine. The protocol is CERDISP, Windows CE Remote Display, which Beckhoff's own security guideline lists as open on TCP 987 by default. I disassembled Beckhoff's client, <code>CERHOST.exe</code> 2.0.4.0. It reads a 0x130-byte info block first, which is the <code>30 01 00 00</code> at the start of the banner. Then it checks a magic word: <code>0x6a6d6d05</code> means no password, <code>0x6a6d6d06</code> means password required. This one sends <code>05 6d 6d 6a</code>. Then a 1366×768 resolution (<code>56 05</code>, <code>00 03</code>) and screen update data. CERHOST also sends mouse and keyboard input. So this is a PLC's screen that anyone can watch and operate, with no password, on port 0.</p>
+
+<p><b>An Omron PLC that was too busy to talk.</b> 194.49.59.232 (AireNetworks, Spain) answered with an Omron FINS/TCP frame:</p>
+
+<pre><code>46 49 4e 53 00 00 00 10 00 00 00 01 00 00 00 20 00 00 00 00 00 00 00 66
+F  I  N  S  length=16   cmd=1       error=0x20               server node 0x66</code></pre>
+
+<p>Command 1 is the server's Node Address Data Send, and error code <code>0x20</code> is "All connections are in use." It is a FINS endpoint, the protocol used to read and write Omron PLC memory, and it turned us away only because its connection slots were full. Five days later it said the same thing. A second host, 14.49.206.64 (KT, Korea), repeats an Omron Host Link frame, <code>@FFF07F000000018C3D*</code>, over and over. The XOR of everything before <code>3D</code> is <code>0x3D</code>, so the checksum is valid, but unit <code>FF</code> is outside the normal 00–31 range. The framing is Omron. The device behind it I couldn't pin down.</p>
+
+<p><b>A Modbus master.</b> 155.93.146.109 (South Africa) doesn't wait to be polled. It polls you: <code>10 04 00 00 00 02 72 8a</code> is slave 16, Read Input Registers 0–1, with a valid CRC-16/MODBUS. Something out there is a SCADA master on port 0 asking whoever connects for two registers. Another host, 85.198.27.114 (Iran), repeats a <code>7e</code>-framed 7-byte payload with a valid Modbus CRC, which looks like a serial-to-TCP bridge.</p>
+
+<p><b>A power quality meter.</b> 166.169.193.134 on Verizon Wireless answers telnet with <code>SEL-735 Telnet Server</code>. The SEL-735 is a Schweitzer Engineering Laboratories revenue and power quality meter, the kind utilities put on substations and feeders. This one is on a cellular modem.</p>
+
+<p><b>Factory telemetry.</b> 175.202.128.103 (KT, Korea) sends an HTTP POST <i>at</i> whoever connects:</p>
+
+<pre><code>POST /highnet/v1/POST/MachineStatus?StationCode=20209263 HTTP/1.0
+host: 52.83.191.199
+User-Agent: uIP/1.0 (http://www.kq-china.net/)
+Data={"StationCode":"20209263","PickCard":[{"PickCardCode":"21032380","StartTime":"2026-10-7 10:3:41","MachineStatus":"0",...</code></pre>
+
+<p>kq-china.net is Zhejiang Keqiang Intelligent Control, which makes monitoring systems for injection moulding machines. uIP is Adam Dunkels' tiny embedded TCP/IP stack. A collector on a factory floor is pushing per-machine status to whoever connects, and masscan, confused, filed it as Minecraft.</p>
+
+<p><b>A Swedish alarm.</b> 82.183.26.214 (Telenor, Sweden) sends an STX/ETX frame containing <code>"Kommunikationslarm medelvärde"</code>, Swedish for "communication alarm, mean value." I don't know the device.</p>
+
+<h2>Alarm Panels, Time Clocks And Smart Homes</h2>
+
+<p><b>Burglar alarm communicators.</b> Five hosts, three in Mexico and two in Spain, send a greeting of about 56 bytes, with a 2-byte length prefix up front. That matches the README of DSC-TLink, a reverse-engineered client for DSC's alarm communicators: "opening a TCP connection with the TL280 on port 3062. The TL280 will immediately send a packet of 56 bytes." The TL280 family is the IP/cellular communicator on DSC PowerSeries Neo alarm panels, and this is the DLS path used to program and monitor the panel. Here's 213.181.95.33:</p>
+
+<pre><code>00 37 01 00 00 7e 00 30 e0 05 05 05 05 00 27 03 2b 54 03 00 02 0a 89 34 04 26 21 05
+05 04 41 9f 03 00 00 50 03 02 01 03 00 00 02 04 05 06 00 03 4f 62 06 0e ea 79 06 6a 7f</code></pre>
+
+<p>(The <code>0a</code> before the ICCID came out of the scan as <code>20</code>, because our banner storage squashed whitespace bytes into spaces. I put it back.) The CRC-16 over the 42 bytes starting at <code>05 05 05 00 27</code> (polynomial <code>0xD003</code>, from DSC-TLink's <code>DLSProNetHeader.cs</code>) comes out <code>0xea79</code>, which is the <code>ea 79</code> that follows. The MAC starts <code>00:03:4F</code>, the IEEE OUI for Sur-Gard Security, DSC's receiver brand. And the device ID field on the cellular models is the SIM card's ICCID:</p>
+
+<div>
+<table>
+<tbody><tr><th>IP</th><th>ISP</th><th>Type</th><th>SW</th><th>Device ID</th><th>MAC</th></tr>
+<tr><td>79.112.115.9</td><td>Digi Spain, ES</td><td><code>032b</code></td><td>52/01</td><td>ICCID 8934075700125305307</td><td>00:03:4F:0C:1B:D7</td></tr>
+<tr><td>213.181.95.33</td><td>Fibraworld, ES</td><td><code>032b</code></td><td>54/03</td><td>ICCID 8934042621050504419</td><td>00:03:4F:62:06:0E</td></tr>
+<tr><td>189.153.252.92</td><td>UNINET, MX</td><td><code>032b</code></td><td>54/01</td><td>ICCID 8952050102551818989</td><td>00:03:4F:60:7D:38</td></tr>
+<tr><td>187.212.33.29</td><td>UNINET, MX</td><td><code>0329</code></td><td>54/03</td><td>(MAC, zero-padded)</td><td>00:03:4F:62:D7:05</td></tr>
+<tr><td>201.124.95.69</td><td>UNINET, MX</td><td><code>0329</code></td><td>50/03</td><td>(MAC, zero-padded)</td><td>00:03:4F:20:24:60</td></tr>
+</tbody></table>
+</div>
+
+<p>All three ICCIDs pass the Luhn check, and their prefixes say where the SIMs are from: <code>89 34</code> is Spain, <code>89 52</code> is Mexico. According to DSC-TLink, the AES key for the rest of the session is built from data in this greeting.</p>
+
+<p><b>Alarm communicators that tell you the password.</b> Three Spanish hosts, 109.167.87.236, 85.87.152.80 and 88.3.213.39, run telnet on an Alwon E20, a Notifier/Honeywell IP/GPRS alarm communicator module:</p>
+
+<pre><code>Alwon E20 Telnet Input password (defaul 1234):</code></pre>
+
+<p>Notifier's manual agrees: telnet password, "1234 por defecto." I didn't try it.</p>
+
+<p><b>Time clocks.</b> 187.235.160.47 and one other host at UNINET in Mexico repeat <code>a5 00 00 00 00 7f 00 00 e0 5c</code>. That's an Anviz time-and-attendance frame: <code>a5</code>, a 4-byte device ID of 0, command <code>7f</code>, zero length, and a CRC-16/MCRF4XX of <code>0x5ce0</code> sent low byte first. Open-source Anviz SDKs call <code>0x7f</code> a ping.</p>
+
+<p><b>Home automation.</b> Five hosts answer <code>*#*1##</code>, the OpenWebNet ACK used by BTicino and Legrand home automation gateways: 190.113.106.159 (Costa Rica), 171.242.179.164 (Vietnam), 187.145.124.63 (Mexico), 105.157.199.125 (Morocco) and 213.7.222.134 (Cyprus). 219.241.160.119 in Korea is a <code>SiHAS HCM-300 Ver 2.12 &gt;</code> prompt, a Shina System smart heating thermostat. And 192.119.63.143 (wilhelm.tel, Germany) is a mediola a.i.o. Gateway that sends its encrypted cloud request to whoever connects: <code>POST /ra/d HTTP/1.1 host: mediola-ws.elasticbeanstalk.com</code>.</p>
+
+<p><b>A debug menu.</b> Three hosts on SK Telecom in Korea, 42.42.150.116, 42.42.203.12 and 42.42.201.80, greet you with this:</p>
+
+<pre><code>##################################
+# DEBUG LOGIN!!
+# F/W Version : EBH0920.0
+# Dev ID : ldg4839
+# IP : 192.168.225.100
+##################################
+###### MENU DISPLAY ######
+l : Log On/Off.  n : NTP Query.  d : DNS Query.  i : SysEnv Informaton.
+t : Time Display.  s : Server Data Send.  h : Menu Display.</code></pre>
+
+<p><code>192.168.225.x</code> is the default subnet on Qualcomm LTE modules like the Quectel EC2x, so it's probably a cellular IoT device. Which product, I don't know.</p>
+
+<p><b>A power strip.</b> 64.201.180.254 (Gatewest, Canada) runs a <code>Remote Power Controller v1.41i</code> that prints its whole outlet table, circuit, name, status and boot delay, before asking for a login. Others ask only for a password but label themselves first: <code>MGTN CO - Right Rack - Bottom</code>, <code>Power Switch</code>, <code>151 Front Street</code>.</p>
+
+<h2>Remote Desktops, SAP And Cameras</h2>
+
+<p><b>SAProuters leaking their build.</b> Four hosts are SAProuter, the SAP gateway that relays connections into SAP systems. They accepted the connection, waited 5 seconds for a route request that never came, and then sent back an <code>NI_RTERR</code> error packet with a lot of detail:</p>
+
+<pre><code>NI_RTERR ... *ERR* connection timed out -5 NI (network interface) 754 40
+D:/depot/bas/754_REL/src/base/ni/nirout.cpp 8213
+RTPENDLIST::timeoutPend: no route received within 5s (CONNECTED)
+Tue Oct 6 10:56:27 2026 ... SAProuter 40.4 on 'ADSJ'</code></pre>
+
+<div>
+<table>
+<tbody><tr><th>IP</th><th>ISP</th><th>Kernel</th><th>Build path</th><th>Hostname</th></tr>
+<tr><td>37.61.221.36</td><td>velia.net, DE</td><td>754</td><td><code>D:/depot/bas/754_REL/.../nirout.cpp</code></td><td><code>ADSJ</code></td></tr>
+<tr><td>37.61.219.146</td><td>velia.net, DE</td><td>753</td><td><code>/bas/753_REL/.../nirout.cpp</code></td><td><code>hsaprouter</code></td></tr>
+<tr><td>60.16.63.41</td><td>China Unicom, CN</td><td>745</td><td><code>D:/depot/bas/745_REL/.../nirout.cpp</code></td><td><code>rbjsaprouter</code></td></tr>
+<tr><td>154.236.187.38</td><td>Etisalat Misr, EG</td><td>753</td><td><code>/bas/753_REL/.../nirout.cpp</code></td><td><code>ba-srt</code></td></tr>
+</tbody></table>
+</div>
+
+<p>Every one gives away the SAProuter version (40.4), the SAP kernel release, the router's hostname, the server's local clock, and whether it's a Windows build (<code>D:/</code>) or not.</p>
+
+<p><b>RustDesk.</b> Four hosts, 93.118.140.111, 78.38.90.162 (Iran), 39.48.42.201 and 103.213.111.82 (Pakistan), open with <code>HJ</code>. That isn't a magic string. In RustDesk's <code>bytes_codec.rs</code>, the low two bits of the first byte give the header size and the rest gives the length, so <code>0x48</code> means an 18-byte message follows. <code>0x4a</code> is protobuf field 9, <code>Hash</code>, which carries a salt and a challenge:</p>
+
+<pre><code>48 | 4a 10 | 0a 06 "usjk79" | 12 06 "zrktdr"
+len  Hash   salt             challenge</code></pre>
+
+<p>The salt stays the same per host. The challenge is six random characters, new on every connection. That's the password challenge a RustDesk client answers before it gets the desktop. 103.213.111.82 sends a 32-character salt, which is what newer versions use.</p>
+
+<p><b>Winflector.</b> Eight hosts run Winflector, a Polish remote application server. 193.32.180.51 sends <code>Terminal client version too old - please update to version 4.0.0.1</code> and then an RSA public key in DER form, with exponent 17, which is Crypto++'s default. The versions are sent byte-reversed: <code>04 03 00 04</code> is 4.0.3.4. All six versions I saw are on Winflector's own version list. The hosts are in Cape Verde (156.238.40.243, 156.238.47.54 and one more), Malaysia (202.187.2.203 and one more), Poland (193.32.180.51), Ghana (80.87.66.51) and India (49.204.146.227).</p>
+
+<p><b>VNC with no password.</b> Of the 39 VNC servers, one doesn't ask for anything. 107.174.67.223 answers with security type none and a desktop name of <code>resolv.moe, meow meow meow :3 haiiii!!</code>, and an 850×591 framebuffer. Four more just send <code>RFB 005.000</code>.</p>
+
+<p><b>Phone switches.</b> 117.236.74.58 (BSNL, India) is <code>Asterisk Call Manager/2.10.5</code>, the Asterisk Manager Interface from Asterisk 13.26–13.34. Once logged in, AMI can originate calls and run console commands. 38.229.159.25 (France) and 41.60.171.20 (Liquid) send <code>04 00 fb ff LAPK</code>, the 3CX tunnel protocol.</p>
+
+<p><b>Cameras and NAS.</b> exacqVision video surveillance servers on 8 hosts, including two at OneCleveland (204.156.216.130 and 204.156.198.238), send a 56-byte header ending in three values that change on every connection. Six QNAP NAS boxes expose RTRR (Realtime Remote Replication, <code>ab ca a5 5d ...</code>), on 202.184.138.61 in Malaysia and five others in Austria, Sri Lanka, Spain and Italy. Two Rifatron DVRs send <code>RIFA</code>, 42.200.149.78 in Hong Kong and 14.241.231.170 in Vietnam. One more is a UMS WebViewer DVR stream in Japan (123.242.213.10).</p>
+
+<p><b>The rest of the RPC zoo.</b> 223.76.20.55 (China Mobile) is ZeroC Ice, <code>IceP</code> 1.0 Validate Connection. 191.13.74.178 (Telefonica, Brazil) sends just <code>ac ed 00 05</code>, the header of a Java serialization stream, and then nothing else. 119.152.239.20 (Pakistan) sends a bare HTTP/2 SETTINGS frame with the same bytes as a default grpc-go server. 212.80.175.132 (Spain) has things backwards and sends <i>us</i> a full TLS 1.2 ClientHello. And 116.75.83.213 (Hathway, India) responds with <code>RP-Version: 5.0</code> and <code>RP-Application-Reason: 80108bff</code>, which is Sony PlayStation Remote Play, most likely a PS4.</p>
+
+<h2>The Phone System That Reads You Its Call Log</h2>
+
+<p>21 addresses don't wait to be asked. Connect to port 0 and they start streaming comma-separated text, about 7.5 KB of it per host in our capture:</p>
+
+<pre><code>2026/09/23 14:31:49,00:00:11,0,24,O,&lt;number&gt;,&lt;number&gt;,,0,1002639,0,E24,&lt;name&gt;,T9031,Line 31.1,0,0,...</code></pre>
+
+<p>That's SMDR (Station Message Detail Recording) output from an Avaya IP Office phone system. The fields line up with Avaya's documented layout: call start, connected time, ring time, caller, direction, called and dialled number, a call ID that starts at 1,000,000, then the two parties as <code>E</code> for extension or <code>T</code> for trunk, with names like "Line 31.1". Each host handed over 37 to 62 calls with real phone numbers, staff names, extension numbers and internal addresses. The oldest record is from December 2018. The newest is from a few days before the scan. Several hosts start with records that are years old, which I can't explain: 94.30.72.110 opened with calls from 2018-12-21, 31.10.39.182 with 2023-09-18.</p>
+
+<p>Nothing was sent to get this. IP Office pushes SMDR records to whatever connects to its SMDR port, and on these 21 hosts that port is reachable on port 0. masscan stops reading at about 7.5 KB, so that's only the first few dozen calls per host.</p>
+
+<div>
+<table>
+<tbody><tr><th>IP</th><th>ISP</th><th>Records</th><th>Record dates</th></tr>
+<tr><td>109.170.131.14</td><td>Wavenet, GB</td><td>41</td><td>2026-09-03 → 09-04</td></tr>
+<tr><td>140.141.189.204</td><td>i3 Broadband, US</td><td>46</td><td>2025-10-24 → 10-30</td></tr>
+<tr><td>149.40.120.214</td><td>ITS-TG, GB</td><td>42</td><td>2026-09-22</td></tr>
+<tr><td>164.39.146.134</td><td>Gamma, GB</td><td>62</td><td>2026-09-24 → 09-25</td></tr>
+<tr><td>164.39.207.103</td><td>Gamma, GB</td><td>54</td><td>2026-03-27 → 03-31</td></tr>
+<tr><td>176.35.140.144</td><td>Wavenet, GB</td><td>62</td><td>2025-09-11 → 2026-07-22</td></tr>
+<tr><td>176.35.24.241</td><td>Wavenet, GB</td><td>60</td><td>2026-09-16 → 09-18</td></tr>
+<tr><td>194.75.212.229</td><td>BT, GB</td><td>42</td><td>2026-09-23 → 09-24</td></tr>
+<tr><td>195.21.76.203</td><td>ITS-TG, GB</td><td>60</td><td>2026-09-17 → 09-21</td></tr>
+<tr><td>196.40.184.138</td><td>XISASN, ZA</td><td>61</td><td>2024-03-27 → 03-28</td></tr>
+<tr><td>212.140.248.34</td><td>BT, GB</td><td>49</td><td>2024-10-10</td></tr>
+<tr><td>213.218.204.214</td><td>Gamma, GB</td><td>58</td><td>2026-09-25</td></tr>
+<tr><td>31.10.39.182</td><td>ULGRP, GB</td><td>55</td><td>2023-09-18 → 09-19</td></tr>
+<tr><td>31.121.1.250</td><td>BT, GB</td><td>41</td><td>2024-02-08</td></tr>
+<tr><td>37.235.126.101</td><td>Lightspeed, GB</td><td>44</td><td>2026-09-16 → 09-17</td></tr>
+<tr><td>81.130.159.34</td><td>BT, GB</td><td>41</td><td>2026-10-01</td></tr>
+<tr><td>81.174.163.44</td><td>Plusnet, GB</td><td>62</td><td>2026-09-27 → 09-28</td></tr>
+<tr><td>87.127.54.146</td><td>Entanet, GB</td><td>59</td><td>2026-06-17</td></tr>
+<tr><td>87.242.249.105</td><td>TalkTalk, GB</td><td>42</td><td>2026-09-02 → 09-07</td></tr>
+<tr><td>87.74.60.78</td><td>CW, GB</td><td>48</td><td>2026-09-28</td></tr>
+<tr><td>94.30.72.110</td><td>Wavenet, GB</td><td>37</td><td>2018-12-21</td></tr>
+</tbody></table>
+</div>
+
+<p>19 of the 21 are in the UK, on BT, Wavenet, Gamma, TalkTalk, Plusnet and a handful of smaller business ISPs. One is in the US and one in South Africa. However these ended up on port 0, anyone who connects can read the company's call history.</p>
+
+<h2>What I Take From This</h2>
+
+<ul>
+	<li><b>Port 0 is a sockets-API concept more than a network one.</b> On the wire it's just a number. The idea that it "doesn't exist" comes from <code>bind()</code>, and a single NAT rule gets around it.</li>
+	<li><b>Tools are worse at this than networks are.</b> <code>nc</code> and <code>telnet</code> refuse to try, Chromium blocks it, and the Linux kernel's own <code>getpeername()</code> reports a working port 0 connection as not connected. A lot of software assumes port 0 means "nothing is here."</li>
+	<li><b>Most of what is on port 0 looks accidental.</b> The same banner across a whole ISP, CPE login pages, one dropbear version on every box at an ISP: that reads like a port-forward rule with the external port left at zero, not anyone choosing port 0. I haven't proven it.</li>
+	<li><b>Port 0 is not obscurity.</b> A Beckhoff PLC screen with no password, an Omron FINS endpoint, a Modbus master, DSC alarm communicators, alarm modules that print their default password, SAProuters and RustDesk boxes. All of it was found by a single SYN scan.</li>
+	<li><b>The worst thing on port 0 isn't a login page.</b> It's 21 phone systems reading out their call history, names and numbers included, to anyone who connects.</li>
+</ul>
+
+<p>Come say hi on the port that doesn't exist. If your client lets you.</p>
+
+<p>- - -</p>
+
+<p>Sources &amp; References:</p>
+
+<ul>
+	<li><a href="https://www.rfc-editor.org/rfc/rfc9293">RFC 9293</a>, Transmission Control Protocol (TCP)</li>
+	<li><a href="https://www.rfc-editor.org/rfc/rfc6335">RFC 6335</a>, IANA Procedures for the Management of the Service Name and Transport Protocol Port Number Registry</li>
+	<li><a href="https://www.rfc-editor.org/rfc/rfc6056">RFC 6056</a>, Recommendations for Transport-Protocol Port Randomization</li>
+	<li><a href="https://www.rfc-editor.org/rfc/rfc768">RFC 768</a>, User Datagram Protocol</li>
+	<li><a href="https://github.com/mubix/lmo">mubix/lmo</a>, LetMeOutOfYour.net egress testing resources</li>
+	<li><a href="https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml">Service Name and Transport Protocol Port Number Registry</a>, IANA</li>
+	<li><a href="https://github.com/torvalds/linux/blob/v6.8/net/ipv4/inet_connection_sock.c">net/ipv4/inet_connection_sock.c</a>, <a href="https://github.com/torvalds/linux/blob/v6.8/net/ipv4/inet_hashtables.c">inet_hashtables.c</a>, <a href="https://github.com/torvalds/linux/blob/v6.8/net/ipv4/af_inet.c">af_inet.c</a>, Linux v6.8</li>
+	<li><a href="https://man7.org/linux/man-pages/man7/ip.7.html">ip(7)</a>, Linux man-pages</li>
+	<li><a href="https://github.com/robertdavidgraham/masscan">masscan</a>, Robert Graham</li>
+	<li><a href="https://iptoasn.com">iptoasn.com</a>, IP to ASN data</li>
+	<li><a href="https://support.avaya.com/elmodocs2/ip_office/DOCS3_0/DATA/Additional/mergedProjects/smdr/html/ipofficesmdroutputfields.htm">IP Office SMDR Output Fields</a>, Avaya</li>
+	<li><a href="https://github.com/OpenVPN/openvpn/blob/master/src/openvpn/ssl_pkt.h">ssl_pkt.h</a>, OpenVPN</li>
+	<li><a href="https://github.com/nmap/nmap/blob/master/nmap-service-probes">nmap-service-probes</a>, Nmap</li>
+	<li><a href="https://github.com/wireshark/wireshark/blob/master/epan/dissectors/packet-omron-fins.c">packet-omron-fins.c</a>, <a href="https://github.com/wireshark/wireshark/blob/master/epan/dissectors/packet-saprouter.c">packet-saprouter.c</a>, Wireshark</li>
+	<li><a href="https://github.com/BrianHumlicek/NeoHub">NeoHub / DSC-TLink</a>, Brian Humlicek</li>
+	<li><a href="https://github.com/rustdesk/rustdesk">RustDesk</a>, <code>bytes_codec.rs</code>, <code>message.proto</code>, <code>connection.rs</code></li>
+	<li><a href="https://github.com/MxLabs/Anviz">MxLabs/Anviz</a>, Anviz SDK</li>
+	<li><a href="https://github.com/vxfemboy/ghostport">ghostport</a></li>
+	<li><a href="https://www.winflector.com/">Winflector</a>, OTC S.A.</li>
+</ul>
+
+<p>Connect to SuperNETs on port 0 (plaintext) or port 1 (TLS) at irc.supernets.org, or reach out at acid.vegas@acid.vegas. We hang out in <code>#war</code>.</p>
+
+
+
+</div></div>
