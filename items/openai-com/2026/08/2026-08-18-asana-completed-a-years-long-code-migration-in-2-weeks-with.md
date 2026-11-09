@@ -6,8 +6,22 @@ published: 2026-08-18T07:00:00Z
 updated: 2026-08-18T07:00:00Z
 first_seen: 2026-10-19T01:26:53.998049939Z
 summary: Asana used OpenAI Codex to replace an outdated testing system in two weeks, with about $12K in model and infrastructure costs.
-content: feed
+content: extracted
 html: 2026-08-18-asana-completed-a-years-long-code-migration-in-2-weeks-with.html
 ---
 
-Asana used OpenAI Codex to replace an outdated testing system in two weeks, with about $12K in model and infrastructure costs.
+In order to modernize its frontend stack, Asana needed to finish a long-running code migration that was still years from completion. At its prior pace—with only a few engineers working on the migration incrementally alongside other priorities—Asana projected that it would take roughly five more years to complete. With Codex, Asana completed the project in about two weeks.
+
+Asana helps teams coordinate work. Its platform uses AI agents and automations to help customers manage, track, and execute that work. Asana brings the same approach to its engineering organization, where people use OpenAI Codex, powered by frontier models, to tackle large codebase changes, then review and approve each proposed change.
+
+For this project, [Codex helped Asana’s engineers remove Enzyme](https://asana.com/inside-asana/migrating-off-enzyme-2-weeks), an outdated testing system that had made the company’s code harder to upgrade. Model and infrastructure costs came to about $12,000.
+
+> “Not every years-long project will collapse into weeks. But agents can give engineers more room for craft—and make once-impossible work worth attempting.”
+
+—Amritansh Raghav, Chief Technology Officer, Asana
+
+Their old testing tool, Enzyme, had fallen out of active maintenance and was becoming a blocker to modernizing Asana’s frontend stack. Asana used Codex, powered by frontier models, to do the work. From a five-sentence prompt, up to four coding agents worked in parallel, each in a separate copy of the codebase. An engineer checked progress twice a day and reviewed every proposed change. Simpler instructions worked better than a more elaborate setup.
+
+After 1.5 weeks of engineering effort spread across two calendar weeks, Enzyme was fully removed. The work also delivered benefits beyond the framework migration itself, improving test coverage, fixing poor-quality tests, and cleaning up legacy testing infrastructure. Model and infrastructure costs totaled about $12K. Asana estimates that completing that same scope through manual engineering work would have represented roughly $6M in fully loaded engineering effort. The experience changed which long-running software projects the company believes are practical to take on.
+
+With this migration complete, Asana can test agents on other migrations, rewrites, and performance problems it once assumed would take years. The team hopes this will give engineers more room to focus on craft while people continue to review the work.

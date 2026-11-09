@@ -1,0 +1,985 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text"><div dir="auto"><h2 tabindex="-1" dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/ikey4u/zebkit/blob/main/docs/images/logo.svg"><img src="https://github.com/ikey4u/zebkit/raw/main/docs/images/logo.svg" width="360" alt="zebkit"></a></h2><a id="" aria-label="Permalink: " href="#"></a></div>
+<p dir="auto"><b>Chrome as a library — light, fast, everywhere, and easy.</b><br>One API on Linux, macOS and Windows. Add it in a few lines.</p>
+<p dir="auto">
+<a href="https://crates.io/crates/zebkit" rel="nofollow"><img src="https://camo.githubusercontent.com/20dc5a6f5999ade7e12235d82fab819e8c8cc845d5e6f2ebfdd09c838ea8fdcc/68747470733a2f2f696d672e736869656c64732e696f2f6372617465732f762f7a65626b69742e7376673f6c6162656c3d6372617465732e696f" alt="crates.io" data-canonical-src="https://img.shields.io/crates/v/zebkit.svg?label=crates.io"></a>
+<a href="https://pypi.org/project/zebkit/" rel="nofollow"><img src="https://camo.githubusercontent.com/aff4cd3d3f66d8db9edc415f9f3089430c940f1aee9a27c80a2343ac8013ba0f/68747470733a2f2f696d672e736869656c64732e696f2f707970692f762f7a65626b69742e7376673f6c6162656c3d50795049" alt="PyPI" data-canonical-src="https://img.shields.io/pypi/v/zebkit.svg?label=PyPI"></a>
+<a href="https://github.com/ikey4u/zebkit/releases/latest"><img src="https://camo.githubusercontent.com/bd4785bba841bd80b29a0a31fc9fcf84fa4778b3af9f7fe887a4f9d74d261fb4/68747470733a2f2f696d672e736869656c64732e696f2f6769746875622f762f72656c656173652f696b657934752f7a65626b69743f6c6162656c3d656e67696e65" alt="Engine release" data-canonical-src="https://img.shields.io/github/v/release/ikey4u/zebkit?label=engine"></a>
+</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Introduction</h2><a id="user-content-introduction" aria-label="Permalink: Introduction" href="#introduction"></a></p>
+<p dir="auto">zebkit is Chromium's engine as one library you link into your own
+application: Blink, V8 with every JIT tier, PDFium, FFmpeg and the rest of
+what Chrome is made of, with nothing of Chrome's browser and nothing of
+Electron's runtime. Your application stays yours, in C, C++, Rust, Python,
+Go or JavaScript, with its own windows and toolkit. Where it needs the web,
+it adds a zebkit view; where it needs a PDF, media, compression or crypto,
+it calls zebkit's API: in C, or through the bindings for Rust, Python, Go
+and JavaScript (<code>zebkit-js</code>, and <code>zebkit.*</code> in the application's own pages).</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/ikey4u/zebkit/blob/main/docs/images/architecture.svg"><img src="https://github.com/ikey4u/zebkit/raw/main/docs/images/architecture.svg" width="900" alt="The application links one library, zebkit, which runs Chromium's content layer, Blink and V8 inside the application's process; pages run in sandboxed helper processes; on Linux, macOS and Windows"></a></p>
+<ul dir="auto">
+<li><strong>Integrate it, don't build on it.</strong> Electron is a base: an application
+is built inside it, on its runtime, its windows and its packaging.
+zebkit is a part: an application adds it, as it adds SQLite, and keeps
+its process, its toolkit and its way of shipping. It runs inside the
+application's own event loop (<code>zebkit_init()</code>, <code>zebkit_pump()</code>), and draws
+in the application's windows, as frames you draw or in a child of a window
+you give it, an X11 window, an <code>NSView</code> or an <code>HWND</code> (<code>examples/native-host</code>),
+and gives back the window a page is in for the system's dialogs.</li>
+<li><strong>Take what you need.</strong> Web views, in a window or off-screen with their
+frames handed to you; a full PDF API; saving what a page plays; your own
+URL schemes; native UI from JavaScript; Playwright's API and CDP for
+agents. Use one, or all.</li>
+<li><strong>The real Chrome engine.</strong> Pages see Chromium 157: its user agent and
+client hints, <code>window.chrome</code>, popups blocked without a click, and
+nothing of a debugger attached (<code>docs/API.md</code> has what still differs,
+Google's sign-in among it).</li>
+<li><strong>Lighter than Electron.</strong> Against the latest Electron, 45.2.1: 34% smaller,
+a cold start in 2.3 s against 6.6, a page in 29% less memory, and the DOM, text
+layout and JavaScript level (<a href="#benchmark">Benchmark</a>).</li>
+<li><strong>No Node.</strong> No second JavaScript runtime and no IPC through one. The
+application is native code, or JavaScript run by <code>zebkit-js</code> on the
+engine's V8.</li>
+<li><strong>Chromium's libraries are yours.</strong> 17 C libraries inside the engine, about
+7,490 functions on each of Linux, macOS and Windows (7,487 on all three, the
+rest each system's own), exported under <code>zebkit_vendor_*</code>: SQLite, LevelDB, BoringSSL,
+zlib, Zstandard, Brotli, ICU, HarfBuzz, libxml2, libwebp, libjpeg-turbo,
+FFmpeg, dav1d, Opus, libvpx, FreeType and PDFium. You do not ship them twice.</li>
+<li><strong>PDF built in.</strong> A full API on Chromium's PDFium: rendering and tiles,
+text with layout, search, outline, links, annotations as an editor has them
+(line endings, cloudy borders, free text with callouts and rich text, stamps,
+replies and states, measurement, XFDF and FDF), forms, redaction, page editing,
+merging, attachments, metadata, and signatures checked for integrity; hooks for
+an application's own annotation kinds, appearances, events with undo, render
+layers, OCR, fonts, trust and actions. In C, Rust, Python and JavaScript.</li>
+<li><strong>2D drawing and shaping.</strong> <code>&lt;zebkit/canvas.h&gt;</code> on the engine's Skia and
+<code>&lt;zebkit/text.h&gt;</code> on its HarfBuzz, without shipping either again.</li>
+<li><strong>Media, saved as it plays.</strong> Whatever a page plays, a file, MSE/DASH or
+HLS, written to MP4 or WebM as it was sent, without re-encoding and
+without a second download (<code>&lt;zebkit/media.h&gt;</code>).</li>
+<li><strong>Bytes as they are.</strong> A page's calls to the application go over its
+frame's own Mojo channel, large ones through shared memory: no base64, the
+page's JSON handed on as it was written, as fast as Electron's IPC for small
+calls and faster for large ones.</li>
+<li><strong>The window around a page, from JavaScript.</strong> <code>zebkit.ui</code> draws
+windows, prompts and dialogs with Chromium's views toolkit: signals,
+JSX, Tailwind classes, and automation for tests and agents. Rich UI is
+a page; <code>zebkit.ui</code> is the chrome around it (<code>docs/UI.md</code>).</li>
+<li><strong>Playwright's API, natively.</strong> The whole of Playwright (locators,
+actions that wait until they can be done, keyboard, mouse and touch,
+routes, dialogs, downloads, contexts, workers, traces, HAR, video) runs
+inside the engine, without CDP or a Node.js driver: 3 to 10 times faster
+than Playwright over CDP, and a click in 3 to 5 ms instead of 33
+(<code>&lt;zebkit/automation.h&gt;</code>, <code>docs/AUTOMATION.md</code>). Playwright's own
+clients, in any of its languages, connect to it unchanged with
+<code>chromium.connect()</code>.</li>
+<li><strong>Made for agents.</strong> <code>tools/zebkit-mcp</code> gives them pages, PDFs, files, media
+and native windows as MCP tools, over standard input and HTTP, within bounds
+its operator sets (<code>docs/MCP.md</code>). They can also drive zebkit through
+Playwright's API or over CDP, Chromium's own DevTools server, headless or
+windowed.</li>
+<li><strong>Customise it from your code, down to the desktop.</strong> Native hooks decide
+what the engine does, in C, Rust, Python and JavaScript: permissions,
+navigation, popups, dialogs, downloads, certificates and client
+certificates, sign-in, network requests and responses at every stage,
+settings at run time, your own URL schemes, what a page may call, scripts
+before the page's own (<code>docs/ROADMAP_HOOKS.md</code>). And everything a page or
+the engine would show the person or ask of the system goes through the
+application: the window's frame (system, overlay or none, with the page as
+the title bar), menus and the context menu, JavaScript dialogs and sign-in,
+file and device choosers, screen capture, notifications, the tray, the
+Dock and taskbar, sharing, the system's theme, power and displays
+(<a href="#fit-it-into-the-desktop">Fit it into the desktop</a>,
+<code>docs/SYSTEM_INTEGRATION.md</code>).</li>
+<li><strong>Safe by default.</strong> A page has no <code>zebkit</code> object unless the
+application grants it, per view, per origin and per capability; the
+origin is the browser's, never the page's word; the renderer stays
+sandboxed; permissions a browser would ask about are not granted.</li>
+</ul>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Engine</td>
+<td>Chromium 157.0.8103.38 (<code>upstream.lock</code>): content layer, Blink, V8 with every JIT tier</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td>x86-64, glibc 2.17 or newer (CentOS 7 and later), X11 and (<code>--ozone-platform=wayland</code>) Wayland: <code>libzebkit.so.1</code> and <code>zebkit-helper</code></td>
+</tr>
+<tr>
+<td>macOS</td>
+<td>Apple silicon: <code>Zebkit.framework</code>, built natively or cross-built on Linux (<code>docs/MACOS.md</code>)</td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>x64, Windows 10 or newer: <code>zebkit.dll</code> and <code>zebkit-helper.exe</code>, cross-built on Linux (<code>docs/WINDOWS.md</code>)</td>
+</tr>
+<tr>
+<td>Version</td>
+<td><code>VERSION</code>: 0.4.0</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Quick start</h2><a id="user-content-quick-start" aria-label="Permalink: Quick start" href="#quick-start"></a></p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Get the engine</h3><a id="user-content-get-the-engine" aria-label="Permalink: Get the engine" href="#get-the-engine"></a></p>
+<p dir="auto">A package is a directory with the library, the helper, the engine's data
+and <code>include/</code>. Either unpack a release's archive
+(<code>zebkit-&lt;version&gt;-&lt;target&gt;.tar.xz</code> from GitHub's releases), or build one:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="mise run r      # dist/release (Linux), dist/release-macos (macOS), dist/release-windows; hours the first time"><pre><code data-language="shell">mise run r      # dist/release (Linux), dist/release-macos (macOS), dist/release-windows; hours the first time</code></pre></div>
+<p dir="auto">Each archive also holds the tools, built for its system beside the library
+and ready to run from where it is unpacked: <code>zebkit-run</code>, <code>zebkit-js</code> and
+<code>zebkit-mcp</code> (<code>.exe</code> on Windows, sandboxed there too).</p>
+<p dir="auto">On an Apple silicon Mac with full Xcode installed, <code>scripts/dist.sh release</code>
+builds the engine locally into <code>dist/release</code>. Then run
+<code>scripts/example.sh macos-basic</code> to build and launch the C embedding demo
+in <code>dist/example/Zebkit Embedded Browser.app</code>.</p>
+<p dir="auto">Building needs about 30 GB for Chromium's tree (<code>docs/BUILD.md</code>). Below,
+<code>$PKG</code> is the package directory.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Add it to a program you already have</h3><a id="user-content-add-it-to-a-program-you-already-have" aria-label="Permalink: Add it to a program you already have" href="#add-it-to-a-program-you-already-have"></a></p>
+<p dir="auto">zebkit is a library: your program keeps its <code>main()</code> and calls it. This
+one renders a PDF's first page to a PNG and reads its text, with PDFium
+and the image encoders inside zebkit, and nothing else to install:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="#include &lt;stdio.h&gt;
+#include &lt;zebkit/pdf.h&gt;
+#include &lt;zebkit/services.h&gt;
+
+/* Your program, your main(): zebkit is just a library it calls. */
+int main(int argc, char **argv) {
+    char *error = NULL;
+    zebkit_pdf *pdf = zebkit_pdf_open_file(argv[1], NULL, &amp;error);
+    if (!pdf) {
+        fprintf(stderr, &quot;%s\n&quot;, error);
+        return 1;
+    }
+
+    /* The first page as a PNG, at twice its size. */
+    zebkit_pdf_render_options options = {.scale = 2, .background = 0xffffffff};
+    int width, height;
+    uint8_t *rgba = zebkit_pdf_render(pdf, 0, &amp;options, &amp;width, &amp;height, &amp;error);
+    size_t size;
+    uint8_t *png = zebkit_image_encode(ZEBKIT_IMAGE_PNG, rgba, width, height, 0, &amp;size, &amp;error);
+    fwrite(png, 1, size, fopen(&quot;page1.png&quot;, &quot;wb&quot;));
+
+    /* And its text. */
+    char *text = zebkit_pdf_text(pdf, 0, &amp;error);
+    printf(&quot;%d pages; page 1 says: %.80s\n&quot;, zebkit_pdf_page_count(pdf), text);
+
+    zebkit_free(text), zebkit_free(png), zebkit_free(rgba);
+    zebkit_pdf_close(pdf);
+    return 0;
+}"><pre><code data-language="c">#include &lt;stdio.h&gt;
+#include &lt;zebkit/pdf.h&gt;
+#include &lt;zebkit/services.h&gt;
+
+/* Your program, your main(): zebkit is just a library it calls. */
+int main(int argc, char **argv) {
+    char *error = NULL;
+    zebkit_pdf *pdf = zebkit_pdf_open_file(argv[1], NULL, &amp;error);
+    if (!pdf) {
+        fprintf(stderr, "%s\n", error);
+        return 1;
+    }
+
+    /* The first page as a PNG, at twice its size. */
+    zebkit_pdf_render_options options = {.scale = 2, .background = 0xffffffff};
+    int width, height;
+    uint8_t *rgba = zebkit_pdf_render(pdf, 0, &amp;options, &amp;width, &amp;height, &amp;error);
+    size_t size;
+    uint8_t *png = zebkit_image_encode(ZEBKIT_IMAGE_PNG, rgba, width, height, 0, &amp;size, &amp;error);
+    fwrite(png, 1, size, fopen("page1.png", "wb"));
+
+    /* And its text. */
+    char *text = zebkit_pdf_text(pdf, 0, &amp;error);
+    printf("%d pages; page 1 says: %.80s\n", zebkit_pdf_page_count(pdf), text);
+
+    zebkit_free(text), zebkit_free(png), zebkit_free(rgba);
+    zebkit_pdf_close(pdf);
+    return 0;
+}</code></pre></div>
+<div dir="auto" data-snippet-clipboard-copy-content="cc thumb.c -I$PKG/include -L$PKG -l:libzebkit.so.1 -Wl,-rpath,$PKG -o thumb   # Linux
+cc thumb.c -I$PKG/include -F$PKG -framework Zebkit -Wl,-rpath,$PKG -o thumb   # macOS
+./thumb report.pdf     # 2 pages; page 1 says: Quarterly report ..."><pre><code data-language="shell">cc thumb.c -I$PKG/include -L$PKG -l:libzebkit.so.1 -Wl,-rpath,$PKG -o thumb   # Linux
+cc thumb.c -I$PKG/include -F$PKG -framework Zebkit -Wl,-rpath,$PKG -o thumb   # macOS
+./thumb report.pdf     # 2 pages; page 1 says: Quarterly report ...</code></pre></div>
+<p dir="auto">The PDF API, compression, crypto, URLs, image codecs, ICU and the
+libraries inside the engine (<code>zebkit_vendor_*</code>, FFmpeg's among them) need
+no engine loop (<code>docs/API.md</code>); only HTTP through the engine's network
+stack and web pages do.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Add a web view</h3><a id="user-content-add-a-web-view" aria-label="Permalink: Add a web view" href="#add-a-web-view"></a></p>
+<p dir="auto">Web pages need the engine running. Here the engine runs the loop: the
+program starts it with <code>zebkit_main()</code> and works in its callbacks. A program
+with its own loop (GTK, Qt, AppKit, winit) starts it with <code>zebkit_init()</code> and
+calls <code>zebkit_pump()</code> (<code>examples/native-host</code>).</p>
+<div dir="auto" data-snippet-clipboard-copy-content="#include &lt;stdio.h&gt;
+#include &lt;zebkit/zebkit.h&gt;
+
+static void printed(zebkit_view *view, const char *json, const char *error, void *data) {
+    printf(&quot;%s\n&quot;, json ? json : error);
+    zebkit_quit();
+}
+
+static void loaded(zebkit_view *view, zebkit_load_event event, const char *url, void *data) {
+    if (event == ZEBKIT_LOAD_FINISHED)
+        zebkit_view_evaluate(view, &quot;document.title&quot;, printed, NULL);
+}
+
+static void ready(void *data) {
+    zebkit_view *view = zebkit_view_new(&quot;https://example.com/&quot;, 1024, 768);
+    zebkit_view_on_load(view, loaded, NULL);
+}
+
+int main(int argc, char **argv) {
+    return zebkit_main(argc, argv, ready, NULL);
+}"><pre><code data-language="c">#include &lt;stdio.h&gt;
+#include &lt;zebkit/zebkit.h&gt;
+
+static void printed(zebkit_view *view, const char *json, const char *error, void *data) {
+    printf("%s\n", json ? json : error);
+    zebkit_quit();
+}
+
+static void loaded(zebkit_view *view, zebkit_load_event event, const char *url, void *data) {
+    if (event == ZEBKIT_LOAD_FINISHED)
+        zebkit_view_evaluate(view, "document.title", printed, NULL);
+}
+
+static void ready(void *data) {
+    zebkit_view *view = zebkit_view_new("https://example.com/", 1024, 768);
+    zebkit_view_on_load(view, loaded, NULL);
+}
+
+int main(int argc, char **argv) {
+    return zebkit_main(argc, argv, ready, NULL);
+}</code></pre></div>
+<div dir="auto" data-snippet-clipboard-copy-content="cc app.c -I$PKG/include -L$PKG -l:libzebkit.so.1 -Wl,-rpath,$PKG -o app   # Linux
+cc app.c -I$PKG/include -F$PKG -framework Zebkit -Wl,-rpath,$PKG -o app   # macOS
+clang-cl /MT app.c /I%PKG%\include %PKG%\zebkit.dll.lib %PKG%\zebkit_sandbox.lib   # Windows
+./app --remote-debugging-port=9222     # with CDP for Puppeteer and Playwright"><pre><code data-language="shell">cc app.c -I$PKG/include -L$PKG -l:libzebkit.so.1 -Wl,-rpath,$PKG -o app   # Linux
+cc app.c -I$PKG/include -F$PKG -framework Zebkit -Wl,-rpath,$PKG -o app   # macOS
+clang-cl /MT app.c /I%PKG%\include %PKG%\zebkit.dll.lib %PKG%\zebkit_sandbox.lib   # Windows
+./app --remote-debugging-port=9222     # with CDP for Puppeteer and Playwright</code></pre></div>
+<p dir="auto">On Windows the executable takes part in Chromium's sandbox: it links
+<code>zebkit_sandbox.lib</code> and calls <code>zebkit_win_startup()</code> first in <code>main()</code>
+(<code>docs/WINDOWS.md</code>).</p>
+<p dir="auto">Without unprivileged user namespaces the engine refuses to start and says why: install its
+helper, or in a container of its own add <code>--no-sandbox</code> (<code>docs/SANDBOX.md</code>).</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">The page and the application</h3><a id="user-content-the-page-and-the-application" aria-label="Permalink: The page and the application" href="#the-page-and-the-application"></a></p>
+<p dir="auto">The application serves its own pages from a scheme and gives them
+functions to call; a page has nothing of <code>zebkit</code> unless it is granted.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="/* The page calls zebkit.app.greet(&quot;Ada&quot;). */
+static void greet(zebkit_view *view, const char *origin, const char *args_json,
+                  zebkit_call *call, void *data) {
+    char answer[256];
+    snprintf(answer, sizeof answer, &quot;{\&quot;hello\&quot;: %s}&quot;, args_json);
+    zebkit_call_resolve(call, answer);
+}
+
+/* app://main/... from ./ui, in ranges for media. A real handler refuses &quot;..&quot;. */
+static void serve(zebkit_request *request, void *data) {
+    char path[1024];
+    snprintf(path, sizeof path, &quot;ui%s&quot;, zebkit_request_url(request) + sizeof &quot;app://main&quot; - 1);
+    zebkit_request_respond_file(request, path, NULL);
+}
+
+static void closed(zebkit_view *view, void *data) { zebkit_quit(); }
+
+static void ready(void *data) {
+    zebkit_view *view = zebkit_view_new(&quot;app://main/index.html&quot;, 1024, 768);
+    zebkit_view_grant(view, &quot;app://main&quot;, ZEBKIT_ALLOW_APP | ZEBKIT_ALLOW_PDF, NULL);
+    zebkit_view_bind(view, &quot;greet&quot;, greet, NULL);
+    zebkit_view_on_close(view, closed, NULL);
+}
+
+int main(int argc, char **argv) {
+    zebkit_scheme_register(&quot;app&quot;, ZEBKIT_SCHEME_STANDARD | ZEBKIT_SCHEME_SECURE | ZEBKIT_SCHEME_FETCH);
+    zebkit_scheme_handle(&quot;app&quot;, serve, NULL);
+    return zebkit_main(argc, argv, ready, NULL);
+}"><pre><code data-language="c">/* The page calls zebkit.app.greet("Ada"). */
+static void greet(zebkit_view *view, const char *origin, const char *args_json,
+                  zebkit_call *call, void *data) {
+    char answer[256];
+    snprintf(answer, sizeof answer, "{\"hello\": %s}", args_json);
+    zebkit_call_resolve(call, answer);
+}
+
+/* app://main/... from ./ui, in ranges for media. A real handler refuses "..". */
+static void serve(zebkit_request *request, void *data) {
+    char path[1024];
+    snprintf(path, sizeof path, "ui%s", zebkit_request_url(request) + sizeof "app://main" - 1);
+    zebkit_request_respond_file(request, path, NULL);
+}
+
+static void closed(zebkit_view *view, void *data) { zebkit_quit(); }
+
+static void ready(void *data) {
+    zebkit_view *view = zebkit_view_new("app://main/index.html", 1024, 768);
+    zebkit_view_grant(view, "app://main", ZEBKIT_ALLOW_APP | ZEBKIT_ALLOW_PDF, NULL);
+    zebkit_view_bind(view, "greet", greet, NULL);
+    zebkit_view_on_close(view, closed, NULL);
+}
+
+int main(int argc, char **argv) {
+    zebkit_scheme_register("app", ZEBKIT_SCHEME_STANDARD | ZEBKIT_SCHEME_SECURE | ZEBKIT_SCHEME_FETCH);
+    zebkit_scheme_handle("app", serve, NULL);
+    return zebkit_main(argc, argv, ready, NULL);
+}</code></pre></div>
+<p dir="auto">In the page, every call is a promise and bytes are <code>Uint8Array</code>s:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="const reply = await zebkit.app.greet('Ada');            // the application's function
+const pdf = await zebkit.pdf.open(await (await fetch('report.pdf')).bytes());
+const rgba = await pdf.render(0, {scale: 2});           // a page as pixels
+const hits = await pdf.search('revenue');
+const packed = await zebkit.compress('zstd', bytes, 19);
+const hash = await zebkit.crypto.digest('SHA-256', 'abc');"><pre><code data-language="js">const reply = await zebkit.app.greet('Ada');            // the application's function
+const pdf = await zebkit.pdf.open(await (await fetch('report.pdf')).bytes());
+const rgba = await pdf.render(0, {scale: 2});           // a page as pixels
+const hits = await pdf.search('revenue');
+const packed = await zebkit.compress('zstd', bytes, 19);
+const hash = await zebkit.crypto.digest('SHA-256', 'abc');</code></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Fit it into the desktop</h3><a id="user-content-fit-it-into-the-desktop" aria-label="Permalink: Fit it into the desktop" href="#fit-it-into-the-desktop"></a></p>
+<p dir="auto">Each thing the engine would show the person, or ask of the system, has a
+default that works and a function of the application's that replaces it.
+Nothing reaches the system without a decision the application can take;
+without a function, a page gets what a careful browser gives it, and
+nothing at all where a browser would ask.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="import zebkit
+
+zebkit.scheme_register(&quot;app&quot;)   # served by a scheme_handle(), as in the C example above
+zebkit.init([&quot;app&quot;])
+# The page is the title bar: the window's buttons over it, dragged by its CSS.
+view = zebkit.View(&quot;app://main/index.html&quot;, 1000, 700, options={
+    &quot;frame&quot;: &quot;overlay&quot;, &quot;controls&quot;: {&quot;height&quot;: 40, &quot;color&quot;: &quot;#1b1d2a&quot;, &quot;symbolColor&quot;: &quot;#ffffff&quot;},
+    &quot;dragRegions&quot;: {&quot;source&quot;: &quot;css&quot;, &quot;origins&quot;: [&quot;app://main&quot;]}})
+
+# The application's menu bar (macOS) and keys, with state that changes in place.
+zebkit.app_set_menu([{&quot;title&quot;: &quot;File&quot;, &quot;items&quot;: [{&quot;title&quot;: &quot;Autosave&quot;, &quot;id&quot;: &quot;autosave&quot;, &quot;checked&quot;: True}]}],
+                    lambda item: zebkit.app_update_menu_item(item, checked=False))
+
+# A tray icon, the Dock's or the taskbar's badge, and the page's notifications as the application's.
+tray = zebkit.Tray(open(&quot;icon.png&quot;, &quot;rb&quot;).read(), &quot;My application&quot;)
+zebkit.app_set_badge(&quot;3&quot;)
+zebkit.on_notification(lambda event: print(&quot;show in my own UI:&quot;, event))
+
+# What a page asks for: a USB device, a screen to capture, a colour, a share.
+view.on_device_chooser(lambda request: request.respond(request.metadata[&quot;devices&quot;][0][&quot;id&quot;]))
+view.on_media_access(lambda request: request.respond(True, None, &quot;view&quot;))
+view.on_share(lambda request: request.respond(True))
+
+# The system: its theme and its changes, the session's lock, the screens.
+zebkit.on_environment_changed(lambda env: print(&quot;dark&quot; if env[&quot;colorScheme&quot;] == &quot;dark&quot; else &quot;light&quot;))
+zebkit.on_power_event(lambda event: print(event[&quot;event&quot;]))   # suspend, resume, lock, unlock
+print(zebkit.displays())"><pre><code data-language="python">import zebkit
+
+zebkit.scheme_register("app")   # served by a scheme_handle(), as in the C example above
+zebkit.init(["app"])
+# The page is the title bar: the window's buttons over it, dragged by its CSS.
+view = zebkit.View("app://main/index.html", 1000, 700, options={
+    "frame": "overlay", "controls": {"height": 40, "color": "#1b1d2a", "symbolColor": "#ffffff"},
+    "dragRegions": {"source": "css", "origins": ["app://main"]}})
+
+# The application's menu bar (macOS) and keys, with state that changes in place.
+zebkit.app_set_menu([{"title": "File", "items": [{"title": "Autosave", "id": "autosave", "checked": True}]}],
+                    lambda item: zebkit.app_update_menu_item(item, checked=False))
+
+# A tray icon, the Dock's or the taskbar's badge, and the page's notifications as the application's.
+tray = zebkit.Tray(open("icon.png", "rb").read(), "My application")
+zebkit.app_set_badge("3")
+zebkit.on_notification(lambda event: print("show in my own UI:", event))
+
+# What a page asks for: a USB device, a screen to capture, a colour, a share.
+view.on_device_chooser(lambda request: request.respond(request.metadata["devices"][0]["id"]))
+view.on_media_access(lambda request: request.respond(True, None, "view"))
+view.on_share(lambda request: request.respond(True))
+
+# The system: its theme and its changes, the session's lock, the screens.
+zebkit.on_environment_changed(lambda env: print("dark" if env["colorScheme"] == "dark" else "light"))
+zebkit.on_power_event(lambda event: print(event["event"]))   # suspend, resume, lock, unlock
+print(zebkit.displays())</code></pre></div>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th></th>
+<th>The default</th>
+<th>The application's</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Window frame</td>
+<td>the system's</td>
+<td><code>overlay</code> (Window Controls Overlay) or <code>none</code>, title, colours, drag regions, state, actions</td>
+</tr>
+<tr>
+<td>Menus</td>
+<td>the menu bar on macOS; the default context menu</td>
+<td>items with state by id; the context menu replaced, extended or run</td>
+</tr>
+<tr>
+<td>Dialogs</td>
+<td>the system's alerts; the engine's prompt and sign-in where there is a window</td>
+<td><code>zebkit_view_on_dialog</code>, <code>on_http_auth</code>, <code>on_client_certificate</code>, the eye dropper</td>
+</tr>
+<tr>
+<td>Files and devices</td>
+<td>the system's file dialog; no device</td>
+<td>the file chooser and File System Access; WebUSB, WebHID and Web Serial choosers</td>
+</tr>
+<tr>
+<td>Capture and media</td>
+<td>camera and microphone by permission; no screen</td>
+<td><code>getDisplayMedia()</code>'s source: the view itself or the screen</td>
+</tr>
+<tr>
+<td>Notifications</td>
+<td>undecided; then the system's own service</td>
+<td>shown in the application's UI, with clicks and closes back to the page</td>
+</tr>
+<tr>
+<td>Desktop</td>
+<td>none</td>
+<td>the tray, the Dock's and the taskbar's badge, progress and attention, the Dock menu, Web Share, opening URLs and folders</td>
+</tr>
+<tr>
+<td>The system</td>
+<td>a light page</td>
+<td>the system's dark mode and contrast followed live; power, lock and display events; keeping awake</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><code>docs/SYSTEM_INTEGRATION.md</code> has each surface, its default, its status on
+each system and why; <code>docs/API.md</code> has the calls in the four languages;
+<code>examples/custom-titlebar</code> is a window whose title bar is the page.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Rust</h3><a id="user-content-rust" aria-label="Permalink: Rust" href="#rust"></a></p>
+<p dir="auto"><a href="https://crates.io/crates/zebkit" rel="nofollow"><code>zebkit</code></a> on crates.io, with
+<a href="https://crates.io/crates/zebkit-build" rel="nofollow"><code>zebkit-build</code></a> to put the engine
+beside your program; the build downloads the engine for your system once and
+checks its SHA-256.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="[dependencies]
+zebkit = &quot;0.4.0&quot;
+
+[build-dependencies]
+zebkit-build = &quot;0.4.0&quot;"><pre><code data-language="toml">[dependencies]
+zebkit = "0.4.0"
+
+[build-dependencies]
+zebkit-build = "0.4.0"</code></pre></div>
+<div dir="auto" data-snippet-clipboard-copy-content="// build.rs: puts the engine beside the executable
+fn main() { zebkit_build::bundle(); }
+
+// main.rs
+fn main() {
+    std::process::exit(zebkit::run(|| {
+        let view = zebkit::View::new(Some(&quot;https://example.com/&quot;), 1024, 768);
+        view.grant(&quot;https://example.com&quot;, zebkit::Allow::APP, None);
+        view.bind(&quot;greet&quot;, |call| {
+            let answer = format!(&quot;\&quot;hello, {}\&quot;&quot;, call.args_json());
+            call.resolve(&amp;answer)
+        });
+        view.on_close(zebkit::quit);
+    }));
+}"><pre><code data-language="rust">// build.rs: puts the engine beside the executable
+fn main() { zebkit_build::bundle(); }
+
+// main.rs
+fn main() {
+    std::process::exit(zebkit::run(|| {
+        let view = zebkit::View::new(Some("https://example.com/"), 1024, 768);
+        view.grant("https://example.com", zebkit::Allow::APP, None);
+        view.bind("greet", |call| {
+            let answer = format!("\"hello, {}\"", call.args_json());
+            call.resolve(&amp;answer)
+        });
+        view.on_close(zebkit::quit);
+    }));
+}</code></pre></div>
+<p dir="auto"><code>ZEBKIT_DIR</code> points the build at a package (<code>bindings/rust/README.md</code>).</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Python</h3><a id="user-content-python" aria-label="Permalink: Python" href="#python"></a></p>
+<p dir="auto"><a href="https://pypi.org/project/zebkit/" rel="nofollow"><code>zebkit</code></a> on PyPI is the binding; the
+engine is the archive for your system from the
+<a href="https://github.com/ikey4u/zebkit/releases">releases</a> of the same version,
+with <code>ZEBKIT_DIR</code> pointing at it:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="pip install zebkit
+export ZEBKIT_DIR=/path/to/zebkit-0.4.0-x86_64-unknown-linux-gnu"><pre><code data-language="shell">pip install zebkit
+export ZEBKIT_DIR=/path/to/zebkit-0.4.0-x86_64-unknown-linux-gnu</code></pre></div>
+<div dir="auto" data-snippet-clipboard-copy-content="import zebkit                      # pure Python on ctypes: nothing to compile
+
+def ready():
+    view = zebkit.View(&quot;https://example.com/&quot;)
+    view.grant(&quot;https://example.com&quot;, zebkit.ALLOW_APP)
+    view.bind(&quot;greet&quot;, lambda name, origin: f&quot;hello, {name}&quot;)
+
+zebkit.main(ready)                 # the engine is found in $ZEBKIT_DIR"><pre><code data-language="python">import zebkit                      # pure Python on ctypes: nothing to compile
+
+def ready():
+    view = zebkit.View("https://example.com/")
+    view.grant("https://example.com", zebkit.ALLOW_APP)
+    view.bind("greet", lambda name, origin: f"hello, {name}")
+
+zebkit.main(ready)                 # the engine is found in $ZEBKIT_DIR</code></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Go</h3><a id="user-content-go" aria-label="Permalink: Go" href="#go"></a></p>
+<p dir="auto"><a href="https://github.com/ikey4u/zebkit/blob/main/bindings/golang"><code>bindings/golang</code></a>, on cgo: views, pages calling Go
+functions, the application's schemes, the page hooks and the system's
+services, on Linux and macOS. Build with the engine's headers and library:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="go get github.com/ikey4u/zebkit/bindings/golang@main
+export CGO_CFLAGS=&quot;-I$ZEBKIT_DIR/include&quot; CGO_LDFLAGS=&quot;-L$ZEBKIT_DIR -Wl,-rpath,$ZEBKIT_DIR&quot;"><pre><code data-language="shell">go get github.com/ikey4u/zebkit/bindings/golang@main
+export CGO_CFLAGS="-I$ZEBKIT_DIR/include" CGO_LDFLAGS="-L$ZEBKIT_DIR -Wl,-rpath,$ZEBKIT_DIR"</code></pre></div>
+<div dir="auto" data-snippet-clipboard-copy-content="os.Exit(zebkit.Main(func() {
+    view := zebkit.NewView(&quot;&quot;, 1024, 768)
+    view.Grant(&quot;https://example.com&quot;, zebkit.AllowApp, &quot;&quot;)
+    view.Bind(&quot;greet&quot;, func(call *zebkit.Call) {
+        call.Resolve(fmt.Sprintf(&quot;\&quot;hello, %s\&quot;&quot;, call.Args))
+    })
+    view.OnClose(zebkit.Quit)
+    view.Load(&quot;https://example.com/&quot;)
+}))"><pre><code data-language="go">os.Exit(zebkit.Main(func() {
+    view := zebkit.NewView("", 1024, 768)
+    view.Grant("https://example.com", zebkit.AllowApp, "")
+    view.Bind("greet", func(call *zebkit.Call) {
+        call.Resolve(fmt.Sprintf("\"hello, %s\"", call.Args))
+    })
+    view.OnClose(zebkit.Quit)
+    view.Load("https://example.com/")
+}))</code></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">JavaScript, without Node</h3><a id="user-content-javascript-without-node" aria-label="Permalink: JavaScript, without Node" href="#javascript-without-node"></a></p>
+<p dir="auto"><code>zebkit-js</code> runs an ES module on the engine's V8, for applications
+written in JavaScript, with views, the same APIs, and native windows:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="// zebkit-js main.mjs
+const view = new zebkit.View('app://main/index.html', {width: 1024, height: 768});
+view.grant('app://main', ['app', 'pdf']);
+view.bind('save', async (name, text) =&gt; {
+  await zebkit.fs.writeFile(`${zebkit.args[0]}/${name}`, text);
+  return {saved: true};
+});
+view.on('close', () =&gt; zebkit.quit());"><pre><code data-language="js">// zebkit-js main.mjs
+const view = new zebkit.View('app://main/index.html', {width: 1024, height: 768});
+view.grant('app://main', ['app', 'pdf']);
+view.bind('save', async (name, text) =&gt; {
+  await zebkit.fs.writeFile(`${zebkit.args[0]}/${name}`, text);
+  return {saved: true};
+});
+view.on('close', () =&gt; zebkit.quit());</code></pre></div>
+<div dir="auto" data-snippet-clipboard-copy-content="// zebkit-js examples/ui/todo.mjs: a window of native widgets, styled with
+// Tailwind's classes and kept up to date by signals (an excerpt)
+const {h, signal, computed, For, window} = zebkit.ui;
+const [tasks, setTasks] = signal([]);
+const done = computed(() =&gt; tasks().filter((t) =&gt; t.done).length);
+
+const Task = (task) =&gt;
+  h('view', {class: 'flex-row items-center gap-3 p-3 rounded-xl bg-[#141a2e]'},
+    h('button', {class: 'w-8 h-8 p-0 rounded-full bg-[#7c5cff] text-white',
+                 onClick: () =&gt; toggle(task)}, task.done ? '✓' : ''),
+    h('text', {class: 'grow text-[#e6e8f2]'}, task.text));
+
+window({title: 'Today', width: 460, height: 680}, () =&gt;
+  h('view', {class: 'flex-col gap-4 p-6 bg-[#0b1020]'},
+    h('text', {class: 'text-3xl font-bold text-white'}, 'Ship something great'),
+    h('text', {class: 'text-sm text-[#8a91aa]'}, () =&gt; `${done()} of ${tasks().length} done`),
+    h(For, {each: tasks}, Task)));"><pre><code data-language="js">// zebkit-js examples/ui/todo.mjs: a window of native widgets, styled with
+// Tailwind's classes and kept up to date by signals (an excerpt)
+const {h, signal, computed, For, window} = zebkit.ui;
+const [tasks, setTasks] = signal([]);
+const done = computed(() =&gt; tasks().filter((t) =&gt; t.done).length);
+
+const Task = (task) =&gt;
+  h('view', {class: 'flex-row items-center gap-3 p-3 rounded-xl bg-[#141a2e]'},
+    h('button', {class: 'w-8 h-8 p-0 rounded-full bg-[#7c5cff] text-white',
+                 onClick: () =&gt; toggle(task)}, task.done ? '✓' : ''),
+    h('text', {class: 'grow text-[#e6e8f2]'}, task.text));
+
+window({title: 'Today', width: 460, height: 680}, () =&gt;
+  h('view', {class: 'flex-col gap-4 p-6 bg-[#0b1020]'},
+    h('text', {class: 'text-3xl font-bold text-white'}, 'Ship something great'),
+    h('text', {class: 'text-sm text-[#8a91aa]'}, () =&gt; `${done()} of ${tasks().length} done`),
+    h(For, {each: tasks}, Task)));</code></pre></div>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/ikey4u/zebkit/blob/main/docs/images/zebkit-ui-todo.png"><img src="https://github.com/ikey4u/zebkit/raw/main/docs/images/zebkit-ui-todo.png" alt="examples/ui/todo.mjs"></a></p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Agents</h3><a id="user-content-agents" aria-label="Permalink: Agents" href="#agents"></a></p>
+<p dir="auto">Playwright's API runs inside the engine (<code>docs/AUTOMATION.md</code>): every
+command of Playwright's protocol, in the application's process, with no
+CDP and no Node.js. From C it is one call, <code>zebkit_automation_call(view, "Frame.click", "{\"selector\": \"#go\"}", done, data)</code>; Python has it with
+Playwright's names:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="import zebkit
+from zebkit.automation import Page, expect, run
+
+async def test():
+    page = Page()
+    await page.goto(&quot;https://example.com/&quot;)
+    await expect(page).to_have_title(&quot;Example Domain&quot;)
+    await expect(page.get_by_text(&quot;documentation examples&quot;)).to_be_visible()
+    await page.screenshot(path=&quot;example.png&quot;)
+    zebkit.quit()
+
+zebkit.main(lambda: run(test()), [&quot;python&quot;, &quot;--headless&quot;])"><pre><code data-language="python">import zebkit
+from zebkit.automation import Page, expect, run
+
+async def test():
+    page = Page()
+    await page.goto("https://example.com/")
+    await expect(page).to_have_title("Example Domain")
+    await expect(page.get_by_text("documentation examples")).to_be_visible()
+    await page.screenshot(path="example.png")
+    zebkit.quit()
+
+zebkit.main(lambda: run(test()), ["python", "--headless"])</code></pre></div>
+<p dir="auto">Playwright's own clients, its test runner and its other languages included,
+connect to the engine's Playwright endpoint unchanged:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="tools/zebkit-run --headless --playwright-port=0   # prints &quot;Playwright listening on ws://127.0.0.1:&lt;port&gt;/&lt;token&gt;&quot;"><pre><code data-language="shell">tools/zebkit-run --headless --playwright-port=0   # prints "Playwright listening on ws://127.0.0.1:&lt;port&gt;/&lt;token&gt;"</code></pre></div>
+<div dir="auto" data-snippet-clipboard-copy-content="const browser = await chromium.connect('ws://127.0.0.1:&lt;port&gt;/&lt;token&gt;');
+const page = await (await browser.newContext()).newPage();"><pre><code data-language="js">const browser = await chromium.connect('ws://127.0.0.1:&lt;port&gt;/&lt;token&gt;');
+const page = await (await browser.newContext()).newPage();</code></pre></div>
+<p dir="auto">Agents and tools that speak CDP drive zebkit as they would drive Chrome:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="tools/zebkit-run --headless --remote-debugging-port=9222 https://example.com/"><pre><code data-language="shell">tools/zebkit-run --headless --remote-debugging-port=9222 https://example.com/</code></pre></div>
+<p dir="auto">Any CDP client connects to <code>http://127.0.0.1:9222</code>.</p>
+<p dir="auto">An MCP client gets the engine's capabilities as tools from <code>tools/zebkit-mcp</code>, a
+separate program, with file access and origins denied until its operator grants
+them (<a href="https://github.com/ikey4u/zebkit/blob/main/docs/MCP.md">docs/MCP.md</a>):</p>
+<div dir="auto" data-snippet-clipboard-copy-content="ZEBKIT_DIR=&lt;package&gt; cargo build --release --manifest-path tools/zebkit-mcp/Cargo.toml   # or the archive's
+zebkit-mcp --allow-origin https://example.com --allow-write ~/agent-files   # on standard input and output
+zebkit-mcp --http 8931 --allow-origin '*'                                   # on 127.0.0.1, with a token"><pre><code data-language="shell">ZEBKIT_DIR=&lt;package&gt; cargo build --release --manifest-path tools/zebkit-mcp/Cargo.toml   # or the archive's
+zebkit-mcp --allow-origin https://example.com --allow-write ~/agent-files   # on standard input and output
+zebkit-mcp --http 8931 --allow-origin '*'                                   # on 127.0.0.1, with a token</code></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">The examples</h3><a id="user-content-the-examples" aria-label="Permalink: The examples" href="#the-examples"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="mise example:linux:basic    # examples/window.c: a browser window
+mise example:rust:window    # the same in Rust
+mise example:ffmpeg         # examples/ffmpeg.cpp: a library inside the engine
+(cd examples/gpui-browser &amp;&amp; cargo run --release)   # a tabbed browser in GPUI-KIT"><pre><code data-language="shell">mise example:linux:basic    # examples/window.c: a browser window
+mise example:rust:window    # the same in Rust
+mise example:ffmpeg         # examples/ffmpeg.cpp: a library inside the engine
+(cd examples/gpui-browser &amp;&amp; cargo run --release)   # a tabbed browser in GPUI-KIT</code></pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Benchmark</h2><a id="user-content-benchmark" aria-label="Permalink: Benchmark" href="#benchmark"></a></p>
+<p dir="auto">Against the latest stable Electron, 45.2.1 (Chromium 156), measured the same way:
+one harness, the same pages, two thin hosts that do the same thing, every process
+counted, medians of 5 to 11 runs taking turns, Linux x86-64, 2026-11-06 and 07
+(<code>scripts/electron-compare.sh</code>, <code>docs/reports/electron-compare.md</code>).</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th></th>
+<th>zebkit 0.2.0</th>
+<th>Electron 45.2.1</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>As an application ships it, uncompressed / <code>.tar.xz</code></td>
+<td><strong>171.2 / 59.4 MiB</strong></td>
+<td>260.5 / 87.1 MiB</td>
+<td>34% smaller</td>
+</tr>
+<tr>
+<td>Start, cold, to first paint</td>
+<td><strong>2.3 s</strong></td>
+<td>6.6 s</td>
+<td>66% less</td>
+</tr>
+<tr>
+<td>Start, warm, to first paint</td>
+<td><strong>116 ms</strong></td>
+<td>236 ms</td>
+<td>51% less</td>
+</tr>
+<tr>
+<td>Memory, a blank page</td>
+<td><strong>179 MB</strong></td>
+<td>250 MB</td>
+<td>29% less</td>
+</tr>
+<tr>
+<td>A call from the page to the host and back, 1 MiB / 16 MiB</td>
+<td><strong>3.3 / 58 ms</strong></td>
+<td>4.3 / 66 ms</td>
+<td>23% / 12% less</td>
+</tr>
+<tr>
+<td>DOM, 20,000 elements made and laid out</td>
+<td>280 ms</td>
+<td>278 ms</td>
+<td>level</td>
+</tr>
+<tr>
+<td>JavaScript and DOM, ten workloads</td>
+<td>1139 ms</td>
+<td>1193 ms</td>
+<td>level</td>
+</tr>
+<tr>
+<td>Text layout, a chapter of a book</td>
+<td>8.1 ms</td>
+<td>7.6 ms</td>
+<td>level, within noise</td>
+</tr>
+<tr>
+<td>A 756-page PDF in each one's viewer: CPU / memory</td>
+<td><strong>0.75 s / 261 MB</strong></td>
+<td>1.6 s / 399 MB</td>
+<td>53% / 35% less</td>
+</tr>
+<tr>
+<td>Ten popular sites: CPU loading / memory</td>
+<td><strong>21.7 s / 4756 MB</strong></td>
+<td>25.2 s / 5060 MB</td>
+<td>14% / 6% less</td>
+</tr>
+<tr>
+<td>Processes, a page</td>
+<td>7</td>
+<td><strong>6</strong></td>
+<td>one more: storage sandboxed in its own, as Chrome</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<ul dir="auto">
+<li><strong>Size.</strong> zebkit keeps the whole web platform applications use: HTML, CSS,
+JavaScript with every JIT tier, WebAssembly, WebGL, media with H.264 and AAC,
+HTTP/3, PDF.</li>
+<li><strong>Speed.</strong> Chrome's own profile-guided optimization reaches Blink because
+zebkit is built with CFI as Chrome is; every speed change is kept only when it
+gains more than it costs in size (<code>docs/SIZE_AND_SPEED.md</code>).</li>
+<li><strong>Where Electron is ahead</strong>: one process fewer a page, and memory on two of the
+ten sites, YouTube and The Verge, where advertising and video decide.</li>
+<li>How each number is made: <code>docs/SIZE_AND_SPEED.md</code>.</li>
+</ul>
+<p dir="auto">The same Playwright commands three ways, headless, medians
+(<code>docs/reports/automation-bench.md</code>, <code>scripts/automation-bench.sh</code>):</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th></th>
+<th>zebkit's API, in-process</th>
+<th>Your Playwright scripts, connected to zebkit</th>
+<th>Playwright with Chrome 156</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>locator.click()</code></td>
+<td><strong>2.0 ms</strong></td>
+<td>3.5 ms</td>
+<td>33.3 ms</td>
+</tr>
+<tr>
+<td><code>locator.fill()</code></td>
+<td>2.1 ms</td>
+<td><strong>2.0 ms</strong></td>
+<td>2.9 ms</td>
+</tr>
+<tr>
+<td><code>locator.press('Enter')</code></td>
+<td><strong>0.59 ms</strong></td>
+<td>0.98 ms</td>
+<td>2.6 ms</td>
+</tr>
+<tr>
+<td><code>locator.textContent()</code></td>
+<td><strong>0.23 ms</strong></td>
+<td>0.70 ms</td>
+<td>0.81 ms</td>
+</tr>
+<tr>
+<td><code>allTextContents()</code> of 200</td>
+<td><strong>0.34 ms</strong></td>
+<td>1.9 ms</td>
+<td>1.9 ms</td>
+</tr>
+<tr>
+<td><code>page.goto()</code></td>
+<td><strong>11.2 ms</strong></td>
+<td>13.0 ms</td>
+<td>18.2 ms</td>
+</tr>
+<tr>
+<td><code>page.screenshot()</code></td>
+<td><strong>12.4 ms</strong></td>
+<td>16.7 ms</td>
+<td>33.8 ms</td>
+</tr>
+<tr>
+<td><code>page.screenshot({type: 'jpeg'})</code></td>
+<td><strong>13.9 ms</strong></td>
+<td>14.4 ms</td>
+<td>32.9 ms</td>
+</tr>
+<tr>
+<td>the screenshot's pixels, unencoded</td>
+<td><strong>9.3 ms</strong></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<ul dir="auto">
+<li><strong>zebkit's API, in-process</strong>: your program calls the command through
+<code>&lt;zebkit/automation.h&gt;</code>, Python's <code>zebkit.automation</code> or Rust's
+<code>zebkit::automation</code>; it runs inside the engine, with no Node.js and no protocol.</li>
+<li><strong>Your Playwright scripts, connected to zebkit</strong>: Playwright's own Node.js
+client, unchanged, with <code>chromium.connect()</code> to zebkit's endpoint; its test
+suite (v1.64.1) passes 4,046 of its tests there, Chrome 4,196
+(<code>docs/AUTOMATION.md</code>, section 7).</li>
+<li><strong>Playwright with Chrome</strong>: Playwright as usual, over CDP.</li>
+<li><strong>Why it is faster</strong>: one call in the renderer where Playwright's server makes
+several round trips over CDP, no JSON between processes, no Node.js process
+(Playwright's alone reached 175 MiB); and the frames a click's checks wait for
+are made at once instead of at 60 Hz on a page without a display.</li>
+<li><strong>A screenshot is 2.7 times faster</strong>: the fresh frame it takes is made at
+once instead of at the next 60 Hz tick, the PNG is deflated at level 1 with
+the Up filter (2 ms where Chrome's default level takes 13, for 59 KB
+instead of 40 KB on this page), and the picture's shared memory is made in
+one call instead of a page fault at a time. What is left of the 12 ms is the
+page's frame (4 ms), copying the picture out of the compositor (4 ms) and
+encoding it (4 ms). The pixels themselves, with no encoding
+(<code>zebkit_automation_screenshot_pixels()</code>, zebkit's own), take 9 ms. Over CDP
+zebkit does what Chrome does: frames at 60 Hz, Chrome's PNG.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Reference</h2><a id="user-content-reference" aria-label="Permalink: Reference" href="#reference"></a></p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Documentation</h3><a id="user-content-documentation" aria-label="Permalink: Documentation" href="#documentation"></a></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Document</th>
+<th>What it covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/API.md">docs/API.md</a></td>
+<td>Everything an application can call, in C, Rust, Python and JavaScript</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/BUILD.md">docs/BUILD.md</a></td>
+<td>Fetching Chromium, building, packaging, testing, measuring and releasing; profiles and patches</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/ARCHITECTURE.md">docs/ARCHITECTURE.md</a></td>
+<td>How the engine is made, and what in this repository is what</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/AUTOMATION.md">docs/AUTOMATION.md</a></td>
+<td>Playwright's API without CDP: how Playwright works, what zebkit does instead, the endpoint, what it costs</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/MCP.md">docs/MCP.md</a></td>
+<td><code>tools/zebkit-mcp</code>: the engine as MCP tools for agents, its bounds, what is weak</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/SIZE_AND_SPEED.md">docs/SIZE_AND_SPEED.md</a></td>
+<td>Where the size goes, what was cut and kept, the compiler against speed, the Electron baseline</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/MACOS.md">docs/MACOS.md</a></td>
+<td>The macOS framework, native and cross builds</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/WINDOWS.md">docs/WINDOWS.md</a></td>
+<td>The Windows DLL, its sandbox, cross-building on Linux, the state of the port</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/SANDBOX.md">docs/SANDBOX.md</a></td>
+<td>The sandbox on each system, and running without one</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/LICENSING.md">docs/LICENSING.md</a></td>
+<td>zebkit's license, the third-party licenses inside the engine, and what shipping it involves</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/ROADMAP.md">docs/ROADMAP.md</a></td>
+<td>The library and the engine: requirements, what is done, what is next</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/ROADMAP_HOOKS.md">docs/ROADMAP_HOOKS.md</a></td>
+<td>Hooks: how an application decides what the engine does, from native code</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/docs/UI.md">docs/UI.md</a></td>
+<td><code>zebkit.ui</code>: the engine's own small UI, what it is for and what it is not</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/bindings/rust/README.md">bindings/rust/README.md</a></td>
+<td>The Rust crates</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ikey4u/zebkit/blob/main/bindings/golang/README.md">bindings/golang/README.md</a></td>
+<td>The Go binding: what it covers, building with cgo</td>
+</tr>
+<tr>
+<td><code>docs/releases/</code></td>
+<td>Each release: what is in it, what was tested, what is missing</td>
+</tr>
+<tr>
+<td><code>docs/reports/</code></td>
+<td>Size reports, regenerated by the scripts</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Repository</h3><a id="user-content-repository" aria-label="Permalink: Repository" href="#repository"></a></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Path</th>
+<th>What it holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>upstream.lock</code></td>
+<td>The Chromium release built, the pinned depot_tools, the Electron release measured against</td>
+</tr>
+<tr>
+<td><code>profiles/</code></td>
+<td>Build flavours as GN arguments: <code>slim.gn</code> (the product), <code>slim-macos.gn</code>, <code>slim-windows.gn</code>, <code>baseline.gn</code> (Chromium's defaults)</td>
+</tr>
+<tr>
+<td><code>patches/</code></td>
+<td>Changes to Chromium, applied in the order of <code>patches/series</code></td>
+</tr>
+<tr>
+<td><code>src/engine/</code></td>
+<td>zebkit's own code, linked into Chromium as <code>//zebkit/engine</code>: the library, its C API and headers</td>
+</tr>
+<tr>
+<td><code>src/ffmpeg/</code></td>
+<td>zebkit's FFmpeg configuration, from <code>scripts/ffmpeg-config.sh</code></td>
+</tr>
+<tr>
+<td><code>bindings/rust/</code>, <code>bindings/python/</code>, <code>bindings/golang/</code></td>
+<td>The Rust crates, the Python binding and the Go binding</td>
+</tr>
+<tr>
+<td><code>tools/</code></td>
+<td><code>zebkit-run</code> (open pages, serve CDP or Playwright's endpoint), <code>zebkit-js</code> (applications in JavaScript) and <code>zebkit-mcp</code> (the engine as MCP tools)</td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td>Programs that test every layer of the API against a package; speed workloads</td>
+</tr>
+<tr>
+<td><code>examples/</code></td>
+<td>A browser window in C, <code>zebkit.ui</code>, a library inside the engine, the Electron baseline</td>
+</tr>
+<tr>
+<td><code>scripts/</code></td>
+<td>Every step, one script each; <code>mise tasks</code> lists the short forms</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><code>upstream/</code> (Chromium's tree, about 30 GB), <code>out/</code>, <code>dist/</code> and <code>.cache/</code>
+are generated and not tracked.</p>
+<p dir="auto">zebkit is Chromium plus a small patch set (<code>patches/</code>), built from source.
+Where Chromium lacks something an application needs, zebkit patches
+Chromium rather than working around it (<code>docs/BUILD.md</code>).</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">License</h2><a id="user-content-license" aria-label="Permalink: License" href="#license"></a></p>
+<p dir="auto">zebkit is free software under the GNU Lesser General Public License, version
+2.1 or (at your option) any later version: <a href="https://github.com/ikey4u/zebkit/blob/main/LICENSE">LICENSE</a>. Applications
+of any license, open or closed, can use it as a library.</p>
+<p dir="auto">The engine contains Chromium and the libraries it uses (Blink, V8, Skia,
+PDFium, FFmpeg in its LGPL configuration, ICU, SQLite, BoringSSL and others),
+each under its own license. Every release archive carries <code>LICENSE</code>, a
+<code>NOTICE</code> that says where its source is, and <code>THIRD_PARTY_NOTICES.txt</code> with
+every third-party license text. <a href="https://github.com/ikey4u/zebkit/blob/main/docs/LICENSING.md">docs/LICENSING.md</a> says
+what an application that ships zebkit has to do.</p>
+<p dir="auto">Contributions are accepted under the same license: by sending a pull request
+you agree that your contribution is licensed under the LGPL 2.1 or later, as
+the rest of zebkit.</p>
+</article></div></div>
