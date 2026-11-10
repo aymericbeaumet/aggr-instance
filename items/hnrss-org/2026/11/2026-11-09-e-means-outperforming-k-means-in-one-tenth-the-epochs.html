@@ -1,0 +1,243 @@
+<p>I’m excited to open-source e-means: a modern, robust k-means algorithm developed at Meta FAIR. A replacement of Lloyd&#39;s algorithm, e-means delivers a ~10× speedup in both epochs and wall-clock time while achieving lower loss.</p><div id="readability-page-1" class="page"><div>
+
+<h2 id="speedup">An order of magnitude less epochs</h2>
+<p>Across a <a href="#validation">large range of scales and datasets</a>, e-means reaches a test loss below Lloyd's at 25 epochs, in 1.2 to 3 epochs. Measured end to end, that is a 10–45× wall-clock reduction on GPU against the state-of-the-art Lloyd implementation (Flash-KMeans<sup><a href="#ref2" id="cite2">[2]</a></sup>), and 8–15× on CPU against Faiss<sup><a href="#ref1" id="cite1">[1]</a></sup>. Speed and quality usually trade against each other in k-means, while e-means achieves both better speed and loss.</p>
+
+<figure>
+  <img src="https://e-means.github.io/assets/emeans_vs_lloyd_readme_v9.png" width="1980" height="1103" loading="lazy" decoding="async" alt="e-means against Lloyd’s k-means, in epochs, CPU time and GPU time">
+</figure>
+
+<h2>The k-means problem</h2>
+<p>Given a fixed dataset of <span>n</span> points <span>X = {x<sub>1</sub>, ..., x<sub>n</sub>} ⊂ R<sup>d</sup></span> and an integer <span>k</span>, the k-means problem is to find <span>k</span> centroids <span>C = (c<sub>1</sub>, ..., c<sub>k</sub>)</span> minimizing the mean squared distance between each point and its nearest centroid:</p>
+<p>\[ \mathrm{MSE}(X, C) = \frac{1}{n} \sum_{i=1}^{n} \|x_i - c_{a(i)}\|^2, \qquad a(i) = \arg\min_{j \in \{1,\dots,k\}} \|x_i - c_j\|^2 \]</p>
+<div><p>\[ \mathrm{MSE}(X, C) = \frac{1}{n} \sum_{i=1}^{n} \|x_i - c_{a(i)}\|^2 \]</p>
+<p>\[ a(i) = \arg\min_{j \in \{1,\dots,k\}} \|x_i - c_j\|^2 \]</p></div>
+<p>It's a static dataset, unlike codebook learning inside VQ-VAEs, where the distribution to cluster is constantly moving.</p>
+
+<h2>The e-means project</h2>
+<p>The goal of e-means is to provide a modern optimization rule for the k-means problem. We started this project from the following observations:</p>
+<ul>
+  <li>k-means is one of the rare problems in machine learning where full-batch optimization is still widely used.</li>
+  <li>Mini-batch k-means methods in the literature exist<sup><a href="#ref3" id="cite3">[3]</a>,<a href="#ref4" id="cite4">[4]</a>,<a href="#ref5" id="cite5">[5]</a></sup>, but are mostly based on the MacQueen update rule, released in 1967.</li>
+  <li>Modern deep learning offers optimization tools that can enhance mini-batch methods.</li>
+</ul>
+<p>For e-means, we chose to do mini-batch updates with exponential moving averages<sup><a href="#ref6" id="cite6">[6]</a></sup>, which we found to be most efficient for the k-means problem. Contrary to previous mini-batch approaches, e-means requires no hyperparameter tuning because it automatically sets the batch size and step size with scaling laws (see <a href="#scaling-laws">Automatic hyperparameter tuning with scaling laws</a>). In addition, e-means improves the initialization and the dead-cluster revival strategy, adds a cosine-scheduled decay rate, and introduces a finalization stage that reduces the training loss for a negligible runtime penalty at the end of training. e-means is highly parallelizable, and comes with specialized kernels that translate its algorithmic advantage into wall-clock speedups.</p>
+
+<figure>
+  <div>
+    <div>
+      <p>Moving-average updates</p>
+      <p>Each mini-batch updates every cluster's count and sum. The centroid is their ratio.</p>
+      
+    </div>
+    <div>
+      <p>No hyperparameter tuning</p>
+      <p>Everything is derived from scaling laws.</p>
+      
+    </div>
+    <div>
+      <p>Start and finish</p>
+      <p>Novel initialization and finalization methods. The run ends on each cluster's exact last-epoch mean.</p>
+      
+    </div>
+    <div>
+      <p>Cosine scheduling</p>
+      <p>The step <span>α</span> anneals from <span>α</span><sub>0</sub> to 0.1<span>α</span><sub>0</sub>, as a learning rate does.</p>
+      
+    </div>
+    <div>
+      <p>Dead-cluster revival</p>
+      <p>Clusters with size below a threshold are revived by splitting a large cluster.</p>
+      
+    </div>
+    <div>
+      <p>Specialized kernels</p>
+      <p>GPU kernels fuse the nearest-centroid assignment, turning the epoch savings above into matching wall-clock speedups.</p>
+      
+    </div>
+  </div>
+</figure>
+
+<h2>The centroid update rules</h2>
+<p>The centroid update rule is the central component of e-means. This section aims to provide an overview of update rules for k-means clustering. All methods maintain, for each cluster <span>j</span>, a sum <span>S<sub>j</sub></span> and a count <span>N<sub>j</sub></span> of the points assigned to it, and take the centroid as their ratio:</p>
+<p>\[ c_j = S_j / N_j \]</p>
+<p>They differ only in how <span>S<sub>j</sub></span> and <span>N<sub>j</sub></span> are updated. Below, <span>s<sub>j</sub></span> and <span>n<sub>j</sub></span> denote the sum and the count of the points in the current batch that are assigned to cluster <span>j</span> (both zero if none are).</p>
+<p><strong>Lloyd’s algorithm</strong><sup><a href="#ref7" id="cite7">[7]</a></sup> assigns every point to its nearest centroid and recomputes the statistics from scratch, using the full dataset as the batch:</p>
+<p>\[ S_j \leftarrow s_j, \qquad\quad N_j \leftarrow n_j \]</p>
+<p>so <span>c<sub>j</sub></span> is the exact mean of the points currently assigned to it. Each update costs one full pass over the data, and the procedure is repeated a fixed number of times (typically 20 to 50 iterations).</p>
+<p><strong>MacQueen’s update</strong><sup><a href="#ref3">[3]</a></sup> accumulates the statistics without ever discarding them:</p>
+<p>\[ S_j \leftarrow S_j + s_j, \qquad\quad N_j \leftarrow N_j + n_j \]</p>
+<p>so <span>c<sub>j</sub></span> is the uniform mean of every point assigned to cluster <span>j</span> since the start of training, including points assigned under earlier, possibly poor, centroid positions. This was later partially addressed by Staleness-Reduction Mini-Batch K-Means<sup><a href="#ref8" id="cite8">[8]</a></sup>, a hybrid method between k-means and MacQueen. They obtained important speedups, but only on very low numbers of clusters.</p>
+<p><strong>e-means</strong> works on mini-batches and replaces this sum with an exponential moving average:</p>
+<p>\[ S_j \leftarrow (1-\alpha)\,S_j + \alpha\, s_j, \qquad\quad N_j \leftarrow (1-\alpha)\,N_j + \alpha\, n_j \]</p>
+<div><p>\[ S_j \leftarrow (1-\alpha)\,S_j + \alpha\, s_j \]</p>
+<p>\[ N_j \leftarrow (1-\alpha)\,N_j + \alpha\, n_j \]</p></div>
+<p>so older assignments are forgotten at rate <span>α</span>, and the centroid tracks recent assignments rather than the whole history. This update rule is typically used for moving distributions, hence their adoption for training VQ-VAEs<sup><a href="#ref6">[6]</a></sup>. What we found is that it’s also extremely efficient for static datasets if it’s combined with e-means’ other components, and hyperparameters are properly tuned.</p>
+
+<details id="why-ema">
+<summary>Why exponential moving average updates and not gradient descent?</summary>
+<p>The e-means project started from previous work at Meta FAIR by Hugo Touvron and Hervé Jégou, who had found that mini-batch k-means by gradient descent could beat Lloyd’s algorithm. While I could reproduce these results, I found that the performance of gradient-descent based centroid updates is unstable at large learning rates, unlike exponential moving average updates. I suspect that is because EMA updates guarantee that the centroid is always in the convex hull of points assigned to it, while gradient descent updates may overshoot past that hull.</p>
+
+<figure>
+  <img src="https://e-means.github.io/assets/ema_vs_sgd_large_batch.svg" width="806" height="494" loading="lazy" decoding="async" alt="Test error against the effective step for exponential moving averages and plain gradient descent, at a large batch">
+  <figcaption>Test error against the effective step a centroid takes, at a large batch, for exponential-moving-average updates (EMA) and plain gradient descent (SGD), each at every step setting tried. DEEP, 1 million vectors, and SIFT, 10 million vectors, 16,384 clusters, 5 epochs, median over 3 seeds. The vertical axis is percent above the best test error in the panel. At its best setting, gradient descent ends 1.6% (DEEP) and 0.4% (SIFT) above the moving average.</figcaption>
+</figure>
+
+<p>In order to achieve the lowest loss at a fixed number of epochs, we chose exponential moving average updates, hence the name e-means for our method.</p>
+</details>
+
+<details id="lloyd-special-case">
+<summary>Lloyd is a special case of e-means: hyperparameter study</summary>
+<p>If you set the batch to the full dataset, <span>B</span>&nbsp;=&nbsp;<span>n</span>, <em>and</em> <span>α</span>&nbsp;=&nbsp;1, then <span>N<sub>j</sub></span> and <span>S<sub>j</sub></span> become exactly the count and sum of the whole cluster, so one e-means iteration becomes exactly one Lloyd iteration. Lloyd is an extreme case of e-means without cosine scheduling on the learning rate. However, our hyperparameter search found that this extreme setting is highly suboptimal, which explains why e-means largely outperforms Lloyd. Below, the loss is measured for every batch size <span>B</span> and step <span>α</span>: Lloyd lands in a corner, well outside the region where the loss is lowest.</p>
+
+<figure id="loss-map">
+  <img src="https://e-means.github.io/assets/loss_map_t5.svg" width="820" height="490" loading="lazy" decoding="async" alt="Validation loss for every batch size and constant step at 5 epochs; the lowest losses lie on a diagonal band, and Lloyd, at full batch and step 1, sits in the top-right corner 1.8% above the best">
+  <figcaption>Validation loss for every batch <span>B</span> and step <span>α</span>, relative to the best cell, after 5 epochs. DEEP, <span>n</span>&nbsp;=&nbsp;10<sup>6</sup>, <span>k</span>&nbsp;=&nbsp;1024. The step is constant here (no cosine schedule) so that Lloyd is exactly one of the cells: full batch, <span>α</span>&nbsp;=&nbsp;1. The lowest losses follow a diagonal band, a larger batch calls for a larger step.</figcaption>
+</figure>
+
+<p>This hyperparameter study motivated us to derive scaling laws that automatically pick the optimal batch size <span>B</span> and step size <span>α</span>.</p>
+</details>
+
+<h2 id="local-minima">e-means better escapes local minima</h2>
+<p>To better understand why e-means reaches better losses than Lloyd at convergence, we plotted a few trainings on toy datasets to evaluate their ability to escape local minima. Repeating trainings over 200 seeds, we found that e-means is much less likely to fall in pathological configurations compared to Lloyd.</p>
+
+<figure>
+  
+
+
+
+  <figcaption>Two blobs of very different sizes, <span>k</span>&nbsp;=&nbsp;8. Lloyd puts two centroids on the small blob and leaves the large one short. e-means starts in the same trap and leaves it within its first epochs, ending with seven centroids on the large blob and one on the small. Over 200 starts Lloyd stays stuck on 26% of starts, while e-means stays stuck on 3.5% of times.</figcaption>
+</figure>
+
+<figure>
+  
+
+
+
+  <figcaption>Nine blobs in a 3×3 grid with heavier corners, <span>k</span>&nbsp;=&nbsp;10. Lloyd leaves the centre blob without a centroid and crowds three into a corner. e-means falls into the same arrangement, then climbs out around epoch 10. Over 200 starts Lloyd stays stuck more than 1% worse on 43% of starts, while e-means is more than 1% worse on 4%.</figcaption>
+</figure>
+
+<figure>
+  
+
+
+
+  <figcaption>Four blobs on a square around a heavier centre blob, <span>k</span>&nbsp;=&nbsp;5. Lloyd puts two centroids on one corner blob and strands one in the gap between two others, which then share it. e-means, from the same start, gives every blob one. Over 200 starts Lloyd stays stuck on 15.5% of starts, while e-means stays stuck on 0%.</figcaption>
+</figure>
+
+<figure>
+  
+
+
+
+  <figcaption>Five blobs on a line, <span>k</span>&nbsp;=&nbsp;5. Lloyd leaves a light middle blob without a centroid and gives an end blob two. e-means, from the same start, gives every blob one. Over 200 starts Lloyd stays stuck on 46% of starts, while e-means stays stuck on 0%.</figcaption>
+</figure>
+
+<p>Our explanation for that is that mini-batches provide more noisy updates that are more likely to explore the optimization landscape and escape local minima. Lloyd, with its always decreasing loss, is more likely to exploit found local minima and never escape them.</p>
+
+<h2 id="scaling-laws">Automatic hyperparameter tuning with scaling laws</h2>
+<p>An essential property of e-means is that practitioners don't need to set any additional hyperparameter compared to Lloyd's algorithm. We fitted two scaling laws to set the batch size <code>B</code> and step size <span>α</span><sub>0</sub> from any problem's characteristics <code>(n, k, T)</code>, and found them to exhibit strong generalization on unseen datasets and problem scales.</p>
+<p>\[ B = c_B \, k^{b_k} \, n^{b_n} \, T^{b_T} \]</p>
+<p>\[ \alpha_0 = \min\!\Big(c_\alpha \, k^{a_k} \, B^{a_B} \, n^{a_n} \, T^{a_T},\; 1\Big) \]</p>
+
+<div><table>
+  <thead>
+    <tr><th rowspan="2">law</th><th rowspan="2">constant</th><th colspan="4">exponent of</th><th rowspan="2">regret,<br>held-out datasets</th><th rowspan="2">regret,<br>held-out size</th><th rowspan="2">R²</th></tr>
+    <tr><th><span>k</span></th><th><span>B</span></th><th><span>n</span></th><th><span>T</span></th></tr>
+  </thead>
+  <tbody>
+    <tr><td>step <span>α</span><sub>0</sub></td><td>0.824</td><td>−0.46</td><td>0.90</td><td>−0.45</td><td>−0.11</td><td>0.07%</td><td>0.07%</td><td>0.95</td></tr>
+    <tr><td>batch <span>B</span>, default</td><td>0.035</td><td>0.13</td><td>n/a</td><td>0.88</td><td>0.81</td><td>0.19%</td><td>0.20%</td><td>0.96</td></tr>
+    <tr><td>batch <span>B</span>, quality law</td><td>0.0044</td><td>0.13</td><td>n/a</td><td>0.88</td><td>0.81</td><td>0.07%</td><td>0.06%</td><td>n/a</td></tr>
+  </tbody>
+</table></div>
+<p>Regret = (MSE with the law − best MSE over the grid) / best MSE, median over configurations. Held-out datasets: SIFT, SPACEV, and the VIBE<sup><a href="#ref9" id="cite9">[9]</a></sup> datasets arXiv and AG-News. Held-out size: one value of <span>n</span> left out of the fit and predicted.</p>
+
+<p>We propose two equations to choose the batch, the default law and the quality law. The “quality law” trades off throughput for better clustering quality against the “default” law. Below we plot the training data for our scaling laws: validation MSE against step size <span>α</span><sub>0</sub> (left) and batch size <span>B</span> (right).</p>
+
+<figure>
+  <img src="https://e-means.github.io/assets/paper_laws.svg" width="1498" height="595" loading="lazy" decoding="async" alt="The two scaling laws fit on deep1b">
+</figure>
+
+<h2>The importance of dead-cluster revival</h2>
+
+
+
+<p>Toy example showing the importance of dead-cluster revival.</p>
+
+<p>The main issue with mini-batch k-means is that it is prone to “dead” clusters, centroids that end up with zero assigned points during optimization. This reduces the effective size of the codebook, which is especially problematic for the large codebooks increasingly used today.</p>
+
+<p>A common mitigation is to reinitialize clusters that fall below a certain size threshold, as done in EnCodec<sup><a href="#ref10" id="cite10">[10]</a></sup>, where dead centroids are simply replaced by random samples drawn from the incoming batch. While this helps, it does not fully resolve the issue. Instead of sampling arbitrary points from the batch, we revive dead clusters by splitting large, existing ones: we sample an active cluster with probability proportional to its size and split it into two. We found this approach, adapted from Faiss k-means, to be significantly more effective at eliminating dead clusters and preserving codebook capacity.</p>
+
+<div><table>
+  <thead>
+    <tr><th>dataset</th><th>revival policy</th><th>dead clusters</th><th>of codebook</th><th>imbalance</th><th>test MSE</th></tr>
+  </thead>
+  <tbody>
+    <tr><td rowspan="3">DEEP</td><td><strong>proportional split</strong></td><td><strong>47</strong></td><td><strong>0.3%</strong></td><td><strong>1.194</strong></td><td><strong>0.38762</strong></td></tr>
+    <tr><td>resample from batch (EnCodec)</td><td>2,343</td><td>14.3%</td><td>1.423</td><td>0.39124</td></tr>
+    <tr><td>off</td><td>4,313</td><td>26.3%</td><td>1.647</td><td>0.39448</td></tr>
+    <tr><td rowspan="3">SIFT</td><td><strong>proportional split</strong></td><td><strong>10</strong></td><td><strong>0.1%</strong></td><td><strong>1.186</strong></td><td><strong>0.19623</strong></td></tr>
+    <tr><td>resample from batch (EnCodec)</td><td>750</td><td>4.6%</td><td>1.233</td><td>0.19684</td></tr>
+    <tr><td>off</td><td>2,080</td><td>12.7%</td><td>1.404</td><td>0.19797</td></tr>
+  </tbody>
+</table></div>
+<p>1 million vectors, <span>k</span>&nbsp;=&nbsp;16,384, 5 epochs, mean over 5 seeds; only the revival policy varies. A cluster counts as dead when fewer than ten vectors are assigned to it at the end, a thousandth of an average cluster. Imbalance: how uneven the cluster sizes are (1 = all equal). From the <a href="https://arxiv.org/abs/2611.09501" target="_blank" rel="noopener">paper</a>’s revival ablation table.</p>
+
+<h2 id="validation">Extensive experimental validation</h2>
+<p>We validated e-means on 24 different embedding and synthetic datasets and configurations (see <a href="https://arxiv.org/abs/2611.09501" target="_blank" rel="noopener">paper</a>). For the video we ran 234 configurations of e-means against k-means (16 datasets, 100k to 100M points): explore every curve in the <a href="https://e-means.github.io/results-map.html">results map</a>.</p>
+
+<figure>
+  <img src="https://e-means.github.io/assets/paper_epochs_3arm.png" width="2568" height="1050" loading="lazy" decoding="async" alt="Convergence curves vs Lloyd at 25 iterations">
+  <figcaption>Train (top) and test (bottom) MSE, divided by Lloyd’s after 25 epochs. Initialized from random vectors.</figcaption>
+</figure>
+
+<figure>
+  <img src="https://e-means.github.io/assets/paper_gpu_10m.svg" width="1644" height="624" loading="lazy" decoding="async" alt="Test error against wall-clock time on GPU, 10 million vectors, k=65,536">
+  <figcaption>Test MSE against wall-clock time on one H100, 10 million vectors, 65,536 clusters. 25 epochs of a plain PyTorch Lloyd (data on the GPU, bf16) take 142 to 155 seconds, against 14 to 22 seconds for Flash-KMeans<sup><a href="#ref2">[2]</a></sup>. Labels on the curves mark the number of epochs.</figcaption>
+</figure>
+
+<figure>
+  <img src="https://e-means.github.io/assets/vibe_epochs_bar.svg" width="820" height="440" loading="lazy" decoding="async" alt="Epochs e-means needs to reach Lloyd's 25-epoch test error on the 11 VIBE embedding datasets: 1.6 to 2.4">
+  <figcaption>Epochs e-means needs to reach the test error Lloyd reaches in 25 epochs, on the 11 datasets of the VIBE embedding benchmark (text, code, image and multimodal embeddings, <span>d</span>&nbsp;=&nbsp;200 to 3,072, <span>k</span>&nbsp;=&nbsp;8,192 or 16,384). Budgets spaced 0.2 epochs apart, median over five seeds. Every dataset needs between 1.6 and 2.4 epochs, against Lloyd’s 25.</figcaption>
+</figure>
+
+
+
+<h2>Library and code</h2>
+<p>from faiss.contrib.e_means import Emeans  #&nbsp;NumpyEmeans&nbsp;for&nbsp;NumPy
+
+em = Emeans(d, k, nepochs=T)     #&nbsp;T&nbsp;epochs&nbsp;(5&nbsp;by&nbsp;default)
+centroids, labels = em.train(x)  #&nbsp;x:&nbsp;a&nbsp;PyTorch&nbsp;tensor&nbsp;(n,&nbsp;d)
+# labels: each vector's cluster in the last epoch</p>
+<p>Repo: <a href="https://github.com/facebookresearch/faiss/tree/main/contrib/e_means" target="_blank" rel="noopener">faiss/contrib/e_means</a>.</p>
+
+<div>
+<h3 id="citing-this-work">Citing this work</h3>
+<p>If you use e-means, please cite the paper (<a href="https://arxiv.org/abs/2611.09501" target="_blank" rel="noopener">arXiv:2611.09501</a>):</p>
+<p>@misc{bessa2026emeansoutperformingkmeansin,
+      title={e-means: outperforming k-means (in one-tenth the epochs)}, 
+      author={Swann Bessa and Pierre-Emmanuel Mazaré and Gergely Szilvasy and Hugo Touvron and David Picard and Matthijs Douze and Hervé Jégou},
+      year={2026},
+      eprint={2611.09501},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2611.09501}, 
+}</p>
+</div>
+
+<h2>References</h2>
+<ol>
+  <li id="ref1">M. Douze, A. Guzhva, C. Deng, J. Johnson, G. Szilvasy, P.-E. Mazaré, M. Lomeli, L. Hosseini, H. Jégou. "The Faiss library." <em>arXiv:2401.08281</em>, 2024. <a href="#cite1">↑</a></li>
+  <li id="ref2">S. Yang, H. Xi, Y. Zhao, M. Li, X. Fan, J. Zhang, H. Cai, Y. Lin, X. Li, K. Keutzer, S. Han, C. Xu, I. Stoica. "Flash-KMeans: Fast and Memory-Efficient Exact K-Means." <em>arXiv:2603.09229</em>, 2026. <a href="#cite2">↑</a></li>
+  <li id="ref3">J. MacQueen. "Some Methods for Classification and Analysis of Multivariate Observations." <em>Proceedings of the Fifth Berkeley Symposium on Mathematical Statistics and Probability</em>, 1:281–297, 1967. <a href="#cite3">↑</a></li>
+  <li id="ref4">D. Sculley. "Web-Scale K-Means Clustering." <em>WWW</em>, 2010. <a href="#cite4">↑</a></li>
+  <li id="ref5">J. Newling, F. Fleuret. "Nested Mini-Batch K-Means." <em>NeurIPS</em>, 2016. <a href="#cite5">↑</a></li>
+  <li id="ref6">A. van den Oord, O. Vinyals, K. Kavukcuoglu. "Neural Discrete Representation Learning." <em>NeurIPS</em>, 2017. <a href="#cite6">↑</a></li>
+  <li id="ref7">S. Lloyd. "Least squares quantization in PCM." <em>IEEE Transactions on Information Theory</em>, 28(2):129–137, 1982 (circulated as a Bell Labs technical note since 1957). <a href="#cite7">↑</a></li>
+    <li id="ref8">X. Zhu, J. Sun, Z. He, J. Jiang, Z. Wang. "Staleness-Reduction Mini-Batch K-Means." <em>IEEE Transactions on Neural Networks and Learning Systems</em>, 35(10):14424–14436, 2024. <a href="#cite8">↑</a></li>
+  <li id="ref9">E. Jääsaari, V. Hyvönen, M. Ceccarello, T. Roos, M. Aumüller. "VIBE: Vector Index Benchmark for Embeddings." <em>arXiv:2505.17810</em>, 2025. <a href="#cite9">↑</a></li>
+  <li id="ref10">A. Défossez, J. Copet, G. Synnaeve, Y. Adi. "High Fidelity Neural Audio Compression." <em>Transactions on Machine Learning Research</em>, 2023. arXiv:2210.13438. <a href="#cite10">↑</a></li>
+</ol>
+
+</div></div>
