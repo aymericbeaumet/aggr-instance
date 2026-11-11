@@ -1,0 +1,286 @@
+---
+title: the answer to ai is engineering
+link: https://ghuntley.com/answer/
+source: ghuntley-com
+published: 2026-11-11T19:38:58Z
+updated: 2026-11-11T19:38:58Z
+first_seen: 2026-11-11T21:51:32.649893059Z
+authors:
+- Geoffrey Huntley
+labels:
+- ai
+summary: I gave a talk at AI DevCon New York about why security take-off is the new normal, why you don't need most open-source libraries anymore, and how a Nix overlay lets you patch the whole world, then a bonus round on loops, back pressure and property-based testing.
+content: extracted
+html: 2026-11-11-the-answer-to-ai-is-engineering.html
+remote_preview:
+  url: https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/size/w1200/2026/11/Screenshot-2026-11-12-at-6.31.27---am.png
+---
+
+The security take-off is here, and the answer isn't more AI. It's engineering. I gave a talk at AI DevCon New York about patching the planet with Nix and agents, how I got through the last round of security incidents without losing any sleep, and a bonus round on loops, back pressure and property-based testing.
+
+[Geoffrey Huntley： Patch the Planet With Nix and Agents](https://www.youtube.com/watch?v=TgwcuZViDo8)
+
+Everyone at the conference spent two days hearing about how to build software faster with factories. Cool. I wanted to talk about something different: how do you respond to security incidents faster? It turns out that if you optimise for incident response times, your build times speed up too. Here's the talk, written up properly, with the slides broken out and chapter links at the bottom if you want to jump to a specific part.
+
+> It turns out the answer for AI is engineering.
+
+## two weeks ago was pretty wild, huh?
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.002.png)
+
+OpenCode got breached. Then the Prime Minister of Japan was tweeting at everyone to go and update PHP.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.003.png)
+
+Next thing you know, there's a vulnerability in an HTTP stack that lets anyone remotely turn off a running server. Then a 12-year-old GitLab flaw that led to remote code execution on self-managed servers. Ouch.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.005.png)
+
+And it turns out the answer to life, the universe, and everything isn't 42. It's 4. A certificate authority had a key that should have been a 116-digit number, and it was just 4. Anyone who could guess it could forge HTTPS certificates for any website.
+
+The number 4 opens all doors on the internet.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.007.png)
+
+So we started wondering: is it time to turn the internet off yet?
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.008.png)
+
+You've probably seen the graph of GitHub pull requests going quadratic, and GitHub having availability issues because of it. That's agent take-off. Below is the security version of that: the security take-off.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.009.png)
+
+I'm putting it to you that this is the start of the new normal. You could argue it's a bump in the road, and once all the software has been patched, things will calm down. Maybe. But agents are writing software now; agents were trained on existing code, and existing code is full of these vulnerabilities.
+
+## you'll need more inferencing than your attackers
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.010.png)
+
+Unfortunately, cyber is only going to accelerate from here. It's going to get really weird, because I suspect you're going to need more inferencing capacity than your attackers to stay secure.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.012.png)
+
+Think about the companies right now saying, "oh no, we can only do a $100-a-month token budget per employee." Yeah, no. As soon as you publish any code on GitHub, someone with racks of inferencing hardware will autonomously scan it and then autonomously make tool calls to exploit what they find. That's the new state of normal.
+
+## why do we have open-source dependencies?
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.013.png)
+
+Almost a year ago I wrote a blog post asking why we even have open-source libraries. I got grilled to hell on Hacker News for it, but every day that goes by it becomes more true.
+
+[what is the point of libraries now that you can just generate them?](https://ghuntley.com/libraries/)
+
+It's a meme as accurate as time. The problem is that our digital infrastructure depends upon just some random guy in Nebraska. Open-source, by design, is not financially sustainable. Finding reliable, well-defined funding sources is exceptionally challenging. As projects grow in size, many maintainers burn out and
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/A-black-and-white--low-angle-digital-illustration-in-a-symbolic-traditional-tattoo-art-style.--A-bald--light-skinned-man-with-a-bushy-beard--prominent-eyebrows--and-a-friendly-expression-wears-denim-overalls--2--a7ea2827-7291-4544-9ead-6775fc496eae.jpg)Geoffrey Huntley Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/A-symbolic-traditional-tattoo-art-print-of-a-software-library-in-vibrant-retro-colors-with-complex-ornamental-details.-Creative-light-art-is-used-to-achieve-an-abstract-pattern-with-complimentary-colors--balance-54112d5b-9c47-42f7-b6b2-802baeb94ba8.jpg)
+
+We had open-source libraries because code was precious. It was hard to write, so we concentrated it into libraries to make reuse easy. We also did it to make hiring easier: React was famously a play by Facebook to standardise frontend development so they could hire for it. We optimised our practices for humans, and I don't think we need libraries anymore.
+
+I'm not saying you should go and vibe-code your own cryptography. If you're a cryptographer, please do. I'm not. There's still going to be a trusted base and a trusted core. But think about your supply chain. How much time do you spend on Dependabot updates? How much time do you spend on incident response because a Dependabot update was compromised, because the upstream author was compromised? We're already losing time, all because the prior was that writing software was hard.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.014.png)
+
+It's been a year, and I don't use much open source anymore. Sure, I use the Linux kernel, DNS servers like BIND, and the lower-level stuff. But once I get into higher-level code, I just prompt the agent for what I want. It feels very unnatural at first. If it's small and well-specified, like a command-line argument parser, you could take that dependency, or you could have Claude build it in a loop.
+
+Something magical happens when you do: it's built for your use case, and you don't need to get someone on GitHub to merge your pull request. It turns out that if you have to tool call a human, that's not AGI.
+
+So the best you can do is either generate it first-party, or vendor the open-source software and check it into your repo so the agent can modify and extend it. That's one approach. Today I want to show you a different one.
+
+## patching is perceived to be hard
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.015.png)
+
+[patch the planet](https://ghuntley.com/patch/)
+
+I don't know if you've seen this, but a CA just got popped. Their keys got leaked, which means the industry as a whole now has some pretty major problems. It was revealed two hours ago. eMudhra Intermediate CA CompromiseeMudhra Intermediate CA Compromise Now you're probably wondering
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/A-black-and-white--low-angle-digital-illustration-in-a-symbolic-traditional-tattoo-art-style.--A-bald--light-skinned-man-with-a-bushy-beard--prominent-eyebrows--and-a-friendly-expression-wears-denim-overalls--2--80b6928a-db31-4ca3-8f79-41f2495eb19f.jpg)Geoffrey Huntley Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/Symbolic-traditional-tattoo-art-print-showing-hackers-patching-a-planet-beneath-stormy-skies--vibrant-yet-soft-pastel-colors--intricate-retro-ornamental-details--intense-dramatic-weather--high-tension-composition-balanced-by-a-gentle-soothi-09e0cd99-5e5b-4312-9c14-13af209b835d.jpg)
+
+I'm calling it patch the planet. Patching is perceived to be hard, but it doesn't have to be. What makes it hard? Say you want to patch something on GitHub. You have to figure out how that software builds, learn its toolchain, and set up a new CI job just for that one thing. You do that per language, and every open-source library has a different build toolchain. Then once you've patched it, you need to host it in an artifact repo, and now you're thinking about artifact tokens. We make things needlessly complex.
+
+[the world hasn’t figured out yet that you can literally just fix everything with a Nix overlay](https://ghuntley.com/nix/)
+
+There are many things that are uncertain in our industry right now, but one thing I am certain about, and have been for almost 13 years, is that Nix is a terrible programming language. I remember when I first learned it, it felt like pushing shit uphill. The learning cliff
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/A-black-and-white--low-angle-digital-illustration-in-a-symbolic-traditional-tattoo-art-style.--A-bald--light-skinned-man-with-a-bushy-beard--prominent-eyebrows--and-a-friendly-expression-wears-denim-overalls--2--9ea129f3-c865-4e57-be5c-1aec30edc400.jpg)Geoffrey Huntley Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/Symbolic-traditional-tattoo-art-print-viewed-from-a-high--elevated-angle--portraying-a-bustling-city-transformed-by-a-Nix-overlay.-Gleaming-buildings--technological-textures--surreal-contrasts--and-limitless-possibility-evoke-hidden-power.--3b23d27b-4c11-4009-8fde-f62a6cdb75a6.jpg)
+
+There's been a solution for a long time: Nix. It's been around since 2003, and I've used it for years. You might have heard that Nix sucks. It does. There's no silver bullet. The most common complaint is that it's hard to use. It was. Agents know how to drive towards an outcome, so you just need to know that Nix exists, then prompt the agent: I want Nix here. The same goes for Bazel and Buck2. Talk to any eng leader, and they've got a story about nearly getting fired after staffing a team of five to introduce one of these, and then spending forever upskilling every developer. That's no longer true. You can now use highly complex, high-powered tools simply. You just have to know they exist, and you have to falsify your priors.
+
+## one source of truth
+
+The demo is up on my GitHub as nix-demo below. Clone it down and have a look, because there are some interesting things in there. I use devenv, which is a nice gentle introduction to Nix. You define your packages and services in Nix, and that one file generates your developer laptops, your CI/CD, your agent sandboxes and your production Docker images.
+
+[GitHub - ghuntley/nix-demo: Patch git once with a Nix overlay; use it in devenv, a NixOS VM test and a Docker image](https://github.com/ghuntley/nix-demo?ref=ghuntley.com)
+
+Patch git once with a Nix overlay; use it in devenv, a NixOS VM test and a Docker image - ghuntley/nix-demo
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/favicon-22ff8c4d-fc14-4025-ba54-30de59dcc95c.png)GitHub
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/nix-demo-826d8720-d46d-496c-9990-47f6820be12d.png)
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.018.png)
+
+See where I'm going? A single source of truth. How many people are spinning up teams right now to figure out agent sandboxes, and are they just duplicating environments? I'd bet that at some of your companies the laptop setup isn't reproducible: onboard a new employee or lose a laptop, and it's 48 hours to rebuild the developer environment. Then there's drift in CI/CD, so it works on your computer but CI says it doesn't. The agent sandbox is another source of drift. And finally, you say it's all done, but your software increment doesn't work in the production Docker image.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.019.png)
+
+Interestingly, the Docker images Nix produces are incredibly efficient. Docker basically stacks file-system layers on top of each other and squashes them. Nix is a graph, and it uses that graph to build a very optimised image.
+
+[Optimising Docker Layers for Better Caching with Nix - Graham Christensen](https://grahamc.com/blog/nix-and-layered-docker-images/?ref=ghuntley.com)
+
+![](https://static.ghost.org/v5.0.0/images/link-icon.svg)Graham Christensen
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/docker-e468d091-b27e-4d26-9b0e-9119ef1aa812.png)
+
+## a git that cannot force push
+
+![entering the devenv shell: git version 2.55.0](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/18-git-2-55.jpg)
+
+Imagine I'm a new engineer with a brand new computer, onboarding into the company; all I need to do is change my working directory to the source code checkout.
+
+My globally installed git is 2.54, but I cd into the project, and I'm onboarded.
+
+Think nvm or a Python version manager, but for all of your operating-system dependencies, including across the FFI boundaries; it goes past the programming language.
+
+After changing my working directory git is 2.55. What's so special about this version of git? It's not just a newer version.
+
+![This build of Git does not force-push](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/19-no-force-push.jpg)
+
+This version of git doesn't support force push. I've monkey-patched it for my agent sandboxes, my local engineering laptops, and everywhere else I use git. It's a single source of git, so anything that needs git as a transitive dependency also gets my patched version.
+
+> The best way to stop a model from doing something is to remove its ability to do it.
+
+How do you stop an agent from force pushing? It hill-climbs toward its goal and does destructive things along the way. When that causes incidents, remove the capability from the underlying system. I use this trick all over the place, and sometimes the best way is to monkey-patch the system underneath.
+
+![nix-demo/third_party/git patch files](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/20-git-patches.jpg)
+
+Those of you from my generation will remember patch files. Open source used to be distributed as a collection of patch files. The idea that everything must be merged upstream on GitHub was never part of open source. This is how we used to do software development. Here I have a closure that defines git, plus my custom patches.
+
+![001-disable-force-push.patch](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/21-patch-diff.jpg)
+
+How did I get the custom patches? I asked Claude: Can you please use Nix and create a custom overlay that removes force push? Done. Now a set of Unix patches is applied to git automatically whenever I'm in that environment. And it's not just that environment. It could be Docker, or a production host, wherever you like.
+
+This one little pattern makes the entire world patchable. You're no longer waiting on someone upstream to merge a bug fix. You just route around it.
+
+## patch the planet
+
+There's no hidden magic and no skeletons in the closet. I import the overlay and Nix handles the rest. You might think mise is good software. It's not; it's a package manager like Homebrew. Does it have this level of functionality? Nix lets you patch anything, including the operating system kernel, and then deploy that custom version across your fleet.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.021.png)
+
+About a month before the incidents, I wrote about what happens when there's a critical fault in OpenSSL. You can update OpenSSL. Cool. But what about when it's a transitive dependency? OpenSSL is used by Nginx and Postgres, so it isn't just a matter of patching OpenSSL itself. That's why we never patched things manually. With a single source of truth for OpenSSL, you apply a monkey patch just like I did with git, and Nix recompiles the world. Every transitive dependency gets the custom version.
+
+Nix has good caching and remote builders, similar to Bazel, so this doesn't mean compiling forever. CI compiles the software once, validates it, and publishes it to the cache, and your developer environments and sandboxes download from it. Simple.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.022.png)
+
+So the question I want to put to you is: how much productivity did you lose two weeks ago during those security incidents?
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.024.png)
+
+I didn't lose any sleep, folks, because I have a single source of truth. I opened Claude and asked whether my fleet was affected.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.023.png)
+
+It said yes, and from there it applied the monkey patches it needed and updated the refs, dependencies, and pins. Because everything flows from that source of truth, the transitive dependencies recompiled automatically. Done. I'm living the nirvana life over here, and you could be too. You just have to know this exists.
+
+## the AGENTS.md reminder trick
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.025.png)
+
+There was one cute trick I did. After the "am I affected?" prompt, I had some temporary monkey patches in place, similar to the git overlay. So I issued another prompt: update the AGENTS.md, and in seven days' time, get rid of my patches.
+
+Instead of creating a Jira ticket, I added a reminder to my AGENTS.md. The next developer or agent to pick up that machine automatically did the housekeeping, and backed out the monkey patches and pins because upstream had been fixed. This is the easiest security maintenance I've ever done. Every time there's a security issue, I use these two tricks.
+
+If you optimise for this, your security incident response gets faster, and your productivity for factories and everything else gets faster too. The answer for AI is engineering.
+
+## root, but only in a sandbox
+
+I had ten minutes left, so I did a bonus round on loops. Everyone has their own way of doing loop engineering. There are no best practices, and my way is very different from Steve's. Surprise: mine involves Nix, which has a very powerful testing primitive.
+
+[everything is a ralph loop](https://ghuntley.com/loop/)
+
+I’ve been thinking about how I build software is so very very different how I used to do it three years ago. No, I’m not talking about acceleration through usage of AI but instead at a more fundamental level of approach, techniques and best practices. Standard software practices
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/A-black-and-white--low-angle-digital-illustration-in-a-symbolic-traditional-tattoo-art-style.--A-bald--light-skinned-man-with-a-bushy-beard--prominent-eyebrows--and-a-friendly-expression-wears-denim-overalls--2--9c1695f0-0c07-4b6e-83d9-9ec3f916ef57.jpg)Geoffrey Huntley Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/Symbolic-traditional-tattoo-art-print-of-Ralph-Wiggum-from-The-Simpsons-doing-a-loop-on-a-rollercoaster-that-is-a-weaving-loom--rendered-in-vibrant-colors-with-a-retro-flair--complex-ornamental-details--set-against-a-whit-85285c51-b15d-4ab5-98c8-d0bad9200974.jpg)
+
+When I run my loops, I give my agents sudo. They run as root. Would you do that on an Ubuntu machine? Hell no. But a throwaway Nix developer machine has some unique properties. I can run these loops with sudo, which lets the agent inspect everything from the database to the journals, and it's safe because I designed the operating environment for it.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.028.png)
+
+Here's why that matters. Nix has a testing framework called the NixOS test. Imagine two web servers with a load balancer in front, on different network VLANs. How would you normally test that? It would be really hard. With Nix, you define what you need; it creates all the machines, and you can assert that your network rules hold.
+
+![NixOS VM test: HAProxy in front of a Python hello-world server across two VLANs](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/27-nixos-test.jpg)
+
+When I run my loops, the entire operating system, the fleet and the higher-tier stack are all under test, integrated from day one. When the agent finishes a unit of work, I test it on exactly what would be production infrastructure, because the infrastructure is defined as code. I can deploy that increment somewhere as a preview environment. Run production from Nix flakes, spin up something identical to production, test the hell out of it, and if it's green, it will be correct when you apply that flake to production.
+
+Having said all that: do not run agents with Nix as root on production hosts, and do not connect agents to production databases. Ever. If you need to reproduce something, build a workflow that duplicates the database and restrict the heck out of outbound network access. Dev parity really is equal at this point. One source of truth, one way up.
+
+## don't let the loop close
+
+Ralph was never just about loops. It was about stopping the loop from closing on bad code. The loop generates code, commits it, compiles it, and so on. The best way to stop it closing on bad output is deterministic checks. These aren't skills. This is engineering again.
+
+[don’t waste your back pressure](https://ghuntley.com/pressure/)
+
+I am fortunate to be surrounded by folks who listen and the link below post will go down as a seminal reading for people interested in AI context engineering. A simple convo between mates - well Moss translated it into words and i’ve been waiting for it to come out
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/icon/A-black-and-white--low-angle-digital-illustration-in-a-symbolic-traditional-tattoo-art-style.--A-bald--light-skinned-man-with-a-bushy-beard--prominent-eyebrows--and-a-friendly-expression-wears-denim-overalls--2--787888fa-3a2a-4e24-a2b2-9cc9666be0fa.jpg)Geoffrey Huntley Geoffrey Huntley
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/thumbnail/Bright-lens-flare-with-warm-terracotta-and-cool-teal-tones--a-symbolic-traditional-tattoo-art-print-of-a-stalled-wheel-and-AI-robot--in-vibrant-colors--retro-flair--complex-ornamental-style-on-a-white-background--showcasi-1a1f72a9-10bc-4b11-bafe-31d9e4b48503.jpg)
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.029.png)
+
+You can block a git push if the software doesn't compile. That's a pre-commit hook, or prek, and you can engineer a lot of back pressure with hooks. Then add static analysis, such as "this domain must never be coupled to that domain". Say you have an API domain and a SQL domain. You don't want SQL to reference the API. That would normally be an architecture review, but agents are pretty dumb and will do it anyway. Wondering how to solve your code review problems? Engineer away much of the need for code review with checks like these, using static and semantic analysis from your language's language service. There's so much you can do. You just have to ask.
+
+## property-based testing
+
+Next, unit tests. The problem with unit tests is that they only test what you specify, so edge cases slip through. That's where property-based testing comes in. It has been around for years, and you should be using it.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.030.png)
+
+Say you have a function that reverses a string, and the implementation is faulty because it doesn't support Unicode or emoji. I never wrote that test, so it slips through. That's a whole category of problems.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.031.png)
+
+With property-based testing, a generator feeds in random strings, emoji, huge strings and long strings, and keeps exploring the state space to check that your property holds. The property here is that reversing a string twice gives you back the original string. And I'm not just talking about reversing strings. I'm talking about properties like "a customer who asks for a refund is only refunded once", across the whole lifecycle and all of your microservices. Properties take some getting used to, but they're really cool.
+
+## bombadil and hegel
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.032.png)
+
+At Antithesis, validation and verification of software is what we do. We have a library called Bombadil. You should ditch Playwright, folks, and I'm not just talking my book. Bombadil lets you write a property, such as "the user always has the ability to log out". It loads your plain JavaScript or TypeScript application in a web browser and puts it through hell: rotating the screen, changing dimensions, going full screen, and committing every random act of violence it can against your app until the property either holds or fails. When it fails, you get a counterexample: a reproduction of exactly how it failed.
+
+Fun fact: back in February we woke up to find PewDiePie using it, and we still don't know how, because this is academic knowledge, not popular knowledge. Maybe it's in the model weights.
+
+![](https://storage.ghost.io/c/06/e5/06e5d12b-0328-469d-a0d0-3a0f0ba34c46/content/images/2026/11/patch-the-planet.033.png)
+
+We also have Hegel: a small core library written in Rust, with sugar on top for each programming language. You might know its predecessor, Hypothesis. Same team, same tech, but now we're bringing it to every programming language. Do these two things in your codebase and, beyond solving your patching woes, you'll get a massive uplift across your organisation. They're free. You just have to know they exist and use them.
+
+## chapters
+
+- [0:00](https://www.youtube.com/watch?v=TgwcuZViDo8&t=0s&ref=ghuntley.com) — engineering, not AI
+- [0:44](https://www.youtube.com/watch?v=TgwcuZViDo8&t=44s&ref=ghuntley.com) — two weeks ago was pretty wild
+- [2:03](https://www.youtube.com/watch?v=TgwcuZViDo8&t=123s&ref=ghuntley.com) — security take-off is the new normal
+- [4:01](https://www.youtube.com/watch?v=TgwcuZViDo8&t=241s&ref=ghuntley.com) — why do we have open-source libraries?
+- [7:05](https://www.youtube.com/watch?v=TgwcuZViDo8&t=425s&ref=ghuntley.com) — patch the planet
+- [8:02](https://www.youtube.com/watch?v=TgwcuZViDo8&t=482s&ref=ghuntley.com) — Nix, and why it doesn't matter that it sucks
+- [9:19](https://www.youtube.com/watch?v=TgwcuZViDo8&t=559s&ref=ghuntley.com) — nix-demo and devenv: one source of truth
+- [11:13](https://www.youtube.com/watch?v=TgwcuZViDo8&t=673s&ref=ghuntley.com) — demo: a git that cannot force push
+- [13:28](https://www.youtube.com/watch?v=TgwcuZViDo8&t=808s&ref=ghuntley.com) — patch files and the overlay
+- [16:11](https://www.youtube.com/watch?v=TgwcuZViDo8&t=971s&ref=ghuntley.com) — OpenSSL and transitive dependencies
+- [17:24](https://www.youtube.com/watch?v=TgwcuZViDo8&t=1044s&ref=ghuntley.com) — how much productivity did you lose?
+- [18:49](https://www.youtube.com/watch?v=TgwcuZViDo8&t=1129s&ref=ghuntley.com) — the AGENTS.md reminder trick
+- [20:41](https://www.youtube.com/watch?v=TgwcuZViDo8&t=1241s&ref=ghuntley.com) — bonus: loops, sudo and Nix
+- [22:20](https://www.youtube.com/watch?v=TgwcuZViDo8&t=1340s&ref=ghuntley.com) — runNixOSTest
+- [24:36](https://www.youtube.com/watch?v=TgwcuZViDo8&t=1476s&ref=ghuntley.com) — don't let the loop close: back pressure
+- [26:04](https://www.youtube.com/watch?v=TgwcuZViDo8&t=1564s&ref=ghuntley.com) — property-based testing
+- [27:27](https://www.youtube.com/watch?v=TgwcuZViDo8&t=1647s&ref=ghuntley.com) — Bombadil
+- [28:53](https://www.youtube.com/watch?v=TgwcuZViDo8&t=1733s&ref=ghuntley.com) — Hegel
