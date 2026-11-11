@@ -1,0 +1,431 @@
+<div id="readability-page-1" class="page"><div> 
+<p>Multi-vector embedding models give each query token its own opportunity to find a match in a document. This makes them wonderfully expressive for search, but those document vectors add up quickly. A corpus with millions of documents can contain hundreds of millions of vectors!</p>
+<p>Token pooling makes these representations smaller by merging similar token vectors. The more aggressively I compress them, however, the easier it becomes to lose something useful. Pooling-aware training teaches the encoder to preserve the information that matters when its vectors are merged, helping you retrieve better from the same storage budget.</p>
+<p>In this post, I'll explain how pooling works, train a model for compressed retrieval with Sentence Transformers, and explore the resulting quality and storage tradeoff. With <code>pool_factor=4</code>, my normally trained model retains 94.6% of its unpooled NanoBEIR nDCG@10, with a <strong>4x</strong> reduction in document vectors. Token pooling-aware training raises that retention to 97.8% at the same storage budget! Let's see how.</p>
+<blockquote>
+<p>This post builds on pooling-aware training studied in Stefan Josef's <a href="https://stefan-jo.github.io/learn-to-pool/downloads/paper.pdf" rel="nofollow">Learn to Pool</a> and <a href="https://huggingface.co/blog/lightonai/lateon-hpool-regularization">LightOn's pooling regularization study</a>, which also explores targeted training and adaptive budgets. Here, I'll focus on understanding the method and putting it to work with a short, reproducible Sentence Transformers example.</p>
+</blockquote>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#why-multi-vector-retrieval-needs-so-many-vectors" rel="nofollow">Why Multi-Vector Retrieval Needs So Many Vectors</a></li>
+<li><a href="#token-pooling" rel="nofollow">Token Pooling</a><ul>
+<li><a href="#choosing-a-pooling-budget" rel="nofollow">Choosing a Pooling Budget</a></li>
+<li><a href="#calibrating-adaptive-pooling" rel="nofollow">Calibrating Adaptive Pooling</a></li>
+</ul>
+</li>
+<li><a href="#token-pooling-aware-training" rel="nofollow">Token Pooling-Aware Training</a><ul>
+<li><a href="#a-loss-wrapper-in-sentence-transformers" rel="nofollow">A Loss Wrapper in Sentence Transformers</a></li>
+<li><a href="#optional-kernel-acceleration" rel="nofollow">Optional Kernel Acceleration</a></li>
+</ul>
+</li>
+<li><a href="#using-the-trained-model" rel="nofollow">Using the Trained Model</a></li>
+<li><a href="#evaluation-results" rel="nofollow">Evaluation Results</a></li>
+<li><a href="#combining-compression-techniques" rel="nofollow">Combining Compression Techniques</a></li>
+<li><a href="#references" rel="nofollow">References</a></li>
+<li><a href="#code-and-models" rel="nofollow">Code and Models</a></li>
+</ul>
+<h2>
+	<a id="why-multi-vector-retrieval-needs-so-many-vectors" href="#why-multi-vector-retrieval-needs-so-many-vectors" rel="nofollow">
+		
+	</a>
+	<span>
+		Why Multi-Vector Retrieval Needs So Many Vectors
+	</span>
+</h2>
+<p>A single-vector embedding model compresses an entire document into one vector. <a href="https://huggingface.co/blog/multi-vector-encoder">Multi-vector models</a> such as ColBERT instead keep a collection of contextual token vectors, allowing different parts of a query to match different parts of a document.</p>
+<p>For example, a query about a laptop with a long battery life can find evidence about the laptop in one part of a document and battery endurance in another. With MaxSim scoring, each query vector selects its best matching document vector, and those scores are added together:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi mathvariant="normal">MaxSim</mi><mo>⁡</mo><mo stretchy="false">(</mo><mi>Q</mi><mo separator="true">,</mo><mi>D</mi><mo stretchy="false">)</mo><mo>=</mo><munder><mo>∑</mo><mrow><mi>q</mi><mo>∈</mo><mi>Q</mi></mrow></munder><munder><mrow><mi>max</mi><mo>⁡</mo></mrow><mrow><mi>d</mi><mo>∈</mo><mi>D</mi></mrow></munder><msup><mi>q</mi><mi mathvariant="normal">⊤</mi></msup><mi>d</mi></mrow>
+\operatorname{MaxSim}(Q, D) = \sum_{q \in Q} \max_{d \in D} q^\top d
+</math></span></span></span></p>
+<p>Even with the 2-bit or 4-bit residual quantization supported by <a href="https://github.com/lightonai/fast-plaid" rel="nofollow">Fast-PLAID</a>, storing hundreds of vectors per document adds up. At 4 bits per residual coordinate, 200 vectors of 128 dimensions require 12.8 KB of quantized residuals per document, or 12.8 GB across a million documents. Pooling each document to 50 vectors reduces that to 3.2 GB, at the same dimensionality and precision.</p>
+<p>The useful observation is that many document vectors can be similar. Several tokens might describe closely related concepts, creating an opportunity to represent them together.</p>
+<h2>
+	<a id="token-pooling" href="#token-pooling" rel="nofollow">
+		
+	</a>
+	<span>
+		Token Pooling
+	</span>
+</h2>
+<p><a href="https://sbert.net/docs/package_reference/multi_vector_encoder/modules.html#hierarchicaltokenpooling" rel="nofollow">HierarchicalTokenPooling</a> groups similar token embeddings using <a href="https://scikit-learn.org/stable/modules/clustering.html#hierarchical-clustering" rel="nofollow">Ward hierarchical clustering</a>. Starting with one group per token vector, it repeatedly merges the two groups that cause the smallest increase in how spread out the vectors are within their groups. This spread is measured by the sum of squared distances from each vector to its group's mean, so Ward's method favors compact groups of similar vectors.</p>
+<p>These merges build a hierarchy of progressively larger groups, letting us choose a level of compression that fits our budget. We then represent each group by its mean and normalize the resulting vectors again, ready for MaxSim scoring.</p>
+<p>You can make compression proportional to document length:</p>
+<pre><code data-language="python">from sentence_transformers.multi_vector_encoder.modules import HierarchicalTokenPooling
+
+pooling = HierarchicalTokenPooling(pool_factor=4)
+</code></pre>
+<p>With <code>pool_factor=4</code>, documents retain approximately one quarter of their original vectors, so longer documents can keep proportionally more capacity. By default, the first token is protected from merging and pooling applies only to document embeddings, leaving query embeddings unchanged.</p>
+<h3>
+	<a id="choosing-a-pooling-budget" href="#choosing-a-pooling-budget" rel="nofollow">
+		
+	</a>
+	<span>
+		Choosing a Pooling Budget
+	</span>
+</h3>
+<p><code>HierarchicalTokenPooling</code> offers three alternative controls:</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Setting</th>
+<th>What it expresses</th>
+</tr>
+
+		</thead><tbody><tr>
+<td><code>max_tokens=16</code></td>
+<td>A maximum of 16 vectors per document, including protected tokens.</td>
+</tr>
+<tr>
+<td><code>pool_factor=4</code></td>
+<td>Approximately one quarter of each document's original vectors.</td>
+</tr>
+<tr>
+<td><code>distance_threshold=...</code></td>
+<td>A shared Ward merge-distance threshold, allowing vector counts to vary with embedding geometry.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>This distinction matters when document lengths vary. With <code>pool_factor=4</code>, a longer document can retain approximately one quarter of its vectors, allowing its representation to grow with its content. With <code>distance_threshold</code>, the vector count can grow when more distinct embeddings need to be preserved.</p>
+<h3>
+	<a id="calibrating-adaptive-pooling" href="#calibrating-adaptive-pooling" rel="nofollow">
+		
+	</a>
+	<span>
+		Calibrating Adaptive Pooling
+	</span>
+</h3>
+<p>Adaptive pooling uses a shared distance threshold to merge similar embeddings more aggressively while preserving more vectors for documents with distinct content. It can be used with any multi-vector model, <em>including one trained without a pooling-aware objective</em>.</p>
+<p>Rather than choosing a threshold manually, you can calibrate it for a target average vector count. Given a representative sample of your corpus in <code>calibration_documents</code>:</p>
+<pre><code data-language="python">from sentence_transformers import MultiVectorEncoder
+from sentence_transformers.multi_vector_encoder.modules import HierarchicalTokenPooling
+
+model = MultiVectorEncoder("lightonai/LateOn")
+calibration_embeddings = model.encode_document(calibration_documents)
+threshold = HierarchicalTokenPooling.calibrate_distance_threshold(calibration_embeddings, target_tokens=16)
+pooling = HierarchicalTokenPooling(distance_threshold=threshold)
+
+# Apply pooling, targeting an average of 16 vectors per document
+document_embeddings = model.encode_document(documents_to_index, token_pooling=pooling)
+</code></pre>
+<p>Calibration only needs document embeddings and returns a threshold you can reuse when indexing. The target is an average, so individual documents can receive more or fewer than 16 vectors. The achieved average can also change on another corpus.</p>
+<h2>
+	<a id="token-pooling-aware-training" href="#token-pooling-aware-training" rel="nofollow">
+		
+	</a>
+	<span>
+		Token Pooling-Aware Training
+	</span>
+</h2>
+<p>Pooling can already be useful on an ordinary multi-vector model. The difficulty appears when a document contains a distinction that matters for retrieval, but merging its vectors makes that distinction harder to recover. The original training objective never required the model to work with these compressed representations. But, you can teach it to do exactly that.</p>
+<p>If you've used <a href="https://huggingface.co/blog/matryoshka">Matryoshka embeddings</a>, the training principle will feel familiar. Matryoshka applies a retrieval objective at several embedding widths, teaching smaller prefixes to remain useful. Pooling-aware training applies the objective to representations with fewer token vectors.</p>
+<p>For my example, each training batch contributes two losses:</p>
+<ol>
+<li>Retrieval using the original document embeddings.</li>
+<li>Retrieval after compressing documents to approximately one quarter of their original vectors.</li>
+</ol>
+<p>I average them:</p>
+<p><span><span><span><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi mathvariant="script">L</mi><mo>=</mo><mstyle scriptlevel="0" displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><msub><mi mathvariant="script">L</mi><mrow><mi mathvariant="normal">u</mi><mi mathvariant="normal">n</mi><mi mathvariant="normal">p</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">d</mi></mrow></msub><mo>+</mo><mstyle scriptlevel="0" displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><msub><mi mathvariant="script">L</mi><mrow><mi mathvariant="normal">p</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">o</mi><mi mathvariant="normal">l</mi><mi mathvariant="normal">e</mi><mi mathvariant="normal">d</mi></mrow></msub></mrow>
+\mathcal{L} = \tfrac{1}{2}\mathcal{L}_{\mathrm{unpooled}} + \tfrac{1}{2}\mathcal{L}_{\mathrm{pooled}}
+</math></span></span></span></p>
+<p>The first term teaches the model to retrieve with its full representations. The second teaches it to arrange its token embeddings so that useful matches survive pooling. Both objectives update the same encoder, giving it feedback about retrieval before and after compression.</p>
+<p>Ward clustering makes discrete decisions about which tokens belong together. During training, <code>HierarchicalTokenPooling</code> uses a straight-through estimator to pass gradients from pooled vectors back to their member tokens, without differentiating the cluster assignments. The encoder can then learn from retrieval errors made with its pooled representations.</p>
+<h3>
+	<a id="a-loss-wrapper-in-sentence-transformers" href="#a-loss-wrapper-in-sentence-transformers" rel="nofollow">
+		
+	</a>
+	<span>
+		A Loss Wrapper in Sentence Transformers
+	</span>
+</h3>
+<p><a href="https://sbert.net/docs/package_reference/multi_vector_encoder/losses.html#multivectortokenpoolingloss" rel="nofollow"><code>MultiVectorTokenPoolingLoss</code></a> wraps an existing multi-vector retrieval loss and applies it using your chosen poolers:</p>
+<pre><code data-language="python">from sentence_transformers import MultiVectorEncoder
+from sentence_transformers.multi_vector_encoder.losses import (
+    CachedMultiVectorMultipleNegativesRankingLoss,
+    MultiVectorTokenPoolingLoss,
+)
+from sentence_transformers.multi_vector_encoder.modules import HierarchicalTokenPooling
+
+model = MultiVectorEncoder("answerdotai/ModernBERT-base", similarity_fn_name="maxsim")
+pooling = HierarchicalTokenPooling(pool_factor=4)
+
+base_loss = CachedMultiVectorMultipleNegativesRankingLoss(model, mini_batch_size=64)
+loss = MultiVectorTokenPoolingLoss(
+    model,
+    base_loss,
+    token_poolings=[None, pooling],
+    weights=[0.5, 0.5],
+)
+</code></pre>
+<p><code>CachedMultiVectorMultipleNegativesRankingLoss</code> supplies the retrieval objective. It teaches each query to score its relevant document above the negative documents in the batch. By default, it uses <code>model.similarity</code>, using the model's similarity setting (MaxSim in this example) and kernel settings. A model configured with <code>similarity_fn_name="meanmaxsim"</code> would also use MeanMaxSim during training.</p>
+<p>Gradient caching allows the encoder to process small mini-batches while retaining a larger set of in-batch negatives. My training script uses mini-batches of 64 with a training batch size of 256.</p>
+<p><code>MultiVectorTokenPoolingLoss</code> adds the compression objective. Here, <code>None</code> means that one variant uses the original embeddings, while <code>pooling</code> supplies the factor-4 variant. The two weights average their losses. Pooling variants reuse the computed token embeddings, so each additional pooler adds clustering and scoring work without requiring a separate encoder pass for that variant.</p>
+<p>The poolers can also be custom <code>BaseTokenPooling</code> implementations that preserve gradients through their input embeddings. You can adapt the training objective to the representation you want to deploy.</p>
+<p>Replace the factor-4 pooler with your chosen deployment configuration, or include several poolers and choose weights for their losses.</p>
+<p>The complete <a href="https://github.com/huggingface/sentence-transformers/blob/main/examples/multi_vector_encoder/training/token_pooling/training_cached_contrastive.py" rel="nofollow">training script</a> includes the dataset, trainer, validation loss, and small retrieval evaluations during training. From a checkout of the repository, run both variants locally with <a href="https://docs.astral.sh/uv/getting-started/installation/" rel="nofollow">uv</a>:</p>
+<pre><code data-language="bash">uv run examples/multi_vector_encoder/training/token_pooling/training_cached_contrastive.py --baseline
+uv run examples/multi_vector_encoder/training/token_pooling/training_cached_contrastive.py
+</code></pre>
+<p>The script declares its training and kernel dependencies, so uv installs them for you. Compatible kernels are enabled automatically.</p>
+<p>You can also train on a cloud GPU with <a href="https://huggingface.co/docs/hub/jobs-quickstart">Hugging Face Jobs</a>. Install the CLI and log in with a token that can run Jobs and upload models:</p>
+<pre><code data-language="bash">pip install -U huggingface_hub
+hf auth login
+
+hf jobs uv run \
+    --flavor a10g-small \
+    --timeout 4h \
+    --secrets HF_TOKEN \
+    -- https://raw.githubusercontent.com/huggingface/sentence-transformers/main/examples/multi_vector_encoder/training/token_pooling/training_cached_contrastive.py
+</code></pre>
+<p>This runs the pooling-aware variant on an A10G GPU with a four-hour time limit. Passing <code>HF_TOKEN</code> as a secret lets the script upload the trained model to your Hub account when training finishes. To run the ordinary-loss baseline as well, repeat the command with <code>--baseline</code> after the script URL.</p>
+<h3>
+	<a id="optional-kernel-acceleration" href="#optional-kernel-acceleration" rel="nofollow">
+		
+	</a>
+	<span>
+		Optional Kernel Acceleration
+	</span>
+</h3>
+<p>You can accelerate MaxSim scoring, Ward clustering, and supported backbone operations with <a href="https://sbert.net/docs/multi_vector_encoder/usage/kernels.html" rel="nofollow">kernels</a>. Install the training and kernel dependencies:</p>
+<pre><code data-language="bash">pip install -U "sentence-transformers[train,kernels]"
+</code></pre>
+<p>In the training example above, replace the model and pooler initialization before constructing the loss:</p>
+<pre><code data-language="python">model = MultiVectorEncoder(
+    "answerdotai/ModernBERT-base",
+    device="cuda",
+    similarity_fn_name="maxsim",
+    use_kernels=True,
+)
+pooling = HierarchicalTokenPooling(pool_factor=4)
+</code></pre>
+<p>Hierarchical poolers inherit the model's kernel settings by default, so you only need to enable kernels on the model.</p>
+<p>Sentence Transformers selects compatible kernels for your setup and uses the existing implementation wherever a replacement isn't available. For example, the <a href="https://huggingface.co/kernels/sentence-transformers/late-interaction-kernels">default MaxSim kernel</a> scores queries against documents without building the full token similarity matrix in memory, but it does require CUDA and Triton.</p>
+<p>The default <a href="https://huggingface.co/kernels/sentence-transformers/ward-clustering">Ward clustering kernel</a> considerably speeds up hierarchical clustering by running on CUDA instead of the CPU. We're talking about 30-150x faster than SciPy depending on the setting.</p>
+<h2>
+	<a id="using-the-trained-model" href="#using-the-trained-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Using the Trained Model
+	</span>
+</h2>
+<p>Let's load the pooling-aware model and retrieve with compressed document embeddings. Kernel settings aren't saved with the model, so add <code>use_kernels=True</code> when loading if you'd like to use them for inference too:</p>
+<pre><code data-language="python">from sentence_transformers import MultiVectorEncoder
+from sentence_transformers.multi_vector_encoder.modules import HierarchicalTokenPooling
+
+model = MultiVectorEncoder("tomaarsen/mve-ModernBERT-base-token-pooling")
+pooling = HierarchicalTokenPooling(pool_factor=4)
+
+queries = ["Which planet is known as the Red Planet?"]
+documents = [
+    "Venus is often called Earth's twin because of its similar size and proximity.",
+    "Mars, known for its reddish appearance, is often referred to as the Red Planet.",
+    "Jupiter, the largest planet in our solar system, has a prominent red spot.",
+]
+
+query_embeddings = model.encode_query(queries)
+document_embeddings = model.encode_document(documents, token_pooling=pooling)
+
+print([len(embedding) for embedding in document_embeddings])
+# [5, 6, 5]
+print(model.similarity(query_embeddings, document_embeddings))
+# tensor([[16.0037, 25.9879, 22.8159]], device='cuda:0')
+
+# For comparison, the same model without token pooling:
+# [18, 21, 19]
+# tensor([[16.6115, 27.6060, 24.1766]], device='cuda:0')
+</code></pre>
+<p>The pooler compresses the document embeddings after the encoder's forward pipeline, reducing the total from 58 vectors to 16 while leaving query embeddings unchanged. Mars still receives the highest similarity score, followed by Jupiter and Venus, so the ranking is preserved despite storing far fewer document vectors.</p>
+<p>You can change <code>pool_factor</code> at inference to explore a different storage budget with the same trained model. For repeated use, you can also pass <code>token_pooling=pooling</code> when initializing <code>MultiVectorEncoder</code> to make it the runtime default. The pooler's <code>tasks</code> still control which inputs are compressed (e.g. only documents).</p>
+<h2>
+	<a id="evaluation-results" href="#evaluation-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation Results
+	</span>
+</h2>
+<p>To investigate, I trained two models from <code>answerdotai/ModernBERT-base</code>, each with a fresh 128-dimensional token projection:</p>
+<ul>
+<li><a href="https://huggingface.co/tomaarsen/mve-ModernBERT-base-token-pooling-baseline">tomaarsen/mve-ModernBERT-base-token-pooling-baseline</a>, using only the cached contrastive loss.</li>
+<li><a href="https://huggingface.co/tomaarsen/mve-ModernBERT-base-token-pooling">tomaarsen/mve-ModernBERT-base-token-pooling</a>, using the cached contrastive loss wrapped with the unpooled and factor-4 objectives above.</li>
+</ul>
+<p>Both runs use one epoch over the same 120,000 MS MARCO triplets, seed 42, and matching initialization and optimization settings. The training token cap is 300, and short queries are expanded to at least 32 token positions to provide additional contextual query vectors. Only the loss differs between the two experiments, and I didn't run a hyperparameter search.</p>
+<p>I evaluated both models on NanoBEIR@13, reporting mean nDCG@10 (%). The figure compares ordinary and pooling-aware training with pool factors of 2, 3, 4, and 6, alongside unpooled retrieval. The table also includes fixed caps and adaptive thresholds, showing how the training benefits transfer to other pooling settings.</p>
+<p><a href="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/token-pooling/mve_token_pooling_results.png" rel="nofollow"><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/token-pooling/mve_token_pooling_results.png" alt="Mean NanoBEIR nDCG@10 versus stored document vectors for pool factors 2, 3, 4, and 6 and unpooled retrieval, comparing ordinary and pooling-aware training."></a></p>
+<div>
+	<table>
+		<thead><tr>
+<th>Pooling at inference</th>
+<th>Mean vectors</th>
+<th>Ordinary model</th>
+<th>Pooling-aware model</th>
+<th>Gain (points)</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Unpooled</td>
+<td>193.22</td>
+<td>51.84</td>
+<td>52.39</td>
+<td>+0.55</td>
+</tr>
+<tr>
+<td><code>pool_factor=2</code></td>
+<td>96.86</td>
+<td>50.10</td>
+<td>51.74</td>
+<td>+1.64</td>
+</tr>
+<tr>
+<td><code>pool_factor=3</code></td>
+<td>64.74</td>
+<td>49.70</td>
+<td>51.45</td>
+<td>+1.76</td>
+</tr>
+<tr>
+<td><code>pool_factor=4</code></td>
+<td>48.68</td>
+<td>49.03</td>
+<td>51.23</td>
+<td>+2.20</td>
+</tr>
+<tr>
+<td><code>pool_factor=5</code></td>
+<td>39.04</td>
+<td>48.13</td>
+<td>50.28</td>
+<td>+2.15</td>
+</tr>
+<tr>
+<td><code>pool_factor=6</code></td>
+<td>32.62</td>
+<td>47.07</td>
+<td>49.85</td>
+<td>+2.78</td>
+</tr>
+<tr>
+<td><code>max_tokens=64</code></td>
+<td>54.76</td>
+<td>49.27</td>
+<td>50.89</td>
+<td>+1.63</td>
+</tr>
+<tr>
+<td><code>max_tokens=32</code></td>
+<td>29.58</td>
+<td>48.25</td>
+<td>50.12</td>
+<td>+1.87</td>
+</tr>
+<tr>
+<td><code>max_tokens=16</code></td>
+<td>15.60</td>
+<td>46.61</td>
+<td>49.26</td>
+<td>+2.65</td>
+</tr>
+<tr>
+<td><code>max_tokens=8</code></td>
+<td>7.99</td>
+<td>43.12</td>
+<td>46.61</td>
+<td>+3.48</td>
+</tr>
+<tr>
+<td><code>max_tokens=4</code></td>
+<td>4.00</td>
+<td>37.22</td>
+<td>43.00</td>
+<td>+5.78</td>
+</tr>
+<tr>
+<td><code>distance_threshold</code> (calibrated)</td>
+<td>54.76</td>
+<td>50.10</td>
+<td>51.24</td>
+<td>+1.14</td>
+</tr>
+<tr>
+<td><code>distance_threshold</code> (calibrated)</td>
+<td>29.58</td>
+<td>48.38</td>
+<td>50.96</td>
+<td>+2.58</td>
+</tr>
+<tr>
+<td><code>distance_threshold</code> (calibrated)</td>
+<td>15.60</td>
+<td>47.23</td>
+<td>49.63</td>
+<td>+2.41</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>For adaptive pooling, I calibrated a separate threshold for each encoder and NanoBEIR corpus, using its unpooled document embeddings to match the average vector counts under caps of 64, 32, and 16. Short documents bring those averages below their respective caps.</p>
+<p>At the trained <code>pool_factor=4</code>, nDCG@10 improves from 49.03 to 51.23, while storing 74.8% fewer document vectors than unpooled retrieval. This increases score retention from 94.6% to 97.8%, where retention is the pooled mean nDCG@10 divided by each model's own unpooled mean. Unpooled retrieval also improves, from 51.84 to 52.39.</p>
+<p>The gains extend to fixed caps and adaptive pooling, even though training used only the full representation and proportional pooling. At an average of 29.58 vectors per document, adaptive pooling retains 97.3% of the pooling-aware model's unpooled score while storing 84.7% fewer document vectors. The normally trained model retains 93.3% at the same budget.</p>
+<h2>
+	<a id="combining-compression-techniques" href="#combining-compression-techniques" rel="nofollow">
+		
+	</a>
+	<span>
+		Combining Compression Techniques
+	</span>
+</h2>
+<p>If index size is your main concern, I would reach for these options in this order:</p>
+<ol>
+<li>Embedding quantization to 4, 2, or 1 bit(s), for example via <a href="https://github.com/lightonai/fast-plaid" rel="nofollow">Fast-PLAID</a>, to reduce storage per coordinate.</li>
+<li>Token pooling to reduce the number of document vectors, optionally with pooling-aware fine-tuning as shown in this blog.</li>
+<li><a href="https://sbert.net/examples/multi_vector_encoder/training/matryoshka/README.html" rel="nofollow">Matryoshka token embeddings</a> to reduce the dimensionality of each token vector, optionally with fine-tuning to preserve retrieval quality at smaller widths.</li>
+</ol>
+<p>If the model's default dimensionality is larger than 128, I would consider Matryoshka truncation and fine-tuning earlier as well. These approaches can be combined, so evaluate the resulting index size and retrieval quality with your search engine and corpus.</p>
+<p><code>MultiVectorMatryoshkaLoss</code> trains token embeddings to remain useful after truncation. You can wrap it with <code>MultiVectorTokenPoolingLoss</code> to train for both smaller dimensions and fewer document vectors, reusing the encoder's embeddings across the compression settings.</p>
+<p>Try the <a href="https://sbert.net/examples/multi_vector_encoder/training/token_pooling/README.html" rel="nofollow">complete training example</a>, choose a budget that matters for your application, and compare it with a matched ordinary-loss run. The accompanying <a href="https://github.com/huggingface/sentence-transformers/blob/main/examples/multi_vector_encoder/training/token_pooling/evaluate_token_pooling.py" rel="nofollow">evaluation script</a> measures unpooled retrieval, caps of 64, 32, 16, 8, and 4 vectors, and pool factors of 2 through 6, so you can plot the quality and storage tradeoff for your own model.</p>
+<p>With a few extra lines in the training objective, a smaller document representation becomes something the model actively learns to use. That opens up an exciting amount of room to make multi-vector retrieval more practical!</p>
+<h2>
+	<a id="references" href="#references" rel="nofollow">
+		
+	</a>
+	<span>
+		References
+	</span>
+</h2>
+<ul>
+<li>Stefan Josef. <a href="https://stefan-jo.github.io/learn-to-pool" rel="nofollow">Learn to Pool: Lightweight Fine-Tuning for Flexible Multi-Vector Compression</a>.</li>
+<li>Benjamin Clavié, Antoine Chaffin, and Griffin Adams. <a href="https://huggingface.co/papers/2409.14683">Reducing the Footprint of Multi-Vector Retrieval with Minimal Performance Impact via Token Pooling</a>.</li>
+<li>Antoine Chaffin. <a href="https://huggingface.co/blog/lightonai/lateon-hpool-regularization">After the party comes the free lunch: regularizing ColBERT models to enhance pooling capabilities and reduce index footprint</a>.</li>
+<li>Luyu Gao, Yunyi Zhang, Jiawei Han, and Jamie Callan. <a href="https://huggingface.co/papers/2101.06983">Scaling Deep Contrastive Learning Batch Size under Memory Limited Setup</a>.</li>
+<li><a href="https://huggingface.co/blog/matryoshka">Introduction to Matryoshka Embedding Models</a>.</li>
+</ul>
+<h2>
+	<a id="code-and-models" href="#code-and-models" rel="nofollow">
+		
+	</a>
+	<span>
+		Code and Models
+	</span>
+</h2>
+<ul>
+<li><a href="https://sbert.net/examples/multi_vector_encoder/training/token_pooling/README.html" rel="nofollow">Token pooling-aware training example and README</a></li>
+<li><a href="https://github.com/huggingface/sentence-transformers/blob/main/examples/multi_vector_encoder/training/token_pooling/training_cached_contrastive.py" rel="nofollow">Complete training script</a></li>
+<li><a href="https://github.com/huggingface/sentence-transformers/blob/main/examples/multi_vector_encoder/training/token_pooling/evaluate_token_pooling.py" rel="nofollow">NanoBEIR evaluation script</a></li>
+<li>Example checkpoints:<ul>
+<li><a href="https://huggingface.co/tomaarsen/mve-ModernBERT-base-token-pooling">tomaarsen/mve-ModernBERT-base-token-pooling</a></li>
+<li><a href="https://huggingface.co/tomaarsen/mve-ModernBERT-base-token-pooling-baseline">tomaarsen/mve-ModernBERT-base-token-pooling-baseline</a></li>
+</ul>
+</li>
+<li><a href="https://huggingface.co/collections/sentence-transformers/multivectorencoder-integrations">Pretrained multi-vector models compatible with Sentence Transformers</a></li>
+<li><a href="https://sbert.net/examples/multi_vector_encoder/training/matryoshka/README.html" rel="nofollow">Matryoshka-aware training for multi-vector models</a></li>
+<li><a href="https://github.com/lightonai/fast-plaid" rel="nofollow">Fast-PLAID</a></li>
+</ul>
+</div></div>
