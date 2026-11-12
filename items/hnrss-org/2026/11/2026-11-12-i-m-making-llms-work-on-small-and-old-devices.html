@@ -1,0 +1,1008 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text">
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/hyperionaidev/smolmaxxing/blob/main/assets/banner.png"><img src="https://github.com/hyperionaidev/smolmaxxing/raw/main/assets/banner.png" alt="🤏 smolmaxxing: run the biggest model you can on the smallest hardware you own" width="100%"></a></p>
+<p dir="auto"><strong>Every device around you is more capable than it looks.</strong> TV boxes, old phones, single-board computers and routers all ship with CPUs, RAM and flash that sit idle most of the day. <strong>smolmaxxing</strong> is about unlocking that capability: finding the biggest language model each device can really run, then pushing it further with custom kernels, smarter memory use and weight streaming. Every claim is measured on the hardware itself.</p>
+<p dir="auto"><strong>Device #1 is a Xiaomi TV Box S (3rd Gen)</strong>: Amlogic S7D, 4× Cortex-A55 @ 2.5 GHz, <strong>1.9 GB of RAM</strong> (about 1 GB usable), eMMC flash, Android 14, no root. On it, this repo runs models from 260 K to 16 B parameters:</p>
+<ul dir="auto">
+<li><strong>Qwen3.5-0.8B: 16.8 tok/s</strong> (2.2× the stock 7.5; measured in the evening of 11-05, see §17).</li>
+<li><strong>Qwen3.5-2B: 7.7 tok/s</strong> in real chat. The box's speed drifts by ~10 % over a day, so every step is measured back to back: §16 gave +11 %, §17 another +7 %.</li>
+<li><strong>An 8B mixture-of-experts model (Moon-Beam-8B-A1B): 7.2 tok/s</strong> in real chat, its experts paged from flash on demand and prefetched one layer ahead (§19).</li>
+<li><strong>A dense 1-bit 8B model (Bonsai-8B): 5.2 tok/s</strong> in real chat, up from 1.2: fully resident in a "headless" mode plus a lookup-table kernel (§19).</li>
+<li><strong>A 16B mixture-of-experts model (Ling-mini-2.0): 5.1 tok/s</strong> in real chat, coherent over 600-word answers, the same expert pager applied unchanged (§20). Twice Moon-Beam's size, but not better per byte: bigger only helps on this box when the model is also better.</li>
+<li><strong>A dense 9B model: 0.27 tok/s</strong>, streaming most of its weights from flash.</li>
+</ul>
+<p dir="auto"><strong>Device #2 is a first-generation iPad Air (2013)</strong>: Apple A7, 2 cores, NEON without dotprod, <strong>1 GB of RAM</strong>, iOS 12.5.7, jailbroken, CPU only. A 13-year-old tablet runs a 1.7B-parameter model at <strong>24-26 tok/s</strong> (18-22 in long chats), a 4B one at <strong>about 10 tok/s</strong>, an <strong>8B mixture of experts at about 3.5 tok/s</strong> (5 with half its experts, at a quality cost), and a <strong>16B one at 2.6-4.5 tok/s</strong>, with their experts paged from flash, from a chat page in its own Safari. See <a href="#results-on-device-2">Results on device #2</a>.</p>
+<p dir="auto">Every step is written up experiment by experiment in <strong><a href="https://github.com/hyperionaidev/smolmaxxing/blob/main/EXPERIMENT.md"><code>EXPERIMENT.md</code></a></strong> (E1-E160).</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/hyperionaidev/smolmaxxing/blob/main/screenshots/llmui_05_stream.png"><img src="https://github.com/hyperionaidev/smolmaxxing/raw/main/screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></a></p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Devices</h3><a id="user-content-devices" aria-label="Permalink: Devices" href="#devices"></a></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Device</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Xiaomi TV Box S (3rd Gen): Amlogic S7D, Cortex-A55, 2 GB</td>
+<td>✅ done: 260K → 16B parameters, 8B at 5-7 tok/s, 16B at 5 tok/s</td>
+</tr>
+<tr>
+<td>iPad Air (2013): Apple A7, 2 cores, 1 GB, iOS 12.5.7, jailbroken (<a href="https://github.com/hyperionaidev/smolmaxxing/blob/main/ipad-air"><code>ipad-air/</code></a>)</td>
+<td>✅ running: Bonsai-1.7B (1-bit) at 24-26 tok/s, 18-22 in long chats; Bonsai-4B at about 10 tok/s; Moon-Beam-8B-A1B (MoE) at about 3.5 tok/s; Ling-mini-2.0 (16B MoE) at 2.6-4.5 tok/s; CPU only</td>
+</tr>
+<tr>
+<td>More TV boxes, phones, single-board computers, routers…</td>
+<td>🔜 coming soon</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">The techniques aren't tied to one box. The 1-bit lookup-table kernel needs only base NEON, as the iPad shows; any ARM chip with dotprod gets the other kernels; and any Linux or Android device with more model than RAM can use the streaming engine.</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/hyperionaidev/smolmaxxing/blob/main/assets/devices.svg"><img src="https://github.com/hyperionaidev/smolmaxxing/raw/main/assets/devices.svg" width="760" alt="Best generation speed per size class on the two 1 GB devices: 2B class TV 7.7 (Qwen3.5-2B) vs iPad 23.7 (Bonsai-1.7B, 1-bit); 4B 4.3 vs 9.4; 8B dense 5.2 vs 0.08; 8B MoE 7.2 vs 3.5; 16B MoE 5.1 vs 4.5 with the same cache bias"></a></p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Scoreboard</h2><a id="user-content-scoreboard" aria-label="Permalink: Scoreboard" href="#scoreboard"></a></p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/hyperionaidev/smolmaxxing/blob/main/assets/scoreboard.svg"><img src="https://github.com/hyperionaidev/smolmaxxing/raw/main/assets/scoreboard.svg" width="760" alt="Best model per size class, first run on the TV box to now: 0.8B 7.5 to 16.8 tok/s, 2B 0.1 to 7.7, 4B 2.2 to 4.3, 8B dense 1.21 to 5.2, 8B MoE 1.87 to 7.2, 9B 0.16 to 0.27, 16B MoE 4.1 to 5.1; and where one Moon-Beam token's 144 ms go"></a></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Best model</th>
+<th>First run → now (tok/s)</th>
+<th>Gain</th>
+<th>Bits/byte</th>
+<th>What got it there</th>
+<th>Download</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.8B</td>
+<td>Qwen3.5-0.8B</td>
+<td>7.5 → <strong>16.8</strong> bench</td>
+<td>×2.2</td>
+<td>≈1.00</td>
+<td>all-Q4_K, padded 65K head, fp16 DeltaNet state</td>
+<td><a href="https://huggingface.co/hyperionaidev/Qwen3.5-0.8B-tvbox-GGUF" rel="nofollow">HF</a></td>
+</tr>
+<tr>
+<td>2B</td>
+<td>Qwen3.5-2B</td>
+<td>0.1 → <strong>7.7</strong> chat</td>
+<td>×77</td>
+<td>0.909</td>
+<td>all-Q4_K, padded 65K head, fused DeltaNet</td>
+<td><a href="https://huggingface.co/hyperionaidev/Qwen3.5-2B-tvbox-GGUF" rel="nofollow">HF</a></td>
+</tr>
+<tr>
+<td>4B</td>
+<td>Ternary-Bonsai-4B</td>
+<td>2.2 → <strong>4.3</strong> chat</td>
+<td>×2.0</td>
+<td>≈0.965</td>
+<td>ternary weights in 2-bit fields, merged scales</td>
+<td><a href="https://huggingface.co/hyperionaidev/Ternary-Bonsai-4B-tvbox-GGUF" rel="nofollow">HF</a></td>
+</tr>
+<tr>
+<td>8B dense</td>
+<td>Bonsai-8B (1-bit)</td>
+<td>1.21 → <strong>5.2</strong> chat</td>
+<td>×4.3</td>
+<td>0.974</td>
+<td>1-bit LUT kernel, fully resident in headless mode</td>
+<td><a href="https://huggingface.co/hyperionaidev/Bonsai-8B-tvbox-GGUF" rel="nofollow">HF</a></td>
+</tr>
+<tr>
+<td>8B MoE</td>
+<td>Moon-Beam-8B-A1B</td>
+<td>1.87 → <strong>7.2</strong> chat</td>
+<td>×3.9</td>
+<td>0.996</td>
+<td>Q2_K experts paged from flash, cache-aware routing, prefetch</td>
+<td><a href="https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF" rel="nofollow">HF</a></td>
+</tr>
+<tr>
+<td>9B</td>
+<td>Qwen3.5-9B</td>
+<td>0.16 → <strong>0.27</strong> chat</td>
+<td>×1.7</td>
+<td><strong>0.885</strong></td>
+<td>weight streaming plus its own MTP head</td>
+<td>rebuild (<code>q9</code>)</td>
+</tr>
+<tr>
+<td>16B MoE</td>
+<td>Ling-mini-2.0</td>
+<td>4.1 → <strong>5.1</strong> chat</td>
+<td>×1.2</td>
+<td>1.054</td>
+<td>the Moon-Beam recipe, unchanged</td>
+<td><a href="https://huggingface.co/hyperionaidev/Ling-mini-2.0-tvbox-GGUF" rel="nofollow">HF</a></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">"First run" is the first time each model ran on the box:</p>
+<ul dir="auto">
+<li><strong>0.8B:</strong> the stock Q4_K_M file.</li>
+<li><strong>2B:</strong> the stock file, streamed from flash because it didn't fit in RAM. Its first build that fit ran at 4.8, so from there the gain is ×1.6.</li>
+<li><strong>4B:</strong> the stock file, which thrashed.</li>
+<li><strong>8B dense:</strong> the last 0.1 GB streamed from flash.</li>
+<li><strong>8B MoE:</strong> the first expert-pager run, without routing bias.</li>
+<li><strong>9B:</strong> streamed.</li>
+<li><strong>16B:</strong> started on the Moon-Beam recipe, so its gain is small.</li>
+</ul>
+<p dir="auto">On this box, the 2B is the best speed-quality balance. Ling-mini-2.0 shows that bigger isn't automatically better: it is twice Moon-Beam's size, but scores worse per byte and runs slower.</p>
+<p dir="auto"><strong>What we built, grouped by the bottleneck it attacks</strong> (details and numbers in <a href="#whats-in-here">What's in here</a>):</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Bottleneck</th>
+<th>Innovations</th>
+<th>Biggest wins</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Compute</strong> (in-order A55, 10 items)</td>
+<td>Q2_K and ternary repacks for <code>vdotq_laneq</code>, 1-bit bit planes, a 1-bit lookup-table kernel, ternary in 2-bit fields, Q8_0 attention with a skip threshold, fused Gated-DeltaNet, DeltaNet state read by id / fp16, the LM head on the fast kernel, guided matmul scheduling</td>
+<td>Q2_K 7.8 → 13.9 G weights/s; Bonsai-8B 3.77 → 5.1-5.4; 4B 3.2 → 4.3; long answers no longer halve the speed</td>
+</tr>
+<tr>
+<td><strong>RAM</strong> (~1 GB, 5 items)</td>
+<td>pruned LM head, lossless 1.875-bit ternary, headless mode, a fork-free memory guard, a repack cache on flash</td>
+<td>−0.2 to −0.5 GB per model; free RAM ~1,000 → ~1,300 MB; Bonsai-8B 1.2 → 3.6 before any kernel work</td>
+</tr>
+<tr>
+<td><strong>Flash</strong> (278 MB/s, 5 items)</td>
+<td>weight streaming with O_DIRECT, MTP speculation when flash-bound, expert pager, cache-aware routing, pre-gated prefetch</td>
+<td>9B +69 %; expert misses 13 % → ~2 %; Moon-Beam 4.4 → 7.2</td>
+</tr>
+<tr>
+<td><strong>Output quality</strong> (2 items)</td>
+<td>a long-answer degeneration test, a repeat penalty of 1.15 over 256 tokens</td>
+<td>degenerate long answers 12/13 → 1/13</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Results on device #1</h2><a id="user-content-results-on-device-1" aria-label="Permalink: Results on device #1" href="#results-on-device-1"></a></p>
+<p dir="auto">Quality is English perplexity on a fixed 22 KB text, converted to <strong>bits per byte</strong> so models with different tokenizers compare fairly (lower is better). Speed is generation on the TV, measured either through llama-server with real chat requests ("chat") or with llama-bench ("bench").</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Size on the box</th>
+<th>Quality (bits/byte)</th>
+<th>Generation</th>
+<th>Prompt</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>stories260K (llama2.c)</td>
+<td>1 MB</td>
+<td>n/a</td>
+<td>~650 tok/s</td>
+<td>n/a</td>
+<td>the first thing that ran (§1-8)</td>
+</tr>
+<tr>
+<td>Gemma 3 270M Q4_K_M</td>
+<td>253 MB</td>
+<td>n/a</td>
+<td>22 tok/s</td>
+<td>73 tok/s</td>
+<td></td>
+</tr>
+<tr>
+<td>Qwen3.5-0.8B Q4_K_M (stock)</td>
+<td>497 MB</td>
+<td>n/a</td>
+<td>7.5 bench</td>
+<td>28 tok/s</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>Qwen3.5-0.8B, all-Q4_K + 65K head</strong></td>
+<td>442 MiB (566 MB RSS)</td>
+<td>≈1.00*</td>
+<td><strong>16.8 bench</strong></td>
+<td>33 tok/s</td>
+<td>best speed for its quality so far (§15-17)</td>
+</tr>
+<tr>
+<td><strong>Qwen3.5-2B, all-Q4_K + 65K head</strong></td>
+<td>0.99 GB</td>
+<td><strong>0.909</strong></td>
+<td><strong>7.7 chat</strong></td>
+<td>17.8</td>
+<td><strong>the default: best overall</strong> (§11, §16, §17)</td>
+</tr>
+<tr>
+<td><strong>Ternary-Bonsai-4B, merged scales + 2-bit fields</strong></td>
+<td>1.03 GB</td>
+<td>≈0.965</td>
+<td><strong>4.3 chat</strong> (4.8 bench)</td>
+<td>9.6</td>
+<td>best 4B: was 3.2 chat / 7.0 prompt on the same build (§18)</td>
+</tr>
+<tr>
+<td><strong>Moon-Beam-8B-A1B (MoE), Q2_K experts + 60K head</strong></td>
+<td>0.48 GB GGUF + 2.6 GB repack cache on flash, ~1.1 GB RSS</td>
+<td>0.996</td>
+<td><strong>7.2 chat</strong></td>
+<td>n/a</td>
+<td><strong>fastest 8B</strong>: 128 experts, 6 used; expert pager, cache-aware routing, pre-gated prefetch, repeat penalty against long-answer loops (§19, headless mode)</td>
+</tr>
+<tr>
+<td><strong>Ling-mini-2.0 (MoE, 16.3 B), Q2_K experts + 60K head</strong></td>
+<td>0.47 GB GGUF + 5.3 GB repack cache on flash, ~1.13 GB RSS</td>
+<td>1.054</td>
+<td><strong>5.1 chat</strong></td>
+<td>n/a</td>
+<td><strong>biggest model at a usable speed</strong>: 256 experts of 1 MB, 8 used, pool 43 per layer, bias 0.3 (§20)</td>
+</tr>
+<tr>
+<td><strong>Bonsai-8B, 1-bit, LUT kernel</strong></td>
+<td>0.96 GB, all resident</td>
+<td>0.991 (0.974 on the head)</td>
+<td><strong>5.2 chat</strong> (5.1-5.4 bench), 4.0 at ~900 tokens of context</td>
+<td>5.8-6.1</td>
+<td>best dense 8B: headless mode, Q8_0 attention (§19)</td>
+</tr>
+<tr>
+<td>Bonsai-8B, 1-bit + compact scales</td>
+<td>0.84 GB + 0.12 GB streamed</td>
+<td>0.991</td>
+<td>1.21 chat (2.2 bench)</td>
+<td>4.9</td>
+<td>§14, before headless mode</td>
+</tr>
+<tr>
+<td>Ternary-Bonsai-8B</td>
+<td>0.89 GB + 0.80 GB streamed</td>
+<td>0.919</td>
+<td>0.31 bench</td>
+<td>3.45</td>
+<td>§14</td>
+</tr>
+<tr>
+<td>Qwen3.5-9B UD-IQ2_XXS + MTP</td>
+<td>0.63 GB + 1.6 GB streamed</td>
+<td><strong>0.885</strong></td>
+<td>0.16 chat, <strong>0.27 with MTP</strong></td>
+<td>0.8</td>
+<td>best quality; flash-bound (§14)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">* measured on the pruned head's positions (1.3 % of tokens fall outside it), so not exactly comparable; the stock full-vocabulary Q4_0 file scores 1.024.</p>
+<p dir="auto"><strong>Other small models, stock files</strong> (screening, §15 E54):</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Generation (bench)</th>
+<th>Prompt</th>
+<th>Bits/byte</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LFM2.5-350M (QAD Q4_0)</td>
+<td>23.7 tok/s</td>
+<td>104 tok/s</td>
+<td>1.805</td>
+</tr>
+<tr>
+<td>LFM2-700M (Q4_0)</td>
+<td>11.5 tok/s</td>
+<td>52.8 tok/s</td>
+<td>1.169</td>
+</tr>
+<tr>
+<td>Qwen3-0.6B (Q8_0)</td>
+<td>9.35 tok/s</td>
+<td>50.6 tok/s</td>
+<td>1.059</td>
+</tr>
+<tr>
+<td>LFM2.5-1.2B (QAD Q4_0)</td>
+<td>8.3 tok/s</td>
+<td>31.6 tok/s</td>
+<td>1.133</td>
+</tr>
+<tr>
+<td>Llama 3.2 1B (Q4_0)</td>
+<td>7.0 tok/s</td>
+<td>29.5 tok/s</td>
+<td>0.998</td>
+</tr>
+<tr>
+<td>Ternary-Bonsai-2-2B (Q2_0)</td>
+<td>5.9 tok/s</td>
+<td>15.8 tok/s</td>
+<td>1.124</td>
+</tr>
+<tr>
+<td>Gemma 3 1B (Q4_K_M)</td>
+<td>5.7 tok/s</td>
+<td>11.1 tok/s</td>
+<td>1.260</td>
+</tr>
+<tr>
+<td>Granite 4.0 H 1B (Q4_0, ~1.5 B)</td>
+<td>too big as shipped</td>
+<td></td>
+<td><strong>0.916</strong></td>
+</tr>
+<tr>
+<td>↳ rebuilt: all-Q4_K, Q8_0 embedding, 48K head (E62)</td>
+<td>5.29 tok/s (fits only after freeing RAM, 950 MB RSS)</td>
+<td></td>
+<td>0.919</td>
+</tr>
+<tr>
+<td>LFM3-1.7B (QAD Q4_0)</td>
+<td>doesn't fit</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">Granite 4.0 H 1B was the one model close to the 2B's quality. Rebuilt our way (E62), it runs at 5.29 tok/s, below the 2B's 6.55 at slightly lower quality: it carries about twice the 0.8B's weight bytes per token.</p>
+<p dir="auto"><strong>Physics of the box:</strong> one process can hold ~0.96 GB before Android starts killing things (~1.15 GB in headless mode, with the launchers and Google services force-stopped), and flash reads top out at <strong>278 MB/s</strong>, with a lone ~1 MB random read costing ~6 ms. A model that has to stream X MB per token can never beat 278 / X tokens per second. That, not the CPU, is what limits everything above 2B, and why a mixture-of-experts model, which touches ~1 B of its 8 B weights per token, is the way past it.</p>
+<p dir="auto"><strong>10 tok/s at 8 B?</strong> Measured, not guessed (E98): Moon-Beam reaches 10.4 tok/s with 2 experts per token, but the text turns to gibberish; the best coherent setting is ~7-8 tok/s. Dense Qwen3-8B is Bonsai-8B at 1 bit, and the smallest Qwen MoE (35B-A3B) touches 3× Moon-Beam's weights per token.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Results on device #2</h2><a id="user-content-results-on-device-2" aria-label="Permalink: Results on device #2" href="#results-on-device-2"></a></p>
+<p dir="auto">A 2013 iPad Air: Apple A7, 2 cores, NEON without dotprod, 1 GB of RAM, iOS 12.5.7, jailbroken with <a href="https://github.com/staturnzz/amethyst">Amethyst</a>. Everything runs on the CPU with 2 threads and a 1,024-token context, cross-compiled from a Mac. The write-up is §21 of <a href="https://github.com/hyperionaidev/smolmaxxing/blob/main/EXPERIMENT.md"><code>EXPERIMENT.md</code></a>, and build steps are in <a href="https://github.com/hyperionaidev/smolmaxxing/blob/main/ipad-air/README.md"><code>ipad-air/README.md</code></a>.</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>File</th>
+<th>Generation (tok/s)</th>
+<th>Peak RSS</th>
+<th>Fixed three-question test</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Bonsai-1.7B Q1_0 (1-bit)</strong></td>
+<td>237 MiB</td>
+<td><strong>23.7-25.8</strong>, 18-22 through long chats</td>
+<td>605 MB</td>
+<td>all three right, and writes correct code: the one to use</td>
+</tr>
+<tr>
+<td>Bonsai-4B Q1_0 (1-bit), <code>-c 512 -b 64</code></td>
+<td>546 MiB</td>
+<td>9.4-11.4, 9.2-10.3 through long chats; as a server, iOS resets it within minutes</td>
+<td>615-682 MB</td>
+<td>right on France, tides mostly right, <strong>fails recall every run</strong>; better per byte (1.073 vs 1.158 bits/byte)</td>
+</tr>
+<tr>
+<td>Moon-Beam-8B-A1B (MoE, Q2_K experts), expert pager, <code>-c 512 -b 64</code></td>
+<td>2.6 GiB (474 MB mapped)</td>
+<td>3.5-3.6 on longer answers; 4.9-5.1 with <code>--experts 4</code> (+27 % perplexity)</td>
+<td>~600-625 MB</td>
+<td>all three right; a session model, too big for the always-on server</td>
+</tr>
+<tr>
+<td>SmolLM2-360M-Instruct Q4_K_M</td>
+<td>258 MiB</td>
+<td>10.9-12.5</td>
+<td>269-316 MB</td>
+<td>all three right; the lightest good option</td>
+</tr>
+<tr>
+<td>Gemma 3 270M-it Q4_K_M</td>
+<td>241 MiB</td>
+<td>15.4-19.0</td>
+<td>248-294 MB</td>
+<td>wrong on tides, empty reply on recall</td>
+</tr>
+<tr>
+<td>SmolLM2-135M-Instruct Q4_K_M</td>
+<td>101 MB</td>
+<td>18.6-29.3</td>
+<td>141 MB</td>
+<td>right on France and recall, weak on tides</td>
+</tr>
+<tr>
+<td>Qwen3.5-0.8B Q4_K_M</td>
+<td>508 MiB</td>
+<td>about 0.2</td>
+<td>506 MB</td>
+<td>thrashes the page cache, stopped by hand</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">Only the Bonsai and Moon-Beam rows were measured on the latest build. The other rows predate the attention and sampler work below.</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/hyperionaidev/smolmaxxing/blob/main/assets/scoreboard-ipad.svg"><img src="https://github.com/hyperionaidev/smolmaxxing/raw/main/assets/scoreboard-ipad.svg" width="760" alt="Best model per size class on the iPad Air, first run to now: 1.7B 2.75 to 23.7-25.8 tok/s; 4B 9.4-11.4; 8B dense 0.08; 8B MoE can't load with stock llama.cpp, then 1.6 to 3.5 (5.0 with 4 experts); 16B MoE can't load, now 2.6 (4.5 with bias 0.3); and where one Moon-Beam token's ~0.3 s go"></a></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Best model</th>
+<th>First run → now (tok/s)</th>
+<th>Gain</th>
+<th>What got it there</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.7B</td>
+<td>Bonsai-1.7B (1-bit)</td>
+<td>2.75 → <strong>23.7-25.8</strong></td>
+<td>×8.6</td>
+<td>multiplication-free and lookup-table 1-bit kernels without dotprod, the LM head on the fast kernel, row-order attention with pruning, a one-pass sampler</td>
+</tr>
+<tr>
+<td>4B</td>
+<td>Bonsai-4B (1-bit)</td>
+<td><strong>9.4-11.4</strong></td>
+<td></td>
+<td>the 1.7B's kernels, attention for 4 q heads per K head, <code>-c 512 -b 64</code> to stay under the ~700 MB ceiling</td>
+</tr>
+<tr>
+<td>8B dense</td>
+<td>Bonsai-8B (1-bit)</td>
+<td><strong>0.08</strong></td>
+<td></td>
+<td>doesn't fit in RAM; most of the file is re-read from flash every token</td>
+</tr>
+<tr>
+<td>8B MoE</td>
+<td>Moon-Beam-8B-A1B</td>
+<td>can't load → 1.6 → <strong>3.5</strong> (5.0 with 4 experts, +27 % perplexity)</td>
+<td>×2.2</td>
+<td>expert pager, Q2_K lookup-table kernel, prefetch, cache bias 0.03, frequency-based eviction</td>
+</tr>
+<tr>
+<td>16B MoE</td>
+<td>Ling-mini-2.0</td>
+<td>can't load → <strong>2.6</strong> (3.3 at +2.6 %, 4.5 with bias 0.3)</td>
+<td>new</td>
+<td>the Moon-Beam recipe, and a model file assembled over HTTP and streamed straight to the iPad</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">"Can't load": iOS 12 lets a process map at most about 1.7 GB, so stock llama.cpp fails on the 2.6 and 5.5 GB files before running a token. "First run" for Moon-Beam is the first expert-pager run (pool 8, no bias).</p>
+<p dir="auto"><strong>What we built on the iPad, grouped by the bottleneck it attacks:</strong></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Bottleneck</th>
+<th>Innovations</th>
+<th>Biggest wins</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Compute</strong> (2-core A7, no dotprod, 6 items)</td>
+<td>a multiplication-free 1-bit kernel, the TV's 1-bit lookup-table kernel ported to base NEON, a lookup-table copy of the tied LM head, row-order attention with pruning (2 or 4 q heads per K head), a one-pass sampler with a 40-entry heap, a Q2_K lookup-table kernel for experts</td>
+<td>Bonsai-1.7B 2.75 → 3.45 → ~11 → 23.7-25.8 tok/s; sampling 3 → 0.23 ms per token; Moon-Beam 2.94 → 3.06 from the Q2_K kernel alone</td>
+</tr>
+<tr>
+<td><strong>Address space and RAM</strong> (~1.7 GB mappable, ~700 MB usable, 4 items)</td>
+<td>an expert pager that maps only the non-expert part (experts-last files), pruned LM heads for <code>bailingmoe2</code> and <code>bailingmoe3</code>, small batches (<code>-c 512 -b 64</code>), <code>std::filesystem</code> compiled out for iOS 12</td>
+<td>8B and 16B MoE models load at all, in 556-625 MB; Bonsai-4B fits</td>
+</tr>
+<tr>
+<td><strong>Flash</strong> (~260 MB/s, 5 items)</td>
+<td>uncached <code>pread</code> with 4 readers, reads queued by when they're needed, pre-gated prefetch, cache-aware routing bias, decayed-frequency eviction</td>
+<td>Moon-Beam 1.6 → 3.5 tok/s at no quality cost; misses 42 % → 38 % from eviction alone</td>
+</tr>
+<tr>
+<td><strong>Tooling</strong> (5 items)</td>
+<td>an op profiler with page-fault counts, an expert trace and cache simulator, on-device perplexity (<code>tinyppl</code>), model assembly over HTTP range requests, a bench that kills orphaned runs</td>
+<td>found the LM head that never reached the fast kernel (45 of 72 ms); ruled out the soft-fault theory; built a 5.5 GB model with 1.4 GB of Mac disk</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><strong>How Bonsai-1.7B got from 2.75 to about 25 tok/s</strong> (same model file throughout):</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Step</th>
+<th>tok/s</th>
+<th>What changed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Stock llama.cpp, 2 threads</td>
+<td>2.75</td>
+<td>emulates dotprod with widening multiplies</td>
+</tr>
+<tr>
+<td>Multiplication-free NEON kernel</td>
+<td>3.45</td>
+<td>weights are ±1, so no multiply is needed; output identical</td>
+</tr>
+<tr>
+<td>Lookup-table kernel from device #1, ported to base NEON</td>
+<td>about 11</td>
+<td>its dotprod requirement turned out to be only an assumption</td>
+</tr>
+<tr>
+<td>The output head on that kernel</td>
+<td>18-22</td>
+<td>151,669 rows isn't a multiple of 32, so the tied head had never reached it: 45 of 72 ms per token</td>
+</tr>
+<tr>
+<td>Row-order attention with pruning, and a sampler that doesn't sort the vocabulary</td>
+<td><strong>23.7-25.8</strong></td>
+<td>the KV cache stores all heads of a row side by side, so one head at a time missed the cache constantly</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">In long chats (400-token answers), the three turns went from 15.4 / 7.6 / 8.2 to <strong>21.8 / 17.9 / 18.4 tok/s</strong> through the attention work alone. The pruning threshold that holds long chats above 17 costs +0.42 % perplexity at 1,024 tokens of context, near the ±0.3 % noise floor; <code>GGML_FA_EPS=0.0001</code> trades that back for about 15 tok/s.</p>
+<p dir="auto"><strong>An 8B model, through an expert pager.</strong> iOS 12 caps a process at about 1.7 GB of mapped address space (1.3 GB for the web server's user), so Moon-Beam-8B's 2.6 GB file can't even be mapped, and keeping fewer experts to make it fit more than doubles its perplexity (§21.7). Dense Bonsai-8B runs at 0.08 tok/s from flash. So the model file is rewritten with its experts last, only the 474 MB before them is mapped, and each layer keeps 14 experts in RAM, reading the others from flash with <code>pread</code> when the router picks them. Results match the unpaged model exactly. A small routing bias toward experts already in RAM (+0.3 % perplexity, inside the noise) brought it to 2.4-2.8 tok/s in about 600 MB (§21.8). Round 2 (§21.9) queues flash reads by when they're needed, prefetches the next layer's likely experts, and runs the experts through a lookup-table kernel for Q2_K: <strong>3.4 tok/s, 40× the dense 8B, at +0.7 % perplexity on the full eval text.</strong> The flash is still the limit: each token reads about 53 MB at 266 MB/s. Wiring weights in RAM kernel-panicked the iPad, like a pool of 16 did before. Round 3 (§21.10) evicts by decayed use frequency instead of recency, for 3.5 tok/s at no quality cost. 5 tok/s takes 4 experts per token instead of 8 (+27 % perplexity); choosing the count per token adaptively turned out no better than a fixed count. <strong>A 16B model</strong> (§21.11): Ling-mini-2.0, 16.3B parameters with 256 small experts per layer, runs through the same pager at <strong>2.6 tok/s with unchanged routing, 3.3 at +2.6 % perplexity and 4.5 with a strong cache bias</strong>, in under 580 MB. Its 5.5 GB file was assembled from two published quantizations over HTTP range requests and streamed straight to the iPad, since the Mac had no room for it. It is twice Moon-Beam's size at the same speed, but not a better model (+3 % perplexity).</p>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/hyperionaidev/smolmaxxing/blob/main/assets/tradeoff-ipad.svg"><img src="https://github.com/hyperionaidev/smolmaxxing/raw/main/assets/tradeoff-ipad.svg" width="760" alt="Speed against perplexity cost for Moon-Beam-8B-A1B and Ling-mini-2.0 on the iPad: Moon-Beam 3.5 tok/s at no cost up to 5.0 at +27 %; Ling 2.6 at no cost, 3.3 at +2.6 %, 4.5 at +8.5 %, 5.2 at +17 %"></a></p>
+<p dir="auto"><strong>Limits worth knowing.</strong> Bonsai is a 1-bit model and still gets facts wrong (in one test it called Mercury the closest planet to Earth). About 700 MB is the practical memory ceiling: 1-bit weights don't compress, so iOS starts killing processes past it, which is why the 4B needs a 512-token context. The jailbreak doesn't survive a reboot. The fast output head adds 2-3 s to the first prompt after each launch.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">What's in here</h2><a id="user-content-whats-in-here" aria-label="Permalink: What's in here" href="#whats-in-here"></a></p>
+<p dir="auto"><strong>Kernels for Cortex-A55 (ARMv8.2 dotprod, no i8mm)</strong>, as a patch on llama.cpp v0.8.0, each with an exactness test against a scalar reference:</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Kernel</th>
+<th>Before → after</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q2_K, repacked 8 rows × 4 bytes for <code>vdotq_laneq</code> (upstream repacks Q2_K only on x86 / RISC-V)</td>
+<td>7.8 → 13.9 G weights/s; generation +41 %, prompt 2.4×</td>
+<td>E34</td>
+</tr>
+<tr>
+<td>TQ1_0 / TQ2_0 ternary, repacked</td>
+<td>9.5 → 14.4 / 11.9 → 19.1 G weights/s</td>
+<td>E38</td>
+</tr>
+<tr>
+<td>Ternary Q2_0 → <strong>lossless 1.875 bits/weight</strong> in RAM (base-3 packing that keeps the per-64 scales)</td>
+<td>Ternary-Bonsai-4B from "thrashes" to 3.2 tok/s</td>
+<td>E39, E42</td>
+</tr>
+<tr>
+<td><strong>Q1_0 bit planes</strong>: <code>vtst</code> turns a bit plane straight into a mask for <code>vdot</code>, no table lookups; <strong>8-bit row-affine scales</strong> (−5.6 %, 0.07 % error)</td>
+<td>Bonsai-4B 3.02 → 4.22 tok/s; Bonsai-8B fits in 0.96 GB</td>
+<td>E44, E52</td>
+</tr>
+<tr>
+<td>Fused Gated-DeltaNet step with direct state write (Qwen3.5)</td>
+<td>2B 6.0 → 6.3-6.7 tok/s</td>
+<td>E28</td>
+</tr>
+<tr>
+<td>DeltaNet state <strong>read in place by id</strong> instead of a 1 MB/layer gather every token; <strong>fp16 state</strong> (<code>LLAMA_STATE_F16=1</code>, on by default in the UI)</td>
+<td>0.8B 11.9 → 12.9 tok/s; 2B +2.5 % for +0.15 % perplexity</td>
+<td>E56, E61, E65</td>
+</tr>
+<tr>
+<td><strong>The LM head on the fast kernel</strong>: the 65,668-row head was never repacked (ggml repacks only row counts divisible by 8), so 4 token rows were added; embedding rows are then rebuilt from the repacked head (inverse 8-row interleave) instead of read from flash; the one-token DeltaNet conv step fused from 4 nodes into one NEON op</td>
+<td>2B +7 % (bench and chat); 0.8B +9.5 %</td>
+<td>E69-E72</td>
+</tr>
+<tr>
+<td><strong>Ternary weights in 2-bit fields, with scales merged per 128</strong>: on the in-order A55, one base-3 digit costs ~5 NEON ops per 16 weights and a 2-bit field costs 2, so spending 13 % more RAM buys speed. Merging adjacent scales costs +0.18 % perplexity</td>
+<td>Ternary-Bonsai-4B 3.2 → 4.3 tok/s in chat, prompt 7.0 → 9.6</td>
+<td>E76, E77</td>
+</tr>
+<tr>
+<td><strong>1-bit lookup-table kernel</strong> (Four-Russians / T-MAC style): 32 rows per group, one 16-entry table per 4 activations built straight from the float activations, ~8 NEON ops + 2 loads per 128 multiply-adds vs 16 + 4</td>
+<td>Bonsai-8B 3.77 → 5.1-5.4 tok/s (with E82, E88)</td>
+<td>E81</td>
+</tr>
+<tr>
+<td><strong>Q8_0 attention with a threshold</strong>: all K dots first with <code>sdot</code>, so the softmax maximum is known up front, then <code>expf</code> and V work skipped for rows below max + ln(1e-4)</td>
+<td>a 1,000-token answer no longer halves the speed (2.50 → ~4 tok/s at the end)</td>
+<td>E86</td>
+</tr>
+<tr>
+<td><strong>Guided matmul scheduling</strong>: each thread grabs remaining / (2 × threads) rows, so a slow or preempted thread leaves a short tail instead of ~28 ms per token of idle cores; <strong>single-row element-wise ops split by columns</strong> (ggml left them all on thread 0)</td>
+<td>2B 6.26 → 6.54 tok/s; 0.8B +1.4 %</td>
+<td>E63, E64</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><strong>Memory tricks:</strong></p>
+<ul dir="auto">
+<li><strong>Pruned LM head:</strong> keep only the ~49-66 K most useful vocabulary rows, chosen by token frequency on English, code and 7 other languages. The other logits are scattered to −inf. Saves 0.2-0.5 GB and misses ~1 % of English tokens.</li>
+<li><strong>Repack cache on flash</strong> (<code>GGML_REPACK_CACHE</code>): repacked weights are written to a file once and mapped afterwards. Models load in seconds.</li>
+</ul>
+<p dir="auto"><strong>Headless mode</strong> (<code>tools/tv-llm-mode.sh on|off</code>): a small foreground activity, then the launchers, Google services and other heavy apps are force-stopped, and <code>svc power stayon</code> keeps the animated screensaver (17 % of a core) away. Nothing persistent except stay-awake, which <code>off</code> restores. MemAvailable ~1000 → ~1300 MB. <strong>A fork-free guard</strong> (<code>tools/tv-watch.c</code>) replaced a shell loop that started ~25 processes a second and cost 10 % of the speed.</p>
+<p dir="auto"><strong>Expert pager for mixture-of-experts models</strong> (<code>ggml-cpu/moe-pager-tv.inc</code>):</p>
+<ul dir="auto">
+<li><strong>Experts live on flash:</strong> each expert tensor is overlaid with empty anonymous memory, and right after a layer's routing the missing experts are read with parallel <code>O_DIRECT</code> straight into their own addresses; a per-layer LRU pool (43 of 128 experts) keeps the rest. Kernels see an ordinary tensor. The GGUF's own expert bytes are hole-punched once the repack cache holds them, so the model costs one copy of its weights on flash.</li>
+<li><strong>Cache-aware routing</strong> (<code>GGML_MOE_BIAS</code>): a small bonus for experts already in RAM cuts misses from 13 % to ~2 % for a measured quality cost (arXiv 2412.00099 has the idea on other models). Fewer experts per token (<code>LLAMA_MOE_USED=6</code>) is the other dial.</li>
+<li><strong>Warm start</strong> from a list of each layer's most used experts, and <strong>pre-gated prefetch</strong>: layer L+2's router applied to layer L's hidden state, predicting what the router will actually pick (sigmoid, the model's own selection bias and the cache bonus), loads ~60 % of misses before they are needed.</li>
+<li><strong>Why answers looped, and the fix:</strong> 2-bit experts break long-form coherence after ~250-300 words, and routing bias amplifies it. DRY sampling only hides it (the model paraphrases its loop); a repeat penalty of 1.15 over 256 tokens brings degenerate long answers from 12/13 to 1/13 on the TV (E99, E100).</li>
+</ul>
+<p dir="auto"><strong>Weight streaming for models bigger than RAM</strong> (<code>ggml-cpu/stream-tv.inc</code>):</p>
+<ul dir="auto">
+<li><strong>What stays in RAM:</strong> a chosen part of the weights stays resident. The rest lives in "stream zones".</li>
+<li><strong>Prefetch:</strong> a hook on every matmul records the order the weights are used. Reader threads then fetch zone weights ahead of time with parallel 8 MB <code>O_DIRECT</code> reads straight into the weights' own addresses, at the flash's full 278 MB/s.</li>
+<li><strong>Correctness:</strong> every compute thread waits until its weight is completely loaded, so a wrong prediction costs time, never correctness.</li>
+<li><strong>Drop-behind:</strong> each zone weight is freed right after use.</li>
+<li><strong>Verify mode:</strong> <code>GGML_STREAM_VERIFY=1</code> compares every streamed tensor with the file. It found two silent-corruption bugs, which are fixed and documented in E48 and E50.</li>
+<li><strong>Speculative decoding:</strong> with the model's own MTP head, verifying 2 tokens costs about one pass over the weights when the pass is flash-bound, so it pays off (+69 %). On the in-RAM 2B it lost (E31).</li>
+</ul>
+<p dir="auto"><strong>Profiling</strong> (env switches in the patch): <code>GGML_OPPROF=1</code> per-op table, <code>GGML_OPPROF=2</code> a node-by-node, per-thread trace of one graph (<code>tools/optrace.py</code>), <code>LLAMA_UBATCH_PROF</code> / <code>GGML_CPU_PROF</code> phase timings. They showed where a small model's time really goes (E57): ~71 % Q4_K matmuls, and only ~2 ms per token of barriers and scheduling.</p>
+<p dir="auto"><strong>Tooling:</strong></p>
+<ul dir="auto">
+<li><strong>Streaming GGUF rewriter:</strong> adds a pruned head, extra tensors and metadata in one sequential pass, so Hugging Face → Mac → TV pipelines never store the model on the Mac.</li>
+<li><strong>MTP fetcher:</strong> range-reads only the MTP tensors from safetensors.</li>
+<li><strong>Memory guard:</strong> wraps every heavy run on the TV.</li>
+<li><strong>Benchmark and perplexity harnesses</strong>, a model screener that streams any Hugging Face GGUF to the TV and scores it (<code>tools/screen-small.sh</code>), and a live token-stream web UI.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Quick start</h2><a id="user-content-quick-start" aria-label="Permalink: Quick start" href="#quick-start"></a></p>
+<p dir="auto">You need: the TV box (or another ARMv8.2 Android device) with network ADB, <code>adb</code>, <code>zig</code> (for static aarch64 musl builds), <code>cmake</code> + <code>ninja</code>, <code>python3</code>, and <code>uv</code> (for numpy).</p>
+<div dir="auto" data-snippet-clipboard-copy-content="export ADB_SERIAL=&lt;tv-ip&gt;:5555          # every script talks to the box through this
+adb connect $ADB_SERIAL
+
+# 1. llama.cpp v0.8.0 + the patch, cross-compiled for the TV
+git clone https://github.com/ggml-org/llama.cpp third_party/llama.cpp
+cd third_party/llama.cpp &amp;&amp; git checkout 8642541 &amp;&amp; git apply ../../patches/llama.cpp-v0.8.0-tvbox.patch
+cmake -S . -B build-tv -G Ninja -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+  -DCMAKE_C_COMPILER=$PWD/../../zigcc/cc -DCMAKE_CXX_COMPILER=$PWD/../../zigcc/c++ -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_EXE_LINKER_FLAGS=-static -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF \
+  -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16 -DGGML_OPENMP=OFF -DLLAMA_OPENSSL=OFF -DLLAMA_BUILD_TESTS=OFF
+ninja -C build-tv llama-server llama-cli llama-bench llama-perplexity llama-quantize
+cd ../..
+adb -s $ADB_SERIAL shell mkdir -p /data/local/tmp/llm/patched25 /data/local/tmp/llm/patched
+adb -s $ADB_SERIAL push third_party/llama.cpp/build-tv/bin/llama-{server,cli,bench,perplexity} /data/local/tmp/llm/patched25/
+adb -s $ADB_SERIAL push third_party/llama.cpp/build-tv/bin/llama-quantize /data/local/tmp/llm/patched/   # used by tools/tv-quant.sh
+zig cc -target aarch64-linux-musl -O2 -static -o gguf_recut tools/gguf-recut/gguf_recut.c &amp;&amp; adb -s $ADB_SERIAL push gguf_recut /data/local/tmp/llm/
+
+# 2. models: rebuilt from their Hugging Face sources straight onto the TV (see below)
+tools/rebuild-models.sh 2b          # also: 08 4b b8 tb8 q9 mb lm caches
+
+# 3. the live chat page (default: the 2B on patched25 with fp16 state), then open http://&lt;tv-ip&gt;:8090 from any device on the network
+tv-llm-ui/start.sh
+tv-llm-ui/start.sh stop"><pre><code data-language="shell">export ADB_SERIAL=&lt;tv-ip&gt;:5555          # every script talks to the box through this
+adb connect $ADB_SERIAL
+
+# 1. llama.cpp v0.8.0 + the patch, cross-compiled for the TV
+git clone https://github.com/ggml-org/llama.cpp third_party/llama.cpp
+cd third_party/llama.cpp &amp;&amp; git checkout 8642541 &amp;&amp; git apply ../../patches/llama.cpp-v0.8.0-tvbox.patch
+cmake -S . -B build-tv -G Ninja -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+  -DCMAKE_C_COMPILER=$PWD/../../zigcc/cc -DCMAKE_CXX_COMPILER=$PWD/../../zigcc/c++ -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_EXE_LINKER_FLAGS=-static -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF \
+  -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16 -DGGML_OPENMP=OFF -DLLAMA_OPENSSL=OFF -DLLAMA_BUILD_TESTS=OFF
+ninja -C build-tv llama-server llama-cli llama-bench llama-perplexity llama-quantize
+cd ../..
+adb -s $ADB_SERIAL shell mkdir -p /data/local/tmp/llm/patched25 /data/local/tmp/llm/patched
+adb -s $ADB_SERIAL push third_party/llama.cpp/build-tv/bin/llama-{server,cli,bench,perplexity} /data/local/tmp/llm/patched25/
+adb -s $ADB_SERIAL push third_party/llama.cpp/build-tv/bin/llama-quantize /data/local/tmp/llm/patched/   # used by tools/tv-quant.sh
+zig cc -target aarch64-linux-musl -O2 -static -o gguf_recut tools/gguf-recut/gguf_recut.c &amp;&amp; adb -s $ADB_SERIAL push gguf_recut /data/local/tmp/llm/
+
+# 2. models: rebuilt from their Hugging Face sources straight onto the TV (see below)
+tools/rebuild-models.sh 2b          # also: 08 4b b8 tb8 q9 mb lm caches
+
+# 3. the live chat page (default: the 2B on patched25 with fp16 state), then open http://&lt;tv-ip&gt;:8090 from any device on the network
+tv-llm-ui/start.sh
+tv-llm-ui/start.sh stop</code></pre></div>
+<p dir="auto"><strong>Other models:</strong></p>
+<div dir="auto" data-snippet-clipboard-copy-content="# Moon-Beam-8B-A1B MoE, ~7.2 tok/s (first: `tools/rebuild-models.sh mb`, needs a native Mac build and ~9 GB on the Mac while it runs).
+# start.sh turns on headless mode, the expert pager, routing bias, prefetch and the repeat penalty; POOL / BIAS / EXPERTS override them.
+MODEL=mb-q2-h60.gguf tv-llm-ui/start.sh
+# Ling-mini-2.0 16B MoE, ~5.1 tok/s (first: `tools/rebuild-models.sh lm`)
+MODEL=lm2-q2-h60.gguf tv-llm-ui/start.sh
+# Bonsai-8B 1-bit fully resident, ~5.2 tok/s (first: `tools/rebuild-models.sh b8`; the repack cache is written on first start)
+MODEL=b8-q1-hml.gguf tv-llm-ui/start.sh
+sh /data/local/tmp/llm/tv-llm-mode.sh off   # on the TV, afterwards: launcher and screensaver back
+# Qwen3.5-0.8B, ~16 tok/s (first: `tools/rebuild-models.sh 08`, needs a native Mac build of llama-quantize)
+MODEL=q08-q4k-h65p8.gguf tv-llm-ui/start.sh
+# The 8B / 9B numbers below were measured with the build of that time (patched16); the current build has the same
+# code plus §15-17. GGML_CHUNK_GUIDED=0 in SENV restores the old matmul scheduling. No fp16 state with MTP.
+# Bonsai-8B 1-bit with streaming and no headless mode, ~1.2 tok/s (first run: `tools/rebuild-models.sh b8 caches`)
+MODEL=b8-q1-hml.gguf BIN=patched25 EXTRA=&quot;-ctk q8_0 -ctv q8_0 -fa on -cram 0&quot; \
+  SENV=&quot;GGML_REPACK_CACHE=/data/local/tmp/llm/cache/b8c GGML_REPACK_RESIDENT_MB=800 GGML_STREAM_MODE=cache GGML_STREAM_WINDOW_MB=64&quot; tv-llm-ui/start.sh
+# Qwen3.5-9B with MTP, ~0.27 tok/s
+MODEL=q9-iq2-h65-mtp.gguf BIN=patched25 EXTRA=&quot;-nr -ctxcp 0 -cram 0 -ub 16 -b 64 --spec-type draft-mtp --spec-draft-n-max 1&quot; \
+  SENV=&quot;LLAMA_STREAM_RESIDENT_MB=600 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64&quot; tv-llm-ui/start.sh"><pre><code data-language="shell"># Moon-Beam-8B-A1B MoE, ~7.2 tok/s (first: `tools/rebuild-models.sh mb`, needs a native Mac build and ~9 GB on the Mac while it runs).
+# start.sh turns on headless mode, the expert pager, routing bias, prefetch and the repeat penalty; POOL / BIAS / EXPERTS override them.
+MODEL=mb-q2-h60.gguf tv-llm-ui/start.sh
+# Ling-mini-2.0 16B MoE, ~5.1 tok/s (first: `tools/rebuild-models.sh lm`)
+MODEL=lm2-q2-h60.gguf tv-llm-ui/start.sh
+# Bonsai-8B 1-bit fully resident, ~5.2 tok/s (first: `tools/rebuild-models.sh b8`; the repack cache is written on first start)
+MODEL=b8-q1-hml.gguf tv-llm-ui/start.sh
+sh /data/local/tmp/llm/tv-llm-mode.sh off   # on the TV, afterwards: launcher and screensaver back
+# Qwen3.5-0.8B, ~16 tok/s (first: `tools/rebuild-models.sh 08`, needs a native Mac build of llama-quantize)
+MODEL=q08-q4k-h65p8.gguf tv-llm-ui/start.sh
+# The 8B / 9B numbers below were measured with the build of that time (patched16); the current build has the same
+# code plus §15-17. GGML_CHUNK_GUIDED=0 in SENV restores the old matmul scheduling. No fp16 state with MTP.
+# Bonsai-8B 1-bit with streaming and no headless mode, ~1.2 tok/s (first run: `tools/rebuild-models.sh b8 caches`)
+MODEL=b8-q1-hml.gguf BIN=patched25 EXTRA="-ctk q8_0 -ctv q8_0 -fa on -cram 0" \
+  SENV="GGML_REPACK_CACHE=/data/local/tmp/llm/cache/b8c GGML_REPACK_RESIDENT_MB=800 GGML_STREAM_MODE=cache GGML_STREAM_WINDOW_MB=64" tv-llm-ui/start.sh
+# Qwen3.5-9B with MTP, ~0.27 tok/s
+MODEL=q9-iq2-h65-mtp.gguf BIN=patched25 EXTRA="-nr -ctxcp 0 -cram 0 -ub 16 -b 64 --spec-type draft-mtp --spec-draft-n-max 1" \
+  SENV="LLAMA_STREAM_RESIDENT_MB=600 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64" tv-llm-ui/start.sh</code></pre></div>
+<p dir="auto">Everything on the box lives in <code>/data/local/tmp/llm</code> and runs as the adb <code>shell</code> user. The only system setting touched is stay-awake in headless mode (<code>svc power stayon</code>), which <code>tv-llm-mode.sh off</code> turns back off. <code>adb shell rm -rf /data/local/tmp/llm</code> removes it all.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Model files: not in git, rebuildable</h2><a id="user-content-model-files-not-in-git-rebuildable" aria-label="Permalink: Model files: not in git, rebuildable" href="#model-files-not-in-git-rebuildable"></a></p>
+<p dir="auto">The model files (0.5-4 GB each) are not in this repo. <a href="https://github.com/hyperionaidev/smolmaxxing/blob/main/tools/rebuild-models.sh"><code>tools/rebuild-models.sh</code></a> recreates every one from public Hugging Face files, streaming them through <code>tools/gguf_build.py</code> onto the TV. The SHA-256s below are of the files used in the experiments. Rebuilds of the 4B, Bonsai-8B and 9B files were checked <strong>byte-identical</strong>.</p>
+<p dir="auto"><strong>Ready-made downloads.</strong> The best file of each size class is on Hugging Face exactly as the TV runs it. They need the patched llama.cpp above; stock llama.cpp can't load the pruned head. Each card has the run command and the measured numbers:</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Hugging Face</th>
+<th>File</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen3.5-0.8B, 16.8 tok/s</td>
+<td><a href="https://huggingface.co/hyperionaidev/Qwen3.5-0.8B-tvbox-GGUF" rel="nofollow">hyperionaidev/Qwen3.5-0.8B-tvbox-GGUF</a></td>
+<td><code>q08-q4k-h65p8.gguf</code></td>
+</tr>
+<tr>
+<td>Qwen3.5-2B, 7.7 tok/s</td>
+<td><a href="https://huggingface.co/hyperionaidev/Qwen3.5-2B-tvbox-GGUF" rel="nofollow">hyperionaidev/Qwen3.5-2B-tvbox-GGUF</a></td>
+<td><code>w-q4k-h65p8.gguf</code></td>
+</tr>
+<tr>
+<td>Ternary-Bonsai-4B, 4.3 tok/s</td>
+<td><a href="https://huggingface.co/hyperionaidev/Ternary-Bonsai-4B-tvbox-GGUF" rel="nofollow">hyperionaidev/Ternary-Bonsai-4B-tvbox-GGUF</a></td>
+<td><code>tb4-q20-hml.gguf</code></td>
+</tr>
+<tr>
+<td>Moon-Beam-8B-A1B (MoE), 7.2 tok/s</td>
+<td><a href="https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF" rel="nofollow">hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF</a></td>
+<td><code>mb-q2-h60.gguf</code> + <code>moe-warm-moonbeam.txt</code></td>
+</tr>
+<tr>
+<td>Bonsai-8B (1-bit), 5.2 tok/s</td>
+<td><a href="https://huggingface.co/hyperionaidev/Bonsai-8B-tvbox-GGUF" rel="nofollow">hyperionaidev/Bonsai-8B-tvbox-GGUF</a></td>
+<td><code>b8-q1-hml.gguf</code></td>
+</tr>
+<tr>
+<td>Ling-mini-2.0 (16B MoE), 5.1 tok/s</td>
+<td><a href="https://huggingface.co/hyperionaidev/Ling-mini-2.0-tvbox-GGUF" rel="nofollow">hyperionaidev/Ling-mini-2.0-tvbox-GGUF</a></td>
+<td><code>lm2-q2-h60.gguf</code> + <code>moe-warm-ling.txt</code></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">Download with <code>hf download hyperionaidev/&lt;repo&gt; --local-dir models/</code>, then <code>adb push</code> the files to <code>/data/local/tmp/llm/</code>, with <code>moe-warm-*.txt</code> next to them. That replaces the <code>08</code> / <code>2b</code> / <code>4b</code> / <code>mb</code> / <code>b8</code> / <code>lm</code> targets. For the 8B and 16B models, the first start writes the repack cache.</p>
+<p dir="auto"><strong>iPad Air downloads.</strong> Every model run on the iPad, where to get it, and its speed there. The three MoE files are our own builds, laid out for the iPad's expert pager and lookup-table kernel: they need the iOS 12 patch (<a href="https://github.com/hyperionaidev/smolmaxxing/blob/main/ipad-air/README.md"><code>ipad-air/</code></a>), and any other llama.cpp loads them but gets scrambled experts. The rest are used exactly as published; the Bonsai models' fast layouts are built in RAM at load time. 53 experiments in all (E108-E160, §21):</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Download</th>
+<th>iPad speed (tok/s)</th>
+<th>Peak RSS</th>
+<th>Experiments</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ling-mini-2.0 (16B MoE)</td>
+<td><a href="https://huggingface.co/hyperionaidev/Ling-mini-2.0-ipad-GGUF" rel="nofollow">hyperionaidev/Ling-mini-2.0-ipad-GGUF</a>: <code>lm2-q2-h60-lut.gguf</code> (SHA-256 <code>3e464310…4e50bd</code>)</td>
+<td><strong>2.6</strong> unbiased; 3.3 with bias 0.1 (+2.6 % perplexity); 4.5 with bias 0.3; 5.2 adding <code>--experts 6</code></td>
+<td>556-576 MB</td>
+<td>4 (E157-E160)</td>
+</tr>
+<tr>
+<td>Moon-Beam-8B-A1B (MoE)</td>
+<td><a href="https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-ipad-GGUF" rel="nofollow">hyperionaidev/Moon-Beam-8B-A1B-ipad-GGUF</a>: <code>mb-q2-h60-lut.gguf</code> (SHA-256 <code>acf1cb56…94b976</code>); the experts-last file without the repack, about 4 % slower, is <a href="https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-ipad-xl-GGUF" rel="nofollow">hyperionaidev/Moon-Beam-8B-A1B-ipad-xl-GGUF</a>: <code>mb-q2-h60-xl.gguf</code> (<code>aa919400…871d7e</code>)</td>
+<td><strong>3.5-3.6</strong>; 3.7-4.0 with 7 experts (+0.4-1.9 %); 5.0 with 4 experts (+27 %)</td>
+<td>600-625 MB</td>
+<td>19 (E138-E156)</td>
+</tr>
+<tr>
+<td>Bonsai-8B (1-bit, dense)</td>
+<td><a href="https://huggingface.co/prism-ml/Bonsai-8B-gguf" rel="nofollow">prism-ml/Bonsai-8B-gguf</a></td>
+<td>0.08: doesn't fit in RAM, read from flash</td>
+<td>629 MB</td>
+<td>4 (E134-E137, with the first Moon-Beam attempts)</td>
+</tr>
+<tr>
+<td>Bonsai-4B (1-bit), <code>-c 512 -b 64</code></td>
+<td><a href="https://huggingface.co/prism-ml/Bonsai-4B-gguf" rel="nofollow">prism-ml/Bonsai-4B-gguf</a></td>
+<td><strong>9.4-11.4</strong>; 9.2-10.3 through long chats</td>
+<td>615-682 MB</td>
+<td>5 (E129-E133)</td>
+</tr>
+<tr>
+<td><strong>Bonsai-1.7B (1-bit), the default</strong></td>
+<td><a href="https://huggingface.co/prism-ml/Bonsai-1.7B-gguf" rel="nofollow">prism-ml/Bonsai-1.7B-gguf</a></td>
+<td><strong>23.7-25.8</strong>; 18-22 through long chats</td>
+<td>605 MB</td>
+<td>11 (E118-E128)</td>
+</tr>
+<tr>
+<td>SmolLM2-360M-Instruct Q4_K_M</td>
+<td><a href="https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF" rel="nofollow">bartowski/SmolLM2-360M-Instruct-GGUF</a></td>
+<td>10.9-12.5</td>
+<td>269-316 MB</td>
+<td>10 (E108-E117: first runs, the small models and the web chat)</td>
+</tr>
+<tr>
+<td>Gemma 3 270M-it Q4_K_M</td>
+<td><a href="https://huggingface.co/unsloth/gemma-3-270m-it-GGUF" rel="nofollow">unsloth/gemma-3-270m-it-GGUF</a></td>
+<td>15.4-19.0</td>
+<td>248-294 MB</td>
+<td></td>
+</tr>
+<tr>
+<td>SmolLM2-135M-Instruct Q4_K_M</td>
+<td>stock Q4_K_M</td>
+<td>18.6-29.3</td>
+<td>141 MB</td>
+<td></td>
+</tr>
+<tr>
+<td>Qwen3.5-0.8B Q4_K_M</td>
+<td><a href="https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF" rel="nofollow">unsloth/Qwen3.5-0.8B-GGUF</a></td>
+<td>about 0.2: thrashes</td>
+<td>506 MB</td>
+<td></td>
+</tr>
+<tr>
+<td>stories15M q4_0</td>
+<td>stock</td>
+<td>about 290 in <code>llama-simple</code></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>File on the TV</th>
+<th>Target</th>
+<th>Built from</th>
+<th>SHA-256</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>w-q4k-h65.gguf</code> (Qwen3.5-2B)</td>
+<td><code>2b</code></td>
+<td><code>unsloth/Qwen3.5-2B-GGUF</code> BF16 + <code>imatrix_unsloth</code>, MTP block from <code>Qwen/Qwen3.5-2B</code>, quantized on the TV, head <code>data/head-ids-ml60k.txt</code></td>
+<td><code>16057be3…3285b</code></td>
+</tr>
+<tr>
+<td><code>w-q4k-h65p8.gguf</code> (Qwen3.5-2B, <strong>default</strong>)</td>
+<td><code>2b</code></td>
+<td>the file above re-cut on the TV with <code>data/head-ids-ml60k-p8.txt</code> (65,672 rows, so the head is repacked, §17)</td>
+<td><code>631a27ae…54fd11</code></td>
+</tr>
+<tr>
+<td><code>w-q4k-h45.gguf</code> (option)</td>
+<td><code>2b45</code></td>
+<td>the same, 45,654-row head <code>data/head-ids-ml40k.txt</code> (byte-identical to E29's H45 file)</td>
+<td><code>a50eadc5…664d5b</code></td>
+</tr>
+<tr>
+<td><code>q08-q4k-h65.gguf</code> (Qwen3.5-0.8B)</td>
+<td><code>08</code></td>
+<td><code>unsloth/Qwen3.5-0.8B-GGUF</code> BF16 + its <code>imatrix_unsloth</code>, pure Q4_K, head <code>data/head-ids-ml60k.txt</code>, quantized on the Mac</td>
+<td><code>901f3838…8523a6b</code></td>
+</tr>
+<tr>
+<td><code>q08-q4k-h65p8.gguf</code></td>
+<td><code>08</code></td>
+<td>the file above re-cut on the Mac with <code>data/head-ids-ml60k-p8.txt</code> (§17)</td>
+<td><code>7dd2aac5…52fc232</code></td>
+</tr>
+<tr>
+<td><code>tb4-q20-hml.gguf</code></td>
+<td><code>4b</code></td>
+<td><code>prism-ml/Ternary-Bonsai-4B-gguf</code> Q2_0_g64, head <code>data/head-ids-qwen3-ml64k.txt</code></td>
+<td><code>a02d805f…3fe24</code></td>
+</tr>
+<tr>
+<td><code>b8-q1-hml.gguf</code></td>
+<td><code>b8</code></td>
+<td><code>prism-ml/Bonsai-8B-gguf</code> Q1_0, same head</td>
+<td><code>fc297cb3…0d42a</code></td>
+</tr>
+<tr>
+<td><code>tb8-q20-hml.gguf</code></td>
+<td><code>tb8</code></td>
+<td><code>prism-ml/Ternary-Bonsai-8B-gguf</code> Q2_0_g64, same head</td>
+<td><code>01b1e0ef…93e06</code></td>
+</tr>
+<tr>
+<td><code>mb-q2-h60.gguf</code></td>
+<td><code>mb</code></td>
+<td><code>tablinum/Moon-Beam-8B-A1B-GGUF-Preview</code> Q8_0, requantized on the Mac: experts Q2_K, the rest Q4_K, own imatrix from <code>data/corpus</code>, head <code>data/head-ids-ling-60k.txt</code>; expert bytes hole-punched on the TV after the repack cache (<code>cache/mbq2.*</code>) is written</td>
+<td><code>2d78fcdd…1c34ee</code></td>
+</tr>
+<tr>
+<td><code>lm2-q2-h60.gguf</code></td>
+<td><code>lm</code></td>
+<td><code>bartowski/inclusionAI_Ling-mini-2.0-GGUF</code> Q4_K_M + its imatrix: experts requantized to Q2_K on the Mac, the rest Q4_K, head <code>data/head-ids-ling-60k.txt</code>; punched on the TV after the repack cache (<code>cache/lmq2.*</code>) is written</td>
+<td><code>c089aeb0…e8d7</code></td>
+</tr>
+<tr>
+<td><code>q9-iq2-h65-mtp.gguf</code></td>
+<td><code>q9</code></td>
+<td><code>unsloth/Qwen3.5-9B-GGUF</code> UD-IQ2_XXS, MTP block from <code>Qwen/Qwen3.5-9B</code> (Q4_0), 65K head</td>
+<td><code>7766478e…8dcbc</code></td>
+</tr>
+<tr>
+<td><code>cache/b8c.*</code>, <code>cache/tb8.*</code></td>
+<td><code>caches</code></td>
+<td>written by the first run with <code>GGML_REPACK_CACHE</code></td>
+<td></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">The head-id lists in <code>data/</code> were made by <code>tools/vocab_select.py</code> (Qwen3.5 tokenizer) and <code>tools/head_select_tok.py</code> (any tokenizer, via <code>llama-tokenize</code>), from the corpus <code>tools/fetch_corpus.py</code> downloads (Wikipedia + Project Gutenberg).</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Layout</h2><a id="user-content-layout" aria-label="Permalink: Layout" href="#layout"></a></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Path</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/hyperionaidev/smolmaxxing/blob/main/EXPERIMENT.md"><code>EXPERIMENT.md</code></a></td>
+<td>the full write-up: §1-8 the first tiny model, §9-10 llama.cpp and the first flash streaming, §11 the 2B push, §13 the 4B push, §14 the 9B push, §15 the 0.8B speed push, §16-17 the 2B rounds 3-4, §18 the 4B round 2 (arXiv / GitHub scan, 2-bit ternary layouts), §19 the 8B push (headless mode, LUT kernel, Moon-Beam MoE with an expert pager, why long answers loop), §20 bigger than 9B (Ling-mini-2.0 16B, and why LFM2.5-24B and Qwen3.6-35B don't fit)</td>
+</tr>
+<tr>
+<td><code>patches/llama.cpp-v0.8.0-tvbox.patch</code></td>
+<td>every change to llama.cpp: pruned head (<code>output_ids</code>) for Qwen3 / Qwen3.5 / Granite 4.0 H, the kernels above (<code>ggml-cpu/repack-*-tv.inc</code>), fused DeltaNet (state read by id, optional fp16 state, one-token conv step), the 1-bit LUT kernel, Q8_0 attention, the MoE expert pager with routing bias and prefetch (<code>ggml-cpu/moe-pager-tv.inc</code>), a pruned head for <code>bailingmoe3</code>, embedding rows from the resident head, repack cache and streaming engine (<code>ggml-cpu/stream-tv.inc</code>, loader hooks), padded small batches, op profiler, pruned-head-aware perplexity, Vulkan tuning for Mali</td>
+</tr>
+<tr>
+<td><code>tools/</code></td>
+<td>GGUF rewriter / head pruner / re-cutter, vocabulary selection, corpus and MTP fetchers, model rebuild script, TV memory guard and RAM helper, benchmark sweeps, kernel benches and exactness checks (<code>kbench/</code>), flash benchmark</td>
+</tr>
+<tr>
+<td><code>tv-llm-ui/</code></td>
+<td>the live token-stream page for llama-server (confidence colours, top-3 alternatives, speed, box stats), its launcher and the benchmark harness</td>
+</tr>
+<tr>
+<td><code>tiny-llm-web/</code></td>
+<td>the llama2.c story server + TV page from the first experiment</td>
+</tr>
+<tr>
+<td><code>bench/</code></td>
+<td><code>results.jsonl</code> (every chat benchmark: prompts, outputs, speeds) and <code>raw/</code> (logs of every experiment)</td>
+</tr>
+<tr>
+<td><code>data/</code></td>
+<td>head-id lists and the two evaluation texts</td>
+</tr>
+<tr>
+<td><code>zigcc/</code></td>
+<td>zig wrappers for cross-compiling static aarch64 binaries</td>
+</tr>
+<tr>
+<td><code>ipad-air/</code></td>
+<td>device #2: cross-compile for iOS 12, <code>smolchat</code> (terminal chat and Safari web page), deploy and benchmark scripts (<a href="https://github.com/hyperionaidev/smolmaxxing/blob/main/ipad-air/README.md">README</a>, §21)</td>
+</tr>
+<tr>
+<td><code>screenshots/</code></td>
+<td>the web pages running on the TV</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Lessons</h2><a id="user-content-lessons" aria-label="Permalink: Lessons" href="#lessons"></a></p>
+<ul dir="auto">
+<li><strong>On this box the 2B at 4 bits beats every bigger model at 1-2 bits.</strong> Post-training quantization below ~2.5 bits breaks normal models (E22, E23, E35). Models trained for 1-bit or ternary hold up, but at 4-8 B they don't fit without streaming.</li>
+<li><strong>Past RAM, flash bandwidth sets the speed.</strong> The kernel's LRU is the worst possible policy for a cyclic scan bigger than the cache: it re-reads everything every token. Keep a fixed resident set and stream the rest yourself.</li>
+<li><strong>Batching is free when you are flash-bound.</strong> Prompts and speculative verification cost about one weight pass, whatever their size.</li>
+<li><strong>Measure, then verify.</strong> Two streaming bugs gave plausible speeds and wrong numbers; only comparing tensors with the file, and perplexity with a Mac reference, caught them.</li>
+<li><strong>Small models are mostly vocabulary.</strong> Qwen3.5-0.8B's 248K-row head is a third of its weights; pruning it to 65K rows plus all-Q4_K took it from 7.5 to 12.1 tok/s (E55). Small models also lose more to 4 bits (+7 % perplexity vs +2.3 % for the 2B).</li>
+<li><strong>Simulate before you write a kernel.</strong> Activation sparsity (E58) and a low-rank head (E60) both looked promising on paper; a quality simulation on the Mac killed each in under an hour.</li>
+<li><strong>On an in-order core, count NEON ops as well as bytes.</strong> Tighter packing saved 20 % of the bytes and cost 2.5× the ops; undoing it made the 4B 33 % faster in chat (E76, E77). The 4-bit kernel is the opposite case, limited by RAM (E27), so the trick does not help the 2B or 0.8B.</li>
+<li><strong>Check that every big matrix reaches the fast kernel.</strong> The 2B's head (65,668 rows, ~10 % of each token's weights) silently ran on the generic kernel for weeks because ggml only repacks row counts divisible by 8; four extra rows gave +5.8 % (E71, E72). The load log's repack buffer size gives it away.</li>
+<li><strong>Most of the RAM was Android's, not the model's.</strong> Force-stopping the launchers and Google services for the duration (nothing persistent) let Bonsai-8B sit fully in RAM: 1.2 → 3.6 tok/s before any kernel work (E80). An animated screensaver and a guard that forked 25 times a second each cost another 10-15 % (E82, E88).</li>
+<li><strong>For a mixture-of-experts model the flash is a cache miss, not a stream.</strong> A ~6 ms miss per expert means the pool hit rate decides the speed; routing toward cached experts and prefetching what the next router will pick turned 4.4 into 7.2 tok/s.</li>
+<li><strong>Perplexity can't see loops.</strong> It scores one token at a time on clean text; the 2-bit model scored fine and still fell into loops in 12 of 13 long answers. Score long free-running generations too (<code>tools/loop_stats.py</code>), and compare models with different tokenizers in bits per byte, never in perplexity.</li>
+<li><strong>Past 9B, count resident bytes, not parameters.</strong> The ceiling for a mixture-of-experts model here is the non-expert weights that must stay in RAM plus a useful expert pool. Ling-mini-2.0 (16B) keeps 279 MB resident and runs at 5 tok/s; Qwen3.6-35B-A3B would need ~870 MB before caching a single expert (§20).</li>
+<li><strong>Guard the box.</strong> After two early kernel panics, every heavy run goes through a wrapper that kills it below 180 MB of free memory.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">License</h2><a id="user-content-license" aria-label="Permalink: License" href="#license"></a></p>
+<p dir="auto"><a href="https://github.com/hyperionaidev/smolmaxxing/blob/main/LICENSE">MIT</a>. The llama.cpp patch is a derivative of <a href="https://github.com/ggml-org/llama.cpp">llama.cpp</a> (MIT). Model weights keep their own licenses, and the evaluation texts are Wikipedia excerpts (CC BY-SA 4.0).</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Credits</h2><a id="user-content-credits" aria-label="Permalink: Credits" href="#credits"></a></p>
+<p dir="auto">Built on <a href="https://github.com/ggml-org/llama.cpp">llama.cpp</a> and <a href="https://github.com/karpathy/llama2.c">llama2.c</a>. Models from <a href="https://huggingface.co/Qwen" rel="nofollow">Qwen</a>, <a href="https://huggingface.co/unsloth" rel="nofollow">unsloth</a> (GGUFs and importance matrices), <a href="https://huggingface.co/prism-ml" rel="nofollow">PrismML</a> (Bonsai), Google (Gemma) and <a href="https://huggingface.co/karpathy/tinyllamas" rel="nofollow">stories260K</a>. The evaluation texts are excerpts from Wikipedia (CC BY-SA 4.0). The 🤏 logo is the pinching-hand emoji from Google's <a href="https://github.com/googlefonts/noto-emoji">Noto Emoji</a> (Apache 2.0).</p>
+</article></div></div>
