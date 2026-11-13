@@ -1,0 +1,117 @@
+<div id="readability-page-1" class="page"><div> 
+<p>LLMs rely on their context to generate the next set of tokens. Over a long trajectory, the context fills with numerous types of components: a system prompt, past conversation turns, instructions that act on retrieved documents, tool responses or user data, requirements constraining the allowed output, and reasoning chains. The context carries a rich structure, most of which is either implicit to the model or encoded in formats such as JSON that were not designed to be digested by LLMs. This is one of the main reasons LLMs, particularly those on the smaller end of the scale, are brittle and sometimes fail in unexpected ways. The lack of explicit structure can also be exploited by attackers, for example, in the form of prompt injections.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+<p>To address this, we developed LLMON (LLM Object Notation, pronounced “lemon”), an LLM-native markup language for explicitly communicating structure and semantics to the models. Semantically coherent components are marked with meaningful tags which are wrapped in reserved special-token delimiters. Data schemas, including nesting, are stated in a way that is unambiguous to a causal LLM. Unique IDs make it possible to point to specific instructions, which could reside anywhere in the context, and bind them to the data payloads they should act on, analogous to the way functions are called and arguments are passed to them in programming languages.</p>
+<p>Today we are releasing two experimental preview models, derived from Granite 4.1 base models, trained to consume and generate LLMON-marked text: <a href="https://huggingface.co/ibm-granite/granite-4.1-3b-llmon-preview">granite-4.1-3b-LLMON-preview</a> and <a href="https://huggingface.co/ibm-granite/granite-4.1-8b-llmon-preview">granite-4.1-8b-LLMON-preview</a>. We are also releasing a <a href="https://github.com/generative-computing/llmon" rel="nofollow">GitHub</a> repo, which includes a toolkit for working with LLMON and examples of workflows and templates.</p>
+<p><strong>What it enables:</strong></p>
+<ul>
+<li>Indirect prompt injections, hidden in user data, are mostly ignored by LLMON models due to explicit instruction/data separation. For some benchmarks, attack success rates drop to nearly zero, whereas regular instruction-tuned models get hijacked with high probability. This is achieved while maintaining general capability relative to Granite 4.1 Instruct models.</li>
+<li>Unrelated passages, old chat turns, and tool outputs don’t get pulled into the answer because each instruction is bound to the exact data it applies to.</li>
+<li>Instructions, data, and requirements are clearly marked so that their structure and meanings at the application’s code level can be leveraged by the model. Try it out in <a href="https://github.com/generative-computing/mellea" rel="nofollow">Mellea</a>, which has native LLMON support enabled by automatically LLMONizing its LLM calls.</li>
+<li>You no longer need to worry about forcing LLMs to observe JSON structure. Use our converters to turn existing JSON into LLMON without loss. You can also define your own structure and associated tags and tune a LoRA on top of the LLMON models to understand it.</li>
+</ul>
+<h3>
+	<a id="why-not-json" href="#why-not-json" rel="nofollow">
+		
+	</a>
+	<span>
+		Why not JSON?
+	</span>
+</h3>
+<p>JSON was designed for parsers, not for causal language models. The tokenizer is not constrained to respect the grammar, and structure is encoded by tokens ({, ", :) that may also appear in normal text. To a model, a quotation mark inside a document and a quotation mark that closes a field are the same token. Escaping rules that are clear to a parser are only statistical patterns to a model. Nesting depth is encoded by counting brackets, which transformers are known to be weak at, especially over long spans.</p>
+<p>LLMON, on the other hand, is an XML-like markup whose structural delimiters are reserved special tokens rather than characters, so structure and content use separate parts of the vocabulary. Tags are stated at the beginning of each span, and the boundaries between spans are explicit. Nested structures are stated locally so the model does not need to keep track of the hierarchy over long spans.</p>
+<p>Since most teams already have pipelines built around JSON, we created <a href="https://github.com/generative-computing/llmon/tree/main/llmon/lang" rel="nofollow">conversion tools</a> and example notebooks that translate JSON to LLMON and back in a lossless manner.</p>
+<h3>
+	<a id="how-is-llmon-related-to-chat-templates" href="#how-is-llmon-related-to-chat-templates" rel="nofollow">
+		
+	</a>
+	<span>
+		How is LLMON related to chat templates?
+	</span>
+</h3>
+<p>LLMON does not replace chat templates; rather, it enriches them. Where regular chat templates tell the model which part belongs to which role (system, user, assistant), LLMON tells it what each component means and how components relate to each other, within and across roles.</p>
+<p>The LLMON preview models ship with their own chat template, so you build the same <code>messages</code> list you would pass to any chat model and call <code>apply_chat_template</code> as usual; it renders the LLMON shown below. The only difference is that a turn can now name its parts and mark each one <code>exec</code>: <code>True</code> or <code>False</code>. A part marked <code>True</code> is bound into the <code>exec</code> block at the bottom of the rendered output, which states which instruction to run and what it operates on; a part marked <code>False</code> is still rendered into the context but is referenced by nothing.</p>
+<pre><code>messages = [ { "role": "user",
+               "instruction": [{ "value": "Write a short paragraph about", "exec": True }],
+               "data": [{ "value": "IBM Company", "exec": True }],
+               "requirement": [ {"value": "Use less than 10 words", "exec": True},
+                                {"value": "Do not use commas", "exec": True}]
+             } ]
+</code></pre>
+<p>Which the model receives as the following (with newlines and indentation added here for readability, as the template emits none):</p>
+<pre><code>&lt;|open|&gt;instr&lt;|:|&gt;»ñ&lt;|close|&gt;Write a short paragraph about&lt;|open_end|&gt;
+&lt;|open|&gt;data&lt;|:|&gt;ä¦&lt;|close|&gt;IBM Company&lt;|open_end|&gt;
+&lt;|open|&gt;req&lt;|:|&gt;Á¼&lt;|close|&gt;Use less than 10 words&lt;|open_end|&gt;
+&lt;|open|&gt;req&lt;|:|&gt;¢¬&lt;|close|&gt;Do not use commas&lt;|open_end|&gt;
+&lt;|open|&gt;exec&lt;|:|&gt;ÄÐ&lt;|close|&gt;
+    &lt;|open|&gt;exec&lt;|.|&gt;instruction&lt;|close|&gt;instr&lt;|:|&gt;»ñ&lt;|open_end|&gt;
+    &lt;|open|&gt;exec&lt;|.|&gt;input&lt;|close|&gt;data&lt;|:|&gt;ä¦&lt;|open_end|&gt;
+    &lt;|open|&gt;exec&lt;|.|&gt;requirement&lt;|close|&gt;req&lt;|:|&gt;Á¼&lt;|open_end|&gt;
+    &lt;|open|&gt;exec&lt;|.|&gt;requirement&lt;|close|&gt;req&lt;|:|&gt;¢¬&lt;|open_end|&gt;
+    &lt;|open|&gt;exec&lt;|.|&gt;output&lt;|close|&gt;assistant&lt;|:|&gt;ãø&lt;|open_end|&gt;
+&lt;|open_end|&gt;
+&lt;|open|&gt;assistant&lt;|:|&gt;ãø&lt;|close|&gt;
+</code></pre>
+<p>The two-character block IDs are drawn from a fixed set that this tokenizer encodes as single tokens, so addressing a block always costs two tokens regardless of which ID is drawn.</p>
+<p>The role is still a single user turn, but its components reach the model as five separate addressable blocks, bound together by a sixth (the exec block) that states: run this instruction, on this data, subject to these two requirements, and put the answer in the block named here, which is the same assistant block the model then fills. A conventional template would have flattened all components into one string and left the model to infer which part was the task, which was the subject, and which were constraints.</p>
+<h3>
+	<a id="how-llmon-addresses-prompt-injection-attacks" href="#how-llmon-addresses-prompt-injection-attacks" rel="nofollow">
+		
+	</a>
+	<span>
+		How LLMON addresses prompt injection attacks
+	</span>
+</h3>
+<p>Indirect prompt injection is a type of attack where a malicious instruction is hidden in a data payload, such as a retrieved document, a tool response, or user-provided data. This is the problem LLMON’s instruction/data separation is designed to address.</p>
+<p>We compared the LLMON previews against several open-source and closed-source models. We evaluated on the <a href="https://arxiv.org/abs/2310.12815" rel="nofollow">OPI</a> benchmark, which places the injection in the data of classic NLP tasks. Several attack strategies are employed. We report robustness, defined as 1 − attack success rate: the share of attacks where the model does not carry out the injected instruction.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6484ca4d5ff9a3d2ee52a83b/3UqXuyb58P8n3NiHnJiK4.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6484ca4d5ff9a3d2ee52a83b/3UqXuyb58P8n3NiHnJiK4.png" alt="OPI"></a></p>
+<p>All non-LLMON models are highly susceptible, carrying out the injected instructions with high probability. LLMON practically eliminates the problem on this benchmark, avoiding 47% more attacks relative to the best frontier model that we tested, and 95% more than the best open-source model. We observe similar trends on other benchmarks (<a href="https://arxiv.org/pdf/2410.02644" rel="nofollow">ASB</a> and <a href="https://arxiv.org/pdf/2402.06363" rel="nofollow">StruQ</a>). It is worth noting that these benchmarks test robustness to static indirect prompt injections. The instruction/data separation directly addresses this type of attack. We are actively working on also improving adaptive attacks which unfold over many chat turns.</p>
+<h3>
+	<a id="general-capability" href="#general-capability" rel="nofollow">
+		
+	</a>
+	<span>
+		General capability
+	</span>
+</h3>
+<p>Safety gains don’t come at the expense of general capability. Across standard benchmark categories, the LLMON models perform on par with the Granite 4.1 Instruct models.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6484ca4d5ff9a3d2ee52a83b/VMIEO4qYlmxLhK0DmMO6C.png" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6484ca4d5ff9a3d2ee52a83b/VMIEO4qYlmxLhK0DmMO6C.png" alt="Granite-4.1 vs LLMON"></a></p>
+<p>In short, if you’re experimenting with Granite 4.1 3B or 8B today, you can swap in the LLMON preview and should see comparable general performance with much stronger resistance to prompt injection. No conversion pipeline is required. Naming the turn's parts (e.g., instruction, data, requirement as in the example above) is enough. The shipped chat template turns those into LLMON blocks for you. Our LLMON-converters library goes one level deeper: if a part is itself structured, such as a JSON document, LLMONizing it preserves that structure as typed, individually addressable blocks, instead of one opaque string.</p>
+<h3>
+	<a id="how-we-trained-the-models" href="#how-we-trained-the-models" rel="nofollow">
+		
+	</a>
+	<span>
+		How we trained the models
+	</span>
+</h3>
+<p>The models start from <a href="https://huggingface.co/ibm-granite/granite-4.1-8b-base">Granite 4.1</a> base checkpoints rather than the released instruct models, so LLMON behavior is learned during post-training rather than layered on an existing chat format.</p>
+<p>LLMON defines six delimiters that mark the start and end of tags and allow nesting and anchoring; they are installed in the tokenizer as reserved single tokens. We re-serialized a conventional instruction-tuning corpus into LLMON: every prompt component becomes its own addressable block, and each turn carries an execution block naming which instruction to run, which inputs it operates on, and where the output goes. The task mix is the one a normal instruct model sees (chat, multi-turn, RAG, tool calling), which is why benchmark performance stays close to the conventionally tuned model. In addition, we augment the data with decoy instructions and data blocks that are present in context but deliberately left unbound, while the target output is unchanged. So the model learns to follow the dependencies dictated by the execution block and ignore the rest. Reinforcement learning follows: five sequential GRPO stages spanning multi-domain reasoning, RLHF, knowledge calibration, and math, followed by a final DPO stage on a thousand on-policy preference pairs built from the model’s own responses to injection attempts.</p>
+<p>The resulting privilege rule falls out of this layout rather than an added guardrail: an instruction reached through an execution block is authoritative, while anything reached as input (data, documents, tool schemas, tool results) is material to read, not a command to follow. Furthermore, instructions and data spans that are not called on in the execution block are ignored. This is a learned behavior, not an enforced guarantee. To see how this plays out in the attention layers of a LLMON model, try the <a href="https://huggingface.co/spaces/ibm-granite/LLMON-Attention-Visualization">LLMON Attention Visualization</a> on Hugging Face Spaces.</p>
+<p><a href="https://cdn-uploads.huggingface.co/production/uploads/6484ca4d5ff9a3d2ee52a83b/nv3yYV9JSHPrHEJYfKiqo.gif" rel="nofollow"><img src="https://cdn-uploads.huggingface.co/production/uploads/6484ca4d5ff9a3d2ee52a83b/nv3yYV9JSHPrHEJYfKiqo.gif" alt="Attention Demo"></a></p>
+<h3>
+	<a id="bring-your-own-vocabulary-scienceworld" href="#bring-your-own-vocabulary-scienceworld" rel="nofollow">
+		
+	</a>
+	<span>
+		Bring your own vocabulary (ScienceWorld)
+	</span>
+</h3>
+<p>LLMON is not tied to a fixed schema: you can choose tag names and structure that fit your domain and fine-tune an adapter to read and write them. We demonstrate this on ScienceWorld, a text-based benchmark where an agent carries out elementary science tasks (such as boiling water) by issuing one command at a time and receiving a score from the simulator. We defined a vocabulary capturing the structure in the planning trajectories involved in solving these tasks. The vocabulary includes tags such as <code>instr.task.goal</code>, <code>req.planning_policy.rule</code>, <code>data.state.room</code>, <code>data.state.inventory</code> and <code>assistant.next_action</code>. We rendered every step of ScienceWorld's reference solutions with these tags and tuned a LoRA on top of a LLMON model. The trained model then plays held-out games and writes its next action in the new vocabulary. <a href="https://github.com/generative-computing/llmon/blob/main/llmon/examples/lora-finetuning/byo-vocab_LoRA_scienceworld.ipynb" rel="nofollow">This notebook</a> walks through the full workflow, from converting reference trajectories to playing the test games and scoring the adapter against the untrained base model. Another example for tool-calling agents can be found in <a href="https://github.com/generative-computing/llmon/blob/main/llmon/examples/lora-finetuning/byo-vocab_LoRA_for_agents.ipynb" rel="nofollow">this notebook</a>. </p>
+<h3>
+	<a id="try-it-today" href="#try-it-today" rel="nofollow">
+		
+	</a>
+	<span>
+		Try it today
+	</span>
+</h3>
+<p>This is an experimental preview, ready for exploration and evaluation but not for production.</p>
+<ul>
+<li>Models: <a href="https://huggingface.co/ibm-granite/granite-4.1-3b-llmon-preview">granite-4.1-3b-LLMON-preview</a>  &amp; <a href="https://huggingface.co/ibm-granite/granite-4.1-8b-llmon-preview">granite-4.1-8b-LLMON-preview</a></li>
+<li>Visualization Demo: <a href="https://huggingface.co/spaces/ibm-granite/LLMON-Attention-Visualization">LLMON Attention Visualization</a></li>
+<li>LLMON Repo: <a href="https://github.com/generative-computing/llmon" rel="nofollow">https://github.com/generative-computing/llmon</a></li>
+<li>Mellea: <a href="https://github.com/generative-computing/mellea" rel="nofollow">https://github.com/generative-computing/mellea</a></li>
+<li>Papers: <a href="https://arxiv.org/abs/2610.38120" rel="nofollow">https://arxiv.org/abs/2610.38120</a>, <a href="https://arxiv.org/abs/2603.22519" rel="nofollow">https://arxiv.org/abs/2603.22519</a></li>
+</ul>
+<p>Tell us what you find: what worked, what broke, and which use cases you’d like to see. Post it in GitHub Discussions.</p>
+</div></div>
