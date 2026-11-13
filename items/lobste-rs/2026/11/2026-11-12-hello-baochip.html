@@ -1,0 +1,221 @@
+<div id="readability-page-1" class="page"><article>
+        <header>
+            
+                
+            
+            
+            
+            
+            
+                <p>Page created: <span>2026-11-11</span></p>
+            
+            
+            
+            
+                <p>Updated: <span>2026-11-12</span></p>
+                
+            
+        </header>
+
+        
+        <p>Baochip is the latest open/trustable hardware venture by living legend
+<a href="https://en.wikipedia.org/wiki/Andrew_Huang_(hacker)">Andrew "bunnie" Huang</a> (wikipedia.org).</p>
+<p>Here’s the official website:</p>
+
+<p>But I recommend bunnie’s write-ups on his blog as an introduction:</p>
+<div>
+<ul>
+<li>
+<p><a href="https://www.bunniestudios.com/blog/2026/baochip-1x-a-mostly-open-22nm-soc-for-high-assurance-applications/">Baochip-1x: A Mostly-Open, 22nm SoC for High Assurance Applications</a> (bunniestudios.com)</p>
+</li>
+<li>
+<p><a href="https://www.bunniestudios.com/blog/2026/bio-the-bao-i-o-coprocessor/">BIO: The Bao I/O Coprocessor</a> (bunniestudios.com)</p>
+</li>
+</ul>
+</div>
+<p>What makes the Baochip1x special is that it is an SoC (system on chip) with:</p>
+<div>
+<ul>
+<li>
+<p>A RISC-V core</p>
+</li>
+<li>
+<p>An MMU (memory management unit, allows for hardware support of virtual memory, a feature normally reserved for "real" computers)</p>
+</li>
+<li>
+<p>I/O coprocessor (BIO)</p>
+</li>
+<li>
+<p>Hardware support for a bunch of security-focused features such as a TRNG (true random number generator), AES encryption, and a ton of cryptographic hashes</p>
+</li>
+<li>
+<p>It is intentionally inspectable with inexpensive infra-red cameras so you can visibly verify the structure of the chip yourself! (See <a href="https://www.bunniestudios.com/blog/2023/infra-red-in-situ-iris-inspection-of-silicon/">Infra-Red, In Situ (IRIS) Inspection of Silicon</a> (bunniestudios.com)</p>
+</li>
+</ul>
+</div>
+<p>It was made specifically to be able to run Xous, a microkernel OS written in Rust originally written for bunnie’s Precursor device. See
+<a href="https://www.crowdsupply.com/sutajio-kosagi/precursor/updates/xous-0-10-0-introducing-baochip-1x-support">Xous 0.10.0 - Introducing Baochip-1x Support</a> (crowdsupply.com).</p>
+
+<p>I’m mostly here because I think bunnie is great and I’m interested in RISC-V as a platform.</p>
+<p>(I’ve been a fan of bunnie since his
+<a href="https://www.bunniestudios.com/blog/on-microsd-problems/">On MicroSD Problems</a> (bunniestudios.com)
+investigation and write-up, but especially after I read his book <em>The Hardware Hacker: Adventures in Making and Breaking Hardware</em> in 2019.)</p>
+<div>
+<h2 id="_the_dabao_evaluation_board">The Dabao evaluation board</h2>
+<div>
+<p>My Dabao board with the Baochip1x arrived today from Crowd Supply.</p>
+<div>
+<p><img src="https://ratfactor.com/cards/images/baochip1.jpg" alt="Photo of the Dabao evaluation board"></p>
+</div>
+<p>Here’s a crummy image of the chip itself, so tiny and so shiny!:</p>
+<div>
+<p><img src="https://ratfactor.com/cards/images/baochip2.jpg" alt="Photo of Baochip itself on the board"></p>
+</div>
+<p>It’s shiny because there’s no package, that’s the actual silicon
+polished to a perfect mirror finish.</p>
+</div>
+</div>
+<div>
+<h2 id="_lets_connect_to_it">Let’s connect to it!</h2>
+<div>
+<p>I found this pair of READMEs in the Xous repo most helpful:</p>
+<div>
+<ul>
+<li>
+<p><a href="https://github.com/betrusted-io/xous-core/blob/dev/README-baochip.md">https://github.com/betrusted-io/xous-core/blob/dev/README-baochip.md</a></p>
+</li>
+</ul>
+</div>
+<div>
+<blockquote>
+<p>"Regardless of the board, the bao1x chip comes from the factory programmed
+with boot0 and boot1 stages. The code for these can be found in bao1x-boot/."</p>
+</blockquote>
+</div>
+<div>
+<blockquote>
+<p>"boot1 contains a USB driver, serial-over-USB driver, and serial driver capable of accepting code updates in the form of .u2f files or serial commands. It also contains a small command terminal for managing configurations, keys, and device lifecycle state."</p>
+</blockquote>
+</div>
+<div>
+<ul>
+<li>
+<p><a href="https://github.com/betrusted-io/xous-core/blob/dev/README-consoles.md">https://github.com/betrusted-io/xous-core/blob/dev/README-consoles.md</a></p>
+</li>
+</ul>
+</div>
+<div>
+<blockquote>
+<p>"Baochip relies primarily upon a "virtual serial console", which is a USB
+CDC-ACM device. In short, when you plug a Baochip into your computer, you will
+get something similar to either a COM port (on windows) or a tty node (on
+Linux)."</p>
+</blockquote>
+</div>
+<p>Sure enough, I plugged it into my Linux PC and there it is:</p>
+<div>
+<pre><code>$ sudo dmesg
+...
+[41412.220396] usb 3-4: Product: Baochip-1x
+[41412.220400] usb 3-4: Manufacturer: Baochip
+[41412.220404] usb 3-4: SerialNumber: YH1DTN
+[41412.307486] usb-storage 3-4:1.2: USB Mass Storage device detected
+[41412.307677] scsi host9: usb-storage 3-4:1.2
+[41412.307824] usbcore: registered new interface driver usb-storage
+[41412.308600] cdc_acm 3-4:1.0: ttyACM0: USB ACM device
+...</code></pre>
+</div>
+<p>Using GNU <code>screen</code> is how I’m used to speaking to serial devices and
+that’s what the README recommended as well. Depending on your distro’s
+setup, it may be easiest to simply run <code>screen</code> as root.</p>
+<p>Without root:</p>
+<div>
+<pre><code>$ screen /dev/ttyACM0 1000000
+[screen is terminating]</code></pre>
+</div>
+<p>With root:</p>
+<div>
+<pre><code>$ sudo screen /dev/ttyACM0 1000000
+(terminal goes blank - we're connected!)</code></pre>
+</div>
+<p>The boot1 REPL (which we can think of here as nothing more than a simple
+command-line interface) presents a completely blank terminal with no prompt.
+Hit Enter or trying typing a command and you’ll see a reply if everything’s
+working:</p>
+<div>
+<pre><code>Command not recognized:
+Commands include: altboot, audit, boot, boardtype, bootwait, echo, idmode, ifr, localecho, lockdown, paranoid, reset, self_destruct, skipping, uf2</code></pre>
+</div>
+<p>The easiest commmand to use is <code>echo</code>:</p>
+<div>
+<pre><code>echo Hello World!
+Hello World!</code></pre>
+</div>
+<p>Some of the others are mysterious or scary like <code>paranoid</code> or even <code>self_destruct</code>.</p>
+<p>Since the source for both boot stages are in the Xous repo, I cloned it and searched
+for the REPL commands. Sure enough, I found them in: <code>xous-core/bao1x-boot/boot1/src/repl.rs</code>.</p>
+<p>Here’s the <code>echo</code> command:</p>
+<div>
+<pre><code>"echo" =&gt; {
+    for word in args {
+        crate::print!("{} ", word);
+    }
+    crate::println!("");
+}</code></pre>
+</div>
+<p>And <code>self_destruct</code> is <em>not</em> a joke:</p>
+<div>
+<pre><code>"self_destruct" =&gt; {
+    if !matches!(args.as_slice(), [s] if s == "void_my_warrantee") {
+        return Err(Error::help(
+            "Usage: 'self_destruct void_my_warrantee'. This PERMANENTLY wipes the chip and bricks it. No returns or exchanges are allowed after executing this command.",
+        ));
+    }
+    let mut rram = bao1x_hal::rram::Reram::new();
+    unsafe { rram.self_destruct() }
+    // ... and all was null and void!
+}</code></pre>
+</div>
+<p>I didn’t see any easter eggs and <code>echo</code> is the only real command one would "play" with.</p>
+<p>Exit from the <code>screen</code> session with the screen prefix command <code>CTRL+A</code> followed by the <code>\</code> key.</p>
+</div>
+</div>
+<div>
+<h2 id="_where_to_go_from_here">Where to go from here?</h2>
+<div>
+<p>I’m just happy this thing exists and that I could talk with it right away. I think this is
+my first interactions with a computer running a RISC-V architecture?</p>
+<p>It looks like the Xous ecosystem is very well planned, with a focus on having a
+toolchain that doesn’t rely on a ton of fragile C tooling setup.
+I thought this was particularly insightful (from bunnie’s blog post about the BIO coprocessor linked above):</p>
+<div>
+<blockquote>
+<p>"…​one of the key benefits of the Xous ecosystem being pure Rust is that we don’t have to maintain any tooling. We’d like to keep it so that the only tool required to build a Xous image is stable Rust. The moment a C compiler is introduced into the build process, we have to wade through a hodge-podge of distribution-specific C toolchains, greatly increasing developer friction and maintenance burden."</p>
+</blockquote>
+</div>
+<p>As an aside, here’s an interesting tidbit for Zig fans:</p>
+<div>
+<blockquote>
+<p>"Our solution to this problem, at least for now, is to borrow the Zig ecosystem’s clang C
+compiler. …​ As a side-effect, this also paves an on-ramp for Zig developers to write BIO code."</p>
+</blockquote>
+</div>
+<p>But I really think it would be interesting to learn how to work within the Xous system as intended.</p>
+<p>Since the Dabao board has a "PROG" (Program) button, programming is as simple as holding down the
+button while connecting the USB-C cable to the PC. It shows up as a USB Mass Storage device:</p>
+<div>
+<p><img src="https://ratfactor.com/cards/images/baochip-drive.png" alt="Screenshot showing Baochip as a"></p>
+</div>
+<p>I should be able to just drag UF2 files (USB Flashing Format - a standard for
+packaging binary program images into 512 byte blocks so they can be written to
+memory via a virtual file system) to the Baochip to program it.</p>
+<p>So now I "just" need to re-learn enough Rust to blink an LED.</p>
+<p>After that, who knows? I’m in absolutely no hurry and I have a lot of other projects to complete first.</p>
+<p>Anyway, I’ll never stop being enchanted by by the fact that we have computers the size of a grain of rice
+that cost as much as a bag of rice. That’s <em>way</em> more interesting to me than the brute-force computing
+currently en vogue.</p>
+</div>
+</div>
+
+        
+    </article></div>

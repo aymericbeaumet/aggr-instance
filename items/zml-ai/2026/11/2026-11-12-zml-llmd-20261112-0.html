@@ -1,0 +1,120 @@
+<div id="readability-page-1" class="page"><div>
+        <p>Article</p>
+        
+        
+          <p>More drafts, faster prefill.</p>
+        
+        
+          <p><span>November 12, 2026</span>
+            
+            
+              <span>inference / serving / NVIDIA / AMD / Metal</span></p>
+        
+      </div><div>
+        <p>We are pleased to announce the release of <code>zml/llmd 20261112.0</code>. This week, we are bringing DSpine, more speculative
+decoding options, faster DeepSeek prefill, Apple M1 and M2 support, and more control over sampling.</p>
+<h2 id="dspine-speculative-decoding">DSpine speculative decoding</h2>
+<p>This release brings support for Tencent’s DSpine drafters:</p>
+<ul>
+<li><a href="https://huggingface.co/tencent/Qwen3.8-27B-DSpine-b16">Qwen3.8-27B-DSpine-b16</a>, paired with Qwen3.8-27B</li>
+<li><a href="https://huggingface.co/tencent/Qwen3-8B-DSpine-b16">Qwen3-8B-DSpine-b16</a>, paired with Qwen3-8B</li>
+</ul>
+<p>DSpine extends DFlash by passing information between adjacent draft positions as it refines its proposals.
+You can use it through the same <code>--speculative-drafter-model</code> flag:</p>
+<div><pre><code data-language="bash">llmd --model=hf://Qwen/Qwen3.8-27B \
+    --speculative-drafter-model=hf://tencent/Qwen3.8-27B-DSpine-b16 \
+    --batch-size=1
+</code></pre></div><h2 id="more-speculative-decoding-support">More speculative decoding support</h2>
+<p>Last week, we brought Ripple to zml/llmd. This week, Ripple gets support for DFlash, DFlash2, DSpark and DSpine
+through the shared speculative decoding implementation.</p>
+<p>We also added support for the <a href="https://huggingface.co/deepseek-ai/dspark_qwen3_4b_block7">DSpark Qwen3-4B block7 checkpoint family</a>,
+which we tested on GH200.</p>
+<p>We also added <code>--speculative-synthetic-acceptance-rates</code> for performance experiments. It lets you supply a
+comma-separated list of acceptance probabilities, one per draft position, with values between 0 and 1.
+For example, <code>--speculative-synthetic-acceptance-rates=0.95,0.85,0.65,0.35</code> works with four draft positions.
+This lets us measure how speculative decoding performs at different acceptance rates without depending on
+the particular prompt or drafter’s accuracy. It replaces normal draft verification with synthetic acceptance,
+so it is a benchmarking tool, not a setting for generating correct model output.</p>
+<h2 id="sampling-controls">Sampling controls</h2>
+<p>We now resolve sampling parameters for each sequence. Request parameters take priority over CLI settings,
+followed by model recommendations where available, and finally zml/llmd’s defaults.</p>
+<p>You can set <code>--temperature</code>, <code>--top-k</code>, <code>--top-p</code> and <code>--min-p</code> on the command line. Chat completion requests
+also accept <code>top_p</code>, alongside <code>temperature</code>, so individual requests can override those server settings.</p>
+<div><pre><code data-language="bash">llmd --model=hf://Qwen/Qwen3.8-27B \
+    --temperature=0.7 --top-k=40 --top-p=0.9 --min-p=0.05
+</code></pre></div><p>The resolved parameters travel with each sequence, including when requests with different sampling settings
+share a batch.</p>
+<h2 id="faster-deepseek-prefill">Faster DeepSeek prefill</h2>
+<p>The hill climb continues. DeepSeek-V4.1 now uses a fused MegaMoE kernel for supported CuTe MXFP4 configurations.
+It pipelines the expert computations and combines the routed and shared expert contributions inside the kernel.</p>
+<p>For compiled token batches above 1,024 tokens, we select it automatically. Smaller batches keep the existing
+CuTe path, which performed better at those sizes.</p>
+<p>Measured on 2×GB300, time to first token improved by roughly 12% on long prompts. The X axis shows
+prompt length in tokens; the Y axis shows time to first token in milliseconds:</p>
+<figure>
+  <figcaption>DeepSeek-V4.1 prefill TTFT, CuTe MXFP4, 2xGB300, less is better</figcaption>
+  <ul aria-label="Chart series">
+    
+      
+      <li>
+        
+        <span>Previous CuTe</span>
+      </li>
+    
+      
+      <li>
+        
+        <span>MegaMoE</span>
+      </li>
+    
+  </ul>
+  
+</figure>
+<h2 id="apple-m1-and-m2-support">Apple M1 and M2 support</h2>
+<p>Fixed a Metal attention kernel launch configuration that broke decode on M1 and M2.
+The paged attention kernel could launch up to 512 threads per threadgroup, while those GPUs accept at most 384.</p>
+<p>The kernel now uses at most 256 threads per threadgroup. We also split the work according to the GPU core count
+and the number of rows, so it can spread across the GPU without exceeding the threadgroup limit.</p>
+<p>Models with attention head dimensions of 32 and 64 now use the vector decode kernel as well.
+The fix addresses the M1/M2 launch limit.</p>
+<p>Expect slightly more performance in general.</p>
+<h2 id="under-the-hood">Under the hood</h2>
+<p>ZML now exposes <code>Exe.memoryStats()</code>, which returns the compiled executable’s memory statistics through PJRT.
+This gives us another way to inspect the memory requirements of a compiled model.</p>
+<p>We also made the mesh and input/output partitioning explicit at the shared MoE boundary, so sharding choices
+are supplied by the caller rather than inferred inside each backend.</p>
+<h2 id="fixes-and-improvements">Fixes and improvements</h2>
+<p>A few more fixes made it into this release:</p>
+<ul>
+<li>Tokenizer loading now includes missing added tokens from <code>tokenizer_config.json</code>.</li>
+<li>The text decode buffer is sized from the tokenizer, fixing cases with unusually long tokens in models such as
+Laguna, GLM 5.3 and Mistral Large 4.</li>
+<li>Corrected Llama’s memory requirements when asynchronous scheduling is enabled.</li>
+<li>Fixed a Llama crash when speculative decoding is disabled.</li>
+<li>Fixed the Triton MLA path and improved automatic inline attention backend selection.</li>
+<li>Metal now enables GPU memory preallocation in zml/llmd, matching the intended allocator configuration, fixing a bug
+where <code>--gpu-memory-fraction=0.5</code> was needed for get the right performance.</li>
+<li>Fixed slot indexing in the StableHLO paged attention backend for sequences that are not aligned to 16 tokens.</li>
+<li>ZML’s direct-memory writer now handles all input slices and repeated fill patterns correctly, including a case
+where a partially written fill could loop indefinitely.</li>
+</ul>
+<h2 id="try-it-today">Try it today</h2>
+<p><strong>NVIDIA</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --shm-size=256GB --gpus=all -e HF_TOKEN -it zmlai/llmd:cuda \
+    --model=hf://Qwen/Qwen3.8-27B \
+    --speculative-drafter-model=hf://tencent/Qwen3.8-27B-DSpine-b16 --batch-size=1
+</code></pre></div><p><strong>AMD</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --shm-size=256GB --device=/dev/kfd --device=/dev/dri -e HF_TOKEN -it zmlai/llmd:rocm \
+    --model=hf://Qwen/Qwen3.8-27B \
+    --speculative-drafter-model=hf://tencent/Qwen3.8-27B-DSpine-b16 --batch-size=1
+</code></pre></div><p><strong>Intel</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --device=/dev/dri -e HF_TOKEN -it zmlai/llmd:oneapi \
+    --model=hf://Qwen/Qwen3.8-27B
+</code></pre></div><p><strong>Google TPU</strong></p>
+<div><pre><code data-language="bash">docker run --net=host --privileged -e HF_TOKEN -it zmlai/llmd:tpu \
+    --model=hf://Qwen/Qwen3.8-27B
+</code></pre></div><p><strong>Apple Metal</strong></p>
+<div><pre><code data-language="bash">brew install zml/zml/llmd
+llmd --model=hf://Qwen/Qwen3.8-27B-FP8 --batch-size=1
+</code></pre></div>
+      </div></div>
