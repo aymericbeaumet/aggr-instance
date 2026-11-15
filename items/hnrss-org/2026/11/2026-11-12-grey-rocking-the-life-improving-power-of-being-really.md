@@ -1,0 +1,40 @@
+---
+title: '''Grey Rocking'': The Life-Improving Power of Being Really, Really Boring (2021)'
+link: https://www.esquire.com/uk/life/a38473153/grey-rock-technique-being-boring/
+source: hnrss-org
+published: 2026-11-12T18:28:06Z
+updated: 2026-11-12T18:28:06Z
+first_seen: 2026-11-15T07:05:25.029264630Z
+authors:
+- NaOH
+content: extracted
+html: 2026-11-12-grey-rocking-the-life-improving-power-of-being-really.html
+remote_preview:
+  url: https://hips.hearstapps.com/hmg-prod/images/gettyimages-164924203a-1639658133.png?crop=1.00xw:0.503xh;0,0.399xh&resize=1200:*
+---
+
+When you first learn about grey rocking, you will feel like you have been granted a superpower. I’m not given to hyperbole, but I can only compare the impact it had to the moment I discovered the mute function on Twitter. I’ll earn nothing in commission from this claim, but I’m confident that the following 900 or so words could change your life.
+
+To give its formal title, it’s the grey rock technique. That name was coined in 2012 by an American mental-health blogger called Skylar. She had not long ended a 25-year relationship with a man she came to identify as a psychopath and malignant narcissist. (This is why she wrote under a pseudonym: her ex-partner had emptied out their bank accounts and taken out life insurance policies on her that named him as the beneficiary. Skylar had begun to fear that he “wanted me dead”.)
+
+In a sushi bar, a stranger — “a tall, athletic man” — sat next to her and Skylar downloaded onto him the story of her dysfunctional coupling with the man, who continued to stalk her and make threatening calls. The stranger listened and offered some simple advice: “Be boring.” He, too, had been in a car-crash relationship, his with a woman prone to getting drunk and abusive. He couldn’t see a way out. But then he realised that what his girlfriend craved was drama. If he could eliminate that, she would lose interest and move on. And that’s exactly what happened.
+
+Skylar quickly recognised the power and potential of the strategy. “You don’t just practise grey rock, you *become* a grey rock,” she explained in a blog post. “There are grey rocks and pebbles everywhere you go, but you never notice them. None of them attract your attention. You don’t remember any specific rock you saw today because they blend with the scenery. That is the type of boring that you want to channel when you are dealing with a psychopath.”
+
+Grey rocking hit a nerve: the initial article has had hundreds of giddy, grateful responses written underneath it. Skylar speculated that the technique would be especially effective if a person was being stalked by an ex-partner and didn’t want to rile them, or in cases where you have no choice but to maintain a relationship with someone — perhaps you share child custody — but they tend to push your buttons. She also pointed out that the methodology would work equally successfully with any among the following: “malignant narcissists, psychopaths, sociopaths, borderlines, drama queens, stalkers and other emotional vampires”.
+
+That category of “malignant narcissists, psychopaths, sociopaths, borderlines, drama queens, stalkers and other emotional vampires” is a bit unwieldy. You might prefer to use, say, “my family” or “my co-workers”. Because while there are some very serious applications of grey rocking, there are plenty of more quotidian applications for it.
+
+Chief among these is the multi-generational family WhatsApp group. In my day to day, I am a writer who has won awards (just don’t ask which ones, or how long ago), with a mortgage and many house plants, some of which are not dead. To my family, though, I am forever nine years old, obsessed with reading *Wisden* and yet cruelly terrible at actually playing cricket, who once — *once!* — threw up on the dog during a long, hot car journey.
+
+Enter grey rocking. Old me would respond to these taunts about my youthful peccadilloes with knee-jerk retaliation. Fortunately, my brother was obsessed with John Taylor, the Duran Duran bass guitarist, and has many photographs of himself wearing leather trousers to prove it, so there’s no shortage of ammo. But, armed with advice from Skylar, I know this back-and-forth badinage is exactly what your antagonists crave.
+
+“When contact with you is *consistently* unsatisfying for the psychopath, his mind is retrained to expect boredom rather than drama,” she wrote. “Psychopaths are addicted to drama and they can’t stand to be bored. With time, he will find a new person to provide drama and he will find himself drawn to you less and less often. Eventually, they just slither away to greener pastures.”
+
+According to Skylar, the more soul-crushingly boring you are the better. And over time, on the WhatsApp, I came to relish the mundanity of my responses. I cast myself as Mike Atherton staring down the South African fast bowler Allan Donald at Trent Bridge in 1998. On that day, the angrier and swearier that Donald became, the more infuriatingly tight-lipped Atherton remained. Donald would send down bouncers, bruising rib-ticklers and volleys of abuse. And in return? Nothing. Just a knowing, choirboy smile from Atherton. Classic grey rocking in action.
+
+The grey rock technique really works. And it’s up to you how far you take it. If your problems are more serious than the family WhatsApp, Skylar recommends that you turn your life into performance art for being boring. If you drive a flashy car, swap it for a banger. If you are attractive, consider using make-up to present yourself as less so. Psychopaths and narcissists are obsessed with the shiny and sparkly: do whatever it takes to make them lose interest.
+
+But the effectiveness of grey rocking is also one of its pitfalls. Initially, at least for me, there was jubilation at how it seemed, overnight, to simplify my life. Perennial arguments were defused. Decades-old frustrations disappeared. What replaces these interactions is less clear. If you are trying to rid yourself of the attention of an emotional vampire, that’s one thing. But with your family — who, when push comes to shove, you ultimately quite like — it can start to feel like the nuclear option, like clipping your toenails with a chainsaw.
+
+Another issue with grey rocking is that it requires monastic diligence. Never breaking character. The default responses of the grey rocker are “Maybe” and the ultimate buzz-kill, “I don’t know”. Again and again. But after a while of telling people that you don’t know, you start to wonder what you actually *do* know. Do you have any opinions of your own? Are you capable of actually being stimulating, entertaining company anymore? So these days I prefer to use grey rocking more strategically. But make no mistake, I’m always glad I can call upon it. And if not, there’s always that photo of my brother with the perm.
