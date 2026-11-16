@@ -1,0 +1,102 @@
+<div id="readability-page-1" class="page"><div>
+						
+<p>This post is an attempt to explain in simple terms how to interpret claims of the form “this theorem is correct because it was checked in Lean”. The summary is: there is an important signal that can be extracted from Lean code, but if this code is AI-generated then you need to do some tests first. We explain the tests, and note that in many cases (such as the OpenAI theorem dump) these tests have not yet been systematically done.</p>
+
+
+
+<h2>Introduction</h2>
+
+
+
+<p>Last month’s <a href="https://github.com/openai/math">theorem dump by OpenAI</a> consisted of 722 mathematics papers, around 45% of which came with some Lean code. Three of the (non-Leanified) papers have since been retracted because of a sign error. Some people might say “well, the papers that come with Lean code are definitely correct because that’s how Lean works”. Others might say “well Lean had a <a href="https://leodemoura.github.io/blog/2026-8-1-postmortem-for-kernel-soundness-bug-14576/" target="_blank" rel="noopener">soundness bug</a> and could well have more, and AIs will reward hack, so Lean verification doesn’t tell us much at all”. The truth, unsurprisingly, is more subtle, and this post is an attempt to explain it.</p>
+
+
+
+<p>This post is structured as a sequence of four questions that one needs to ask about a Lean repository, particularly if it is AI-generated, before one can start to make correctness claims of this form. And before I start, let me stress that for many of the papers in the OpenAI theorem dump, these questions have not yet all been answered affirmatively (but there is nothing stopping people from answering these questions, and I have no reason to believe that any of the tests below will fail, it’s just that people didn’t do them yet).</p>
+
+
+
+<h2>Question 1. Does the Lean statement match the informal statement?</h2>
+
+
+
+<p>A Lean repository will typically have a “headline theorem statement”. This will be some computer code which defines the <em>statement</em> (not the proof!) of a theorem. Note the huge difference here between the statement, and the proof. For example here is some fully-compiling Lean code which defines a mathematical statement.</p>
+
+
+
+
+
+<p>This code imports Lean’s mathematics library <code>Mathlib</code> and then defines a mathematical statement which looks at first glance like it might be Fermat’s Last Theorem, but which actually is a trivially false statement because in Lean <code>ℕ</code> contains <code>0</code>, so <code>a = b = c = 0</code> and <code>n = 3</code> gives a counterexample. This does not stop the statement from compiling! It will however stop any <em>proof</em> of this statement from compiling. Lean carefully distinguishes between the statement of a theorem and the proof of a theorem; humans are very good at referring to both ideas as “a theorem”.</p>
+
+
+
+<p>The first question which one has to ask when judging a pdf which comes with some Lean code is: “what is the <em>statement</em> of the theorem in the Lean code, and does this correspond to the actual theorem statement in the pdf?” For a human Lean expert, this is typically (but not always) an easy question to answer. For example any Lean-competent human mathematician would be able to read the two lines of code above and observe that this was a mis-statement of Fermat’s Last Theorem.</p>
+
+
+
+<p>Things are, however, not always as easy as this. Currently, because of deficiencies in available libraries, one may have to read many thousands of lines of code just to understand the <em>statement</em> of a formalised theorem. An example of this right now is a <a href="https://github.com/google-deepmind/formal-conjectures/pull/5538">PR to DeepMind’s Formal Conjectures repository</a> containing a Lean formalisation of the statement of the Hodge conjecture. At the time of writing, the statement relies on over 10,000 lines of code sitting on top of <code>Mathlib</code>, because <code>Mathlib</code> (which is carefully human-expert-checked and which can be trusted) does not yet have the definitions of things like the cycle class map needed to make the statement. Another example is <a href="https://axiommath.ai/research/the-enormous-theorem-formalized/">Axiom’s recent announcement of a formally-verified proof of the classification of finite simple groups</a>. The statement which Axiom’s system proved is <a href="https://github.com/TauCetiProject/TauCeti/blob/ff97e2dafb29b508b1229a5a7acbbca81ebcf3a1/TauCeti/GroupTheory/SpecificGroups/CFSG/Classification.lean#L52-L56" target="_blank" rel="noopener">here</a> in Tau Ceti, an AI-generated library of Lean code. The file containing the statement imports over 250K lines of Lean code in Tau Ceti (over 900 files). Of these, around 5600 lines of code are crucial because they contain all the relevant definitions (for example, all the definitions of the sporadic simple groups, most of which are still not in <code>Mathlib</code>). Without human checking, one does not really know for sure that this is definitely the correct statement of the classification (and note that I have not yet met any human who claims to have carefully checked that the definitions of the sporadic groups in Tau Ceti are correct). In fact by far the strongest evidence that we have that this statement is correctly formalized is that Axiom’s code proves it!</p>
+
+
+
+<p>It is worth noting that of the 290 OpenAI theorems which come with Lean code, around 38 of them have the property that the Lean code <strong>does not even state, let alone prove, the main theorem of the paper</strong>. And OpenAI never claimed that it did! They just said “here is some Lean code which goes with this paper”. Sometimes the code just states and proves some intermediate results — my impression is that OpenAI decided to go live when some of the formalizations were incomplete, so just dumped what they had. To give a concrete example: <a href="https://www.emergentmind.com/openai-math-explorer/results/194">paper 194</a> claims to prove Lech’s multiplicity conjecture in commutative algebra, with no restriction on dimension, residue field or characteristic; this question has been open since 1960. The headline theorem in <a href="https://github.com/openai/math/blob/main/lean/ComparatorChallenges/DuttaDomain.lean">the corresponding Lean code</a> can be checked to be Corollary 5.4 of the paper — already an impressive achievement, but not the headline result.</p>
+
+
+
+<h2>Question 2: does the code compile?</h2>
+
+
+
+<p>Once you’re convinced that you understand the statement of the theorem which the Lean code purports to prove, you (or perhaps one of your friends who has access to a beefy machine, if the code base is huge) has to actually compile the code.</p>
+
+
+
+<p>When Anthropic <a href="https://www.anthropic.com/research/formalizing-fermats-last-theorem">formalized a proof of Fermat’s Last Theorem in Lean</a>, they asked me to take a look at the 13 million lines of code which they had generated. I downloaded it onto my machine, dumped it into a sandbox (because who knows what AI-generated code will do, it can in theory delete all your files) and attempted to compile it; I very quickly ran out of memory. I told Anthropic that I was unable to make any claims about what they had done until I could see the code base compiling, and they gave me temporary access to a machine with 96 cores and 500 gigs of ram. I could then compile the code.</p>
+
+
+
+<p>Of course, with a more reasonably-sized codebase it is possible to compile the code on a reasonably-sized machine. For example OpenAI’s resolution of the Navier-Stokes problem is 640K lines of code and compiles fine on my laptop.</p>
+
+
+
+<p>It is probably worth stressing again: do not run random Lean code on your local machine unless you sandbox it first. Lean’s mathematics library is safe to run and build upon because this is human-curated and checked by human experts. AI-generated code is not.</p>
+
+
+
+<h2>Question 3: does the code prove the theorem as stated?</h2>
+
+
+
+<p>I already talked in Question 1 about the importance of checking the statement of a theorem, so we can be sure that the code is proving the right thing. However, there is an added complication here. Ideally the <em>statement</em> of a theorem will be contained in a file which has very few imports beyond <code>Mathlib</code>, so we know we can trust it. But the <em>proof</em> of the theorem will necessarily import thousands and possibly millions of lines of code which nobody wants to read. How do we know for sure that there is no trick hidden in the millions of lines of proof files which <em>redefines</em> <code>x^n</code> to mean <code>37</code>, and then proves that <code>a^n + b^n ≠ c^n</code> because the left hand side is <code>37+37=74</code> and the right hand side is <code>37</code>? Or which adds a new axiom to mathematics saying that the theorem is true? Put another way — given a <code>Challenge.lean</code> file with only trusted code imported and the statement of a theorem, and a <code>Solution.lean</code> file with millions of lines of untrusted code imported and the proof of a theorem which <em>looks identical</em>, how do we know for sure that somewhere in the millions of lines of code there is no hack which changes the <em>meaning</em> of the statement, changes the rules from just the axioms of mathematics,  </p>
+
+
+
+<p>The one-line answer: <code>lake comparator</code>. You can read more about this answer <a href="https://lean-lang.org/doc/reference/latest/ValidatingProofs/#validating-comparator" target="_blank" rel="noopener">here</a>. But in short, this tool checks that the theorem stated in a trusted file and the theorem proved via untrusted imports are identical, and that only the axioms of mathematics are used in the proof.</p>
+
+
+
+<h2>Question 4: does the code exploit a bug in Lean’s official kernel?</h2>
+
+
+
+<p>This can happen. There was a soundness bug in Lean’s kernel which was fixed four hours after it was discovered, and a subsequent review of Lean’s code base by OpenAI found several more, all of which were fixed before they were announced publicly. There may in theory be more soundness bugs in Lean’s kernel. However, <em>this does not matter</em>.</p>
+
+
+
+<p>Why not? Because Lean now has many kernels, created by users, written in many different languages, and at least one of which is formally verified to have no bugs, right down to the assembly level. If you want to make absolutely sure that there is no reward-hacking then again there is a one-line answer: <code>lake comparator --paranoid</code>. A malicious piece of code exploiting an as-yet-undiscovered bug in Lean’s official kernel will not pass this test unless it exploits as-yet-undiscovered bugs in many independent systems all at once. For example <a href="https://arena.lean-lang.org/test/navier-stokes-euler/">this webpage</a> from the Lean kernel arena demonstrates that OpenAI’s resolution of the Navier–Stokes problem is accepted by multiple kernels as well as Lean’s official kernel.</p>
+
+
+
+<h2>One final remark</h2>
+
+
+
+<p>Even if the Lean code compiles and passes all these tests, and is thus overwhelmingly likely to be a correct proof of a theorem, this does not mean that any corresponding pdf also contains a correct proof! The <a href="https://arxiv.org/abs/2610.08144">Navier–Stokes lost in translation paper</a> demonstrates the opposite in fact, for the Navier-Stokes write-up; whilst all the tests above have been run for the Navier–Stokes work, there are instances where the pdf proof and the Lean proof diverge. In these cases, who knows if the pdf proof is OK! My understanding is that some experts have been using AI to informalise the Lean proof back into English in order to read the argument, rather than ploughing through the slop in the pdf. </p>
+
+
+
+<h2>Summary/conclusions</h2>
+
+
+
+<p>“It’s true because it’s checked in Lean” can be made to make sense. But one has to do some work beyond “the Lean code compiles”. Your frontier AI model can do all of this work. But it needs to be done, and (depending on the amount of Lean code in the proof) it may be computationally costly.</p>
+											</div></div>

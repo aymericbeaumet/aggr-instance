@@ -1,0 +1,143 @@
+<div id="readability-page-1" class="page"><div><p>Last week we shipped 7 launches across models, agent infrastructure, benchmarks, and science: two Gemini 4 models, our first Decision Model &amp; API, self-hosted agent sandboxes, a new visual knowledge benchmark, and new robotics and genomics models.</p>
+<h2 id="1-gemini-4-carbon">1. Gemini 4 Carbon</h2>
+<p><a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/whats-new-gemini-4-carbon?e=0">Gemini 4 Carbon</a>, available as <code>gemini-4-carbon</code>, is our strongest reasoning model for repository-scale engineering, formal proofs, and cybersecurity defense.</p>
+<ul>
+<li>Shared 1M-token pool across input, thinking, and output, with <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/long-decode">long decode</a> chaining 64K hops via <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/background-execution">background execution</a>.</li>
+<li>Tunable low, medium, and high <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/thinking">thinking levels</a>; <code>temperature</code>, <code>top_p</code>, and <code>top_k</code> are ignored.</li>
+<li>Automatic <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/caching">implicit caching</a> from 4,096 tokens at a 95% discount, retiring <code>cachedContents</code>.</li>
+<li>Introductory <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/pricing#gemini-4-carbon">pricing</a> at $2.00 input and $10.00 output per 1M tokens through November 30, then $4.00 and $20.00 starting December 1; see the <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/models/gemini-4-carbon">model card</a> and <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/learn/gemini-4-carbon-developer-guide">Carbon developer guide</a>.</li>
+</ul>
+<figure data-rehype-pretty-code-figure=""><div><p><span>TypeScript</span></p><pre><code data-language="typescript">import { GoogleGenAI } from "@google/genai";
+ 
+const client = new GoogleGenAI({});
+ 
+const interaction = await client.interactions.create({
+  model: "gemini-4-carbon",
+  input: "Find lock-ordering deadlocks in a two-phase commit coordinator and sketch a lock-free alternative.",
+  generation_config: {
+    thinking_level: "medium",
+  },
+});
+ 
+console.log(interaction.output_text);</code></pre></div></figure>
+<h2 id="2-gemini-4-hydrogen">2. Gemini 4 Hydrogen</h2>
+<p><a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/whats-new-gemini-4-hydrogen?e=0">Gemini 4 Hydrogen</a>, available as <code>gemini-4-hydrogen</code>, is our <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/whats-new-gemini-4-hydrogen?e=0#migrate-from-gemini-3-8-flash">recommended upgrade from Gemini 3.8 Flash</a> for everyday coding and fast agentic workflows.</p>
+<ul>
+<li>Priced at a flat $1.50 input and $7.50 output per 1M tokens across the 1M-token window; see the <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/models/gemini-4-hydrogen">model card</a> and <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/rate-limits">rate limits</a>.</li>
+<li>Flags missing context when data is absent, batches parallel read and search tool calls, and inspects individual frames during <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/video-understanding#agentic-video-understanding">agentic video understanding</a>.</li>
+<li>Defaults to the <code>high</code> <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/thinking#understanding-thinking-levels">thinking level</a>, adds <code>xhigh</code> for multi-step coding problems, and rejects the legacy <code>minimal</code> setting.</li>
+<li>Powers our default <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/antigravity-agent">Antigravity agent</a> in Gemini Managed Agents.</li>
+</ul>
+<figure data-rehype-pretty-code-figure=""><div><p><span>TypeScript</span></p><pre><code data-language="typescript">import { GoogleGenAI } from "@google/genai";
+ 
+const client = new GoogleGenAI({});
+ 
+const interaction = await client.interactions.create({
+  model: "gemini-4-hydrogen",
+  input: "Write a TypeScript token-bucket rate limiter that avoids floating-point burst-boundary drift.",
+  generation_config: {
+    thinking_level: "xhigh",
+  },
+});
+ 
+console.log(interaction.output_text);</code></pre></div></figure>
+<h2 id="3-choosing-your-model">3. Choosing your model</h2>
+<p>Hydrogen and Carbon share the same 1M unified context window, long decode architecture, and <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/interactions-overview">Interactions API</a> schema. <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/whats-new-gemini-4-hydrogen?e=0#choosing-between-models">Pick the model</a> that matches your reasoning depth, latency, and cost target:</p>
+<ul>
+<li>Gemini 4 Hydrogen: everyday coding, interactive apps, tool-using agents, and parallel subagents.</li>
+<li>Gemini 4 Carbon: hard architecture design, debugging, scientific proofs, and security audits.</li>
+</ul>
+<p>You can also pair Carbon and Hydrogen. Use Carbon to plan and orchestrate and Hydrogen to execute.</p>
+<p><img src="https://www.philschmid.de/static/blog/google-deepmind-roundup-nov-2026/gemini-4-orchestrator.png" alt="Choosing your Gemini 4 model"><img src="https://www.philschmid.de/static/blog/google-deepmind-roundup-nov-2026/gemini-4-orchestrator-dark.png" alt=""></p><h2 id="4-gemini-decisions-api">4. Gemini Decisions API</h2>
+<p>The <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/decisions-api?e=0">Gemini Decisions API</a>, powered by <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/models/gemini-decision-1">Gemini Decision 1</a>, evaluates text, images, video, <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/decisions-api?e=0#documents">PDFs</a>, or <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/decisions-api?e=0#audio">audio</a> across up to 256K tokens against up to 1,000 isolated questions with 0 output tokens billed.</p>
+<p><img src="https://www.philschmid.de/static/blog/google-deepmind-roundup-nov-2026/decisions-architecture.png" alt="Gemini Decisions API multimodal scoring architecture"><img src="https://www.philschmid.de/static/blog/google-deepmind-roundup-nov-2026/decisions-architecture-dark.png" alt=""></p><p>Three <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/decisions-api?e=0#question-types">question types</a> return calibrated probabilities and a confidence score: <code>noul</code> for binary yes/no checks, <code>choice</code> across 2 to 255 discrete keys, and <code>score</code> for ordered rubrics. Pass media via base64, HTTPS URLs, or the <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/files">Files API</a>, and test rubrics in the <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/apps/f6cbef57-8bad-443a-813f-4d4c8f9750af?fullscreenApplet=true">Gemini Decisions Playground</a>. Here's a runnable check over our sample WAV file:</p>
+<figure data-rehype-pretty-code-figure=""><div><p><span>TypeScript</span></p><pre><code data-language="typescript">import { GoogleGenAI } from "@google/genai";
+ 
+const ai = new GoogleGenAI({ apiVersion: "v1beta" });
+ 
+const result = await ai.decisions.create({
+  model: "gemini-decision-1",
+  input: [
+    {
+      type: "audio",
+      uri: "https://storage.googleapis.com/generativeai-downloads/audio/rehearsing.wav",
+      mime_type: "audio/wav",
+    },
+  ],
+  questions: {
+    mentions_launch: {
+      type: "noul",
+      instructions: "Is the speaker talking about a product campaign launch?",
+    },
+    delivery: {
+      type: "score",
+      instructions: "How fluent and prepared does the speaker sound?",
+      criteria: [
+        "Hesitant, searching for notes, or self-correcting.",
+        "Mostly steady with minor pauses.",
+        "Polished, fluent, and confident throughout.",
+      ],
+    },
+  },
+});
+ 
+const launch = result.answers?.mentions_launch;
+const delivery = result.answers?.delivery;
+if (launch?.type === "noul" &amp;&amp; delivery?.type === "score") {
+  console.log({ pLaunch: launch.noul, deliveryScore: delivery.score });
+}</code></pre></div></figure>
+<h2 id="5-bring-your-own-sandbox-for-managed-agents">5. Bring your own sandbox for managed agents</h2>
+<p><a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/agents">Gemini Managed Agents</a> now supports <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/agent-environment?e=0#self-hosted-environments">self-hosted environments</a>. We run model inference and the agent loop on Google infrastructure while bash commands and file edits execute inside your compute.</p>
+<p><img src="https://www.philschmid.de/static/blog/google-deepmind-roundup-nov-2026/self-hosted-sandbox.png" alt="Self-hosted environments for managed agents"><img src="https://www.philschmid.de/static/blog/google-deepmind-roundup-nov-2026/self-hosted-sandbox-dark.png" alt=""></p><p>Your worker connects over outbound HTTPS with a scoped key and zero inbound firewall ports. In production, you can deploy across Modal, E2B, Cloudflare, Daytona, <a target="_blank" rel="noopener noreferrer" href="https://fly.io/">Fly.io</a>, Vercel, or Cloud Run using our <a target="_blank" rel="noopener noreferrer" href="https://github.com/google-gemini/gemini-api-cli/tree/main/docs/self-hosted">self-hosted provider manifests</a>.</p>
+<p>To test it end to end on your own machine, install our open-source <a target="_blank" rel="noopener noreferrer" href="https://github.com/google-gemini/gemini-api-cli">gemini-api CLI</a> from the <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/cli">CLI guide</a> and run this single script. It creates a self-hosted environment via REST, spawns a local worker confined to <code>./sandbox</code>, runs the managed agent locally, and cleans up the environment when finished. Local mode executes bash directly on your host unless you run inside a container or pass <code>--disable-bash</code>:</p>
+<figure data-rehype-pretty-code-figure=""><div><p><span>TypeScript</span></p><pre><code data-language="typescript">import { spawn } from "node:child_process";
+import { mkdirSync } from "node:fs";
+import { GoogleGenAI } from "@google/genai";
+ 
+const client = new GoogleGenAI({ httpOptions: { apiVersion: "v1beta" } });
+mkdirSync("./sandbox", { recursive: true });
+ 
+const res = await fetch("https://generativelanguage.googleapis.com/v1beta/environments", {
+  method: "POST",
+  headers: { "x-goog-api-key": process.env.GEMINI_API_KEY!, "Content-Type": "application/json" },
+  body: JSON.stringify({ mode: "self_hosted" }),
+});
+const { id, environment_key } = (await res.json()) as { id: string; environment_key: string };
+ 
+const worker = spawn("gemini-api", [
+  "environments", "connect", "--environment-key", environment_key,
+  "--root-dir", "./sandbox", "--workdir", "./sandbox", "--worker-id", "local-sandbox",
+], { stdio: ["ignore", "inherit", "inherit"] });
+ 
+try {
+  const run = await client.interactions.create({
+    agent: "antigravity-preview-09-2026",
+    input: "Write a fib.ts script that prints 8 Fibonacci numbers, run it with bun, and return the output.",
+    environment: id,
+  }, { timeout: 300000 });
+  console.log(run.output_text);
+} finally {
+  worker.kill();
+  await client.environments.delete(id);
+}</code></pre></div></figure>
+<p>Running the script prints the local worker logs alongside the agent output:</p>
+<figure data-rehype-pretty-code-figure=""><div><p><span>Bash</span></p><pre><code data-language="bash">$ bun run sandbox.ts
+2026/11/16 13:40:30 Worker local-sandbox polling (maxConcurrent=4)
+2026/11/16 13:40:30 [v1_Chd5d2Y3...] Claimed interaction lease (env=f5621577-89ef-4698-999f-b139b9121d00)
+2026/11/16 13:40:31 [v1_Chd5d2Y3...] Executing tool execute_bash
+2026/11/16 13:40:35 [v1_Chd5d2Y3...] Executing tool write_to_file
+2026/11/16 13:40:38 [v1_Chd5d2Y3...] Executing tool execute_bash
+2026/11/16 13:40:54 [v1_Chd5d2Y3...] Completed interaction session
+Created fib.ts and ran it with bun fib.ts: 0 1 1 2 3 5 8 13</code></pre></div></figure>
+<h2 id="6-multimodal-knowledge-agent-benchmark">6. Multimodal Knowledge Agent benchmark</h2>
+<p>We partnered with Artificial Analysis to release the <a target="_blank" rel="noopener noreferrer" href="https://blog.google/innovation-and-ai/models-and-research/gemini-models/multimodal-knowledge-agent-benchmark/">Multimodal Knowledge Agent benchmark</a>, evaluating 200 multi-step tasks across 10 verticals built around load-bearing visuals: CAD blueprints, RF schematics, GIS maps, gel plates, and charts. We published 10 sample tasks on <a target="_blank" rel="noopener noreferrer" href="https://huggingface.co/datasets/google/multimodal-knowledge-agent">Hugging Face</a>.</p>
+<p><img src="https://www.philschmid.de/static/blog/google-deepmind-roundup-nov-2026/mka-results.webp" alt="Multimodal Knowledge Agent benchmark quality and cost comparison"></p>
+<h2 id="7-beyond-the-api-gemini-robotics-25-and-alphagenome-2">7. Beyond the API: Gemini Robotics 2.5 and AlphaGenome 2</h2>
+<p>We also shipped two domain models:</p>
+<ul>
+<li><a target="_blank" rel="noopener noreferrer" href="https://deepmind.google/blog/gemini-robotics-2-5-accelerates-real-world-physical-intelligence/">Gemini Robotics 2.5</a>: our whole-body <a target="_blank" rel="noopener noreferrer" href="https://deepmind.google/models/gemini-robotics/vla/">Vision-Language-Action model</a> across arms and humanoids. On live Mercedes-Benz assembly lines, Apptronik's Apollo 2 humanoid sorted and kitted metal brackets at a 96% success rate.</li>
+<li><a target="_blank" rel="noopener noreferrer" href="https://deepmind.google/blog/alphagenome-2-deciphering-how-cells-read-dna-to-better-understand-disease/">AlphaGenome 2</a>: our single-cell DNA model trained on 107M+ cell profiles across 68 tissues. Researchers can pass scRNA-seq profiles without retraining via the <a target="_blank" rel="noopener noreferrer" href="https://deepmind.google/science/alphagenome/">AlphaGenome API</a> for non-commercial research to predict cell-type-specific variant effects.</li>
+</ul>
+<h2 id="start-building-with-cloud-credits">Start building with Cloud credits</h2>
+<p>We added <a target="_blank" rel="noopener noreferrer" href="https://blog.google/innovation-and-ai/technology/developers-tools/google-cloud-credits-gdp-ai-studio/">Google Developer Program Cloud credit claiming</a> directly into Google AI Studio. Google AI Pro and Ultra subscribers can now <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/learn/claim-google-ai-plan-credits-in-ai-studio">claim and track their monthly Cloud credits in AI Studio</a> alongside <a target="_blank" rel="noopener noreferrer" href="https://aistudio.google.com/docs/billing">API billing</a> to offset Gemini 4, Gemini Decisions API, and agent usage.</p>
+<p>Start building today or leave feedback below!</p></div></div>

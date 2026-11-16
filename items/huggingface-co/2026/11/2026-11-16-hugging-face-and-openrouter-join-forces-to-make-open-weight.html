@@ -1,0 +1,116 @@
+<div id="readability-page-1" class="page"><div> 
+<p>Hugging Face and OpenRouter are teaming up to make open-weight models easy to run. Every major open-weight release is already being published on the Hugging Face Hub, and <a href="https://openrouter.ai" rel="nofollow">OpenRouter</a> serves those models at scale, routing each request across 80+ providers based on live measurements of each one. Together, every open-weight model on the Hub that a provider serves can be called with your Hugging Face token, through the same API, with the best provider picked for each request.</p>
+<p>Today, we are switching <a href="https://huggingface.co/docs/inference-providers">Inference Providers</a> from our own custom router to OpenRouter's. Requests made to language models now go through OpenRouter, which picks the best provider for each call based on live price, speed and reliability, and retries on another provider if the first one fails. Your code stays the same.</p>
+<h2>
+	<a id="run-them-with-the-tools-you-already-use" href="#run-them-with-the-tools-you-already-use" rel="nofollow">
+		
+	</a>
+	<span>
+		Run them with the tools you already use
+	</span>
+</h2>
+<p>The router supports OpenAI's Chat Completions and Responses APIs and Anthropic's Messages API for every chat model, whatever the provider behind it. Pick your coding agent or SDK and a model, then copy the steps, or copy the whole setup as a prompt for your agent:</p>
+
+
+<p>Setup guides for <a href="https://huggingface.co/docs/inference-providers/integrations/claude-code">Claude Code</a>, <a href="https://huggingface.co/docs/inference-providers/integrations/codex">Codex</a>, <a href="https://huggingface.co/docs/inference-providers/integrations/opencode">OpenCode</a>, <a href="https://huggingface.co/docs/inference-providers/integrations/pi">Pi</a> and <a href="https://huggingface.co/docs/inference-providers/integrations/hermes-agent">Hermes Agent</a></p>
+<p>The same Hugging Face token also gives you storage with <a href="https://huggingface.co/storage">Storage Buckets</a>, compute with <a href="https://huggingface.co/docs/hub/jobs-overview">Jobs</a> and dedicated inference with <a href="https://huggingface.co/docs/inference-endpoints">Inference Endpoints</a>. PRO, Team and Enterprise plans include monthly credits for compute and inference.</p>
+<h2>
+	<a id="how-open-weight-models-are-used" href="#how-open-weight-models-are-used" rel="nofollow">
+		
+	</a>
+	<span>
+		How open-weight models are used
+	</span>
+</h2>
+<p>On OpenRouter, open-weight models went from 26.8% of the tokens served in October 2025 to 71.7% at the end of September 2026, after peaking at 77.5% in July (<a href="https://openrouter.ai/blog/insights/open-weight-vs-closed-weight-models/" rel="nofollow">OpenRouter, October 2026</a>). Over the same period, weekly open-weight volume grew more than 60-fold, against almost tenfold for closed models. This week, the most used model on OpenRouter is an open-weight one, DeepSeek V4.1 Flash 1017, with 59.2 trillion tokens (<a href="https://openrouter.ai/rankings" rel="nofollow">rankings</a>).</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/open-weight-share@2x.png" alt="Open-weight models' share of tokens on OpenRouter, from 26.8% in October 2025 to 71.7% in September 2026">
+<img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/open-weight-share-dark@2x.png" alt="Open-weight models' share of tokens on OpenRouter, from 26.8% in October 2025 to 71.7% in September 2026"></p>
+
+<p>Open-weight models cost about four times less on average: $0.28 per million input tokens and $1.62 per million output tokens, against $1.27 and $6.36 for closed models.</p>
+<p>The best open-weight models still trail the best proprietary ones on the hardest benchmarks. On the <a href="https://artificialanalysis.ai/leaderboards/models" rel="nofollow">Artificial Analysis Intelligence Index</a>, Kimi K3.1 Pro, the best open-weight model, scores 46 against 65 for Claude Fable 5.2, at about a seventh of the cost per task ($3.68 against $26.54). For a lot of workloads, that trade-off is worth it.</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/intelligence-vs-cost@2x.png" alt="Artificial Analysis Intelligence Index against cost per task, for the top proprietary and open-weight models">
+<img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/intelligence-vs-cost-dark@2x.png" alt="Artificial Analysis Intelligence Index against cost per task, for the top proprietary and open-weight models"></p>
+
+<h2>
+	<a id="routing-powered-by-openrouter" href="#routing-powered-by-openrouter" rel="nofollow">
+		
+	</a>
+	<span>
+		Routing powered by OpenRouter
+	</span>
+</h2>
+<p>OpenRouter serves more than 800 trillion tokens a month to over 10 million users, across 600+ models from 80+ providers. Its routing is based on live measurements of every provider across that traffic.</p>
+<p>OpenRouter recently <a href="https://openrouter.ai/blog/announcements/how-we-rebuilt-provider-routing/" rel="nofollow">rebuilt its provider routing</a>: instead of only looking at the lowest list price, it sends each request to the provider with the best mix of price, speed and reliability.</p>
+<p>When a provider slows down or starts failing, traffic moves away from it until it recovers, and a failed try is retried on the next best provider inside the same call. In OpenRouter's measurements, the new routing cut capacity errors by 46% and improved time to first token by 16.9% and throughput by 16.3%.</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/routing@2x.gif" alt="Default routing retries on another provider when the first one is rate limited, :cheapest picks the lowest price and :fastest the highest throughput">
+<img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/routing-dark@2x.gif" alt="Default routing retries on another provider when the first one is rate limited, :cheapest picks the lowest price and :fastest the highest throughput"></p>
+
+<p>Before, Inference Providers picked one provider for your request and returned its error if it failed. Now, the request is retried on another provider. You can still choose a policy or a provider with a suffix on the model id:</p>
+<pre><code data-language="text">zai-org/GLM-5.3            # default: best mix of price, speed and reliability
+zai-org/GLM-5.3:fastest    # highest throughput
+zai-org/GLM-5.3:cheapest   # lowest price
+zai-org/GLM-5.3:novita     # only Novita
+</code></pre>
+<p>Routing is also cache-aware: a conversation stays on the provider that holds its prompt cache. To make it explicit, send a stable UUID per conversation in the <code>X-HF-Session-Id</code> header (see the <a href="https://huggingface.co/docs/inference-providers/prompt-caching">prompt caching guide</a>).</p>
+<h2>
+	<a id="pricing" href="#pricing" rel="nofollow">
+		
+	</a>
+	<span>
+		Pricing
+	</span>
+</h2>
+<p>Pricing doesn't change: you pay the provider's price on your Hugging Face bill, and Hugging Face doesn't add a markup on top of it. PRO users get $2 of credits every month, and Team and Enterprise organizations get $2 per seat. See <a href="https://huggingface.co/docs/inference-providers/pricing">Pricing and Billing</a> for the details.</p>
+<h2>
+	<a id="image-video-and-audio-generation" href="#image-video-and-audio-generation" rel="nofollow">
+		
+	</a>
+	<span>
+		Image, video and audio generation
+	</span>
+</h2>
+<p>Image, video, and audio generation continue to work exactly as before, directly through Hugging Face Inference Providers without going through OpenRouter. You can keep using the same token and API, and access tens of thousands of <a href="https://huggingface.co/models?inference_provider=all&amp;pipeline_tag=text-to-image&amp;other=lora">LoRAs</a>.</p>
+<h2>
+	<a id="see-where-your-requests-go" href="#see-where-your-requests-go" rel="nofollow">
+		
+	</a>
+	<span>
+		See where your requests go
+	</span>
+</h2>
+<p>On model pages, you can chat with the model right away in the widget. Two new tabs show what's behind it: Providers lists every provider OpenRouter can route the model to, with its input and output price, speed and uptime over the last 24 hours, and Metrics shows the best price, throughput, time to first token, context length and uptime among them:</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/widget-playground-2@2x.gif" alt="Chatting with Inkling-2-Small in the model page widget, opening its code snippets, then its Metrics tab">
+<img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/widget-playground-2-dark@2x.gif" alt="Chatting with Inkling-2-Small in the model page widget, opening its code snippets, then its Metrics tab"></p>
+
+<p>Your <a href="https://huggingface.co/settings/inference-providers/overview">usage overview</a> breaks your spend down by the provider each request went to:</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/usage-by-provider@2x.png" alt="Daily Inference Providers spend, broken down by provider">
+<img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/usage-by-provider-dark@2x.png" alt="Daily Inference Providers spend, broken down by provider"></p>
+
+<p>In your <a href="https://huggingface.co/settings/inference-providers">settings</a>, you can turn off any provider you don't want: the router never sends your requests there. Organizations have the same settings, and they apply to every request billed to the organization.</p>
+<p><img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/settings-providers@2x.png" alt="Inference Providers settings, with a toggle for each provider">
+<img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/inference-providers-openrouter/settings-providers-dark@2x.png" alt="Inference Providers settings, with a toggle for each provider"></p>
+
+<h2>
+	<a id="breaking-change-custom-provider-keys" href="#breaking-change-custom-provider-keys" rel="nofollow">
+		
+	</a>
+	<span>
+		Breaking change: custom provider keys
+	</span>
+</h2>
+<p>Requests to language models now go through OpenRouter and are billed to your Hugging Face account or organization, so you can no longer use your own API key for a provider with these models. You can still pick a provider with a suffix on the model id (<code>model:provider</code>) or turn providers off in your settings, and your code stays the same. Custom keys for image and video providers keep working.</p>
+<h2>
+	<a id="whats-next" href="#whats-next" rel="nofollow">
+		
+	</a>
+	<span>
+		What's next
+	</span>
+</h2>
+<p>This is the first step of our partnership with OpenRouter. Next:</p>
+<ul>
+<li>Connect your OpenRouter account to Hugging Face.</li>
+<li>More tasks routed through OpenRouter.</li>
+</ul>
+<p>Try a <a href="https://huggingface.co/models?inference_provider=all&amp;sort=trending&amp;other=conversational">model</a>, or read the <a href="https://huggingface.co/docs/inference-providers">Inference Providers docs</a> to get started.</p>
+</div></div>
