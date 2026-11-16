@@ -16,7 +16,7 @@ extra:
   audio_length: 94069933
   audio_type: audio/mpeg
   audio_url: https://pscrb.fm/rss/p/api.substack.com/feed/podcast/172439345/39d0fb58605eca8db5120f0331a84b73.mp3
-  duration_seconds: 5880
+  duration_seconds: 5879
   thumbnail: https://substackcdn.com/feed/podcast/10845/post/172439345/7e91f29eef9da3f53501f24b0829b644.jpg
 ---
 
