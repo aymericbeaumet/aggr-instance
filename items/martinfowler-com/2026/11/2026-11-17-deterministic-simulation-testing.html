@@ -1,0 +1,1760 @@
+<div id="readability-page-1" class="page"><div>
+<p>
+        Distributed systems are notoriously hard to test. 
+        It is common to hear stories of subtle bugs surfacing in well-architected, 
+        heavily tested systems that have been running reliably in production 
+        for years. The <a href="https://jepsen.io">Jepsen</a> testing suite, for instance, 
+        routinely exposes critical consistency violations 
+        and split-brain scenarios in established, battle-tested databases.
+      </p>
+
+<p>
+        If we have robust CI/CD pipelines, extensive test coverage, and 
+        strict code reviews, why is it so difficult to catch these bugs 
+        before they hit production? The answer lies in the fundamental 
+        mismatch between how we test software and 
+        the reality of the environments in which distributed systems operate.
+      </p>
+
+<section id="LimitationsOfStandardTestingMechanisms">
+<h2>Limitations of Standard Testing Mechanisms</h2>
+
+<p>
+       Unit tests validate local logic in isolation. Integration tests validate interactions between components. 
+       But neither proves what clients observe when part of the system fails while requests are in flight. 
+       End-to-end scenarios test the system with all components integrated, 
+       but the focus is mostly on verifying functionality and sticking to the happy path.
+       When standard integration tests do simulate failures, they usually test clean, anticipated scenarios—like 
+       gracefully shutting down a database node. 
+       But in a distributed architecture, the hardest bugs do not live inside the isolated components; 
+       they live in the unpredictable interactions between the components and 
+       the infrastructure where partial failures and live traffic overlap.
+      </p>
+
+<section id="GrayFailures">
+<h3>Gray Failures</h3>
+
+<p>
+        When the systems are distributed, our assumptions about perfect 
+        environments collapse. 
+        As the classic <a href="https://en.wikipedia.org/wiki/Fallacies_of_distributed_computing">“Fallacies of Distributed Computing”</a> warn us, 
+        the network is not reliable, latency is never zero, 
+        and topology constantly changes.
+        Distributed systems suffer from partial failures. 
+        One part of the system crashes or hangs while the rest 
+        of the system keeps running, leading to conflicting views of 
+        the cluster state.
+      </p>
+
+<p>
+        In production, components rarely fail cleanly. A node doesn't just cleanly disconnect; it operates erratically, introducing subtle anomalies.
+        The network doesn't cleanly partition into two isolated halves. Instead, it suffers from asymmetric routing, selectively drops a small percentage of packets, 
+        or delays specific messages just long enough to trigger a timeout on one node 
+        but not another.
+        A process does not necessarily crash. Instead, it experiences a 
+        Stop-The-World Garbage Collection pause on the JVM, 
+        or CPU throttling. The pause lasts just long enough to cause bad message interleavings, causing the node to miss a consensus heartbeat, only for it to wake 
+        up seconds later completely unaware that it was ever paused.
+        A disk does not fail completely. Instead, it experiences 
+        a localized latency spike—taking 500ms instead of 2ms 
+        to sync a <a href="https://martinfowler.com/articles/patterns-of-distributed-systems/write-ahead-log.html">Write-Ahead Log (WAL)</a>—or it silently corrupts 
+        a few sectors without causing
+        a complete hardware failure.
+      </p>
+
+<p>
+        These <a href="https://www.microsoft.com/en-us/research/wp-content/uploads/2017/06/paper-1.pdf">gray failures</a> create the exact interleavings of events that cause robust systems to break. Standard testing simply cannot create these highly specific, degraded conditions on demand.
+      </p>
+
+<p>
+      To force these hard to find failure modes to surface, the common technique used is to inject faults into running systems intentionally.
+      </p>
+</section>
+
+<section id="FromChaosEngineeringToCorrectnessChecking">
+<h3>From Chaos Engineering to Correctness Checking</h3>
+
+<p>
+        Chaos engineering tests whether a system stays available under fault.
+        It introduces disruptions—like terminating pods or disrupting network
+        traffic—while monitoring infrastructure health. Consider a three-node
+        key-value store—Athens, Byzantium, and Cyrene—where reads and writes
+        require a majority of two replicas. If we kill a node during a quorum
+        write, the primary question chaos engineering asks is: does the write
+        still succeed and does the cluster recover?
+      </p>
+
+<div id="quorum_test_chaos_focus.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/quorum_test_chaos_focus.svg"></p><p>Figure 1: 
+        Chaos engineering focuses on resilience: does the system stay
+        available when a node is killed?
+      </p>
+</div>
+
+<p>
+        But availability is not the same as correctness. A system can
+        restart pods, keep serving traffic, and stay within latency limits
+        while still violating the semantics the client depends on. Returning
+        a successful response with stale or corrupted data means the system
+        is technically available, yet incorrect from the user's perspective.
+        Suppose a network partition isolates Cyrene while Alice writes a new
+        value. Athens and Byzantium form a majority, so the write succeeds,
+        leaving Cyrene on the old value:
+      </p>
+
+<div id="quorum_test_jepsen_write.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/quorum_test_jepsen_write.svg"></p><p>Figure 2: 
+        A quorum write succeeds on Athens and Byzantium while a network
+        partition leaves Cyrene holding the older value.
+      </p>
+</div>
+
+<p>
+        If Bob then reads from Cyrene, and it reads from its local state 
+        instead of performing a quorum read,
+        Bob receives the older value even though Alice's write already
+        succeeded. Every request returned a response, so the system stayed
+        available, yet its consistency guarantee was broken:
+      </p>
+
+<div id="quorum_test_jepsen_read.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/quorum_test_jepsen_read.svg"></p><p>Figure 3: 
+        Bob reads from Cyrene and receives the stale value “Before Dawn”
+        even though Alice's write of “After Dawn” already succeeded.
+      </p>
+</div>
+
+<p><a href="https://jepsen.io">Jepsen</a> catches this by focusing strictly
+        on correctness from the client's perspective. It runs a live system,
+        injects faults, records the client-visible history of operations,
+        and checks whether that history is consistent with the system's
+        claimed semantics:
+      </p>
+
+<pre><code>Alice: invoke set("title", "After Dawn")
+Alice: ok     set("title", "After Dawn")
+Bob:   invoke get("title")
+Bob:   ok     get("title") -&gt; "Before Dawn"   // violation: stale read after acknowledged write</code></pre>
+
+<p>
+        This is the reason for faulting a live system. It allows 
+        inspecting what happens to real client operations while the system has failures.
+      </p>
+</section>
+
+<section id="TheNondeterminismProblem">
+<h3>The Nondeterminism Problem</h3>
+
+<p>
+        Chaos testing and frameworks like Jepsen are effective at finding bugs,
+        but finding a bug is only half the work. To fix a bug, you first need to
+        reproduce it. This is where live testing hits a wall. Reproducing a
+        failure in a live cluster fails on two separate levels:
+      </p>
+
+<ul>
+<li><b>Unseeded fault schedules:</b> Faults are introduced randomly to mimic
+          unpredictable production conditions—dropping packets, crashing nodes, or
+          injecting delays. If this randomness is unseeded (or reseeded with the current
+          system time), every test run generates a completely different sequence of faults
+          at different times. A bug encountered on one run cannot be reproduced simply because
+          the test harness cannot regenerate that schedule. We can fix this to some extent by
+          using a seeded pseudo-random number generator, ensuring that rerunning with the same
+          seed produces the exact same sequence of fault decisions.
+        </li>
+
+<li><b>Execution nondeterminism:</b> Even with the exact same sequence of faults,
+          the system is still not guaranteed to produce the same execution. In a live environment,
+          the application does not advance in lockstep with the fault generator. The software
+          runs against physical wall-clock time, asynchronous OS thread scheduling, and real
+          network and disk buffers. A microscopic timing shift—a garbage collection pause,
+          a thread context switch, or a delayed TCP ACK—changes which messages are in flight
+          at the exact millisecond a fault hits.
+        </li>
+</ul>
+
+<p>
+        Consider a quorum write where one replica (Cyrene) is isolated by a network
+        fault. Athens, the coordinator, needs two of three replicas: its own write
+        and one acknowledgment. In Run 1, Byzantium's acknowledgment arrives early,
+        Athens forms a quorum, and Alice gets a success. In Run 2, with the exact
+        same fault injected, Byzantium's acknowledgment is delayed in transit.
+        Athens times out and returns a failure to Alice, and the acknowledgment
+        arrives only after the timeout has expired.
+      </p>
+
+<p>
+        Neither outcome is wrong. But they are different executions of the same
+        test, and nothing in the test decides which one we get. If a bug lived
+        only on the Run 2 path, rerunning the test might land on Run 1 every time, missing the bug.
+      </p>
+
+<div id="deterministic_runs_vary.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/deterministic_runs_vary.svg"></p><p>Figure 4: 
+        Two runs with the same injected fault (Cyrene isolated) produce
+        different execution traces: in Run 1 the acknowledgment arrives in time,
+        while in Run 2 the coordinator times out before the delayed acknowledgment arrives.
+      </p>
+</div>
+</section>
+
+<section id="SourcesOfNondeterminism">
+<h3>Sources of Nondeterminism</h3>
+
+<p>
+          There are four major sources of nondeterminism in a distributed
+          system: the system clock, thread scheduling, network timing, and
+          disk timing. Each changes when events become visible
+          to the software, producing different execution interleavings on
+          different runs.
+        </p>
+
+<section id="ClockAndTime">
+<h4>Clock and Time</h4>
+
+<p>
+            Every timeout, retry and timestamp is a comparison against a
+            clock. In a live system, the time between two events depends on
+            everything else the machine is doing — a GC pause, a busy core, a
+            slow network hop — so the same operation can take 40ms in one run
+            and 120ms in the next. Wall clocks can also jump when NTP corrects
+            them. In the figure, the same write finishes inside the timeout
+            window in Run 1 and crosses it in Run 2. The code made the same
+            decision both times; the clock gave it a different answer. To
+            repeat a run, the test has to control what the clock reads.
+          </p>
+
+<div id="nondeterminism_clock_time.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/nondeterminism_clock_time.svg"></p><p>Figure 5: 
+            The same write operation can succeed or time out depending on how
+            much time passes before the acknowledgment arrives.
+          </p>
+</div>
+</section>
+
+<section id="ThreadScheduling">
+<h4>Thread Scheduling</h4>
+
+<p>
+            Within one process, the operating system decides which thread
+            runs next, and that decision changes with load, core count and
+            what else is running. Across a cluster it is worse: each process
+            runs at its own speed, and a process paused by GC falls behind the
+            others. In the figure, Alice's write and Bob's read arrive at
+            the same replica. In Run 1 the write handler runs first and Bob
+            sees the new value; in Run 2 the read handler runs first and Bob
+            sees the old one. To repeat a run, the test has to decide which
+            work runs next.
+          </p>
+
+<div id="nondeterminism_thread_scheduling.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/nondeterminism_thread_scheduling.svg"></p><p>Figure 6: 
+            Different thread scheduling orders produce different values for
+            the same read operation.
+          </p>
+</div>
+</section>
+
+<section id="NetworkTiming">
+<h4>Network Timing</h4>
+
+<p>
+            A message's delivery time depends on buffering, congestion,
+            retransmission and routing, none of which the program sees. Two
+            messages sent in one order can arrive in the other. In the figure,
+            the same replication message reaches the replica before Bob's read
+            in Run 1 and after it in Run 2, so Bob gets different values.
+            Injecting the same partition or loss rate does not fix this,
+            because the timing of every message that survives still varies. To
+            repeat a run, the test has to decide when each message is
+            delivered.
+          </p>
+
+<div id="nondeterminism_network_timing.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/nondeterminism_network_timing.svg"></p><p>Figure 7: 
+            The same replicated message becomes visible at different times
+            to a reader depending on network delivery timing.
+          </p>
+</div>
+</section>
+
+<section id="DiskTiming">
+<h4>Disk Timing</h4>
+
+<p>
+            A write returns once the bytes are in the OS page cache, not on
+            disk. They become durable when an fsync completes, or whenever the
+            kernel decides to flush them. How long that takes depends on the
+            device, its queue, and other I/O. In the figure, the coordinator
+            crashes at the same point in both runs. In Run 1 the flush had
+            finished and recovery finds “After Dawn”; in Run 2 it hadn't and
+            the value is gone. To repeat a run, the test has to decide when a
+            write becomes durable.
+          </p>
+
+<div id="nondeterminism_disk_timing.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/nondeterminism_disk_timing.svg"></p><p>Figure 8: 
+            The same coordinator crash leads to different recovery outcomes
+            depending on whether a write flush completed before the crash.
+          </p>
+</div>
+</section>
+
+<p>
+          There are also sources inside the program itself, such as random
+          choices and the iteration order of its data structures. These are
+          handled by coding rules rather than by simulation, and we return
+          to them later.
+        </p>
+</section>
+
+<section id="MakingProgressExplicit">
+<h3>Making Progress Explicit</h3>
+
+<p>
+        Real systems advance because multiple subsystems keep progressing
+        through their own internal steps. The CPU executes instructions,
+        the NIC delivers packets, the disk completes flushes. These
+        progress mechanisms are hidden and not directly controlled by any
+        test.
+      </p>
+
+<div id="real_system_progress_tick.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/real_system_progress_tick.svg"></p><p>Figure 9: 
+        In a real system, CPU, NIC, and disk each progress at their own
+        pace. Software observes the resulting interleaving of events.
+      </p>
+</div>
+
+<p>
+        To repeat a run, the test must decide when the clock, the
+        processes, the network, and the disk make progress.
+        This is the core idea behind deterministic simulation testing.
+        Instead of running against real infrastructure, we run the entire cluster on a single
+        thread against a simulated clock, a simulated network, and a simulated
+        disk. Nothing progresses on its own. The test controls
+        when each component executes and delivers its work.
+      </p>
+
+<div id="simulated_components_tick.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/simulated_components_tick.svg"></p><p>Figure 10: 
+        In simulation, the test explicitly drives progress across the clock,
+        process, network, and disk (modeled in code as tick() calls).
+      </p>
+</div>
+
+<p>
+        Each source of nondeterminism from the previous section becomes
+        something the test controls:
+      </p>
+
+<ul>
+<li><b>Clock</b>: it reads whatever the test has advanced it to.</li>
+
+<li><b>Thread scheduling</b>: the whole cluster runs on one thread,
+        and the test runs each process in a fixed order.</li>
+
+<li><b>Network</b>: a message is delivered only when the test
+        ticks the network.</li>
+
+<li><b>Disk</b>: a write becomes durable only when the test ticks
+        the disk.</li>
+</ul>
+
+<p>
+        Controlling progress this way makes it easy to simulate hard failures
+        like node crashes and network partitions. More importantly, it can
+        model routine slowdowns—a disk or network latency spike simply delays
+        completion by a few ticks. This makes gray failures, which are
+        otherwise extremely difficult to reproduce, straightforward to test.
+      </p>
+</section>
+</section>
+
+<section id="ExampleImplementation">
+<h2>Example Implementation</h2>
+
+<p>
+        Let's explore an example to see how this works in code. Using
+        <a href="https://github.com/unmeshjoshi/tickloom">Tickloom</a>, a Java library for deterministic
+        simulation which I built
+        <a href="https://martinfowler.com/articles/expert-generalist.html#AnExampleWorkshopBreakingSilosAndBuildingPartnerships">for teaching distributed systems</a>,
+        we will see how distributed systems can be tested by simulating network
+        and storage.
+      </p>
+
+<p>
+        The design of Tickloom draws heavily on
+        <a href="https://github.com/apple/foundationdb">FoundationDB</a> and
+        <a href="https://github.com/tigerbeetle/tigerbeetle">TigerBeetle</a>. FoundationDB, an
+        open-source distributed transactional key-value store, pioneered
+        deterministic simulation testing for distributed databases using a
+        custom C++ coroutine language and deterministic scheduler. TigerBeetle,
+        a distributed financial transactions database, uses a clean,
+        single-threaded, tick-driven architecture and simulator that I found
+        easier to implement in Java. While the current Tickloom implementation
+        is based on callbacks and a custom future, it is also possible to
+        implement a custom deterministic scheduler using Java continuations,
+        which is planned for future work on Tickloom.
+      </p>
+
+<section id="Single-threadedExecution">
+<h3>Single-Threaded Execution</h3>
+
+<p>
+        A distributed protocol implementation executes as a logical process. 
+        A cluster is a set of these processes executing across one or more physical nodes. 
+        Every process, in both testing and production, 
+        runs on a single thread. 
+        This design choice is the key, and the rest of the design, including
+        the network and file system interfaces, follows from it.
+        </p>
+
+<p>
+         As we saw earlier, the operating system's thread scheduler is a source
+         of nondeterminism. To eliminate it, we explicitly drive execution 
+         through a single-threaded main loop. 
+         In production, this loop runs continuously in the main method. 
+         In testing, it runs only until a specific condition is met or 
+         a set duration is reached. The <code>Process</code> abstraction maintains its own internal task queue. 
+         The main loop controls the execution by calling an explicit <code>tick()</code> 
+         API on the process, controlling exactly when it is allowed to execute 
+         its pending tasks, handle events, and make progress.
+        </p>
+
+<p>
+          Every component whose progress needs to be controlled—whether a process, a network, or
+          a file system—implements one small interface:
+          <code>Tickable</code>. Calling <code>tick()</code> is how a component
+          makes progress: delivering messages, completing I/O, or running
+          pending tasks. The loop needs to know nothing about component
+          internals; it simply calls <code>tick()</code> on each in a fixed
+          order. Because components only advance when ticked, their state
+          never changes between ticks.
+        </p>
+
+<pre><code>public interface Tickable {
+    void tick();
+}</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/main/java/com/tickloom/Tickable.java">source</a></p>
+
+<p>
+          The main thread executing the tick calls must never block. In production, a node blocked
+          waiting for a reply would stop serving every other request. 
+          To make sure single-threaded execution happens without blocking, 
+          we do the following:
+        </p>
+
+<ul>
+<li>Network and storage calls are asynchronous.</li>
+
+<li>Asynchronous APIs are modeled using a custom future that 
+              allows standard composition but has no blocking get method and
+              strictly prevents the use of background threads.</li>
+
+<li>No <code>Thread.sleep()</code> and no blocking calls.</li>
+
+<li>Production network tasks use non-blocking Java NIO. 
+              Blocking filesystem work that must run on a background thread 
+              hands its results back to the node's main thread as events, 
+              which are only processed during a tick.</li>
+</ul>
+</section>
+
+<section id="SimulatingTheNetwork">
+<h3>Simulating the Network</h3>
+
+<p>
+          To control when messages arrive, we should be able to swap the network implementation with a simulated one. 
+          The protocol code must not notice the difference: the
+          same code has to run against the simulated network in a test
+          and against real sockets in production. So the core protocol logic never touches
+          sockets directly. It talks to the network only through an
+          interface, <code>Network</code>.
+        </p>
+
+<p>
+          What travels over the network is a <code>Message</code>.
+        </p>
+
+<pre><code>public record Message(
+        ProcessId source,
+        ProcessId destination,
+        PeerType peerType,
+        MessageType messageType,
+        byte[] payload,
+        String correlationId
+) </code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/main/java/com/tickloom/messaging/Message.java">source</a></p>
+
+<p>
+          It names its source and destination processes, its type, and
+          carries an encoded payload. The correlation ID maps a response to
+          the request.
+        </p>
+
+<p>
+          The interface is asynchronous, because the process runs on a single
+          thread that must never block. <code>send()</code> hands a message
+          to the network and returns at once. It does not wait for the
+          message to be delivered, or for a reply. Messages arriving for
+          a particular process are delivered to the registered <code>Process</code> by calling
+          its <code>onMessage()</code> method. A reply is just another
+          message that arrives some ticks later. The network also has a
+          <code>tick()</code>, which drives its work.
+        </p>
+
+<pre><code>public abstract class Network implements Tickable, AutoCloseable {
+    private final ProcessRegistry registry = new ProcessRegistry();
+
+    public void register(Process process) {
+        registry.register(process);
+    }
+
+    public Set&lt;ProcessId&gt; registeredProcessIds() {
+        return registry.processIds();
+    }
+
+    protected void deliver(Message message) {
+        Optional&lt;Process&gt; process = registry.get(message.destination());
+        if (process.isEmpty()) {
+            logDropped(message);
+            return;
+        }
+        process.get().onMessage(message);
+    }
+
+    @Override
+    public abstract void tick();
+
+    public abstract void send(Message message) throws IOException;
+
+    public void bind(ProcessId processId) throws IOException {
+        //no-op.. only used by NioNetwork
+    }
+
+    @Override
+    public void close() throws Exception {
+
+    }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/main/java/com/tickloom/network/Network.java">source</a></p>
+
+<p>
+          There are two implementations of the <code>Network</code> interface:
+        </p>
+
+<ul>
+<li><b>In tests: </b><code>SimulatedNetwork</code>
+            passes messages directly between processes in memory. 
+            This is the implementation that supports injecting faults like 
+            network partitions, message loss and message delays.
+          </li>
+
+<li><b>In production: </b><code>NioNetwork</code>
+            implements the same non-blocking contract over real TCP sockets using
+            Java NIO and a single <code>Selector</code>. <code>send()</code> non-blockingly
+            enqueues encoded messages on a
+            <code>NioConnection</code>,
+            and the event loop flushes writes and dispatches incoming messages.
+          </li>
+</ul>
+
+
+
+<p>
+          The simulated network has no sockets. It routes messages
+          directly to processes in memory, implementing the two contract methods.
+        </p>
+
+<p>
+          It keeps track of <code>NetworkLink</code>s between pairs of processes and applies
+          configuration to these links in terms of delays, drop rates, and congestion:
+        </p>
+
+<p>class SimulatedNetwork
+</p>
+
+<pre><code>  private record NetworkLink(ProcessId source, ProcessId destination) {
+      boolean isPartitioned(Set&lt;NetworkLink&gt; partitionedLinks) {
+          return partitionedLinks.contains(this);
+      }
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/test/java/com/tickloom/network/SimulatedNetwork.java">source</a></p>
+
+<p>
+          The simulated network tracks partitions, packet drop rates, and delays across these links:
+        </p>
+
+<p>class SimulatedNetwork
+</p>
+
+<pre><code>  private final Set&lt;NetworkLink&gt; partitionedLinks = new HashSet&lt;&gt;();
+  private final Map&lt;NetworkLink, Double&gt; linkPacketLoss = new HashMap&lt;&gt;();
+  private final Map&lt;NetworkLink, DelayConfig&gt; cloggedUntilTick = new HashMap&lt;&gt;();
+  private final Map&lt;NetworkLink, FaultRule&gt; linkFaultRules = new HashMap&lt;&gt;();</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/test/java/com/tickloom/network/SimulatedNetwork.java">source</a></p>
+
+<section id="HowSendWorks">
+<h4>How send() Works</h4>
+
+<p>
+            When a message is sent, the network checks the simulated link
+            between the sender and receiver. If the link is partitioned, or
+            matches a drop rule, the message is discarded. 
+          </p>
+
+<p>class SimulatedNetwork
+</p>
+
+<pre><code>  @Override
+  public void send(Message message) {
+      validateMessage(message);
+
+      NetworkLink link = linkFrom(message);
+
+      if (link.isPartitioned(partitionedLinks)) {
+          return; // Message dropped due to partition
+      }
+
+      if (matchesFaultRule(link, message)) {
+          return; // Message dropped due to fault rule
+      }
+
+      if (shouldDropPacket(link)) {
+          return; // Message lost due to packet loss
+      }
+
+      // Use internal counter to calculate delivery tick (TigerBeetle pattern)
+      long deliveryTick = calculateDeliveryTick(link, message, currentTick);
+      queueForDelivery(message, deliveryTick);
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/test/java/com/tickloom/network/SimulatedNetwork.java">source</a></p>
+
+<p>
+            A message that survives is not delivered immediately;
+            it is placed in a priority queue stamped with its delivery tick
+            (the next tick, or later if delayed or clogged) and an incrementing
+            sequence number to guarantee deterministic FIFO ordering.
+          </p>
+
+<pre><code>private void queueForDelivery(Message message, long deliveryTick) {
+    pendingMessages.offer(new QueuedMessage(message, deliveryTick, nextSequenceNumber++));
+}</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/test/java/com/tickloom/network/SimulatedNetwork.java">source</a></p>
+</section>
+
+<section id="HowTickWorks">
+<h4>How tick() Works</h4>
+
+<p>
+            Nothing in the queue moves until the network is ticked. On each
+            <code>tick()</code>, the network advances its virtual tick counter,
+            applies any dynamic fault changes, and delivers every message due for
+            the current tick.
+          </p>
+
+<p>class SimulatedNetwork
+</p>
+
+<pre><code>  @Override
+  public void tick() {
+      currentTick++; // Increment internal counter (TigerBeetle pattern)
+      maybeFlipPartitions();
+      maybeClogPaths();
+      deliverPendingMessagesFor(currentTick);
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/test/java/com/tickloom/network/SimulatedNetwork.java">source</a></p>
+
+<p>
+            Messages due at the same tick are delivered in the order they were sent. 
+            Delivering a message simply calls <code>deliver(message)</code>, which routes it to the
+            destination process's <code>onMessage()</code> method.
+          </p>
+
+<p>class SimulatedNetwork
+</p>
+
+<pre><code>  private void deliverPendingMessagesFor(long tickTime) {
+      // Process messages whose delivery time has now arrived
+      // PriorityQueue ensures we process in delivery time order
+      while (!pendingMessages.isEmpty() &amp;&amp;
+              pendingMessages.peek().deliveryTick &lt;= tickTime) {
+
+          QueuedMessage queuedMessage = pendingMessages.poll();
+          Message message = queuedMessage.message;
+          deliver(message);
+
+          System.out.println("SimNet: delivered " + message + " for tick " + tickTime);
+      }
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/test/java/com/tickloom/network/SimulatedNetwork.java">source</a></p>
+</section>
+</section>
+
+<section id="RoutingMessagesToProcesses">
+<h3>Routing Messages to Processes</h3>
+
+<p>
+          All communication in the cluster happens between processes, identified by
+          a <code>ProcessId</code>. In production, a process opens TCP sockets to
+          peers across the physical network. In simulation, however, every process
+          in the cluster—servers and clients alike—shares a single
+          <code>SimulatedNetwork</code> instance in memory. The network routes
+          messages by maintaining an internal registry of active processes: when a
+          process initializes, it registers its <code>ProcessId</code>, allowing the
+          network to dispatch incoming messages directly to that process's
+          <code>onMessage()</code> method. A message for an ID nobody registered is
+          logged and dropped.
+        </p>
+
+<p>
+          A process is given its network when it is created. It never creates the
+          network itself, which is what lets a test hand it the simulated
+          one.
+        </p>
+
+<pre><code>public abstract class Process implements Tickable, AutoCloseable {
+    public final ProcessId id;
+    public final Network network;</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/main/java/com/tickloom/Process.java">source</a></p>
+
+<p>
+          In its constructor, the process registers with the network, so
+          that messages addressed to its ID reach it, and then sets up its
+          message handlers.
+        </p>
+
+<pre><code>network.register(this);
+initialiseMessageHandlers();</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/main/java/com/tickloom/Process.java">source</a></p>
+
+<p>
+          Each implementation needs to handle different kinds of messages. A handler is an interface that allows providing a protocol specific implementation. 
+        </p>
+
+<p>class Process
+</p>
+
+<pre><code>  protected interface Handler {
+      void handle(Message message);
+  }
+
+  protected Map&lt;MessageType, Handler&gt; handlers = new HashMap&lt;&gt;();
+
+  private void initialiseMessageHandlers() {
+      this.handlers.putAll(initialiseHandlers());
+  }
+
+  protected abstract Map&lt;MessageType, Handler&gt; initialiseHandlers();
+
+  protected Handler getHandler(MessageType messageType) {
+      return handlers.get(messageType);
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/main/java/com/tickloom/Process.java">source</a></p>
+
+<p>
+          The <code>QuorumReplica</code>, for example, handles client requests and the
+          internal requests and responses between replicas:
+        </p>
+
+<p>class QuorumReplica
+</p>
+
+<pre><code>  @Override
+  protected Map&lt;MessageType, Handler&gt; initialiseHandlers() {
+      return Map.of(
+              QuorumMessageTypes.CLIENT_GET_REQUEST, this::handleClientGetRequest,
+              QuorumMessageTypes.CLIENT_SET_REQUEST, this::handleClientSetRequest,
+              QuorumMessageTypes.INTERNAL_GET_RESPONSE, this::handleInternalGetResponse,
+              QuorumMessageTypes.INTERNAL_SET_RESPONSE, this::handleInternalSetResponse,
+              QuorumMessageTypes.INTERNAL_GET_REQUEST, this::handleInternalGetRequest,
+              QuorumMessageTypes.INTERNAL_SET_REQUEST, this::handleInternalSetRequest);
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/main/java/com/tickloom/algorithms/replication/quorum/QuorumReplica.java">source</a></p>
+
+<p>
+          The network calls <code>onMessage</code>, which runs the
+          handler for the message's type.
+        </p>
+
+<p>class Process
+</p>
+
+<pre><code>  public final void onMessage(Message message) {
+      if (state == ProcessState.STOPPED) {
+          return;
+      }
+      onMessageReceived(message);
+      MessageType messageType = message.messageType();
+      Handler handler = getHandler(messageType);
+      if (handler == null) {
+          System.err.println("No handler found for message " + messageType);
+          return;
+      }
+      
+      // Check if process is running before handling message
+      if (state != ProcessState.RUNNING) {
+          System.err.println(id + ": Received message " + messageType + " but process not initialized yet");
+          handleUninitializedMessage(message);
+          return;
+      }
+      
+      handler.handle(message);
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/main/java/com/tickloom/Process.java">source</a></p>
+
+<p>
+          The handler runs to completion on the main thread. If it needs to
+          communicate with another process, it creates a message and sends it
+          through the network; the response arrives later as another message.
+        </p>
+</section>
+
+<section id="TimeoutsInTicks">
+<h3>Timeouts in Ticks</h3>
+
+<p>
+          A timeout cannot be measured with a
+          time-of-day clock, because it is <a href="https://martinfowler.com/articles/patterns-of-distributed-systems/lamport-clock.html">not guaranteed to be monotonic</a>.
+          A common workaround is to
+          use monotonic clocks to measure elapsed time, but a <a href="https://github.com/apache/cassandra/blob/9dd8b033cb5bc1a1698c191837aee7c83d3fc84d/src/java/org/apache/cassandra/gms/FailureDetector.java#L384">process pause</a> can
+          cause issues with this measurement. To make timeouts deterministic,
+          they are decoupled from any clock, and are based on a logical counter
+          representing elapsed time. A <code>Timeout</code> counts
+          ticks. A timeout of 10 expires after exactly
+          10 calls to <code>tick()</code>.
+        </p>
+
+
+
+<pre><code>public final class Timeout {
+    
+    private final String name;
+    private final long durationTicks;
+    private long ticks = 0;
+    private boolean ticking = false;
+    private long startTick = 0;
+    
+    /**
+     * Creates a new timeout with the specified duration.
+     * 
+     * @param name human-readable name for debugging
+     * @param durationTicks number of ticks before timeout fires
+     */
+    public Timeout(String name, long durationTicks) {
+        this.name = name;
+        this.durationTicks = durationTicks;
+    }
+    
+    public void start() {
+        ticking = true;
+        startTick = ticks;
+    }
+    
+    public void tick() {
+        ticks++;
+    }
+    
+    public boolean isExpired() {
+        if (!ticking) {
+            return false;
+        }
+        return (ticks - startTick) &gt;= durationTicks;
+    }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/main/java/com/tickloom/util/Timeout.java">source</a></p>
+
+<p>
+          To track in-flight requests and their timeouts without blocking,
+          processes use a
+          <a href="https://martinfowler.com/articles/patterns-of-distributed-systems/request-waiting-list.html">Request Waiting List</a>.
+          The coordinator and the client register each request with its own
+          <code>Timeout</code> when it is added:
+        </p>
+
+<p>class RequestWaitingList
+</p>
+
+<pre><code>  public void add(Key key, RequestCallback&lt;Response&gt; callback) {
+      //create Timeout with configured timeoutTicks.
+      Timeout timeout = new Timeout("request-" + key, timeoutTicks);
+      timeout.start();
+      pendingRequests.put(key, new CallbackDetails(callback, timeout));
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/main/java/com/tickloom/messaging/RequestWaitingList.java">source</a></p>
+
+<div id="tick_based_timeout_create.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/tick_based_timeout_create.svg"></p><p>Figure 11: 
+          When a request is added, the waiting list creates and starts a
+          tick-based <code>Timeout</code>.
+        </p>
+</div>
+
+<p>
+          On each tick, the waiting list advances the timeout counter and
+          checks whether it has expired.
+        </p>
+
+<div id="tick_based_timeout_tick.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/tick_based_timeout_tick.svg"></p><p>Figure 12: 
+          On each tick, the waiting list advances the timeout counter and
+          checks whether it has expired.
+        </p>
+</div>
+
+<p>
+          On the third tick the timeout has expired. So the associated request is expired with a <code>TimeoutException</code>:
+        </p>
+
+<div id="tick_based_timeout_expire.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/tick_based_timeout_expire.svg"></p><p>Figure 13: 
+          When a timeout expires, the waiting list removes the request 
+          and throws a <code>TimeoutException</code>.
+        </p>
+</div>
+
+<p>class RequestWaitingList
+</p>
+
+<pre><code>  public void tick() {
+      // First, tick all timeouts
+      pendingRequests.values().forEach(callbackDetails -&gt; 
+          callbackDetails.getTimeout().tick());
+      
+      List&lt;Key&gt; expiredRequestKeys = getExpiredRequestKeys();
+      if (expiredRequestKeys.isEmpty()) {
+          return;
+      }
+
+      timeoutExpiredRequests(expiredRequestKeys); 
+  }
+
+  private void timeoutExpiredRequests(List&lt;Key&gt; expiredRequestKeys) {
+       expiredRequestKeys.forEach(expiredRequestKey -&gt; {
+          CallbackDetails callbackDetails = pendingRequests.remove(expiredRequestKey);
+          if (callbackDetails != null) {
+              callbackDetails.getRequestCallback().onError(
+                  new TimeoutException("Request expired after " + timeoutTicks + " ticks")
+              );
+          }
+      });
+  }
+  
+  private List&lt;Key&gt; getExpiredRequestKeys() {
+      return pendingRequests.entrySet().stream()
+              .filter(entry -&gt; entry.getValue().isExpired())
+              .map(Map.Entry::getKey)
+              .collect(Collectors.toList());
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/main/java/com/tickloom/messaging/RequestWaitingList.java">source</a></p>
+</section>
+
+<section id="TestingWithASimulatedCluster">
+<h3>Testing with a Simulated Cluster</h3>
+
+<p>
+          The <code>QuorumReplica</code> is the store from the earlier example. When a client sends a set
+          request, the replica that receives it acts as the coordinator. It
+          stamps the value with its clock and sends an internal set request
+          to all three replicas, including itself. It replies to the client
+          once a majority have acknowledged, and fails the write if no
+          majority answers before its request times out.
+        </p>
+
+<p>
+          The earlier example had two runs of the same write with Cyrene
+          isolated. In Run 1 Byzantium's acknowledgment arrived in time;
+          in Run 2 it was delayed and the write timed out. In a live
+          cluster, nothing in the test decided which run we got. In the
+          simulation, the test decides.
+        </p>
+
+<p>
+          A test builds a <code>Cluster</code> of quorum replicas on a simulated network, with a request timeout
+          of 10 ticks. It isolates Cyrene, and delays the link from
+          Byzantium to Athens by 20 ticks. Then Alice sends the write to
+          Athens, and the test ticks the cluster until the write is no
+          longer pending.
+        </p>
+
+<p>class QuorumWriteTimeoutTest
+</p>
+
+<pre><code>  @Test
+  void writeTimesOutWhenAcknowledgmentIsDelayed() throws IOException {
+      try (Cluster cluster = new Cluster()
+              .withProcessIds(List.of(ATHENS, BYZANTIUM, CYRENE))
+              .withRequestTimeoutTicks(10)
+              .useSimulatedNetwork()
+              .build(QuorumReplica::new)) {
+          cluster.start();
+
+          cluster.isolateProcess(CYRENE);
+          cluster.setNetworkDelay(BYZANTIUM, ATHENS, 20);
+
+          QuorumReplicaClient alice =
+                  cluster.newClientConnectedTo(ALICE, ATHENS, QuorumReplicaClient::new);
+          TickCompletableFuture&lt;SetResponse&gt; write =
+                  alice.set("title".getBytes(), "After Dawn".getBytes());
+          cluster.tickUntil(() -&gt; !write.isPending());
+
+          assertTrue(write.isFailed());
+      }
+  }</code></pre>
+
+<p><code>Cluster</code> is a test utility that builds a cluster of given
+          processes—in this case <code>QuorumReplica</code> processes—and wires
+          them to the shared simulated network. It provides helper methods to
+          introduce faults (such as isolating processes and delaying links) as
+          well as to drive execution and verify assertions. 
+        </p>
+
+<p>class Cluster
+</p>
+
+<pre><code>  public void tick() {
+      advanceClocks();
+      tickNetworks();
+      tickClients();
+      tickServers();
+  }
+
+  private void advanceClocks() {
+      processClocks.values().forEach(clock -&gt; clock.advance(1));
+  }
+
+  private void tickServers() {
+      serverNodes.forEach(Node::tick);
+  }
+
+  private void tickClients() {
+      clientNodes.forEach(ClientNode::tick);
+  }
+
+  private void tickNetworks() {
+      networks.forEach(Network::tick);
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/test/java/com/tickloom/testkit/Cluster.java">source</a></p>
+
+<p>
+          Instead of sleeping, tests call <code>tickUntil</code> to advance the cluster
+          until an expected condition holds.
+        </p>
+
+<p>class Cluster
+</p>
+
+<pre><code>  public void tickUntil(BooleanSupplier p) {
+      int tickCount = 0;
+      while (!p.getAsBoolean()) {
+          if (tickCount &gt; DEFAULT_TIMEOUT_TICKS) {
+              fail("Timeout waiting for condition to be met.");
+          }
+          tick();
+          tickCount++;
+      }
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/test/java/com/tickloom/testkit/Cluster.java">source</a></p>
+
+<p>
+          Athens's own write is durable within a few ticks. Byzantium's
+          acknowledgment leaves Byzantium a few ticks later, and arrives 20
+          ticks after that. The timeout expires first, and the write fails. It
+          fails on every run. Set the delay to one tick and it succeeds on
+          every run.
+        </p>
+
+<div id="simulated_run_timeout.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/simulated_run_timeout.svg"></p><p>Figure 14: 
+          Run 2 in simulation: with Cyrene isolated and the link from
+          Byzantium delayed by 20 ticks, the 10-tick timeout fires before
+          the acknowledgment arrives, on every run.
+        </p>
+</div>
+
+<p>
+          The outcome now depends only on numbers the test chose: the
+          delay and the timeout. If a bug lived on the Run 2 path, this
+          test would hit it every time.
+        </p>
+</section>
+
+<section id="SeededFaultInjection">
+<h3>Seeded Fault Injection</h3>
+
+<p>
+          So far we discussed how to write tests for known fault interaction scenarios.
+          This is mostly useful for learning and teaching.
+          Production systems reveal bugs caused by interesting interleavings only after
+          they are up and running for a longer duration.
+          A common approach is to keep a system running for hours and introduce random failures.
+          This is a good practical way to explore the huge state space of all possible fault interactions.
+          Typically, a pseudorandom generator is used to decide when to inject a fault.
+          Making it seeded for every run, makes sure the run is repeatable.
+        </p>
+
+<div id="seeded_fault_injection.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/seeded_fault_injection.svg"></p><p>Figure 15: 
+          At each tick, the runner uses the seeded PRNG to decide whether to inject
+          a fault and pick which node to isolate.
+        </p>
+</div>
+
+<p>
+          The example implementation uses a common utility, a <code>SimulationDecisions</code> to have a central place,
+          where we make decisions. Whether to issue a client request or introduce
+          a fault are made by picking a value from <code>random.nextDouble()</code>
+          and comparing it with a configured probability threshold.
+          It also provides helper methods to pick fault types, select target
+          nodes, choose delay durations, and trigger periodic network healing:
+        </p>
+
+<p>class SimulationDecisions
+</p>
+
+<pre><code>  
+      public static final double DEFAULT_REQUEST_PROBABILITY = 0.4;
+      public static final double DEFAULT_FAULT_PROBABILITY = 0.08;
+      public static final int DEFAULT_HEAL_INTERVAL_TICKS = 40;
+  
+      private final Random random;
+      private final double requestProbability;
+      private final double faultProbability;
+      private final int healIntervalTicks;
+  
+      public SimulationDecisions(Random random) {
+          this(random, DEFAULT_REQUEST_PROBABILITY, DEFAULT_FAULT_PROBABILITY, DEFAULT_HEAL_INTERVAL_TICKS);
+      }
+  
+      
+      public boolean shouldIssueClientRequest() {
+          return random.nextDouble() &lt;= requestProbability;
+      }
+  
+      public boolean shouldInjectFault() {
+          return random.nextDouble() &lt;= faultProbability;
+      }
+  
+      public boolean shouldHealNetwork(long currentTick) {
+          return currentTick % healIntervalTicks == 0;
+      }
+  
+      public FaultType chooseFaultType() {
+          FaultType[] types = FaultType.values();
+          return types[random.nextInt(types.length)];
+      }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/c5dcf93419701b5ad3bd80fb5c8d39df2b2043c4/src/test/java/com/tickloom/SimulationDecisions.java">source</a></p>
+
+<p>
+          The <code>SimulationRunner</code> initializes <code>SimulationDecisions</code>
+          with a random number generator with a seed.
+        </p>
+
+<p>class SimulationRunner
+</p>
+
+<pre><code>  protected final SimulationDecisions simulationDecisions;
+
+  public SimulationRunner(long randomSeed, int clusterSize, int numClients,
+                          ProcessFactory processFactory,
+                          Cluster.ClientFactory&lt;QuorumReplicaClient&gt; clientFactory) throws IOException {
+      Random random = new Random(randomSeed);
+      this.simulationDecisions = new SimulationDecisions(random);
+      this.cluster = Cluster.createSimulated(clusterSize, processFactory, random);
+      this.clients = createClients(numClients, clientFactory);
+  }
+
+  private void runClusterFor(long runForTicks) {
+      for (int i = 0; i &lt; runForTicks; i++) {
+          currentTick++;
+          injectRandomFaults();
+          cluster.tick();
+          maybeIssueClientRequest();
+      }
+  }
+
+  private void maybeIssueClientRequest() {
+      if (simulationDecisions.shouldIssueClientRequest()) {
+          // A client is single-threaded and issues one request at a time.
+          // If a request is pending, the request is buffered and issued later.
+          SingleRequestIssuer&lt;ClusterClient&gt; client = simulationDecisions.pick(clients);
+          client.issueRequest();
+      }
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/c5dcf93419701b5ad3bd80fb5c8d39df2b2043c4/src/test/java/com/tickloom/SimulationRunner.java">source</a></p>
+
+<p>
+          The faults like isolate a random node, partition a random
+          pair, delay a random directed link, or drop all messages are then injected randomly.
+        </p>
+
+<p>class FaultInjectingSimulationRunner
+</p>
+
+<pre><code>  @Override
+  protected void injectRandomFaults() {
+      if (simulationDecisions.shouldHealNetwork(currentTick())) {
+          cluster().resetNetworkConditions();
+          faultSchedule.add("tick=" + currentTick() + " heal-all");
+          return;
+      }
+
+      if (!simulationDecisions.shouldInjectFault()) {
+          return;
+      }
+
+      SimulationDecisions.FaultType fault = simulationDecisions.chooseFaultType();
+      switch (fault) {
+          case ISOLATE_NODE   -&gt; isolateRandomNode();
+          case PARTITION_PAIR -&gt; partitionRandomPair();
+          case DELAY_LINK     -&gt; delayRandomDirectedLink();
+          case DROP_LINK      -&gt; dropRandomDirectedLink();
+      }
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/c5dcf93419701b5ad3bd80fb5c8d39df2b2043c4/src/test/java/com/tickloom/FaultInjectingSimulationRunner.java">source</a></p>
+
+<p>
+          The same seed produces the same sequence of faults, and the same
+          sequence of faults produces the same client visible results. 
+          If a bug shows up for seed 42,
+          running seed 42 again reproduces it. 
+        </p>
+
+<p>
+          Alongside replaying with the seed, logging both the injected faults
+          (such as <code>tick=12 isolate athens</code> or
+          <code>tick=23 delay athens-&gt;byzantium by 5</code>) and the
+          process and network events at each tick makes failures much easier to
+          diagnose. Often, examining the combined fault schedule and execution
+          log is enough to spot the exact message interleaving that caused the
+          violation without even rerunning the simulation in a debugger—and
+          these structured, tick-stamped logs are particularly effective when
+          handed to an LLM to analyze what went wrong.
+        </p>
+</section>
+
+<section id="Fast-forwardExecution">
+<h3>Fast-Forward Execution</h3>
+
+<p>
+          In production, every tick represents a fixed amount of real time. If
+          whoever invokes ticks has 10ms elapsed time between tick calls, a
+          timeout of 10 ticks expires after 100ms. Systems like
+          <a href="https://github.com/tigerbeetle/tigerbeetle">TigerBeetle</a>
+          fix this interval to 10ms (<code>tick_ms = 10</code>), while etcd
+          typically uses a 100ms ticker with a 10-tick (one second) election
+          timeout.
+        </p>
+
+<p>
+          A cluster under test has to run for the time duration it is testing. To
+          see a one-second timeout fire, a live test waits one real second.
+          Every delayed message, retry and recovery adds more. Fault testing
+          explores combinations of delays, faults and requests, and thousands
+          of possible runs quickly add up to days of real clock time.
+        </p>
+
+<p>
+          The simulation advances tick by tick. So it does not need to wait 
+          for real time to elapse.
+          The protocol still waits for 100
+          ticks, but those 100 ticks are 100 iterations of the
+          driver loop running the cluster.
+          Each iteration injects any faults for that tick, ticks the
+          cluster, and may issue a new client request. The loop runs as
+          fast as the CPU can execute it, so a run that would take hours
+          on a live cluster takes seconds.
+        </p>
+
+<p>
+          Replay helps after a bug is found. Fast-forward helps find it in
+          the first place. Rare combinations of delays, failures, retries
+          and timeouts come up because the simulation can try so many
+          possible variations.
+        </p>
+</section>
+
+<section id="CorrectnessChecking">
+<h3>Correctness Checking</h3>
+
+<p>
+          A common approach to check if the cluster behaved as expected, is to 
+          produce a client-visible history:
+          the sequence of invocations and completions that clients
+          observed. This history can be fed into correctness checkers.
+        </p>
+
+<p>
+          The approach used by
+          <a href="https://jepsen.io">Jepsen</a> is to record client operations and their results
+          in <a href="https://github.com/edn-format/edn">EDN</a> format. Each client operation produces an <code>:invoke</code>
+          event, followed by an <code>:ok</code>, <code>:fail</code>, or
+          timeout:
+        </p>
+
+<pre><code>[
+  {:process 0, :type :invoke, :f :write, :value ["Key-1" "Value-1"]}
+  {:process 0, :type :ok,     :f :write, :value ["Key-1" "Value-1"]}
+  {:process 1, :type :invoke, :f :read,  :value ["Key-1" nil]}
+  {:process 1, :type :ok,     :f :read,  :value ["Key-1" "Value-1"]}
+  {:process 2, :type :invoke, :f :write, :value ["Key-2" "Value-2"]}
+  {:process 2, :type :fail,   :f :write, :value ["Key-2" "Value-2"]}
+]</code></pre>
+
+<p>
+          After a run, the <code>SimulationRunner</code> passes the recorded
+          history to a <code>ConsistencyChecker</code>, which checks whether
+          it is linearizable for a register:
+        </p>
+
+<p>class FaultInjectingSimulationRunnerTest
+</p>
+
+<pre><code>  @Test
+  void faultInjectedHistoryShouldBeCheckable() throws IOException {
+      long seed = 123L;
+      long runForTicks = 500;
+      var runner = new FaultInjectingQuorumKVScenarioRunner(seed);
+      History history = runner.runAndGetHistory(runForTicks);
+
+      assertFalse(runner.faultSchedule().isEmpty(), "Expected at least one injected fault");
+      assertTrue(ConsistencyChecker.check(history, LINEARIZABILITY, REGISTER));
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/1fce373575ed82a48bc6f5edaa40d365074353b6/src/test/java/com/tickloom/FaultInjectingSimulationRunnerTest.java">source</a></p>
+
+<p>
+          If the checker finds a violation, the seed that produced it
+          is enough to reproduce the exact execution. There is no need
+          to guess at timing or hope for the right interleaving. The
+          developer can step through the exact tick sequence that led
+          to the bug.
+        </p>
+</section>
+
+<section id="SimulatingTheFileSystem">
+<h3>Simulating the File System</h3>
+
+<p>
+          The storage layer can cause issues when crashes happen abruptly,
+          before data in the operating system's page cache and storage buffers
+          is durable. Operating systems provide separate APIs like
+          <code>fsync</code> to guarantee that data is persisted onto the
+          storage media, but there are <a href="https://www.usenix.org/conference/atc20/presentation/rebello">tricky error
+          scenarios when an <code>fsync</code> call fails</a>. This is one
+          reason many modern storage systems use <code>O_DIRECT</code> to
+          bypass the operating system's page cache and read and write directly
+          to the storage device. File system simulation can be implemented in a
+          way similar to the network: storage code talks to files through an
+          asynchronous interface, <code>FileIO</code>.
+        </p>
+
+<pre><code>public interface FileIO {
+
+    TickCompletableFuture&lt;ByteBuffer&gt; read(long offset, int length);
+
+    TickCompletableFuture&lt;Integer&gt; write(ByteBuffer buffer, long offset);
+
+    TickCompletableFuture&lt;Void&gt; sync();
+
+    TickCompletableFuture&lt;Long&gt; size();
+
+    TickCompletableFuture&lt;Void&gt; truncate(long newSize);
+
+    TickCompletableFuture&lt;Void&gt; close();
+}</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/c5dcf93419701b5ad3bd80fb5c8d39df2b2043c4/src/main/java/com/tickloom/fs/FileIO.java">source</a></p>
+
+<p>
+          Every operation returns a future instead of blocking the main thread.
+          A completed <code>write()</code> only means the bytes are visible to
+          later reads. Only a completed <code>sync()</code> guarantees that
+          previous writes are durable across a crash.
+        </p>
+
+<p>
+          There are two implementations of <code>FileIO</code>:
+        </p>
+
+<ul>
+<li><b>In tests: </b><code>SimulatedFileIO</code> operates on an
+            in-memory <code>SimulatedFile</code> and advances queued operations
+            on <code>tick()</code>.
+          </li>
+
+<li><b>In production: </b><code>SingleThreadedFileIO</code> executes
+            <code>FileChannel</code> calls on a dedicated background I/O thread
+            and delivers completions back to the main thread during
+            <code>tick()</code>.
+          </li>
+</ul>
+
+<p>
+          The core difference between written data and durable data can simply be
+          represented by two byte arrays.
+          <code>SimulatedFile</code> represents a file as two byte arrays in
+          memory: <code>visible</code> holds bytes written so far including
+          unsynced writes, and <code>durable</code> holds bytes that have been
+          synced. Reads and writes use <code>visible</code>. Calling
+          <code>sync()</code> copies <code>visible</code> to
+          <code>durable</code>. A crash discards unsynced writes by resetting
+          <code>visible</code> back to <code>durable</code>, allowing storage
+          components like a <a href="https://martinfowler.com/articles/patterns-of-distributed-systems/write-ahead-log.html">Write-Ahead Log</a> to be
+          tested deterministically across crashes and restarts.
+        </p>
+
+<pre><code>final class SimulatedFile {
+    private byte[] visible = new byte[0];
+    private byte[] durable = new byte[0];
+
+    long size() {
+        return visible.length;
+    }
+
+    byte[] read(long offset, int length) {
+        if (offset &gt;= visible.length) {
+            return new byte[0];
+        }
+        int from = (int) offset;
+        return Arrays.copyOfRange(visible, from, Math.min(visible.length, from + length));
+    }
+
+    void write(long offset, byte[] data) {
+        long end = offset + data.length;
+        if (end &gt; visible.length) {
+            visible = Arrays.copyOf(visible, (int) end);
+        }
+        System.arraycopy(data, 0, visible, (int) offset, data.length);
+    }
+
+    void truncate(long newSize) {
+        if (newSize &lt; visible.length) {
+            visible = Arrays.copyOf(visible, (int) newSize);
+        }
+    }
+
+    void sync() {
+        durable = visible.clone();
+    }
+
+    /** On restart, what is on disk is what becomes visible. */
+    void crash() {
+        visible = durable.clone();
+    }
+}</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/c5dcf93419701b5ad3bd80fb5c8d39df2b2043c4/src/main/java/com/tickloom/fs/SimulatedFile.java">source</a></p>
+
+<div id="simulated_file_sync.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/simulated_file_sync.svg"></p><p>Figure 16: 
+          Writing updates <code>visible</code>; calling <code>sync()</code>
+          copies <code>visible</code> to <code>durable</code>.
+        </p>
+</div>
+
+<div id="simulated_file_crash.svg"><p><img src="https://martinfowler.com/articles/deterministic-simulation-testing/simulated_file_crash.svg"></p><p>Figure 17: 
+          A crash before <code>sync()</code> resets <code>visible</code> back
+          to <code>durable</code>, losing unsynced writes.
+        </p>
+</div>
+
+<p>
+          To fulfill the async contract of <code>FileIO</code>,
+          <code>SimulatedFileIO</code> wraps <code>SimulatedIO</code>.
+          Operations like
+          <code>read()</code> and <code>write()</code> submit their work to a
+          queue and return a future:
+        </p>
+
+<p>class SimulatedFileIO
+</p>
+
+<pre><code>  @Override
+  public TickCompletableFuture&lt;ByteBuffer&gt; read(long offset, int length) {
+      return submit(() -&gt; ByteBuffer.wrap(file.read(offset, length)));
+  }
+
+  @Override
+  public TickCompletableFuture&lt;Integer&gt; write(ByteBuffer buffer, long offset) {
+      // Copy now: the write takes effect later, and the caller may reuse its buffer.
+      byte[] data = new byte[buffer.remaining()];
+      buffer.duplicate().get(data);
+      return submit(() -&gt; {
+          file.write(offset, data);
+          return data.length;
+      });
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/c5dcf93419701b5ad3bd80fb5c8d39df2b2043c4/src/main/java/com/tickloom/fs/SimulatedFileIO.java">source</a></p>
+
+<p>
+          An explicit <code>tick()</code> call executes the queued operations on
+          <code>SimulatedFile</code> and completes their futures:
+        </p>
+
+<p>class SimulatedFileIO
+</p>
+
+<pre><code>  @Override
+  public void tick() {
+      // Only the calls queued before this tick: a call made from a callback completes on the next tick.
+      for (int due = queue.size(); due &gt; 0; due--) {
+          queue.poll().run();
+      }
+  }</code></pre>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/c5dcf93419701b5ad3bd80fb5c8d39df2b2043c4/src/main/java/com/tickloom/fs/SimulatedFileIO.java">source</a></p>
+</section>
+
+<section id="Non-blockingFutures">
+<h3>Non-Blocking Futures</h3>
+
+<p>
+          One thing to notice is the use of custom <code>Future</code> implementation in this API. 
+          It is convenient to have a Future abstraction for composing async
+          operations. But standard futures like Java's
+          <code>CompletableFuture</code> are risky in a single-threaded event
+          loop for two reasons. Blocking methods like <code>get()</code> or
+          <code>join()</code> would freeze the main thread and prevent the tick
+          loop from ever completing the operation. And asynchronous combinators
+          like <code>thenApplyAsync()</code> dispatch callbacks onto background
+          thread pools, reintroducing thread-scheduling nondeterminism and race
+          conditions on replica state.
+        </p>
+
+<p><a href="https://github.com/unmeshjoshi/tickloom/blob/c5dcf93419701b5ad3bd80fb5c8d39df2b2043c4/src/main/java/com/tickloom/future/TickCompletableFuture.java"><code>TickCompletableFuture</code></a>
+          avoids both by not exposing any blocking calls. It has no background
+          executors and allows attaching callbacks to compose async operations.
+        </p>
+</section>
+</section>
+
+<section id="Trade-offs">
+<h2>Trade-offs</h2>
+
+<p>
+        Deterministic simulation testing cannot be added as an afterthought;
+        it requires upfront architectural investment. As the need for a custom
+        future illustrates, high-level design choices—a single-threaded core,
+        asynchronous I/O interfaces, and avoiding thread-heavy libraries—are
+        critical and have to be built into the system from the start.
+      </p>
+
+<p>
+        Crucially, these constraints apply only on the deterministic side of an
+        architectural seam. Interfaces like <code>Network</code>,
+        <code>FileSystem</code>, <code>FileIO</code>, and <code>Clock</code>
+        form the boundary between the simulated core and the operating system.
+        Behind that seam, production implementations such as
+        <code>NioNetwork</code>,
+        <code>SingleThreadedFileIO</code>,
+        and <code>SystemClock</code> are free to use background I/O threads,
+        <code>ExecutorService</code>, NIO socket channels, and system clocks—as
+        long as they deliver their results back onto the single-threaded
+        <code>tick()</code> loop.
+      </p>
+
+
+
+<section id="StrictCodingRules">
+<h3>Strict Coding Rules</h3>
+
+<p>
+          To keep the core deterministic and the seam intact, the code must
+          follow six strict coding rules:
+        </p>
+
+<ul>
+<li><b>No system clock calls:</b>
+            Time must come from the simulated <code>Clock</code> or tick counter.
+            Nothing like <code>System.currentTimeMillis()</code>,
+            <code>System.nanoTime()</code>, or <code>Instant.now()</code>
+            can be directly used.
+          </li>
+
+<li><b>No unseeded randomness:</b> 
+            All random decisions or IDs should come from the provided
+            seeded <code>RandomGenerator</code> or <code>IdGen</code>.
+          </li>
+
+<li><b>No threads or standard futures:</b> 
+            The code should not directly use <code>Thread</code>,
+            <code>Executor</code>, or <code>CompletableFuture</code>. 
+          </li>
+
+<li><b>No direct network or disk I/O:</b>
+            All I/O must go through the <code>Network</code> and <code>FileIO</code>
+            interfaces.
+          </li>
+
+<li><b>No iteration over unordered collections:</b> 
+            While key lookups on a <code>HashMap</code> or <code>Map.of()</code> are deterministic,
+            iterating over <code>HashMap</code>, <code>HashSet</code>, or
+            <code>ConcurrentHashMap</code> (for example, when
+            <code>RequestWaitingList</code> scans pending requests to expire
+            timeouts) can visit entries in a different order across runs. To
+            prevent accidental iteration over these unordered collections, core state uses
+            <code>LinkedHashMap</code> and <code>LinkedHashSet</code>, which
+            guarantee insertion-order iteration.
+          </li>
+
+<li><b>No cross-thread callbacks across the seam:</b> Background threads
+            in production adapters must never directly invoke methods or
+            complete futures on the deterministic side. In
+            <a href="https://github.com/unmeshjoshi/tickloom/blob/c5dcf93419701b5ad3bd80fb5c8d39df2b2043c4/src/main/java/com/tickloom/fs/IOThread.java"><code>IOThread</code></a>,
+            for example, the disk thread never calls
+            <code>future.complete()</code> itself—doing so would execute storage
+            and replica callbacks on the I/O thread, introducing data races in
+            production that never happen in simulation. Instead, it queues
+            completions for the main thread to drain during <code>tick()</code>.
+          </li>
+</ul>
+
+<p>
+          Because even a single usage of <code>HashMap</code> or
+          <code>System.currentTimeMillis()</code> inside a message handler will
+          silently break the replayability guarantee
+          when a rare fault sequence hits that code path later—relying on developer
+          discipline or code reviews to enforce these rules does not scale.
+          Instead, we can guard the system using automated
+          <a href="https://learning.oreilly.com/library/view/building-evolutionary-architectures/9781492097532/ch02.html">architectural fitness functions</a>:
+        </p>
+
+<ul>
+<li><b>Static fitness functions with ArchUnit:</b> Using a tool like
+            <a href="https://www.archunit.org/">ArchUnit</a>, a
+            <a href="https://github.com/unmeshjoshi/tickloom/blob/main/src/test/java/com/tickloom/codingrules/DeterminismRulesTest.java"><code>DeterminismRulesTest</code></a>
+            suite runs on every build as an atomic, static fitness function to
+            verify that core protocol and storage packages stay behind the
+            architectural seam and obey the first five determinism rules.
+          </li>
+
+<li><b>Runtime thread-confinement checks in code:</b> Static bytecode
+            analysis like ArchUnit cannot tell which thread executes a lambda at
+            runtime—it cannot distinguish <code>IOThread</code> calling
+            <code>future.complete()</code> on a background thread from queueing
+            it for <code>tick()</code>. The sixth rule therefore has to be
+            enforced in the code itself: <code>TickCompletableFuture</code>
+            captures the thread that created it and rejects
+            <code>complete()</code>, <code>fail()</code>, or
+            <code>whenComplete()</code> calls from any other thread:
+            
+<p>class TickCompletableFuture
+</p>
+
+<pre><code>  private final Thread ownerThread = Thread.currentThread();
+
+  private void checkOnOwnerThread() {
+      if (Thread.currentThread() != ownerThread) {
+          throw new IllegalStateException(
+                  "TickCompletableFuture must be accessed on its owner (tick) thread ["
+                          + ownerThread.getName() + "], but was called from ["
+                          + Thread.currentThread().getName() + "]");
+      }
+  }
+
+  public void complete(T result) {
+      checkOnOwnerThread();
+      if (state != State.PENDING) {
+          throw new IllegalStateException("Future is already resolved");
+      }
+      this.state = State.COMPLETED;
+      this.result = result;
+
+      if (callback != null) {
+          callback.accept(result, null);
+          callback = null;
+      }
+  }</code></pre>
+</li>
+
+<li><b>A holistic fitness function for distributed correctness:</b> Once
+            the static rules and runtime thread checks guarantee deterministic
+            execution, the seeded <code>FaultInjectingSimulationRunner</code>
+            and <code>ConsistencyChecker</code> act as a holistic fitness
+            function that verifies system-wide invariants like linearizability
+            and crash durability across numerous fault sequences.
+          </li>
+</ul>
+</section>
+
+<section id="ProductionCost">
+<h3>Production Cost</h3>
+
+<p>
+          A natural question is whether designing for single-threaded simulation
+          hurts production performance or resource usage. In practice, the
+          opposite is often true. Most of the distributed systems are often IO bound. 
+          So single-threaded processing with
+          asynchronous, batched I/O actually works better, eliminating locking and thread
+          context-switching. This is the same architecture used for high
+          throughput and low latency systems like Redis,
+          FoundationDB, and TigerBeetle.
+        </p>
+
+<p>
+          The trade-off is that handlers on the <code>tick()</code>
+          thread must never block or perform long-running CPU work, which would
+          stall message processing. Because a single event
+          loop uses one CPU core for protocol logic, scaling across a multi-core
+          machine is done by running multiple independent processes rather than sharing mutable state across
+          a large thread pool.
+        </p>
+</section>
+
+<section id="EaseOfBuildingAndEvolving">
+<h3>Ease of Building and Evolving</h3>
+
+<p>
+          In my experience, while building the simulation foundation takes
+          upfront effort, it makes the core protocol logic easier to write and
+          evolve. Separating the core from network sockets, threads, and clock
+          time makes it easier to reason about. As seen in
+          <code>QuorumReplica</code>, the handlers are plain single-threaded
+          code.
+        </p>
+
+<p>
+          The biggest benefit is the convenience of exploring random fault
+          combinations. Evolving the system becomes much safer and easier, as
+          the fault scenario tests act as a fitness function.
+        </p>
+</section>
+
+<section id="LearningAndTheUseOfLlms">
+<h3>Learning and the Use of LLMs</h3>
+
+<p>
+          An excellent side effect is using this technique for learning and
+          teaching distributed systems. Once foundational code like Tickloom is
+          in place, those abstractions <a href="https://martinfowler.com/articles/convo-llm-abstractions.html">provide a harness</a>
+          that allows <a href="https://martinfowler.com/articles/llm-and-dsls.html">using LLMs as a natural-language interface</a>
+          to build and explore systems.
+        </p>
+
+<p>
+          While reading a book, documentation, or an engineering article, we
+          often need to work through tricky corner-case scenarios that are
+          usually only sketched as diagrams on a whiteboard. With a
+          deterministic simulation harness in place, we can ask an LLM to
+          generate executable scenario tests and explore working code directly.
+          For example, while reading the quorum linearizability anomaly in
+          <a href="https://dataintensive.net/"><i>Designing Data-Intensive Applications</i></a>,
+          an LLM can translate the book's diagram directly into an executable
+          Tickloom scenario like
+          <a href="https://github.com/unmeshjoshi/tickloom/blob/71c340cd5ebba8954cc1f599ae951827fa6e07fe/src/test/java/com/tickloom/testkit/dsl/quorum/DDIA_LinearizabilityScenarioTest.java#L47"><code>DDIA_LinearizabilityScenarioTest</code></a>,
+          where link delays and partitions cause one client to read a new value
+          and a subsequent client to read a stale one. It becomes much easier to
+          deep-dive and learn with this kind of executable codebase to explore.
+        </p>
+</section>
+</section>
+
+<hr>
+</div></div>
