@@ -35,6 +35,7 @@ html: 2026-11-09-hahaha-you-deserve-it.html
 remote_preview:
   url: https://i4.ytimg.com/vi/KMOyP_ArDMo/hqdefault.jpg
 extra:
+  duration_seconds: 921
   thumbnail: https://i4.ytimg.com/vi/KMOyP_ArDMo/hqdefault.jpg
 ---
 
