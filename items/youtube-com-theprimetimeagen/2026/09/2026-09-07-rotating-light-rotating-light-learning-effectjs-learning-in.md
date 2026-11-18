@@ -27,6 +27,7 @@ images:
     height: 27
   color: '#18171a'
 extra:
+  duration_seconds: 7115
   thumbnail: https://i4.ytimg.com/vi/O2__t8lceCg/hqdefault.jpg
 ---
 
