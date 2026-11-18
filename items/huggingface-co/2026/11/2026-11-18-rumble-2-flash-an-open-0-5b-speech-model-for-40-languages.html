@@ -1,0 +1,115 @@
+<div id="readability-page-1" class="page"><div> 
+<p>Today we're open sourcing <a href="https://huggingface.co/Reson8/Rumble-2-Flash">Rumble-2-Flash</a> under the Apache 2.0 license. It's a 0.5B-parameter speech recognition model for 40+ languages that competes with models 3-60x its size.</p>
+<ul>
+<li><strong>Runs anywhere</strong>: native support in 🤗 Transformers and vLLM, no custom code</li>
+<li><strong>40+ languages</strong>: automatic language detection</li>
+<li><strong>Output control</strong>: numbers as digits or words, fillers, verbatim repeats, forced language</li>
+<li><strong>Extremely fast</strong>: an hour of audio in about half a second, with over 7,000 RTFx on full batches</li>
+<li><strong>Holds up on real phone calls</strong>: on par with NVIDIA's Nemotron 3.5 Transcribe (30B) on a 302-hour call-centre benchmark</li>
+</ul>
+<h2>
+	<a id="quickstart" href="#quickstart" rel="nofollow">
+		
+	</a>
+	<span>
+		Quickstart
+	</span>
+</h2>
+<details>
+<summary>Transcribe with 🤗 Transformers</summary>
+
+<pre><code data-language="bash">uv pip install torch transformers accelerate
+</code></pre>
+<pre><code data-language="python">from transformers import AutoProcessor, AutoModelForMultimodalLM
+
+model_id = "Reson8/Rumble-2-Flash"
+processor = AutoProcessor.from_pretrained(model_id)
+model = AutoModelForMultimodalLM.from_pretrained(model_id, device_map="auto")
+
+inputs = processor.apply_transcription_request(
+    audio="https://hf.co/datasets/hf-internal-testing/dummy-audio-samples/resolve/main/bcn_weather.mp3",
+    language="English",  # omit to detect automatically
+).to(model.device, dtype=model.dtype)
+
+output = model.generate(**inputs, max_new_tokens=512)
+generated = output[:, inputs["input_ids"].shape[-1]:]
+print(processor.decode(generated, return_format="transcription_only")[0])  # return_format="parsed" if detecting language
+</code></pre>
+<p><code>audio</code> accepts a local path, a URL, a NumPy array, or a list of these.</p>
+</details>
+
+<h2>
+	<a id="how-its-built" href="#how-its-built" rel="nofollow">
+		
+	</a>
+	<span>
+		How it's built
+	</span>
+</h2>
+<p>Rumble-2-Flash uses the Qwen3-ASR architecture for day-0 support. If your stack runs Transformers or vLLM, it runs Rumble-2-Flash, with no forked runtime or <code>trust_remote_code</code>.</p>
+<p>To find out how small a model could get before accuracy dropped off, we distilled Rumble-2, our larger production model, into it with on-policy distillation. The student doesn't train on transcripts the teacher wrote. It transcribes the audio itself, and the teacher grades that transcript token by token: at every position, it gives its own probability for what should come next, and the student learns to match it. Because the student learns from its own outputs, it gets corrected on exactly the mistakes it makes, with feedback on every token instead of one score per clip.</p>
+<p>On-policy distillation normally requires teacher and student to share a tokenizer, and ours don't: choosing Qwen3-ASR meant taking its vocabulary too. <a href="https://huggingface.co/spaces/HuggingFaceH4/on-policy-distillation">GOLD</a> removes that restriction. It merges tokens where the two tokenizers split the text differently, so both models are compared over the same text. Tokens that exist in both vocabularies are compared directly, and the rest by their sorted probabilities.</p>
+<figure>
+  <img src="https://huggingface.co/datasets/Reson8/public-media/resolve/main/blog/rumble-2-flash/gold.png" alt="On-policy distillation with GOLD: the student transcribes, the teacher scores every token, and GOLD aligns the two tokenizers">
+  <img src="https://huggingface.co/datasets/Reson8/public-media/resolve/main/blog/rumble-2-flash/gold-dark.png" alt="On-policy distillation with GOLD: the student transcribes, the teacher scores every token, and GOLD aligns the two tokenizers">
+  <figcaption>On-policy distillation with GOLD</figcaption>
+</figure>
+
+<h2>
+	<a id="results" href="#results" rel="nofollow">
+		
+	</a>
+	<span>
+		Results
+	</span>
+</h2>
+<h3>
+	<a id="accuracy-for-its-size" href="#accuracy-for-its-size" rel="nofollow">
+		
+	</a>
+	<span>
+		Accuracy for its size
+	</span>
+</h3>
+<p>On the Open ASR Leaderboard <a href="https://huggingface.co/spaces/hf-audio/open_asr_leaderboard?languages=Reson8%2FRumble-2-Flash&amp;proprietary=false">multilingual</a> track, Rumble-2-Flash averages a <strong>6.96% error rate</strong> across Chinese, German, French, Italian, Spanish, Portuguese, Hindi, Dutch and English. That's better than Meta's omniASR-LLM 7B, a model 15x larger, and ahead of Whisper large-v3. On the <a href="https://huggingface.co/spaces/hf-audio/open_asr_leaderboard">English</a> track it averages <strong>6.6% WER</strong>.</p>
+<figure>
+  <img src="https://huggingface.co/datasets/Reson8/public-media/resolve/main/blog/rumble-2-flash/size-vs-wer-en.png" alt="Average error rate against model size for open-weight models on the Open ASR Leaderboard multilingual track, including English">
+  <img src="https://huggingface.co/datasets/Reson8/public-media/resolve/main/blog/rumble-2-flash/size-vs-wer-en-dark.png" alt="Average error rate against model size for open-weight models on the Open ASR Leaderboard multilingual track, including English">
+  <figcaption>The best score for its size</figcaption>
+</figure>
+
+<h3>
+	<a id="speed" href="#speed" rel="nofollow">
+		
+	</a>
+	<span>
+		Speed
+	</span>
+</h3>
+<p>Rumble-2-Flash is also fast. Its throughput depends on how full the batches are: on the larger datasets in HF's Open ASR Leaderboard, where batches stay full, it reaches <strong>over 7,000 RTFx</strong>. That's an hour of audio in about half a second.</p>
+<h3>
+	<a id="real-phone-calls" href="#real-phone-calls" rel="nofollow">
+		
+	</a>
+	<span>
+		Real phone calls
+	</span>
+</h3>
+<p>Clean audio is easy. Phone calls are compressed and noisy, and often have speakers with very different accents. On <a href="https://huggingface.co/datasets/apptek-com/apptek_callcenter_dialogues">AppTek's call-centre benchmark</a> (302 hours of helpline calls, 14 English accents, scored with AppTek's own script), Rumble-2-Flash reaches <strong>7.86% WER</strong>, on par with NVIDIA's Nemotron 3.5 Transcribe (30B) at 7.78%. That's well ahead of Qwen3-ASR 0.6B (8.7%), from the same model family, and close to Qwen3-ASR 1.7B (7.4%), the only model in the comparison that does better.</p>
+<figure>
+  <img src="https://huggingface.co/datasets/Reson8/public-media/resolve/main/blog/rumble-2-flash/apptek.png" alt="WER on the AppTek call-centre benchmark">
+  <img src="https://huggingface.co/datasets/Reson8/public-media/resolve/main/blog/rumble-2-flash/apptek-dark.png" alt="WER on the AppTek call-centre benchmark">
+  <figcaption>Real phone calls, 14 English accents</figcaption>
+</figure>
+
+<h2>
+	<a id="try-it" href="#try-it" rel="nofollow">
+		
+	</a>
+	<span>
+		Try it
+	</span>
+</h2>
+<p>The weights are on the Hub at <a href="https://huggingface.co/Reson8/Rumble-2-Flash">Reson8/Rumble-2-Flash</a>. It's also available through our <a href="https://www.reson8.dev" rel="nofollow">API</a>.</p>
+<p>We're very curious what you'll build with it. Tell us in the <a href="https://huggingface.co/Reson8/Rumble-2-Flash/discussions">Discussions tab</a> what you've made, what you like, and what you'd like to see changed in a next version.</p>
+</div></div>

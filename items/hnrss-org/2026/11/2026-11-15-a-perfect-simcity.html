@@ -1,0 +1,393 @@
+<div id="readability-page-1" class="page"><section>
+            <article itemscope="" itemtype="//schema.org/BlogPosting">
+                <p>
+                    <h5>
+                    <time datetime="" itemprop="datePublished">
+                    22. August 2026
+                    </time>
+                    </h5>
+                </p>
+                <h2 itemprop="name headline">A Perfect SimCity</h2>
+                <div itemprop="articleBody">
+
+
+<p>After 35 years of playing SimCity, I still could not say what makes a "Perfect" city. An evaluation
+screen displays a Score of 0 to 1000, and I struggled to reach 900 and never understood its factors.
+Discovering these factors by play is the fun of a simulation game, and this one has the advantage
+that the source code is also available.</p>
+<p><a href="https://donhopkins.medium.com/">Don Hopkins</a> has been maintaining FOSS ports of <a href="https://archive.org/details/msdos_SimCity_1989">SimCity (1989)</a> as <a href="https://github.com/SimHacker/micropolis">Micropolis</a> and
+<a href="https://github.com/SimHacker/MicropolisCore">MicropolisCore</a>, faithfully reproducing the ruleset of the original. Using the Python shims provided
+by <a href="https://github.com/smearle/gym-city">gym-city</a> I have run many experiments and share these results here, presenting five high-scoring
+and five high-population cities, designed algorithmically using the strategies shared below.</p>
+
+
+<figure>
+<div id="simcity-embed">
+  
+  
+  
+  <p><span title="Tax Rate">
+      
+      <span id="simcity-taxrate"></span>
+      
+    </span>
+    <label title="Simulation speed: 0 pauses">
+      Speed
+      
+    </label>
+    
+    
+    <span>
+      
+      <span id="simcity-cityname"></span>
+      
+    </span></p>
+  
+  
+</div>
+
+
+
+<figcaption>Figure 1. Ten algorithmically generated cities, 5 with highest score (bigscore1
+through 5), and 5 for large population of 700k (bigpop1 through 5).</figcaption>
+</figure><div id="citizens-demand-fewer-roads">
+<h2>Citizens Demand Fewer Roads</h2>
+<p>The population of a perfectly scoring city is 12-16k.  Their population level, crime rate, pollution
+and land value are perfectly balanced to sustain a 1% Tax Rate.  Their roads and rails are few and
+non-contiguous.  A perfectly scoring city is without any fire department, and <code>bigscore2</code> through
+<code>5</code> have no police station.</p>
+<table>
+<colgroup>
+<col width="13%">
+<col width="7%">
+<col width="14%">
+<col width="7%">
+<col width="13%">
+<col width="14%">
+<col width="17%">
+<col width="15%">
+</colgroup>
+<thead>
+<tr><th>city</th>
+<th>score</th>
+<th>population</th>
+<th>crime</th>
+<th>pollution</th>
+<th>land value</th>
+<th>unemployment</th>
+<th>cash / year</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>bigscore1</td>
+<td>949.5</td>
+<td>16,560</td>
+<td>13</td>
+<td>36</td>
+<td>126</td>
+<td>-93</td>
+<td>+6</td>
+</tr>
+<tr><td>bigscore2</td>
+<td>940.0</td>
+<td>18,400</td>
+<td>22</td>
+<td>41</td>
+<td>124</td>
+<td>-99</td>
+<td>+147</td>
+</tr>
+<tr><td>bigscore3</td>
+<td>940.0</td>
+<td>12,440</td>
+<td>22</td>
+<td>35</td>
+<td>122</td>
+<td>-96</td>
+<td>+93</td>
+</tr>
+<tr><td>bigscore4</td>
+<td>939.0</td>
+<td>12,400</td>
+<td>16</td>
+<td>30</td>
+<td>128</td>
+<td>-95</td>
+<td>+86</td>
+</tr>
+<tr><td>bigscore5</td>
+<td>937.0</td>
+<td>14,640</td>
+<td>20</td>
+<td>41</td>
+<td>127</td>
+<td>-98</td>
+<td>+117</td>
+</tr>
+</tbody>
+</table>
+<p>Travel requirements of residential and industrial zones are simple.  They check their twelve
+surrounding tiles for any road or rail to decide if it should grow.  If none is there, the zone
+declines.</p>
+<p>Commercial zones require a delivery, a vehicle starts on the perimeter road and walks up to 30
+steps, arriving the moment it stands beside a developed tile. <em>The zone's own tiles count</em>, so any
+loop of track under 30 steps satisfies it.  Commercial zones are placed in the city center because
+the engine provides a <em>downtown bonus</em>, starting at +64 and falling off to a -64 penalty in the far
+corners of the map.</p>
+<p>The <a href="https://archive.org/details/simcity_ibm_manual">PC SimCity manual</a> recommends rails and it is the most obvious strategy that players discover
+on their own. Roads carry traffic and emit pollution, which suppresses residential growth.  Rails
+emit no pollution and register no traffic at all.</p>
+<p>Roads and rails incur an annual cost, and Police and Fire are very large budget items, they severely
+impact score if they are under-funded and so must be at 100% funding.  Having neither departments is
+the lowest annual cost allowing for the lowest Tax Rate. Raising the Tax Rate to 2% lowers the score
+almost 30 points, through direct and indirect factors.</p>
+</div>
+<div id="citizens-demand-more-citizens">
+<h2>Citizens Demand More Citizens</h2>
+<p>In the <a href="https://en.wikipedia.org/wiki/SimCity_(1989_video_game)#Super_NES">Super Nintendo edition</a> the game rewards <em>population</em>, the final reward of Megapolis is issued
+at a population of 500k. Casual players report cities of 600k to 700k on the SNES platform, with <a href="https://gamefaqs.gamespot.com/boards/588657-simcity/79143601">one
+player reporting 911.2k</a>.</p>
+<p>911.2k is probably out of reach for <a href="https://github.com/SimHacker/micropolis">Micropolis</a>.  The Super Nintendo is the only edition to offer
+<a href="https://gamefaqs.gamespot.com/snes/588657-simcity/faqs/68878#section2">gifts</a>, which increase land value when placed, allowing for higher zone density in the areas outside
+of the <em>downtown bonus</em>.</p>
+<p>I have also experimented with optimizing for population by algorithm, and I am able to reach 700k by
+automatic code.</p>
+<table>
+<colgroup>
+<col width="14%">
+<col width="20%">
+<col width="10%">
+<col width="6%">
+<col width="10%">
+<col width="18%">
+<col width="22%">
+</colgroup>
+<thead>
+<tr><th>city</th>
+<th>population</th>
+<th>score</th>
+<th>tax</th>
+<th>crime</th>
+<th>pollution</th>
+<th>cash / year</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>bigpop1</td>
+<td>709,405</td>
+<td>467.0</td>
+<td>2%</td>
+<td>140</td>
+<td>174</td>
+<td>+2,206</td>
+</tr>
+<tr><td>bigpop2</td>
+<td>694,670</td>
+<td>468.5</td>
+<td>5%</td>
+<td>175</td>
+<td>179</td>
+<td>+7,944</td>
+</tr>
+<tr><td>bigpop3</td>
+<td>688,435</td>
+<td>458.5</td>
+<td>5%</td>
+<td>218</td>
+<td>171</td>
+<td>+7,568</td>
+</tr>
+<tr><td>bigpop4</td>
+<td>682,590</td>
+<td>525.0</td>
+<td>2%</td>
+<td>116</td>
+<td>168</td>
+<td>+470</td>
+</tr>
+<tr><td>bigpop5</td>
+<td>670,950</td>
+<td>461.5</td>
+<td>3%</td>
+<td>219</td>
+<td>171</td>
+<td>+4,194</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="citizens-demand-more-housing">
+<h2>Citizens Demand More Housing</h2>
+<p>Score is calculated in two stages, the first uses seven penalty terms:</p>
+<ul>
+<li>crime, the citywide crime average</li>
+<li>pollution, the citywide pollution average</li>
+<li>housing, the citywide land value average</li>
+<li>taxes, the tax rate</li>
+<li>traffic, the citywide traffic average</li>
+<li>unemployment</li>
+<li>fire, the tiles burning at that moment</li>
+</ul>
+<div>
+<p><em>Figure 2. The seven scoring terms. Six are bounded at zero and can only subtract, and traffic
+can be as high as 576. Unemployment has no lower bound, a negative value raises score.</em></p>
+</div>
+<p>Six out of seven terms are bounded at zero. However, unemployment is unbounded:</p>
+<pre><code>unemployment = (resPop / (8 * jobs) - 1) * 255</code></pre>
+<p>When the number of jobs exceeds the residents zoned to fill them, <strong>The Unemployment term goes
+negative and adds to the score</strong>, providing a score bonus of about 128 points. No other term moves
+the score this much.</p>
+<p>The second stage of score calculation is reduction by nine more penalties:</p>
+<div>
+<p><em>Figure 3. Each penalty applies to what the one above it left, so the same factor is worth less
+further down the list. The right-hand column is what each costs a city scoring 940.</em></p>
+</div>
+<p>The first three are penalties for failing to build a special zone. Surpassing 500 residents demands
+a stadium, 100 commercial an airport and 70 industrial a seaport. Where a stadium is placed does not
+matter to score, having no traffic or pollution. However, Airports and Seaports do reduce overall
+score, because of their high-density pollution and so they are not built.</p>
+</div>
+<div id="citizens-demand-fountains">
+<h2>Citizens Demand Fountains</h2>
+<p>Each of those seven penalty terms is an average, and the <a href="https://github.com/SimHacker/MicropolisCore/blob/6811ae03b419949650e782331021cbb1f16a5486/packages/micropolis-engine/src/scan.cpp#L274">land value scan.cpp</a> decides what is
+included by each 2x2 square of map by their tile ID. Grass, forest and park trees are under 64 and
+invisible to scoring, but <strong>a fountain of ID 840 includes it for grading, even though nobody lives
+in it!</strong></p>
+<p>These 2x2 squares otherwise carry no population, pulling down the crime penalty term by 33 points.</p>
+<table>
+<colgroup>
+<col width="16%">
+<col width="44%">
+<col width="23%">
+<col width="16%">
+</colgroup>
+<thead>
+<tr><th>tile id</th>
+<th>tile</th>
+<th>land value</th>
+<th>counted</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>0</td>
+<td>dirt</td>
+<td>no</td>
+<td>no</td>
+</tr>
+<tr><td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+</tr>
+<tr><td>2-20</td>
+<td>water</td>
+<td>+15</td>
+<td>no</td>
+</tr>
+<tr><td>21-43</td>
+<td>forest, park trees</td>
+<td>+15</td>
+<td>no</td>
+</tr>
+<tr><td>44-63</td>
+<td>rubble, flood, fire</td>
+<td>no</td>
+<td>no</td>
+</tr>
+<tr><td>64-65</td>
+<td>bridge</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr><td>66-79</td>
+<td>road</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr><td>...</td>
+<td>...</td>
+<td>...</td>
+<td>...</td>
+</tr>
+<tr><td>840</td>
+<td>park fountain</td>
+<td><strong>no</strong></td>
+<td><strong>yes</strong></td>
+</tr>
+</tbody>
+</table>
+<p><em>Figure 5. A 2x2 square is counted only when it contains tile ID 64 or greater, while land value is
+credited only from tile IDs below 44.  The park building tool has a one in five chance to draw a
+fountain, ID 840. Placing fountains lower total crime penalty.</em></p>
+</div>
+<div id="park-overflow">
+<h2>Park Overflow</h2>
+<p>Many guides recommend parks to reduce or absorb pollution, but they do not reduce pollution at
+all in <a href="https://github.com/SimHacker/micropolis">Micropolis</a>.  However, pollution reduces land value, and land value drives crime, so parks
+lower crime indirectly by raising the land value around them.</p>
+<p>Water, park and tree tiles all increase land value, and the engine counts them in 4x4 blocks. Every
+such tile credits its block 15 points, and the final credit to land value is this sum, plus downtown
+bonus, minus pollution.</p>
+<p>However, this land value credit is kept as a single byte, and <a href="https://github.com/SimHacker/MicropolisCore/blob/6811ae03b419949650e782331021cbb1f16a5486/packages/micropolis-engine/src/scan.cpp#L503">smoothTerrain() in scan.cpp</a> blends
+a block with its neighbors before it divides, so a block with its surroundings may sum <em>beyond 255
+and wrap around</em>, counter-intuitively lowering land value.</p>
+<div>
+<p><em>Figure 4. Number of Water, park or tree tiles in a 4x4 block against the land value it credits.
+Exactly 1/2 of the tiles (8) is the optimal value of greenery. At 9 of 16 tiles, it is in
+danger of driving down land value when summed with its neighbors.</em></p>
+</div>
+<p>The <a href="https://archive.org/details/simcity_ibm_manual">PC SimCity manual</a> declares that "Parks, like forests and water, raise the land value of
+surrounding zones".  However, <strong>too many parks or trees can push push down land value and increase
+crime.</strong></p>
+</div>
+<div id="citizens-demand-more-industries">
+<h2>Citizens Demand More Industries</h2>
+<p>Common strategy is to lay industrial zones by map edges, and this is recommended to maximize for
+population. The <a href="https://archive.org/details/sim-city-usa">SNES SimCity manual</a> writes, "One of the great benefits of building industrial
+Zones along the edges is that half the pollution is off the map and doesn't affect the city.  This
+is very important when it comes to heavily polluting industries, Airports and Coal Power Stations."</p>
+<p>This is partly true.  The <a href="https://github.com/SimHacker/micropolis">Micropolis</a> engine spreads pollution outward from each source, divides the
+map into 4x4 blocks, and then creates an average of only the blocks that contain pollution:</p>
+<pre><code>pollutionAverage = ptot / pnum</code></pre>
+<ul>
+<li><code>ptot</code> is the pollution totaled over the dirty blocks</li>
+<li><code>pnum</code> is the count of those blocks</li>
+</ul>
+<p>Tiles that contain low levels of pollution help bring down total pollution by this averaging, a
+small high-scoring city should keep the light density pollution for itself. Models suggest that a
+city maximized for population should place industrial zones on map edges for other reasons, that the
+land value there is too low to for other kind of zones.</p>
+</div>
+<div id="citizens-demand-humanity">
+<h2>Citizens Demand Humanity</h2>
+<p>Jay Wright Forrester's <a href="https://archive.org/details/urbandynamics0000forr">Urban Dynamics</a> (1969) is often cited as an influence on Will Wright, Chief
+Designer of <a href="https://archive.org/details/msdos_SimCity_1989">SimCity (1989)</a>. <em>Urban Dynamics</em> is essentially a paperback simulation of cities.
+The <a href="https://github.com/SimHacker/micropolis">Micropolis</a> simulation is vaguely recognizable as a minified version of the model in <em>Urban
+Dynamics</em> along with some small improvements in including spatial values of neighboring tiles that
+Forrester's models lack. Interestingly, both arrive at the same place: what improves a city
+most is <em>reducing</em> available housing:</p>
+<blockquote>
+<p>The concurrent reduction of excess housing is absolutely essential. It supplies the land for new
+job-creating structures. Equally important, the resulting housing shortage creates the
+population-stabilizing pressure that allows economic revival to proceed without being inundated
+by rising population.</p>
+<p>—Jay Forrester, <a href="https://ocw.mit.edu/courses/15-988-system-dynamics-self-study-fall-1998-spring-1999/65cdf0faf132dec7ec75e91f9651b31f_behavior.pdf">Counterintuitive Behavior of Social Systems</a>, 1971</p>
+</blockquote>
+<p><a href="https://en.wikipedia.org/wiki/The_Sumerian_Game">The Sumerian Game (1963)</a>, considered the antecedent of the city-building game genre, contains
+the same anti-pattern, where <a href="https://www.jeffquast.com/post/hamurabi_bas/">I found the best strategy</a> is systemic starvation of 3% of the
+population.  I think in 2026 it would be difficult to find a proponent for the housing and
+population shortages that all three of these models suggest optimizing towards.</p>
+</div>
+</div>
+                
+                
+                
+
+                
+                
+                    <a rel="prev" href="https://www.jeffquast.com/post/perfecting-terminal-character-width-using-correction-tables/" id="prev">
+                        ← <span></span>
+                    </a>
+                
+            </article>
+        </section></div>
