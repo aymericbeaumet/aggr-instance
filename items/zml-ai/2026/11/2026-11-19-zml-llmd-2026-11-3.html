@@ -1,0 +1,112 @@
+<div id="readability-page-1" class="page"><div>
+        <p>Article</p>
+        
+        
+          <p>Embeddings, decisions, and MXFP4/NVFP4 on Intel.</p>
+        
+        
+          <p><span>November 19, 2026</span>
+            
+            
+              <span>inference / serving / embeddings / NVIDIA / Intel / Metal</span></p>
+        
+      </div><div>
+        <p>We are pleased to announce the release of <code>zml/llmd 2026.11.3</code>. This week brings an embeddings API, support for
+decision models, and MXFP4/NVFP4 on Intel oneAPI. You’ll also find general bug fixes and improvements throughout.</p>
+<h2 id="a-new-versioning-scheme">A new versioning scheme</h2>
+<p>The version number looks a little different this week. Releases now use <code>YYYY.MM.&lt;revision&gt;</code>,
+with a revision number for each release within the month.</p>
+<h2 id="embeddings-api">Embeddings API</h2>
+<p>zml/llmd now implements the embeddings endpoints through <code>POST /v1/embeddings</code> and <code>POST /embeddings</code> with initial
+support for the <a href="https://huggingface.co/collections/Qwen/qwen3-embedding">Qwen3-Embedding</a> series.
+You can pass a single string or a list of strings and request a smaller output vector with <code>dimensions</code>
+when the model supports it.</p>
+<div><pre><code data-language="bash">curl http://localhost:8000/v1/embeddings \
+    -H 'Content-Type: application/json' \
+    -d '{"model":"Qwen/Qwen3-Embedding-0.6B","input":["First document", "Second document"], "dimensions": 32}'
+</code></pre></div><h2 id="decision-models">Decision Models</h2>
+<p>This week, zml/llmd adds decision models via the <code>/v1/systemone</code> endpoint.
+Decision models are designed to answer multiple-choice questions
+and do it a lot faster than general-purpose LLMs. They are trained to reason about the choices and provide a single answer.</p>
+<p>We have also implement a StartLux extension in which questions in a request can depend on one another, even when a
+dependency appears later in the list. The server schedules questions when their dependencies are complete and rejects cycles.</p>
+<p>Here is a sample request/response:</p>
+<div><pre><code data-language="bash">curl -sS http://127.0.0.1:8000/v1/systemone \
+    -H 'Content-Type: application/json' \
+    -d '{
+        "model": "startlux-models/StartLux-Decision-v1.1-0.8B-Instant",
+        "state": "The animal sits on the mat, purrs and chases a red laser dot.",
+        "questions": {
+            "animal": {"type": "choice", "instructions": "Which animal is it?", "criteria": {"cat": null, "dog": "barks"}}
+        }
+    }'
+{
+  "answers": {
+    "animal": {
+      "type": "choice",
+      "choice": "cat",
+      "confidence": 0.9999995231628418,
+      "probabilities": {
+        "cat": 0.9999997615814209,
+        "dog": 2.0826452384881122E-7
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 54,
+    "output_tokens": 0
+  },
+  "model": "startlux-models/StartLux-Decision-v1.1-0.8B-Instant"
+}
+</code></pre></div><p>Here’s a little demo of <a href="https://huggingface.co/google/diffusiongemma-26B-A4B-it">Google’s Diffusion Gemma</a> playing Pac-Man
+via zml/llmd:</p>
+<p>
+    
+</p>
+<h2 id="startlux-decision-models">StartLux Decision Models</h2>
+<p>As a first release, we added support for the <a href="https://decision.startlux.com/">StartLux Decision models</a>:</p>
+<p><img src="https://zml.ai/posts/llmd-2026.11.3/startlux_evals.png" alt="">
+</p>
+<p>StartLux Decision models come in two variants. <code>Instant</code> answers in one pass. <code>Autothink</code> can spend more time
+reasoning and try again when the first decision is uncertain.</p>
+<p>Here are the performance measurements vs vLLM and SGLang:</p>
+<p><img src="https://zml.ai/posts/llmd-2026.11.3/startlux_0.8b.png" alt="StartLux Decision 0.8B performance evaluation">
+
+<img src="https://zml.ai/posts/llmd-2026.11.3/startlux_9b.png" alt="StartLux Decision 9B performance evaluation">
+
+<img src="https://zml.ai/posts/llmd-2026.11.3/startlux_27b.png" alt="StartLux Decision 27B performance evaluation">
+</p>
+<h2 id="regular-llms-in-decision-mode">Regular LLMs in decision mode</h2>
+<p>You can send decision requests to a general-purpose LLM you’re already serving through zml/llmd. The same
+checkpoint can handle chat requests and answer multiple-choice questions through <code>/v1/systemone</code>. Decision mode requests
+are batched with regular completion requests inside the same forward pass, so you can use the same model for both workloads
+if you choose to do so.</p>
+<p>This release supports decision mode for Llama, Qwen3.5/3.6/3.8, Qwen 3.8 Flash Next, Gemma 4, LFM 3, and GLM 5.2.
+DeepSeek-V4.1 support is deferred pending a chat template fix.</p>
+<h2 id="deepseek-v41-data-parallelism">DeepSeek-V4.1 Data Parallelism</h2>
+<p>DeepSeek-V4.1 gains support for <code>--data-parallel</code>. As with Llama, this lets you distribute requests and their
+KV caches across groups of devices.</p>
+<h2 id="intel-oneapi-mxfp4nvfp4-support">Intel oneAPI MXFP4/NVFP4 support</h2>
+<p>The Intel oneAPI backend can now run compatible MXFP4 and NVFP4 checkpoints. This lets you run models that were
+quantized for NVIDIA’s NVFP4 format transparently, with a nice performance boost and more memory savings.</p>
+<figure>
+  <figcaption>Qwen3.8-27B, pp1024/tg128, bs=1, 4xArc B70, more is better <span>(tg tok/s)</span></figcaption>
+  
+</figure><h2 id="try-it-today">Try it today</h2>
+<p><strong>NVIDIA</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --shm-size=256GB --gpus=all -e HF_TOKEN -it zmlai/llmd:cuda \
+    --model=hf://Qwen/Qwen3-Embedding-0.6B
+</code></pre></div><p><strong>AMD</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --shm-size=256GB --device=/dev/kfd --device=/dev/dri -e HF_TOKEN -it zmlai/llmd:rocm \
+    --model=hf://Qwen/Qwen3.8-Flash-Next
+</code></pre></div><p><strong>Intel</strong></p>
+<div><pre><code data-language="bash">docker run -p 8000:8000 --device=/dev/dri -e HF_TOKEN -it zmlai/llmd:oneapi \
+    --model=hf://Qwen/Qwen3.8-27B
+</code></pre></div><p><strong>Google TPU</strong></p>
+<div><pre><code data-language="bash">docker run --net=host --privileged -e HF_TOKEN -it zmlai/llmd:tpu \
+    --model=hf://Qwen/Qwen3.8-27B
+</code></pre></div><p><strong>Apple Metal</strong></p>
+<div><pre><code data-language="bash">brew install zml/zml/llmd
+llmd --model=hf://Qwen/Qwen3-Embedding-0.6B
+</code></pre></div>
+      </div></div>
