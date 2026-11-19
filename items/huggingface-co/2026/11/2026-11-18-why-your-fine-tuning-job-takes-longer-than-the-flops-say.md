@@ -1,0 +1,152 @@
+---
+title: Why your fine-tuning job takes longer than the FLOPs say
+link: https://huggingface.co/blog/Dharma-AI/predicting-fine-tuning-time
+source: huggingface-co
+published: 2026-11-18T18:53:43Z
+updated: 2026-11-18T18:53:43Z
+first_seen: 2026-11-19T00:14:19.077761094Z
+content: extracted
+html: 2026-11-18-why-your-fine-tuning-job-takes-longer-than-the-flops-say.html
+remote_preview:
+  url: https://cdn-uploads.huggingface.co/production/uploads/6a725daa5ca641a21ab61956/J6DIf4Len_31Tj-CQlQXY.png
+---
+
+*Predicting end-to-end fine-tuning time on shared GPU clusters, from 272 production runs.*
+
+**A preview of our upcoming paper, *Predicting End-to-End Fine-Tuning Time for Generative Language Models*. The full version will be on arXiv soon.**
+
+GPUs are among the most expensive and scarcest resources in AI today. Anyone running a shared cluster has to decide, every day, which jobs go on which GPUs and in what order. That plan is only as good as the estimate of how long each job will take. When a job finishes hours early, GPUs sit idle until the next one is dispatched. When it runs hours late, everything queued behind it slips, experiments wait and delivery dates move.
+
+Better duration estimates turn this into planning instead of guesswork: what runs, when, and on how many GPUs, with less idle capacity in between. Yet the estimate most teams use is a back-of-the-envelope FLOP calculation. It says nine hours, and the job finishes the next afternoon.
+
+We wanted to know how far off that math really is, and whether we could do better before a job is even dispatched. So we took 272 real supervised fine-tuning (SFT) jobs from our production pool of NVIDIA H200 GPUs, about 7,382 GPU-hours in total, and compared analytical estimates against learned predictors.
+
+The short version: the usual FLOP-based estimate explains little of what we observed (R² = 0.31, MAE 12.41 h). A CatBoost regressor that only sees information available before dispatch reaches **R² = 0.98, with a mean absolute error of 1.71 h and a median error of 0.51 h** in 5-fold cross-validation. The gap comes from two things a closed-form estimate cannot do. The regressor sees more training-specific signals, such as evaluation cadence, checkpoint policy, per-GPU load and fine-tuning regime, and it learns the nonlinear interactions between them from past runs.
+
+## The estimate everyone uses is compute-only
+
+For a dense Transformer, training costs roughly 6·P·D floating-point operations, where P is the parameter count and D the number of training tokens. Divide that by what your GPUs can deliver and you get a training-loop time:
+
+```
+T_theoretical = (6 · P · D) / (N_GPU · FLOPS_peak · MFU)
+```
+
+Here N\_GPU is the number of GPUs, FLOPS\_peak is the peak throughput of one GPU from its spec sheet, and MFU (Model FLOPs Utilization) is the fraction of that peak the training actually achieves. Real jobs never run at peak because of memory traffic, communication and kernel inefficiencies, so MFU typically sits somewhere between 30% and 60%, and the right value for a given job is not known in advance.
+
+This is a good description of the optimization loop. A job is more than its loop, though. Before the first step there is environment setup, model download and loading, and tokenization. During training there are periodic evaluations and checkpoint uploads. At the end, the final model goes to object storage. On a multi-tenant cluster, all of it competes with other jobs for network and storage I/O.
+
+These overheads depend on configuration, and they do not scale neatly with workload or GPU count. Two jobs with the same nominal compute can finish hours apart.
+
+To keep the comparison fair, the FLOP baseline we test counts the scheduled evaluation tokens as well as the training tokens, and we sweep MFU over a wide range.
+
+## What we built
+
+We treat end-to-end duration as a supervised regression problem. Given a feature vector built from the job configuration and model metadata, predict the wall-clock time between the moment the job gets its GPUs and the moment it is done. Queue time is excluded.
+
+Two design choices shaped the work:
+
+- **Everything is known before dispatch.** Every input comes from the submitted configuration: hyperparameters, dataset sizes, model identifiers, GPU allocation. No runtime logs, no partial progress. That is what makes the prediction usable for scheduling.
+- **Features that expose the overheads.** On top of the raw configuration we derive quantities such as `num_eval_data` (samples processed across all evaluation cycles), `num_saves` and `num_params_saved` (checkpoint I/O), and per-GPU token volumes. The FLOP estimate itself, with MFU fixed at 0.45, goes in as one more feature (`baseline_time`), so the model starts from the compute-only number and learns the corrections.
+
+We compared Linear Regression, Ridge, XGBoost and CatBoost. Feature selection combined correlation filtering, mutual information and permutation importance across 18 candidate feature sets, followed by a grid search with MAE as the criterion. The final CatBoost model uses 24 features.
+
+## The data
+
+- **272 SFT runs** from the operational logs of a corporate production environment, covering several model families up to 15 billion parameters, both LoRA and full fine-tuning, and a wide range of dataset sizes and hyperparameters.
+- **Shared infrastructure.** Jobs ran on 1, 2 or 4 GPUs drawn from a pool of 8 to 32 H200s across 1 to 4 nodes, alongside other training and inference workloads. The measured times include real contention.
+- **Durations from 1.6 to 172.4 hours**, with a mean of 23.43 h and a median of 15.29 h.
+- **Stack:** Hugging Face Transformers and Unsloth. We model the stack as a categorical feature and make no assumption about a fixed speedup between the two.
+
+[![fig-duration-distribution](https://cdn-uploads.huggingface.co/production/uploads/6a725daa5ca641a21ab61956/uD4Td4N-bvoPStQBNx8yy.png)](https://cdn-uploads.huggingface.co/production/uploads/6a725daa5ca641a21ab61956/uD4Td4N-bvoPStQBNx8yy.png)
+
+*Distribution of end-to-end duration across the 272 runs. Mean 23.43 h, median 15.29 h.*
+
+## Results
+
+All numbers come from stratified 5-fold cross-validation. The first four rows are analytical and involve no fitting.
+
+| Model                   | R²              | RMSE (h)        | MAE (h)         |
+| ----------------------- | --------------- | --------------- | --------------- |
+| FLOP baseline (MFU 30%) | 0.31            | 20.45           | 12.41           |
+| FLOP baseline (MFU 45%) | 0.18            | 22.38           | 13.01           |
+| FLOP baseline (MFU 60%) | 0.01            | 24.56           | 14.62           |
+| Calculon                | −0.51           | 30.40           | 20.36           |
+| Linear Regression       | 0.69 ± 0.14     | 13.52 ± 4.23    | 7.52 ± 0.49     |
+| Ridge                   | 0.73 ± 0.09     | 12.72 ± 3.70    | 7.23 ± 0.68     |
+| XGBoost                 | 0.97 ± 0.01     | 4.18 ± 1.17     | 1.95 ± 0.32     |
+| **CatBoost**            | **0.98 ± 0.01** | **3.52 ± 0.78** | **1.71 ± 0.33** |
+
+A few things stand out.
+
+**No single MFU value fixes the FLOP baseline.** We swept MFU from 0.25 to 0.65. The best setting, 30%, still leaves a mean error above 12 hours on jobs that last 23 hours on average.
+
+**A more detailed analytical model does not close the gap.** As a second baseline we took Calculon (Isaev et al., SC '23), an analytical performance model for LLM training from prior work. It builds an explicit layer graph and accounts for compute, memory traffic and inter-device communication. We extended the public implementation to cover LoRA, grouped-query attention, fused attention, bfloat16 and SwiGLU. Its estimates still correspond to a median of only 11% of the observed wall-clock time. That says nothing against Calculon as a step-level tool, which is what it was designed for. It shows how much of a production job happens outside the optimization step.
+
+**Linear models help, and then stall.** Ridge brings MAE down to 7.23 h. The relationship between configuration and duration is not well captured by a purely linear model.
+
+**Gradient boosting does the heavy lifting.** CatBoost and XGBoost land within one standard deviation of each other on every metric. We carry CatBoost forward because it has the lowest mean error across the board.
+
+## What the predictor relies on
+
+CatBoost's feature importance concentrates in a handful of features. Model and workload variables are there, as expected, but so are evaluation and checkpoint variables. `num_eval_data`, the total number of samples processed in evaluation over the life of the job, ranks first, followed by `num_trainable_params`, `batch_eval_size_percent`, `num_all_params` and `num_gpus*batch_train_percent`, with `num_params_saved` close behind. SHAP values tell the same story: high evaluation volume consistently pushes the predicted time up, while trainable parameter count has a nonlinear effect that only becomes large for the biggest models.
+
+[![fig-feature-importance](https://cdn-uploads.huggingface.co/production/uploads/6a725daa5ca641a21ab61956/MHyGZSFJZ6HXmwAUCTAnF.png)](https://cdn-uploads.huggingface.co/production/uploads/6a725daa5ca641a21ab61956/MHyGZSFJZ6HXmwAUCTAnF.png)
+
+*Mean feature importance of the CatBoost model across folds (PredictionValuesChange).*
+
+Feature importance is not a causal claim. Still, the pattern lines up with how a job is actually spent. How often you evaluate, how large the evaluation set is and how many checkpoints you persist all shape the wall-clock time, alongside model and dataset scale. These are choices people often make by habit when writing a training config.
+
+One caveat on reading the plots: larger GPU allocations show positive contributions to predicted time. In our data, bigger allocations go with bigger jobs, so `num_gpus` acts partly as a proxy for job scale. It does not mean adding GPUs makes a job slower.
+
+## How wrong is it, and where
+
+Looking at all 272 out-of-fold predictions, the median absolute error is 0.51 h. 80% of predictions are within 2.20 h and 90% are within 4.31 h. Broken down by job duration:
+
+| Job duration (h) | Runs | Median abs. error (h) | P90 (h) |
+| ---------------- | ---- | --------------------- | ------- |
+| 1.56 to 5        | 60   | 0.30                  | 1.55    |
+| 5 to 10          | 63   | 0.18                  | 1.27    |
+| 10 to 30         | 69   | 0.73                  | 4.17    |
+| 30 to 60         | 67   | 1.06                  | 5.50    |
+| 60 to 175        | 13   | 5.19                  | 18.51   |
+
+Up to 60 hours, the median error stays at about one hour or less. The long tail is where the model struggles, and with only 13 runs above 60 hours we read that as a data limitation.
+
+[![fig-error-by-duration](https://cdn-uploads.huggingface.co/production/uploads/6a725daa5ca641a21ab61956/gQbjzLv37ag5kX7nZuuMh.png)](https://cdn-uploads.huggingface.co/production/uploads/6a725daa5ca641a21ab61956/gQbjzLv37ag5kX7nZuuMh.png)
+
+*Out-of-fold absolute error against real duration, colored by duration range. Errors stay low up to 60 h and widen in the sparse tail.*
+
+More data should still help. On a fixed 20% holdout, MAE drops from 1.63 h to 1.50 h when going from 85% to 100% of the training partition, with no clear plateau.
+
+## What it is good for
+
+In practice, the predictor gives a scheduler a duration it can plan around before a job starts: which jobs to run together, when GPUs will free up, and whether a run will finish in time for its deadline.
+
+## Limitations
+
+- **SFT only.** We did not include other training and alignment strategies such as RLHF, DPO or RLVR.
+- **One GPU type.** Every run used H200s. The fitted model is calibrated to that infrastructure and should not be expected to transfer numerically to other GPU generations without retraining. A predictor for mixed pools would also need hardware descriptors such as compute throughput, memory capacity and bandwidth, and interconnect topology.
+- **Few very long runs.** Errors widen above 60 hours.
+
+What does transfer is the method: overhead-aware features, multicollinearity-aware selection and the comparison protocol. The full paper will report the feature formulas, the selection procedure, the search spaces and the final hyperparameters in full, so the pipeline can be rebuilt on any execution-log dataset with a similar structure.
+
+Next on our list: hardware-specific descriptors and validation on other GPU types, transfer learning for configurations with few observations, other training objectives, and more data on long runs.
+
+## What's next
+
+The full paper is coming to arXiv soon. Follow the Dharma-AI organization on Hugging Face to be notified when it is out, and leave your questions in the comments below. We would like to hear how you estimate job duration on your own clusters.
+
+## Further reading
+
+- [GPU Management: Why Idle GPUs Are the New Grounded Aircraft](https://huggingface.co/blog/Dharma-AI/gpu-management)
+- [Same Cluster, 33 Points More Utilization: What Changed Was the Order](https://huggingface.co/blog/Dharma-AI/gpu-management-pt2)
+- [How Specializing the Vocabulary of SLMs Can Cut Inference Cost by 77% in Real Applications](https://huggingface.co/blog/Dharma-AI/vocabx-vocabulary-specialization)
+- [Specialization Beats Scale: A Strategic Variable Most AI Procurement Decisions Overlook](https://huggingface.co/blog/Dharma-AI/specialization-beats-scale)
+- [Why Specialization Is Inevitable](https://huggingface.co/blog/Dharma-AI/why-specialization-is-inevitable)
+- [Newer Models, Same Advantage](https://huggingface.co/blog/Dharma-AI/newer-models-same-advantages)
+- [Direct Preference Optimization Beyond Chatbots](https://huggingface.co/blog/Dharma-AI/direct-preference-optimization-beyond-chatbots)
+- [Text Degeneration: A Production Failure Mode That Most Benchmarks Do Not Track](https://huggingface.co/blog/Dharma-AI/text-degeneration-a-production-failure-mode)
+
+* * *
+
+*Dharma-AI R&D · We Make AI Your Model*
