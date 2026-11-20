@@ -7,7 +7,7 @@ updated: 2026-11-19T01:29:29Z
 first_seen: 2026-11-19T07:50:29.493483202Z
 authors:
 - TheAceOfHearts
-content: feed
+content: extracted
 html: 2026-11-19-unreal-tournament-2004-in-the-browser.html
 remote_preview:
   url: https://assets.ut2004.dev/web/og.jpg
@@ -16,3 +16,7 @@ extra:
   num_comments: 61
   points: 146
 ---
+
+A free, open source port of UT2004 that runs in a desktop browser, with online multiplayer and no install.
+
+Loading
