@@ -1,0 +1,543 @@
+<div id="readability-page-1" class="page"><div> 
+<p>Combining RL on a custom task distribution with your favorite agent harness yields more accurate and efficient models for that target harness and task distribution.</p>
+<p>Models are not fully optimized for all harnesses and the tasks you’re doing. Instead, they target general performance. So when you combine a model and harness, you’re leaving performance and efficiency on the table for the stuff you’re actually doing. With RL, you can train a custom harness adapter that squeezes everything out of your model for your harness and task combination.</p>
+<p>Take Qwen3.8-27B, its Terminal-Bench 2.1 score with the pi harness is 39% which uses on average 2.9K tokens per task. If we freeze those weights and add a custom RL-trained LoRA adapter we can get 55% pass@1, with average token usage of 1.5K. Most of this is down to the model reasoning less, calling less tools, and performing better first time.</p>
+<p>Our earlier work (<a href="https://huggingface.co/spaces/FineEnvs/multi-harness-rl">multi-harness RL</a>, <a href="https://huggingface.co/blog/harness-hub/harness-adapters">harness adapters</a>) showed that RL on your own task distribution, inside your own harness, gives a more accurate and more efficient model. Those experiments covered data-analysis and code-building tasks. Here we wanted to push this further by exploring whether the result holds at 27B, on harder real-world software engineering tasks, across three harnesses: Pi, OpenCode and Hermes Agent. And most of all, share a fully reusable recipe, so you can reproduce this on your own task, harness, model combinations.</p>
+<h2>
+	<a id="tldr" href="#tldr" rel="nofollow">
+		
+	</a>
+	<span>
+		TL;DR
+	</span>
+</h2>
+<ul>
+<li>We trained one LoRA adapter for Qwen3.8-27B per agent harness (pi, Hermes Agent, OpenCode), with RL inside the harness itself.</li>
+<li>Datasets, training and agent rollouts all happen on the Hub in Jobs using TRL's <code>AsyncGRPOTrainer</code>, OpenEnv and harbor.</li>
+<li>Each harness adapter beats the base model under its own harness on both benchmarks, for both performance and efficiency.</li>
+<li>The three LoRAs are also merged into a single super adapter that runs unchanged under pi, Hermes Agent and OpenCode.</li>
+<li>All artifacts (adapters, GGUFs, RL tasks, safeagents plugin) can be browsed through this <a href="https://huggingface.co/collections/harness-hub/qwen38-27b-harness-adapters">Hugging Face collection</a>.</li>
+</ul>
+<h2>
+	<a id="table-of-contents" href="#table-of-contents" rel="nofollow">
+		
+	</a>
+	<span>
+		Table of Contents
+	</span>
+</h2>
+<ul>
+<li><a href="#training-inside-agent-harnesses" rel="nofollow">Training inside agent harnesses</a></li>
+<li><a href="#generating-custom-rl-tasks-on-hugging-face" rel="nofollow">Generating custom RL tasks on Hugging Face</a></li>
+<li><a href="#testing-the-filters-with-short-training-runs" rel="nofollow">Testing the filters with short training runs</a></li>
+<li><a href="#asyncgrpotrainer-for-more-efficient-grpo-training" rel="nofollow"><code>AsyncGRPOTrainer</code> for more efficient GRPO training</a></li>
+<li><a href="#training-setup" rel="nofollow">Training setup</a></li>
+<li><a href="#super-adapter-merging-all-adapters-into-one" rel="nofollow">Super-adapter: merging all adapters into one</a></li>
+<li><a href="#final-results" rel="nofollow">Final results</a></li>
+<li><a href="#open-question-what-did-the-model-really-learn-to-do" rel="nofollow">Open question: What did the model really learn to do?</a></li>
+<li><a href="#closing-words-and-future-directions" rel="nofollow">Closing words and future directions</a></li>
+</ul>
+<h2>
+	<a id="training-inside-agent-harnesses" href="#training-inside-agent-harnesses" rel="nofollow">
+		
+	</a>
+	<span>
+		Training inside agent harnesses
+	</span>
+</h2>
+<p>We leverage the <a href="https://huggingface.co/docs/openenv/environments/harbor">Harbor integration in OpenEnv</a> and <a href="https://huggingface.co/docs/trl/openenv">TRL’s OpenEnv</a> guide to train the model inside the harnesses we chose for the final training. We have built ready-to-use docker images for all our RL tasks that come with the target harnesses already pre-installed inside. In our final docker images, we use Pi <code>1.5.2</code>, OpenCode <code>2.2.7</code> and Hermes Agent <code>v0.22.6</code>. The diagram below from the aforementioned blogpost explains well the entire protocol:</p>
+
+
+<p>Most RL frameworks train a re-implementation of the agent loop: the agent is written against the framework's own interface, such as <a href="https://verl.readthedocs.io/en/latest/advance/agent_loop.html" rel="nofollow">verl's AgentLoop</a>, <a href="https://github.com/NovaSky-AI/SkyRL" rel="nofollow">SkyRL-Gym</a> environments, <a href="https://github.com/rllm-org/rllm" rel="nofollow">rLLM</a>'s agent and environment classes, <a href="https://github.com/THUDM/slime" rel="nofollow">slime</a>'s custom rollout functions, or <a href="https://github.com/OpenPipe/ART" rel="nofollow">ART</a>'s client inside your own Python agent. Here the harness runs exactly as it ships, and the trainer learns from the exact tokens it produced, recorded by a proxy between the harness and vLLM. Recent work moves in the same direction: <a href="https://huggingface.co/papers/2608.17528">Agent Lightning v1.0</a> keeps the deploy-time harness in the loop through a proxy ("harnessed agentic RL"), and <a href="https://novasky-ai.notion.site/skyrl-harbor" rel="nofollow">SkyRL's Harbor integration</a> trains on Harbor trials, converting their chat histories into tokens for the trainer.</p>
+<h2>
+	<a id="generating-custom-rl-tasks-on-hugging-face" href="#generating-custom-rl-tasks-on-hugging-face" rel="nofollow">
+		
+	</a>
+	<span>
+		Generating custom RL tasks on Hugging Face
+	</span>
+</h2>
+<p>For this recipe we created a custom dataset for agentic coding with the Hub, OpenEnv, and <a href="https://github.com/huggingface/Repo2RLEnv" rel="nofollow">Repo2RLEnv</a>. We combined together task retrieval of existing RL envs, task generation with Repo2RLEnv, task validation with OpenEnv, and sampling into a single data pipeline. This gave us the highest quality set of validated and relevant tasks to improve Qwen3.8-27B on agentic coding. In this section, we’ll walk through how we built it, so you can try it out on your own domains.</p>
+<p>RL training needs tasks the agent can attempt, a verifier that scores each attempt, and evidence that the verifier is right. A verifier that accepts wrong answers teaches the wrong behavior. A task that is already feasible will not teach the model anything.</p>
+<p>This section describes how we built the task set from three sources: two on the Hugging Face Hub and a third generated with Tasksmith, a pipeline in Repo2RLEnv. Every task passes an eligibility screen with <code>openenv validate</code>, and the same difficulty check against the base model, Qwen3.8-27B.</p>
+<p>
+    <img src="https://huggingface.co/buckets/huggingface/harness-adapters-blog-assets/resolve/images/task-pipeline.png" alt="Task pipeline: Tasksmith, SWE-smith and SWE-Gym sources pass through an eligibility screen, Harbor packaging, openenv validate on Hugging Face Jobs, and a difficulty check with Qwen3.8-27B" width="80%">
+</p>
+
+<h3>
+	<a id="three-sources" href="#three-sources" rel="nofollow">
+		
+	</a>
+	<span>
+		Three sources
+	</span>
+</h3>
+<p>Each task uses the Harbor format, which Terminal-Bench 2.1 also uses. A broad search of the Hub for Harbor environments returned about 59,000 tasks, but they included duplicates, evaluation sets and tasks marked as not for training. We filtered down to just two Hub sources built for training and generated a third set ourselves:</p>
+<ul>
+<li>SWE-smith (<a href="https://huggingface.co/datasets/SWE-bench/SWE-smith-py">Python</a>, <a href="https://huggingface.co/datasets/SWE-bench/SWE-smith-go">Go</a>) injects bugs into real Python and Go repositories, with an LLM rewrite or a mutation such as a flipped operator. The tests that catch each bug become the task's tests. It adds volume.</li>
+<li>SWE-Gym, packaged as Harbor tasks in <a href="https://huggingface.co/datasets/open-thoughts/TaskTrove">TaskTrove</a>, turns real GitHub issues and their merged fixes into tasks. It adds real-world bugs.</li>
+<li><a href="https://huggingface.github.io/Repo2RLEnv/pipelines/tasksmith/" rel="nofollow">Tasksmith</a> generates tasks from merged pull requests. An LLM agent writes the instruction and tests, and Tasksmith checks the result: the reference and a valid alternative must pass, while the unfixed code and a known-wrong solution must fail.</li>
+</ul>
+<p>We used Tasksmith to target gaps. We mapped the skills that our target benchmarks test (Terminal-Bench 2.1, the hard subset of SWE-bench Pro, and DeepSWE), then chose pull requests that exercise them, such as HTTP streaming, filesystem operations and serialization. From 30 merged pull requests, Tasksmith produced 24 tasks in 10 Python repositories that passed its checks, 17 of them on a second run. Its checks do not replace ours, so these tasks go through the same pipeline as the rest.</p>
+<h3>
+	<a id="validation-with-openenv-validate" href="#validation-with-openenv-validate" rel="nofollow">
+		
+	</a>
+	<span>
+		Validation with <code>openenv validate</code>
+	</span>
+</h3>
+<p>A metadata screen runs first. It keeps tasks from training splits with permissive licenses. It drops duplicates, tasks marked as not for training, the 253 tasks in our target benchmarks, and any task from a repository those benchmarks use. We then ran the semantic checks from <code>openenv validate</code> on every task in fresh trials:</p>
+<ul>
+<li>The reference solution earns the maximum reward (<code>semantic.oracle_max</code>).</li>
+<li>Doing nothing scores clearly lower (<code>semantic.floor_gap</code>).</li>
+<li>No canary scores more than doing nothing (<code>semantic.canary_floor</code>).</li>
+<li>A replay of the reference gives the same reward (<code>runtime.episode_determinism</code>).</li>
+</ul>
+<p>Each trial ran as its own Hugging Face Job, which let us validate dozens of tasks at once. <code>openenv validate</code> offers the same option for any Harbor task:</p>
+<pre><code data-language="bash">openenv validate path/to/task --sandbox hf-sandbox
+</code></pre>
+<p>858 of 1,127 Hub candidates passed. Wrong-answer controls caught defects, including a Tasksmith task that accepted an incomplete implementation and a Terminal-Bench 2.1 verifier (regex-log) that accepted known-wrong answers. Most failures were infrastructure problems, such as images that did not start. Failed tasks stay in a rejected split with the failing check recorded.</p>
+<h3>
+	<a id="difficulty-check-with-the-base-model" href="#difficulty-check-with-the-base-model" rel="nofollow">
+		
+	</a>
+	<span>
+		Difficulty check with the base model
+	</span>
+</h3>
+<p>A valid task can still teach nothing. GRPO (group relative policy optimization) scores each attempt against the other attempts at the same task, so a task where every attempt passes, or every attempt fails, gives no learning signal. Before training, Qwen3.8-27B attempted each task 4 times, or 8 times for a stratified sample of six tasks per repository.</p>
+<p>Of 442 scored tasks, Qwen3.8-27B solved 151 every time and 120 never. The 171 tasks it solved only sometimes form the qualified set. The figure below shows how the scores pile up at both ends and how they differ by source. The model solves most Go tasks every time, fails every attempt on more than a third of the SWE-smith Python tasks, and lands in the middle on 73% of the SWE-Gym tasks.</p>
+<p>
+    <img src="https://huggingface.co/buckets/huggingface/harness-adapters-blog-assets/resolve/images/difficulty-check.png" alt="Qwen3.8-27B results on 442 scored tasks, split by attempts solved and by source" width="90%">
+</p>
+
+<p><em>Qwen3.8-27B results on 442 scored tasks. Green marks the qualified tasks, which the model solves on some attempts but not all.</em></p>
+<p>This example shows how we filtered and validated 1,127 tasks to 278 which we included directly in the final dataset. The pipeline then took the remaining 522 rejected tasks, repaired and complexified them with Tasksmith and repeated validation.</p>
+<h2>
+	<a id="testing-the-filters-with-short-training-runs" href="#testing-the-filters-with-short-training-runs" rel="nofollow">
+		
+	</a>
+	<span>
+		Testing the filters with short training runs
+	</span>
+</h2>
+<p>The pipeline applies two filters: validation removes broken tasks, and the difficulty check keeps tasks the base model solves only sometimes. This section tests whether those filters change what the model learns. We trained four short runs of up to 50 steps, each on tasks from a different stage of the pipeline, and compared them with the base model on Terminal-Bench 2.1.</p>
+<p>Each run trains Qwen3.8-27B with LoRA and GRPO, using TRL's <code>AsyncGRPOTrainer</code>, on 32 tasks. All four use the same agent harness (OpenCode with up to 48 model calls), the same settings and one 8×H200 Hugging Face Job, and the reward is the verifier's pass or fail. The task sets differ in how they were filtered:</p>
+<ul>
+<li><strong>Unvalidated</strong>: 24 accepted tasks plus 8 that failed validation.</li>
+<li><strong>Validated</strong>: 32 accepted tasks, chosen without regard to difficulty.</li>
+<li><strong>Unqualified</strong>: 32 accepted tasks that the base model always or never solves.</li>
+<li><strong>Qualified</strong>: 32 accepted tasks that the base model solves on some attempts.</li>
+</ul>
+<p>The figure below shows how the tasks impacted model learning. The table lists each run's steps and the checkpoint we evaluate. The chart tracks training reward across subsets of tasks with differing validation status.</p>
+
+
+<h3>
+	<a id="the-dataset" href="#the-dataset" rel="nofollow">
+		
+	</a>
+	<span>
+		The dataset
+	</span>
+</h3>
+<p><code>harness-hub/agentic-coding-envs</code> holds 871 tasks from 35 repositories. Hub tasks are capped at 40 per repository, so no single project dominates. The table below shows what each source contributes. The dataset has two views: every accepted task, and the qualified subset for GRPO training. Rejected attempts stay in a separate config.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Source</th>
+<th>Task type</th>
+<th>Tasks</th>
+<th>Qualified</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>SWE-smith</td>
+<td>Injected bugs in Python and Go</td>
+<td>717</td>
+<td>144</td>
+</tr>
+<tr>
+<td>SWE-Gym (TaskTrove)</td>
+<td>Real GitHub issues</td>
+<td>130</td>
+<td>27</td>
+</tr>
+<tr>
+<td>Tasksmith</td>
+<td>Generated from merged pull requests</td>
+<td>24</td>
+<td>22</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td><strong>871</strong></td>
+<td><strong>171</strong></td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="asyncgrpotrainer-for-more-efficient-grpo-training" href="#asyncgrpotrainer-for-more-efficient-grpo-training" rel="nofollow">
+		
+	</a>
+	<span>
+		<code>AsyncGRPOTrainer</code> for more efficient GRPO training
+	</span>
+</h2>
+<p>We leveraged the stable version of <code>AsyncGRPOTrainer</code> from TRL, with the main advantage of the trainer being that it does not wait until all rollouts are completed before moving to the next training optimization step.</p>
+
+
+<p>For more detailed reading on the trainer and its building blocks, please refer to <a href="https://huggingface.co/spaces/trl-lib/async-grpo-stable">the AsyncGRPO blogpost</a>.</p>
+<h2>
+	<a id="training-setup" href="#training-setup" rel="nofollow">
+		
+	</a>
+	<span>
+		Training setup
+	</span>
+</h2>
+<p>To obtain our final harness adapters, we trained LoRA adapters on top of <a href="https://huggingface.co/Qwen/Qwen3.8-27B">Qwen/Qwen3.8-27B</a> using TRL's <code>AsyncGRPOTrainer</code>. The adapters were attached to the model using the <code>all-linear</code> flag. To maximize the training efficiency, thinking mode was turned off during rollout stages, and we evaluated our final adapter with and without thinking for broader comparison.</p>
+<p>The final reward function consists of the verifier's correctness, combined with a small tool-efficiency bonus (0.1, derived from <a href="https://huggingface.co/blog/harness-hub/harness-adapters">early experiments from the previous iteration of harness adapters</a> which showed that 0.1 worked best).</p>
+<p>We performed a small LR sweep on 50 steps using Termgrade environments (1e-5, 5e-5 and 1e-4) and noticed that 1e-5 barely moved training correctness (from 0.52 to 0.50), 1e-4 collapsed the rollouts instead of improving them (turns per rollout moved from 18 to 6, with entropy rising), and only 5e-5 clearly improved (from 0.49 to 0.60 by step 40). Longer 5e-5 runs then showed signs of instability (collapsing rollout lengths, rising entropy), so we settled on 2e-5 for the final runs.</p>
+<h3>
+	<a id="training-infrastructure" href="#training-infrastructure" rel="nofollow">
+		
+	</a>
+	<span>
+		Training infrastructure
+	</span>
+</h3>
+<p>Each harness adapter was trained using NVIDIA 2xB200 GPUs, with one GPU allocated for the vLLM server and the other allocated for the training process. We first performed some stress testing to maximize the amount of RL tasks that can be trained within a single optimization step. For that, we ‘maxed out’ the <code>--token-budget</code> argument from <code>AsyncGRPOTrainer</code> to its limit for the setup that we had. The chart below shows the evolution of the number of groups per step for each harness (in blue: Pi, green: OpenCode and orange: Hermes).</p>
+
+
+<p>As the model gets better and better during training, it is able to fit more and more groups during each training step, which diversifies the signals that the model gets at each optimization step.</p>
+<h3>
+	<a id="final-mixture" href="#final-mixture" rel="nofollow">
+		
+	</a>
+	<span>
+		Final mixture
+	</span>
+</h3>
+<p>The final data mixture consists of 750 tasks from <a href="https://huggingface.co/datasets/harness-hub/harness-adapters">harness-adapters RL environments</a> and 300 tasks from <a href="https://huggingface.co/datasets/ai-and/termgrade-environments">termgrade</a>. In order to maximize the diversity of the sampled tasks during training, we have slightly customized the data sampling strategy, which will be explained below:</p>
+
+
+<p>Before training, the tasks are put in a fixed order that interleaves them by family (i.e., their repository for our generated RL environments. For Termgrade, we just sorted them by name since each task is considered as its own family), so every training step mixes as many repositories as possible while following the distribution of the mixture.</p>
+<h3>
+	<a id="safeagents-in-the-loop" href="#safeagents-in-the-loop" rel="nofollow">
+		
+	</a>
+	<span>
+		safeagents in the loop
+	</span>
+</h3>
+<p>We also plug the <a href="https://github.com/huggingface/safeagents" rel="nofollow">safeagents</a> tool, in order to block any misbehavior from the model during training. The final plugin (which consists of the regex and pattern rules specific to the RL tasks and test path) is hosted in <a href="https://huggingface.co/harness-hub/qwen-safeagents-plugin">harness-hub/qwen-safeagents-plugin</a> and can be used out of the box using the latest version of safeagents in case anyone wants to reproduce the training setup.</p>
+
+
+<p>The number of blocked tools from safeagents decreases consistently during training, which indicates that the model gets ‘safer and safer’ after each optimization step. Below is a diagram of the safeagents blocked calls per 1000 tool calls, by training step, for each harness adapter.</p>
+<p>
+    <img src="https://huggingface.co/buckets/huggingface/harness-adapters-blog-assets/resolve/images/safeagents-blocked.png" alt="safeagents blocked calls per 1,000 tool calls by training step for the pi, hermes and opencode adapters" width="100%">
+</p>
+
+<h2>
+	<a id="super-adapter-merging-all-adapters-into-one" href="#super-adapter-merging-all-adapters-into-one" rel="nofollow">
+		
+	</a>
+	<span>
+		Super-adapter: merging all adapters into one
+	</span>
+</h2>
+<p>Merging models often combines their capabilities while keeping most of what each one could do. Once the three harness adapters were trained, we asked two questions. Does merging them cost accuracy? And can a single "super-adapter" be accurate and efficient under every harness?</p>
+<p>We started by comparing the weight updates of the three adapters, layer by layer. The cosine similarity between any two of them is about 0.01–0.02: each adapter pushed the model in a nearly orthogonal direction during training. That's the best case for merging, since the updates barely interfere.</p>
+<p>We concatenate the three LoRA adapters along the rank dimension (PEFT's <code>combination_type="cat"</code>). The merged adapter has rank 96 (3 × 32) and applies exactly w · (ΔW_pi + ΔW_hermes + ΔW_opencode). Prior work on merging (<a href="https://huggingface.co/papers/2212.04089">task arithmetic</a>, <a href="https://huggingface.co/papers/2306.01708">TIES</a>, <a href="https://huggingface.co/papers/2410.19735">KnOTS</a>) finds that scaling each update below 1 works best, so we compared three weights on all 89 Terminal-Bench 2.1 tasks, under each harness, with the step-120 adapters:</p>
+<ul>
+<li>⅓ (the average): each harness keeps only a third of its own update.</li>
+<li>½: each update at half strength.</li>
+<li>1 (the plain sum): every update applied in full.</li>
+</ul>
+<div>
+	<table>
+		<thead><tr>
+<th>Weight</th>
+<th>pi</th>
+<th>hermes</th>
+<th>opencode</th>
+<th>All three harnesses</th>
+<th>Tool calls per task</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>base model</td>
+<td>39.1%</td>
+<td>46.0%</td>
+<td>44.8%</td>
+<td>43.3%</td>
+<td>49.2</td>
+</tr>
+<tr>
+<td>⅓ (average)</td>
+<td>49.4%</td>
+<td>51.2%</td>
+<td>47.1%</td>
+<td>49.2%</td>
+<td>35.6</td>
+</tr>
+<tr>
+<td><strong>½</strong></td>
+<td>48.8%</td>
+<td>53.5%</td>
+<td>55.2%</td>
+<td><strong>52.5%</strong></td>
+<td>25.9</td>
+</tr>
+<tr>
+<td>1 (sum)</td>
+<td>40.2%</td>
+<td>62.8%</td>
+<td>47.1%</td>
+<td>50.0%</td>
+<td>13.4</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>The plain sum over-applies the updates. The agents become very short (13 tool calls per task, against 49 for the base model), and while Hermes peaks at 62.8%, pi falls back to the base model's level. The average dilutes each harness's own update. ½ gives the best balance, so we built the final super-adapter from the released checkpoints (pi step 160, hermes step 160, opencode step 150) at weight ½.</p>
+
+
+<h3>
+	<a id="adapter-merging-evaluation-results" href="#adapter-merging-evaluation-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Adapter merging evaluation results
+	</span>
+</h3>
+<p>Under each harness, on the tasks every run graded (50–51 on SWE-bench Pro, 82–85 on Terminal-Bench 2.1), one attempt per task (in parentheses, the efficiency gain with respect to the base model):</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Harness</th>
+<th>Benchmark</th>
+<th><a href="https://huggingface.co/Qwen/Qwen3.8-27B">Qwen3.8-27B</a></th>
+<th>Qwen3.8-27B-&lt;harness&gt;-adapted</th>
+<th><a href="https://huggingface.co/harness-hub/Qwen3.8-27B-super-adapter">Qwen3.8-27B-super-adapter</a></th>
+<th><a href="https://huggingface.co/Qwen/Qwen3.8-27B">Qwen3.8-27B</a>, thinking</th>
+<th><a href="https://huggingface.co/harness-hub/Qwen3.8-27B-super-adapter">Qwen3.8-27B-super-adapter</a>, thinking</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>pi</td>
+<td>SWE-bench Pro (hard 51)</td>
+<td>40.0%</td>
+<td>64.0% (−60%)</td>
+<td>46.0% (−73%)</td>
+<td>74.0%</td>
+<td>74.0% (−48%)</td>
+</tr>
+<tr>
+<td>hermes</td>
+<td>SWE-bench Pro (hard 51)</td>
+<td>29.4%</td>
+<td>43.1% (−56%)</td>
+<td>47.1% (−60%)</td>
+<td>45.1%</td>
+<td>60.8% (−36%)</td>
+</tr>
+<tr>
+<td>opencode</td>
+<td>SWE-bench Pro (hard 51)</td>
+<td>35.3%</td>
+<td>51.0% (−72%)</td>
+<td>45.1% (−63%)</td>
+<td>47.1%</td>
+<td>66.7% (−31%)</td>
+</tr>
+<tr>
+<td>pi</td>
+<td>Terminal-Bench 2.1</td>
+<td>40.0%</td>
+<td>56.5% (−56%)</td>
+<td>48.2% (−56%)</td>
+<td>52.9%</td>
+<td>57.6% (−25%)</td>
+</tr>
+<tr>
+<td>hermes</td>
+<td>Terminal-Bench 2.1</td>
+<td>44.7%</td>
+<td>58.8% (−70%)</td>
+<td>55.3% (−53%)</td>
+<td>58.8%</td>
+<td>63.5% (−19%)</td>
+</tr>
+<tr>
+<td>opencode</td>
+<td>Terminal-Bench 2.1</td>
+<td>47.6%</td>
+<td>52.4% (−53%)</td>
+<td>52.4% (−68%)</td>
+<td>54.9%</td>
+<td>58.5% (−22%)</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p>"Thinking" is the chat template's thinking mode at its default effort (xhigh). The specialists were trained and served with thinking off.</p>
+<p>With thinking off, the super-adapter improves on the base model on all six harness–benchmark pairs (mean pass@1 39.5% → 49.0%; 71 tasks newly solved vs 34 lost, p &lt; 0.001).</p>
+<p>Despite not being trained at all with thinking on, it's the strongest model we evaluated with thinking mode. Against the base model thinking at the same effort, it wins on five of six pairs and ties the sixth (mean 55.5% → 63.5%; 67 newly solved vs 37 lost, p = 0.004). The largest gains are on SWE-bench Pro: +16 points under hermes and +20 under opencode. Under pi on SWE-bench Pro, where thinking alone already reaches 74%, it ties.</p>
+<p>Use the specialist harness adapters when thinking off. Each harness's own adapter is ahead on four of six pairs, by the most under pi (64.0% vs 46.0% on SWE-bench Pro, 56.5% vs 48.2% on Terminal-Bench). Splitting one model across three harnesses costs pi the most of its gain. If you only use one harness and keep thinking off, take its specialist.</p>
+<p>The super adapter is also much more efficient. On the tasks both the base model and the super-adapter solve, with thinking off, it makes 53–73% fewer tool calls and generates 44–60% fewer tokens per task, with fewer tool calls on 111 of 130 tasks. With thinking on, it still cuts tool calls by 31–48% and tokens by 24–43% on SWE-bench Pro. On Terminal-Bench, tool calls drop by 19–25% and token counts stay about the same.</p>
+<p>The ½ weight was chosen on Terminal-Bench 2.1 with the step-120 adapters, so the Terminal-Bench numbers are slightly optimistic; SWE-bench Pro played no part in the choice. Full paired results are in the <a href="https://huggingface.co/harness-hub/Qwen3.8-27B-super-adapter">super-adapter's model card</a>.</p>
+<h2>
+	<a id="final-results" href="#final-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Final results
+	</span>
+</h2>
+<p>This section reports what happened during training, then how the adapters score on held-out benchmarks inside and outside their own harnesses.</p>
+<h3>
+	<a id="training-results" href="#training-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Training results
+	</span>
+</h3>
+<p>Training ran for a cumulative total of 598 steps, with a total of 78,114 samples trained, which consists exactly of 167M trained tokens.</p>
+<p>During training, we see a clear signal that the model learns to solve tasks in fewer and fewer steps, with no clear sign of saturation. Despite having some clear increasing trend sometimes, training correctness seems to overall stay flat. This can be explained by the fact that the model meets new tasks during training, but the number of groups that fit in a step’s token budget more than doubles as trajectories get shorter. The accuracy gains show up on the held-out benchmarks in the section below.</p>
+<p>On the other hand, safeagents was able to block multiple suspicious attempts. Across the three training runs, a total of 1.3M tool calls have been checked, and a total of 647 tool calls have been blocked.</p>
+
+
+
+
+<h3>
+	<a id="evaluation-results" href="#evaluation-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation results
+	</span>
+</h3>
+<p>This section covers the evaluation setup, the in-harness results, transfer across harnesses, and an out-of-distribution check.</p>
+<h4>
+	<a id="evaluation-setup" href="#evaluation-setup" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation setup
+	</span>
+</h4>
+<p>We evaluate each adapter inside the harness it was trained in, on two agentic coding benchmarks: all 89 tasks of <a href="https://huggingface.co/datasets/harborframework/terminal-bench-2.1">Terminal-Bench 2.1</a> (1 hour and 100 agent steps per task) and the 51 hardest tasks of SWE-bench Pro (2 hours and 100 agent steps). We cap the maximum number of tokens per task to be 131072. We do not tune the agent settings and use the default setup for all harnesses. For example, Pi does not keep previous reasoning turns while OpenCode and Hermes do, which mainly affects the SWE-bench Pro results due to rapid context overflow. Therefore you cannot compare the results across different harnesses (using Pi does not necessarily lead to better results than Hermes or OpenCode), but it is fair to compare results within the same harness and draw conclusions.</p>
+<p>Every rollout runs through the same Harbor and OpenEnv stack as training, in HF sandboxes, with one attempt per task at temperature 0.8 and thinking off. Each LoRA checkpoint is merged into the base weights and served alone with vLLM on a single GPU, at the same concurrency as the base model's eval.</p>
+<p>For all the evaluation benchmarks, we report the pass@1 as well as the number of tool calls, total turns, for all tasks and for solved tasks.</p>
+<p>For openness, all model trajectories for final evaluations are pushed in this public bucket: <a href="https://huggingface.co/buckets/harness-hub/harness-adapters-trajectories">harness-hub/harness-adapters-trajectories</a>.</p>
+<h4>
+	<a id="final-evaluation-results" href="#final-evaluation-results" rel="nofollow">
+		
+	</a>
+	<span>
+		Final evaluation results
+	</span>
+</h4>
+<p>All three specialist adapters beat the base model under their own harness, on both benchmarks. On SWE-bench Pro (hard 51), pi goes from 39.2% to 64.7% (+25.5 points: 15 tasks newly solved vs 2 lost, p = 0.002), hermes from 29.4% to 43.1%, and opencode from 35.3% to 51.0%. On the full Terminal-Bench 2.1, pi gains +16.3 points (16 vs 2, p = 0.001) and hermes +14.1 (19 vs 7, p = 0.03). Opencode gains +6.0 overall, and +13.6 on the 66 tasks that played no part in choosing its checkpoint (12 vs 3, p = 0.035).</p>
+<p>The adapters also solve tasks much more efficiently: on the tasks both they and the base model solve, they make 56–72% fewer tool calls per task on SWE-bench Pro and 53–70% fewer on Terminal-Bench 2.1. The single super-adapter beats the base model under all three harnesses too (+6 to +18 points on SWE-bench Pro, +5 to +10 on Terminal-Bench 2.1), with just as large a cut in tool calls (53–73%). It keeps less of each specialist's gain with thinking off, most under pi, but with thinking on it beats the base model thinking at the same effort on five of six harness–benchmark pairs (see the <a href="#super-adapter-merging-all-adapters-into-one" rel="nofollow">super-adapter section</a>). Each model card has the full paired results.</p>
+
+
+<h4>
+	<a id="does-the-efficiency-and-performance-ability-transfer-across-harnesses" href="#does-the-efficiency-and-performance-ability-transfer-across-harnesses" rel="nofollow">
+		
+	</a>
+	<span>
+		Does the efficiency and performance ability transfer across harnesses?
+	</span>
+</h4>
+<p>To answer this question, we also evaluated the pi harness adapter under Hermes Agent and OpenCode.</p>
+<p>Under OpenCode it matches OpenCode's own specialist on Terminal-Bench 2.1 (44.8% → 54.0%, against 46.4% → 52.4%). Under Hermes it keeps about two-thirds of the specialist's gain (46.3% → 56.1%, against 44.7% → 58.8%), with the same ~45% cut in tool calls in both. Therefore it seems that the newly learned capabilities are transferred across harnesses.</p>
+<h4>
+	<a id="evaluation-on-out-of-distribution-tasks-and-setup" href="#evaluation-on-out-of-distribution-tasks-and-setup" rel="nofollow">
+		
+	</a>
+	<span>
+		Evaluation on out-of-distribution tasks and setup
+	</span>
+</h4>
+<p>What happens if we evaluate in out-of-distribution tasks, outside the harnesses the adapters have been trained with?</p>
+<p>We ran all five models on 300 <a href="https://github.com/zapier/AutomationBench" rel="nofollow">AutomationBench tasks</a> which consists of business-automation workflows evaluations, with AutomationBench's own agent loop instead of Pi, Hermes or OpenCode. This way, we can cross check two different questions: can the model solve problems outside SWE-related tasks? What happens when the model is being put outside the harness it has been trained with?</p>
+<p>Results show that the adapters stay close to the base model. Pi and OpenCode are slightly ahead (27.0% and 25.3% pass@1 against 23.0%), the merged adapter is level (23.7%), and Hermes is a few points behind (17.7%). The differences are within noise, except perhaps Hermes, therefore RL inside the harnesses neither transfers clearly to this very different setting nor breaks the model on it.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Model</th>
+<th>pass@1 (all assertions met)</th>
+<th>vs base</th>
+<th>Partial credit (share of assertions met)</th>
+<th>vs base</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>base</td>
+<td>23.0%</td>
+<td></td>
+<td>62.2%</td>
+<td></td>
+</tr>
+<tr>
+<td>pi 160</td>
+<td>27.0%</td>
+<td>+4.0</td>
+<td>66.2%</td>
+<td>+4.0</td>
+</tr>
+<tr>
+<td>opencode 150</td>
+<td>25.3%</td>
+<td>+2.3</td>
+<td>65.2%</td>
+<td>+3.0</td>
+</tr>
+<tr>
+<td>merged</td>
+<td>23.7%</td>
+<td>+0.7</td>
+<td>60.6%</td>
+<td>−1.6</td>
+</tr>
+<tr>
+<td>hermes 160</td>
+<td>17.7%</td>
+<td>−5.3</td>
+<td>56.6%</td>
+<td>−5.6</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<h2>
+	<a id="open-question-what-did-the-model-really-learn-to-do" href="#open-question-what-did-the-model-really-learn-to-do" rel="nofollow">
+		
+	</a>
+	<span>
+		Open question: What did the model really learn to do?
+	</span>
+</h2>
+<p>We appreciate the feedback from the users and the community, initial testing and results from the community seemed overall extremely positive, and we wish to continue in this direction in the future. We also saw some surprising results, such as users reporting that the <a href="https://huggingface.co/harness-hub/Qwen3.8-27B-opencode-adapted-GGUF/discussions/2">harness adapters work really well under Qwen3.8 derivatives, such as Swift-1.5</a>.</p>
+<p>This question is an open question we thought about, post-release. After inspecting carefully the generated trajectories from the evaluation benchmarks, it turns out the model, under non-thinking mode, tends to generate some short text before proposing a tool call, as opposed to the base model which generates the tool calls barely without any text beforehand.</p>
+<p>This phenomenon can be seen as a sort of ‘reasoning leakage’, where the model learns to ‘escape’ from its non-thinking version to its thinking version by generating some text that can sometimes look like reasoning traces (e.g.: ..wait? ..let me see, etc.). <a href="https://huggingface.co/papers/2610.14270">A recent paper</a> also describes behavior from LLMs during the RL stage very well.</p>
+<p>Does this invalidate our models? We do not think so, as the final results are still valid; under the exact same conditions (fixed token budget) our adapters do outperform the base non-thinking model (by far) and match the performance of the thinking version, while being much more token efficient. This has been further confirmed by the positive feedback from the community.</p>
+<p>However this raises the need of a proper follow up work, where we will try to re-apply the same pipeline for pure thinking models, as well as exploring hybrid thinking / non-thinking training, to better understand the behavior of RL training on hybrid thinking models. We will share with the community our next findings (and harness adapters), once we get conclusive results.</p>
+<h2>
+	<a id="closing-words-and-future-directions" href="#closing-words-and-future-directions" rel="nofollow">
+		
+	</a>
+	<span>
+		Closing words and future directions
+	</span>
+</h2>
+<p>Throughout this work, we demonstrated that RL training your model inside your target harness leads to more efficient and therefore more accurate final models, when evaluated under the same conditions. This observation is in line and in continuation with several previous work from Hugging Face teams, such as <a href="https://huggingface.co/spaces/FineEnvs/multi-harness-rl">multi-harness-RL</a> or the <a href="https://huggingface.co/blog/harness-hub/harness-adapters">early iterations of harness adapters</a>.</p>
+<p>In the future, we will explore applying this recipe to more models, while better studying the training strategies for hybrid thinking / non-thinking models.</p>
+<p>We also share to the community openly the full recipe and pipeline to reproduce everything, and invite everyone to build their own RL tasks, derived from their own codebase, or any relevant materials, and apply the same training recipe and ideas to their favorite model and harness for more efficient agentic models. We hope this blogpost will serve as a starting point for builders to build and share their own harness adapters in the future.</p>
+</div></div>

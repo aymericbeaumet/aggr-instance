@@ -1,0 +1,748 @@
+<div id="readability-page-1" class="page"><p>This guide is a brief(ish) introduction to the <a href="https://docs.jj-vcs.dev/latest/">Jujutsu</a> (<code>jj</code>) version control system (VCS) for someone familiar with Git.</p><div>
+
+<h2 id="why-try-jujutsu"><a href="#why-try-jujutsu" aria-label="Anchor link for: why-try-jujutsu">Why try Jujutsu?</a></h2>
+<p><code>jj</code> provides primitives for version control that are simple to learn, but elegantly compose into powerful workflows. Features like automatic rebase and native undo soften the sharp edges of Git. Eventually, you’ll organically discover new powerful workflows that would be too cumbersome to attempt with most other VCS tools.</p>
+<p>If you work in a Git repository, you can try it today. Jujutsu and Git can be used <a href="https://docs.jj-vcs.dev/latest/git-experts/#git-can-be-used-side-by-side-in-the-same-repository">side-by-side in the same repository</a>, so you can try out <code>jj</code> on a <code>git</code> repo on your own, without fully ejecting from <code>git</code>.</p>
+<p>Personally, I think <code>jj</code> considerably boosts my effectiveness, because it allows me to keep VCS bookkeeping out of my working memory. Automatic rebasing also makes stacked diff workflows quite easy, and reduces thrashing of my working memory. It’s also just a fun tool to use.</p>
+<h2 id="installing-jj"><a href="#installing-jj" aria-label="Anchor link for: installing-jj">Installing <code>jj</code></a></h2>
+<p>Official installation instructions are <a href="https://docs.jj-vcs.dev/latest/install-and-setup/">here</a>, but here are a few common methods:</p>
+<pre><code data-language="bash"># macOS
+brew install jj
+
+# Arch Linux
+pacman -S jujutsu
+
+# NixOS (ideally from nixpkgs-unstable)
+nix-shell -p jujutsu
+
+# From source
+# (Requires a recent Rust and ~/.cargo/bin on your PATH)
+cargo install --locked --bin jj jj-cli
+</code></pre>
+<h2 id="setup-and-configuration"><a href="#setup-and-configuration" aria-label="Anchor link for: setup-and-configuration">Setup and configuration</a></h2>
+<p>In an existing <code>git</code> repository, run:</p>
+<pre><code data-language="bash">jj git init
+</code></pre>
+<p>From here on, <code>jj</code> and <code>git</code> repo state will be synchronized automatically.</p>
+<p>To set your user details globally, run commands like these:</p>
+<pre><code data-language="bash">jj config set --user user.name "Some One"
+jj config set --user user.email "someone@example.com"
+</code></pre>
+<p>You can edit <code>jj</code>’s TOML configuration for your user in an editor with:</p>
+<pre><code data-language="bash">jj config edit --user
+</code></pre>
+<p>In addition to the <code>--user</code> scope, <code>jj config</code> also has <code>--repo</code> and <code>--workspace</code> scopes. View the merged config with:</p>
+<pre><code data-language="bash">jj config list
+</code></pre>
+<h2 id="commits-and-changes"><a href="#commits-and-changes" aria-label="Anchor link for: commits-and-changes">Commits and changes</a></h2>
+<p>A <strong>commit</strong>, also called a <strong>revision</strong>, is essentially the same thing as a <code>git</code> commit. It represents a snapshot of repository state that descends from one or more parent repository snapshots. It is often visualized as a diff against a singular parent commit, or in the case of a merge commit, the diff against multiple parent commits once merged.</p>
+<p>When using a Git repo backend, the <code>jj</code> <strong>commit ID</strong> is the same as the <code>git</code> commit ID: a hash formatted as a hex string. In the output of <code>jj log</code> below, the hex hashes <code>2bea5e3d</code> and <code>849165bc</code> on the right are commit IDs.</p>
+<div><pre><code data-language="bash">$ jj log
+@  kpqxywon ethan@example.com 2026-11-15 12:17:12 849165bc
+│  (empty) (no description set)
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>The IDs on the left hand side (<code>royxmykx</code> and <code>kpqxywon</code>) are <strong>change IDs</strong>, which are stable identifiers for logical changes as they physically evolve over time. We’ll discuss these more in the next section.</p>
+<p>Commit IDs and change IDs can be referenced in shorthand with an unambiguous (unique) prefix. <code>jj</code> helpfully highlights the shortest unique prefix of most IDs to make it easy to type them manually. For example,
+instead of copying and pasting <code>kpqxywon</code>, we can type in a prefix, down to the shortest unique prefix <code>k</code>.</p>
+<p>We can inspect the commit <code>2bea5e3d</code> with <code>jj show</code>, using its short prefix <code>2</code>.</p>
+<div><pre><code data-language="bash">$ jj show 2
+Commit ID: 2bea5e3d1992a60ba9ee52c6ce37c55adba9e8fb
+Change ID: royxmykxtrkrqppotnrvutxlvrvqyxmy
+Bookmarks: main main@git main@origin
+Author   : Ethan Lowman &lt;ethan@example.com&gt; (2026-11-15 12:10:46)
+Committer: Ethan Lowman &lt;ethan@example.com&gt; (2026-11-15 12:10:46)
+
+    Adjust config
+
+diff --git a/config.py b/config.py
+index 7366a4e31d..174ffea06b 100644
+--- a/config.py
++++ b/config.py
+@@ -1,1 +1,1 @@
+-DEFAULT_LIMIT = 10
++DEFAULT_LIMIT = 20
+</code></pre></div>
+
+<p>Many folks configure a custom diff formatter, like <a href="https://github.com/dandavison/delta">Delta</a>. See <a href="https://docs.jj-vcs.dev/latest/config/#processing-contents-to-be-paged">configuration docs</a> if you’re interested.</p>
+<h2 id="creating-evolving-changes"><a href="#creating-evolving-changes" aria-label="Anchor link for: creating-evolving-changes">Creating &amp; evolving changes</a></h2>
+<p>Let’s take another look at our commit graph:</p>
+<div><pre><code data-language="bash">$ jj log
+@  kpqxywon ethan@example.com 2026-11-15 12:17:12 849165bc
+│  (empty) (no description set)
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>On commit <code>849165bc</code>, you’ll see the symbol <code>@</code> on the graph node. This represents a snapshot of our <strong>working copy</strong>, or the code we have actually checked out in our local directory. We can inspect this special commit pointer in a variety of ways:</p>
+<p><code>jj show</code> shows commit details and a diff, which is empty here.
+</p><div><pre><code data-language="bash">$ jj show
+Commit ID: 849165bca19639dbd6ccb53e8c1340e78c36d59a
+Change ID: kpqxywonksrltlrkyqukqqsxpltznztk
+Author   : Ethan Lowman &lt;ethan@example.com&gt; (2026-11-15 12:17:12)
+Committer: Ethan Lowman &lt;ethan@example.com&gt; (2026-11-15 12:17:12)
+
+    (no description set)
+
+</code></pre></div>
+
+
+<p><code>jj status</code> shows repo state with diff stats.
+</p><div><pre><code data-language="bash">$ jj status
+The working copy has no changes.
+Working copy  (@) : kpqxywon 849165bc (empty) (no description set)
+Parent commit (@-): royxmykx 2bea5e3d main | Adjust config
+</code></pre></div>
+
+
+<p><code>jj diff</code> works much like <code>git diff</code>. Its output is empty here, since there are no changes in the current working copy relative to the parent commit.</p>
+<div><pre><code data-language="bash">$ jj diff
+</code></pre></div>
+
+<p>This output isn’t very interesting, since <code>@</code> has no changes. Let’s make an example change to see what happens. If we edit <code>main.py</code> and rerun <code>jj show</code>, we see this:</p>
+<div><pre><code data-language="bash">$ jj show
+Commit ID: 66b59f20c534705cfb753c722222290e9185b22c
+Change ID: kpqxywonksrltlrkyqukqqsxpltznztk
+Author   : Ethan Lowman &lt;ethan@example.com&gt; (2026-11-15 12:26:43)
+Committer: Ethan Lowman &lt;ethan@example.com&gt; (2026-11-15 12:26:43)
+
+    (no description set)
+
+diff --git a/main.py b/main.py
+new file mode 100644
+index 0000000000..c74cd2e0e0
+--- /dev/null
++++ b/main.py
+@@ -0,0 +1,2 @@ def my_new_feature():
++def my_new_feature():
++  pass
+</code></pre></div>
+
+<div><pre><code data-language="bash">$ jj log
+@  kpqxywon ethan@example.com 2026-11-15 12:26:43 66b59f20
+│  (no description set)
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>You’ll notice several things have changed. The working copy has been automatically committed, and <code>@</code> is no longer marked <code>(empty)</code>. The new commit ID for <code>@</code> is <code>66b59f20</code>, since we’ve added changes, but the change ID for <code>66b59f20</code> is still <code>kpqxywon</code>. <code>jj</code> has no staging area like in <code>git</code>, so we don’t have to manually add files. When we run a <code>jj</code> command to inspect or modify repo state after editing files, <code>jj</code> automatically snapshots the working copy as a new physical commit for the relevant logical change.</p>
+<p>Let’s give this change a description (also called a commit message). We can either run <code>jj desc</code>, which opens an editor, or provide it directly with <code>-m</code>.</p>
+<div><pre><code data-language="bash">$ jj desc -m "Implement the feature"
+Working copy  (@) now at: kpqxywon 6b89ffb2 Implement the feature
+Parent commit (@-)      : royxmykx 2bea5e3d main | Adjust config
+</code></pre></div>
+
+<p>Notice again that the commit ID has changed, since the hash covers the commit message, but the change ID has remained stable.</p>
+<p>Now, let’s say we’re ready to use this new feature, and we want to organize that change in a separate commit. We can create a new commit with <code>jj new</code>:</p>
+<div><pre><code data-language="bash">$ jj new
+Working copy  (@) now at: nlrtlrxv 6cca2add (empty) (no description set)
+Parent commit (@-)      : kpqxywon 6b89ffb2 Implement the feature
+</code></pre></div>
+
+<div><pre><code data-language="bash">$ jj log
+@  nlrtlrxv ethan@example.com 2026-11-15 12:35:49 6cca2add
+│  (empty) (no description set)
+○  kpqxywon ethan@example.com 2026-11-15 12:33:23 6b89ffb2
+│  Implement the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>We’ve created an empty change <code>nlrtlrxv</code> on top of <code>kpqxywon</code>. <code>jj status</code> reflects that we are editing this new revision which does not yet differ from its parent.</p>
+<div><pre><code data-language="bash">$ jj status
+The working copy has no changes.
+Working copy  (@) : nlrtlrxv 6cca2add (empty) (no description set)
+Parent commit (@-): kpqxywon 6b89ffb2 Implement the feature
+</code></pre></div>
+
+<p><code>jj commit</code> is a shorthand for this common <code>jj desc</code> and <code>jj new</code> combo. Let’s make another change to use our new feature, and commit it.</p>
+<div><pre><code data-language="bash">$ jj commit -m "Use the feature"
+Working copy  (@) now at: qmkrwlvp 91067ad0 (empty) (no description set)
+Parent commit (@-)      : nlrtlrxv e1b06678 Use the feature
+</code></pre></div>
+
+<div><pre><code data-language="bash">$ jj log
+@  qmkrwlvp ethan@example.com 2026-11-15 12:41:30 91067ad0
+│  (empty) (no description set)
+○  nlrtlrxv ethan@example.com 2026-11-15 12:41:30 e1b06678
+│  Use the feature
+○  kpqxywon ethan@example.com 2026-11-15 12:33:23 6b89ffb2
+│  Implement the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>To inspect the commit we just created (<code>n</code>), we can no longer use the bare <code>jj show</code>, which defaults to showing <code>@</code>. We have to pass the revision we want to inspect:</p>
+<div><pre><code data-language="bash">$ jj show n
+Commit ID: e1b066782aa1a565c1e5d38ef27a308aa58e7e4c
+Change ID: nlrtlrxvuuskxprvtuznquqzqzzwvnzk
+Author   : Ethan Lowman &lt;ethan@example.com&gt; (2026-11-15 12:41:30)
+Committer: Ethan Lowman &lt;ethan@example.com&gt; (2026-11-15 12:41:30)
+
+    Use the feature
+
+diff --git a/main.py b/main.py
+index c74cd2e0e0..0714ec450b 100644
+--- a/main.py
++++ b/main.py
+@@ -1,2 +1,4 @@ def my_new_feature():
+ def my_new_feature():
+   pass
++
++do_something(my_new_feature())
+</code></pre></div>
+
+<p>We can describe empty commits to record intent before starting work. Let’s create a new commit on top of <code>k</code> to remind ourselves that we need to document the feature.</p>
+<div><pre><code data-language="bash">$ jj new k -m "Document the feature"
+Working copy  (@) now at: qwyusntz 46a2ffda (empty) Document the feature
+Parent commit (@-)      : kpqxywon 6b89ffb2 Implement the feature
+Added 0 files, modified 1 files, removed 0 files
+</code></pre></div>
+
+<p>A separate <code>jj desc</code> would also work just fine instead of the <code>-m</code> flag on <code>jj new</code>. Here’s the current commit graph:</p>
+<div><pre><code data-language="bash">$ jj log
+@  qwyusntz ethan@example.com 2026-11-15 12:46:35 46a2ffda
+│  (empty) Document the feature
+│ ○  nlrtlrxv ethan@example.com 2026-11-15 12:41:30 e1b06678
+├─┘  Use the feature
+○  kpqxywon ethan@example.com 2026-11-15 12:33:23 6b89ffb2
+│  Implement the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>Note how we’ve created branching commits without creating a named branch. This highlights a major difference between <code>jj</code>’s branchless model and <code>git</code>’s branch-centric model of organizing work streams. Instead of juggling your work-in-progress on branches, you work on a graph of commits. Once ready to share, you push branches to a Git forge from your commit graph (more on that later).</p>
+<h2 id="revsets"><a href="#revsets" aria-label="Anchor link for: revsets">Revsets</a></h2>
+<p>A revset, an idea borrowed from Mercurial, is an expression that selects a set of revisions from the commit graph. Most <code>jj</code> commands accept revsets in their arguments. When we ran <code>jj new k</code>, the argument <code>k</code> was actually a trivial revset that resolved to the single change with ID <code>kpqxywon</code>. The <code>jj log</code> command has an <code>-r &lt;REVSET&gt;</code> flag that we can use to preview a revset. Some demonstrative examples follow.</p>
+<p>Parent of <code>@</code>:</p>
+<div><pre><code data-language="bash">$ jj log -r @-
+○  kpqxywon ethan@example.com 2026-11-15 12:33:23 6b89ffb2
+│  Implement the feature
+~
+</code></pre></div>
+
+<p>Grandchildren of <code>r</code>:</p>
+<div><pre><code data-language="bash">$ jj log -r r++
+@  qwyusntz ethan@example.com 2026-11-15 12:51:45 5b55579a
+│  Document the feature
+~
+
+○  nlrtlrxv ethan@example.com 2026-11-15 12:41:30 e1b06678
+│  Use the feature
+~
+</code></pre></div>
+
+<p>Commits between <code>r</code> and <code>@</code>, inclusive:</p>
+<div><pre><code data-language="bash">$ jj log -r r::@
+@  qwyusntz ethan@example.com 2026-11-15 12:51:45 5b55579a
+│  Document the feature
+○  kpqxywon ethan@example.com 2026-11-15 12:33:23 6b89ffb2
+│  Implement the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>Commit <code>k</code> and all descendants:</p>
+<div><pre><code data-language="bash">$ jj log -r k::
+@  qwyusntz ethan@example.com 2026-11-15 12:51:45 5b55579a
+│  Document the feature
+│ ○  nlrtlrxv ethan@example.com 2026-11-15 12:41:30 e1b06678
+├─┘  Use the feature
+○  kpqxywon ethan@example.com 2026-11-15 12:33:23 6b89ffb2
+│  Implement the feature
+~
+</code></pre></div>
+
+<p>Commits authored by <code>ethan@example.com</code> that also have ID <code>k</code> or <code>q</code>:</p>
+<div><pre><code data-language="bash">$ jj log -r 'author("ethan@example.com") &amp; (k | q)'
+@  qwyusntz ethan@example.com 2026-11-15 12:51:45 5b55579a
+│  Document the feature
+○  kpqxywon ethan@example.com 2026-11-15 12:33:23 6b89ffb2
+│  Implement the feature
+~
+</code></pre></div>
+
+<p>I’ll defer to the official documentation for exhaustive detail. The <a href="https://docs.jj-vcs.dev/latest/revsets/">Revsets language</a> specification is easily my most referenced <code>jj</code> documentation page, so I would recommend skimming it to see what’s possible.</p>
+<h2 id="navigating-the-commit-graph"><a href="#navigating-the-commit-graph" aria-label="Anchor link for: navigating-the-commit-graph">Navigating the commit graph</a></h2>
+<p>Let’s say in the course of documenting our feature in <code>qwyusntz</code> we realized we made a mistake in the implementation in parent change <code>kpqxywon</code>. We don’t need to manually commit or stash changes to switch tasks. We simply switch our working copy to <code>kpqxywon</code> with <code>jj edit</code>:</p>
+<div><pre><code data-language="bash">$ jj edit k
+Working copy  (@) now at: kpqxywon 6b89ffb2 Implement the feature
+Parent commit (@-)      : royxmykx 2bea5e3d main | Adjust config
+Added 0 files, modified 0 files, removed 1 files
+</code></pre></div>
+
+<p>Our working copy once again shows the changes from <code>kpqxywon</code>.</p>
+<div><pre><code data-language="bash">$ jj show
+Commit ID: 6b89ffb2a250f622a8638145d65fe8c9bb308dbf
+Change ID: kpqxywonksrltlrkyqukqqsxpltznztk
+Author   : Ethan Lowman &lt;ethan@example.com&gt; (2026-11-15 12:26:43)
+Committer: Ethan Lowman &lt;ethan@example.com&gt; (2026-11-15 12:33:23)
+
+    Implement the feature
+
+diff --git a/main.py b/main.py
+new file mode 100644
+index 0000000000..c74cd2e0e0
+--- /dev/null
++++ b/main.py
+@@ -0,0 +1,2 @@ def my_new_feature():
++def my_new_feature():
++  pass
+</code></pre></div>
+
+<p><code>jj</code> hasn’t lost track of the changes above our working copy, including our most recent edits to <code>q</code>:</p>
+<div><pre><code data-language="bash">$ jj log
+○  qwyusntz ethan@example.com 2026-11-15 12:51:45 5b55579a
+│  Document the feature
+│ ○  nlrtlrxv ethan@example.com 2026-11-15 12:41:30 e1b06678
+├─┘  Use the feature
+@  kpqxywon ethan@example.com 2026-11-15 12:33:23 6b89ffb2
+│  Implement the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>Instead of switching commits with <code>jj edit k</code>, we could have run <code>jj edit @-</code>. The revset <code>@-</code> is evaluated before switching the working copy, so this moves to the parent commit. The built-in commands <code>jj next [--edit]</code> and <code>jj prev [--edit]</code> provide another way to move up and down a stack of commits.</p>
+<h3 id="automatic-rebasing"><a href="#automatic-rebasing" aria-label="Anchor link for: automatic-rebasing">Automatic rebasing</a></h3>
+<p>If we edit files in the working copy, the descendant commits will be automatically rebased upon the next <code>jj</code> invocation. For example, if we edit <code>my_new_feature</code>’s implementation in <code>main.py</code> and then run <code>jj log</code>, we’ll see that changes <code>k</code>, <code>n</code>, and <code>q</code> all get new commit IDs. <code>jj</code> also tells us that it performed a rebase.</p>
+<div><pre><code data-language="bash">$ jj log
+Rebased 2 descendant commits onto updated working copy.
+○  qwyusntz ethan@example.com 2026-11-15 13:03:41 7d293f19
+│  Document the feature
+│ ○  nlrtlrxv ethan@example.com 2026-11-15 13:03:41 41a43a84
+├─┘  Use the feature
+@  kpqxywon ethan@example.com 2026-11-15 13:03:41 d9f35831
+│  Implement the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<h2 id="handling-conflicts"><a href="#handling-conflicts" aria-label="Anchor link for: handling-conflicts">Handling conflicts</a></h2>
+<p>If the automatic rebase happened to cause merge conflicts, <code>jj</code> doesn’t require us to fix them immediately, like <code>git rebase</code> would. Instead, <code>jj</code> records that the commit is conflicted and lets you carry on with your current task. This is massively helpful to reduce mental context switching, as your stacked commits grow more complex.</p>
+<div><pre><code data-language="bash">$ jj log
+Rebased 2 descendant commits onto updated working copy.
+○  qwyusntz ethan@example.com 2026-11-15 13:05:35 b96f8df4
+│  Document the feature
+│ ×  nlrtlrxv ethan@example.com 2026-11-15 13:05:35 e562bff4 (conflict)
+├─┘  Use the feature
+@  kpqxywon ethan@example.com 2026-11-15 13:05:35 c501c0bd
+│  Implement the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>To view the conflicts, we can edit the conflicted commit…</p>
+<div><pre><code data-language="bash">$ jj edit n
+Working copy  (@) now at: nlrtlrxv e562bff4 (conflict) Use the feature
+Parent commit (@-)      : kpqxywon c501c0bd Implement the feature
+Added 0 files, modified 1 files, removed 0 files
+Warning: There are unresolved conflicts at these paths:
+main.py    2-sided conflict
+</code></pre></div>
+
+<p>And inspect <code>main.py</code>.</p>
+<pre><code>def my_new_feature():
+  print("Hello from the new feature!")
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; conflict 1 of 1
+%%%%%%% diff from: kpqxywon d9f35831 "Implement the feature" (parents of rebased revision)
+\\\\\\\        to: kpqxywon c501c0bd "Implement the feature" (rebase destination)
+-  pass
++  return 42
++++++++ nlrtlrxv 41a43a84 "Use the feature" (rebased revision)
+  pass
+
+do_something(my_new_feature())
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; conflict 1 of 1 ends
+
+</code></pre>
+<p>In a text editor, we can resolve these conflicts, and the next time we run any <code>jj</code> command, we’ll see that <code>jj</code> has marked the commit as unconflicted:</p>
+<div><pre><code data-language="bash">$ jj status
+Working copy changes:
+M main.py
+Working copy  (@) : nlrtlrxv 34f2e2a1 Use the feature
+Parent commit (@-): kpqxywon c501c0bd Implement the feature
+</code></pre></div>
+
+<h2 id="undo-and-the-op-log"><a href="#undo-and-the-op-log" aria-label="Anchor link for: undo-and-the-op-log">Undo and the op log</a></h2>
+<p>Let’s say we made a mistake in that conflict resolution, and we want to undo it. In <code>git</code>, undoing an action, if it’s even possible, is often complicated. In <code>jj</code>, we can always run <code>jj undo</code>:</p>
+<div><pre><code data-language="bash">$ jj undo
+Undid operation: 35beb0741f17 (2026-11-15 13:08:39) snapshot working copy
+Restored to operation: f134ca987b59 (2026-11-15 13:07:18) edit commit e562bff4876f3ea76248c3f730e9e74d3e28e8a0
+Working copy  (@) now at: nlrtlrxv e562bff4 (conflict) Use the feature
+Parent commit (@-)      : kpqxywon c501c0bd Implement the feature
+Added 0 files, modified 1 files, removed 0 files
+Warning: There are unresolved conflicts at these paths:
+main.py    2-sided conflict
+New conflicts appeared in 1 commits:
+  nlrtlrxv e562bff4 (conflict) Use the feature
+Hint: To resolve the conflicts, start by creating a commit on top of
+the conflicted commit:
+  jj new nlrtlrxv
+Then use `jj resolve`, or edit the conflict markers in the file directly.
+Once the conflicts are resolved, you can inspect the result with `jj diff`.
+Then run `jj squash` to move the resolution into the conflicted commit.
+</code></pre></div>
+
+<p>More generally, <code>jj</code> maintains a history of all actions in <code>jj op log</code>. We can inspect this log and <code>jj op restore</code> to a point in that history, or <code>jj op revert</code> an individual operation. If the <code>jj undo</code> itself was a mistake, we can <code>jj redo</code>.</p>
+<p>The <code>Hint</code> in the output above is a bit of a spoiler for our next topic, the squash workflow.</p>
+<h2 id="squash-workflow"><a href="#squash-workflow" aria-label="Anchor link for: squash-workflow">Squash workflow</a></h2>
+<p>Editing commits that have descendants can sometimes feel sketchy. If you’re iterating on a large diff that has left your working memory, it would be nice to separate your new changes from the existing diff. For example, we might like to inspect the diff that resolves a rebase conflict in isolation.</p>
+<p>Let’s follow the instructions from the above output. We first create a new commit on top of the conflicted commit:</p>
+<div><pre><code data-language="bash">$ jj new n
+Working copy  (@) now at: wqxolloz b878878a (conflict) (empty) (no description set)
+Parent commit (@-)      : nlrtlrxv e562bff4 (conflict) Use the feature
+Warning: There are unresolved conflicts at these paths:
+main.py    2-sided conflict
+</code></pre></div>
+
+<div><pre><code data-language="bash">$ jj log -r n::
+@  wqxolloz ethan@example.com 2026-11-15 13:11:44 b878878a (conflict)
+│  (empty) (no description set)
+×  nlrtlrxv ethan@example.com 2026-11-15 13:05:35 e562bff4 (conflict)
+│  Use the feature
+~
+</code></pre></div>
+
+<p>Now we can resolve the conflicts in <code>main.py</code> in our editor, and rerun <code>jj log</code>:</p>
+<div><pre><code data-language="bash">$ jj log -r n::
+@  wqxolloz ethan@example.com 2026-11-15 13:14:12 91181aec
+│  (no description set)
+×  nlrtlrxv ethan@example.com 2026-11-15 13:05:35 e562bff4 (conflict)
+│  Use the feature
+~
+</code></pre></div>
+
+<p>We can inspect the diff in <code>@</code> if we like, and when we’re happy with the conflict resolution, we can squash it into the parent commit:</p>
+<div><pre><code data-language="bash">$ jj squash
+Working copy  (@) now at: vkywoywq f6b548b3 (empty) (no description set)
+Parent commit (@-)      : nlrtlrxv 7208deb7 Use the feature
+Existing conflicts were resolved or abandoned from 1 commits.
+</code></pre></div>
+
+<div><pre><code data-language="bash">$ jj log -r n::
+@  vkywoywq ethan@example.com 2026-11-15 13:15:39 f6b548b3
+│  (empty) (no description set)
+○  nlrtlrxv ethan@example.com 2026-11-15 13:15:39 7208deb7
+│  Use the feature
+~
+</code></pre></div>
+
+<p>The conflict is now resolved, and we can continue our work.</p>
+<h2 id="more-commit-graph-operations"><a href="#more-commit-graph-operations" aria-label="Anchor link for: more-commit-graph-operations">More commit graph operations</a></h2>
+<p>One of the powerful qualities of <code>jj</code> is that it makes diffs malleable like clay. With automatic rebase and the confidence inspired by <code>jj undo</code>, we can move, combine, drop, and split diffs with ease.</p>
+<p>Let’s try a few operations on our current commit graph. Here’s the starting point.</p>
+<div><pre><code data-language="bash">$ jj log
+@  vkywoywq ethan@example.com 2026-11-15 13:15:39 f6b548b3
+│  (empty) (no description set)
+○  nlrtlrxv ethan@example.com 2026-11-15 13:15:39 7208deb7
+│  Use the feature
+│ ○  qwyusntz ethan@example.com 2026-11-15 13:05:35 b96f8df4
+├─┘  Document the feature
+○  kpqxywon ethan@example.com 2026-11-15 13:05:35 c501c0bd
+│  Implement the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<h3 id="rebase"><a href="#rebase" aria-label="Anchor link for: rebase">Rebase</a></h3>
+<p>Let’s use <code>jj rebase</code> to coerce our branching commit graph into a linear history. Let’s say the documentation commit (<code>q</code>) should go between the implementation (<code>k</code>) and the usage (<code>n</code>). We could accomplish this by moving <code>nlrtlrxv</code> (and its empty descendant) on top of <code>qwyusntz</code>:</p>
+<div><pre><code data-language="bash">$ jj rebase -s n -o q
+Rebased 2 commits to destination.
+Working copy  (@) now at: vkywoywq 0405560c (empty) (no description set)
+Parent commit (@-)      : nlrtlrxv 9920235b Use the feature
+Added 1 files, modified 0 files, removed 0 files
+</code></pre></div>
+
+<div><pre><code data-language="bash">$ jj log
+@  vkywoywq ethan@example.com 2026-11-15 13:20:18 0405560c
+│  (empty) (no description set)
+○  nlrtlrxv ethan@example.com 2026-11-15 13:20:18 9920235b
+│  Use the feature
+○  qwyusntz ethan@example.com 2026-11-15 13:05:35 b96f8df4
+│  Document the feature
+○  kpqxywon ethan@example.com 2026-11-15 13:05:35 c501c0bd
+│  Implement the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>Another way to accomplish the same effect would be to use <code>jj rebase -r q --before n</code>. Many <code>jj</code> commands have multiple ways to specify revsets. <code>jj rebase --help</code> documents these well.</p>
+<p>Since arguments to <code>jj rebase</code> flags are all revsets, we can write a revset that selects a sequence of commits or commit subgraph, and move it elsewhere in the graph.</p>
+<p>If we wanted to insert a commit below <code>k</code>, the most direct way is <code>jj new --before k</code>, but for demonstration purposes, we could alternatively create a new commit on top of <code>r</code> and rebase <code>k::</code> on top:</p>
+<div><pre><code data-language="bash">$ jj new r -m "Prepare for the feature"
+Working copy  (@) now at: wxzmtyol be5ca29b (empty) Prepare for the feature
+Parent commit (@-)      : royxmykx 2bea5e3d main | Adjust config
+Added 0 files, modified 0 files, removed 2 files
+</code></pre></div>
+
+<div><pre><code data-language="bash">$ jj log
+@  wxzmtyol ethan@example.com 2026-11-15 13:23:29 be5ca29b
+│  (empty) Prepare for the feature
+│ ○  nlrtlrxv ethan@example.com 2026-11-15 13:20:18 9920235b
+│ │  Use the feature
+│ ○  qwyusntz ethan@example.com 2026-11-15 13:05:35 b96f8df4
+│ │  Document the feature
+│ ○  kpqxywon ethan@example.com 2026-11-15 13:05:35 c501c0bd
+├─┘  Implement the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<div><pre><code data-language="bash">$ jj rebase -s k -o w
+Rebased 3 commits to destination.
+</code></pre></div>
+
+<div><pre><code data-language="bash">$ jj log
+○  nlrtlrxv ethan@example.com 2026-11-15 13:28:02 cda0de88
+│  Use the feature
+○  qwyusntz ethan@example.com 2026-11-15 13:28:02 ec9de16f
+│  Document the feature
+○  kpqxywon ethan@example.com 2026-11-15 13:28:02 722e7268
+│  Implement the feature
+@  wxzmtyol ethan@example.com 2026-11-15 13:23:29 be5ca29b
+│  (empty) Prepare for the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>If you enjoy using TUIs, <code>jj arrange</code> provides a commit graph editor similar to <code>git rebase -i</code> for reordering commits.</p>
+<h3 id="squash"><a href="#squash" aria-label="Anchor link for: squash">Squash</a></h3>
+<p>If we decided documentation should be in the same commit as implementation, we can squash:</p>
+<div><pre><code data-language="bash">$ jj squash --from q --into k
+Rebased 1 descendant commits.
+</code></pre></div>
+
+<p><code>jj</code> will open an editor and give us a chance to write a combined commit message.</p>
+<div><pre><code data-language="bash">$ jj log
+○  nlrtlrxv ethan@example.com 2026-11-15 13:31:30 cb468825
+│  Use the feature
+○  kpqxywon ethan@example.com 2026-11-15 13:31:30 b93e4ef7
+│  Implement and document the feature
+@  wxzmtyol ethan@example.com 2026-11-15 13:23:29 be5ca29b
+│  (empty) Prepare for the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<h3 id="abandon"><a href="#abandon" aria-label="Anchor link for: abandon">Abandon</a></h3>
+<p>To drop a commit from the graph, we can use <code>jj abandon</code>. Let’s drop the preparation commit:</p>
+<div><pre><code data-language="bash">$ jj abandon w
+Abandoned 1 commits:
+  wxzmtyol be5ca29b (empty) Prepare for the feature
+Rebased 2 descendant commits onto parents of abandoned commits.
+Working copy  (@) now at: xzwrrwyv d460fbd4 (empty) (no description set)
+Parent commit (@-)      : royxmykx 2bea5e3d main | Adjust config
+</code></pre></div>
+
+<div><pre><code data-language="bash">$ jj log
+@  xzwrrwyv ethan@example.com 2026-11-15 13:33:49 d460fbd4
+│  (empty) (no description set)
+│ ○  nlrtlrxv ethan@example.com 2026-11-15 13:33:49 b1284f61
+│ │  Use the feature
+│ ○  kpqxywon ethan@example.com 2026-11-15 13:33:49 df93f0a6
+├─┘  Implement and document the feature
+◆  royxmykx ethan@example.com 2026-11-15 12:10:46 main 2bea5e3d
+│  Adjust config
+~
+</code></pre></div>
+
+<p>To abandon parts of a commit (hunks or changes to whole files), we can use the <code>jj diffedit</code> TUI (see <a href="https://docs.jj-vcs.dev/latest/cli-reference/#jj-diffedit">docs</a>).</p>
+<h3 id="split"><a href="#split" aria-label="Anchor link for: split">Split</a></h3>
+<p>The <code>jj split</code> TUI allows us to take a commit and split it into two consecutive commits by selecting which files or hunks should go in the first. Let’s use it to split up implementation and documentation again with <code>jj split -r k</code>:</p>
+
+<p>The <a href="https://github.com/laulauland/jj-hunk">jj-hunk</a> project provides a means to automate commit splitting. If you are so inclined, agents are quite good at using this tool to split up commits into a sequence of smaller changes for easier review.</p>
+<h2 id="bookmarks-and-git-branches"><a href="#bookmarks-and-git-branches" aria-label="Anchor link for: bookmarks-and-git-branches">Bookmarks and Git branches</a></h2>
+<p><code>jj</code> does not have a native concept of a branch, but it does have a primitive called bookmarks that map to Git branches. When we need to manipulate Git branches, we do it by way of bookmarks.</p>
+<p>You can go pretty far using Git without realizing this, but a Git branch is just a pointer to a commit. <code>jj</code> explicitly models bookmarks this way. <code>jj</code> bookmarks are essentially a named label attached to a commit that we can move around as we modify our commit graph, and push to/pull from a remote.</p>
+<p>We’ll discuss a few basic workflows around Git branches below, but you can find a more complete guide in the <code>jj</code> docs on <a href="https://docs.jj-vcs.dev/latest/github/">Working with GitHub</a>.</p>
+<h3 id="pushing-a-new-branch"><a href="#pushing-a-new-branch" aria-label="Anchor link for: pushing-a-new-branch">Pushing a new branch</a></h3>
+<p>Assuming we initialized <code>jj</code> in a git repository that has remotes, we should have some output for <code>jj git remote list</code>.</p>
+<pre><code data-language="bash">$ jj git remote list
+origin git@github.com:ethanal/example.git
+</code></pre>
+<p>Since <code>jj</code> is branchless, the commits we’ve created locally don’t have a branch name. Luckily, <code>jj</code> doesn’t require us to pick one, and generates one for us. Generated branch names free you from thinking of a unique branch name so you can instead focus on writing a good commit message (usually the more durable descriptor of a change).</p>
+<p>To create a generated bookmark for change ID <code>nlrtlrxv</code> and push up a corresponding Git branch, we can run a command like the following:</p>
+<pre><code data-language="bash">$ jj git push -c n
+Creating bookmark push-nlrtlrxvuusk for revision nlrtlrxv
+Changes to push to origin:
+  bookmark: push-nlrtlrxvuusk [add to b1284f61]
+git: Enumerating objects: 17, done.
+git: Counting objects: 100% (17/17), done.
+git: Delta compression using up to 32 threads
+git: Compressing objects: 100% (14/14), done.
+git: Writing objects: 100% (16/16), 25.21 KiB | 6.30 MiB/s, done.
+git: Total 16 (delta 1), reused 5 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (1/1), completed with 1 local object.
+remote:
+remote: Create a pull request for 'push-nlrtlrxvuusk' on GitHub by visiting:
+remote:      https://github.com/ethanal/example/pull/new/push-nlrtlrxvuusk
+remote:
+</code></pre>
+<p>Now <code>jj log</code> shows our change with a correspondingly named bookmark <code>push-nlrtlrxvuusk</code> associated:</p>
+<div><pre><code data-language="bash">$ jj log -r n
+○  nlrtlrxv ethan@example.com 2026-11-15 13:33:49 push-nlrtlrxvuusk b1284f61
+│  Use the feature
+~
+</code></pre></div>
+
+<p>We’re free to create a PR from this branch on GitHub now. You can customize the bookmark naming scheme with the <code>git_push_bookmark</code> template config documented <a href="https://docs.jj-vcs.dev/latest/config/#generated-bookmark-names-on-push">here</a>. It’s a common pattern to format branch names like <code>&lt;author name&gt;/&lt;change ID&gt;</code>.</p>
+<p>Since <code>jj git push -c</code> creates a branch name that corresponds to a change ID, it seems to encourage one evolving change per PR. I think it’s usually best to lean into these ergonomics, and have one change per PR.</p>
+<h3 id="updating-a-branch"><a href="#updating-a-branch" aria-label="Anchor link for: updating-a-branch">Updating a branch</a></h3>
+<p>To update a branch, the general process is to either squash commits into a change that is already bookmarked, or create new commits and move the bookmark forward.</p>
+<h4 id="bookmark-squash-flow"><a href="#bookmark-squash-flow" aria-label="Anchor link for: bookmark-squash-flow">Bookmark squash flow</a></h4>
+<p>If you choose to squash commits into an existing bookmark (recommended to keep one change per PR), the flow is as follows.</p>
+<p>First, create a new commit on top of our branch.
+</p><div><pre><code data-language="bash">$ jj new push-nlrtlrxvuusk
+Working copy  (@) now at: stzvpxow f14a0cf7 (empty) (no description set)
+Parent commit (@-)      : nlrtlrxv b1284f61 push-nlrtlrxvuusk | Use the feature
+Added 2 files, modified 0 files, removed 0 files
+</code></pre></div>
+
+
+<p>Then make our edits.
+</p><div><pre><code data-language="bash">$ jj status
+Working copy changes:
+M README.md
+Working copy  (@) : stzvpxow 6bdd43dc (no description set)
+Parent commit (@-): nlrtlrxv b1284f61 push-nlrtlrxvuusk | Use the feature
+</code></pre></div>
+
+
+<p>Squash them into the bookmark branch.
+</p><div><pre><code data-language="bash">$ jj squash --from @ --into push-nlrtlrxvuusk
+Working copy  (@) now at: xryuuprx 04d65a03 (empty) (no description set)
+Parent commit (@-)      : nlrtlrxv aeb869ae push-nlrtlrxvuusk* | Use the feature
+</code></pre></div>
+
+
+<p>We now see <code>push-nlrtlrxvuusk</code> has an asterisk next to it, indicating it has changes that haven’t been pushed to the remote. So let’s push them.
+</p><div><pre><code data-language="bash">$ jj git push -b push-nlrtlrxvuusk
+Changes to push to origin:
+  bookmark: push-nlrtlrxvuusk [move sideways from b1284f61c417 to aeb869aef99b]
+</code></pre></div>
+
+
+<p>The remote branch now reflects the new changes. The above output says that we moved the branch sideways from one commit to another commit, which reflects that we did a force-push. <code>jj git push</code> runs the equivalent of a <code>git push --force-with-lease</code>, so if you’re ever unclear about what a push operation would do, you can use the <code>jj git push --dry-run</code> flag. <code>jj</code> protects you against most dangerous force pushes refusing to rewrite a configurable revset of immutable commits. The default immutable revset is sensible, but you can make it more or less conservative by <a href="https://docs.jj-vcs.dev/latest/config/#set-of-immutable-commits">configuring your own immutable heads</a>.</p>
+<h4 id="bookmark-advance-flow"><a href="#bookmark-advance-flow" aria-label="Anchor link for: bookmark-advance-flow">Bookmark advance flow</a></h4>
+<p>In this flow, we add new commits on top of our bookmark and then move the bookmark to point to our new commit.</p>
+<p>Let’s first prepare the new commit.
+</p><div><pre><code data-language="bash">$ jj new push-nlrtlrxvuusk
+Working copy  (@) now at: pptrztmx 6e49ff1f (empty) (no description set)
+Parent commit (@-)      : nlrtlrxv aeb869ae push-nlrtlrxvuusk | Use the feature
+</code></pre></div>
+
+
+<p>Then make our edits.</p>
+<div><pre><code data-language="bash">$ jj status
+Working copy changes:
+M README.md
+Working copy  (@) : pptrztmx 89027165 (no description set)
+Parent commit (@-): nlrtlrxv aeb869ae push-nlrtlrxvuusk | Use the feature
+</code></pre></div>
+
+<div><pre><code data-language="bash">$ jj commit -m "Add a usage example"
+Working copy  (@) now at: wunttkrp 044f2d98 (empty) (no description set)
+Parent commit (@-)      : pptrztmx 2341ee4a Add a usage example
+</code></pre></div>
+
+<p>The bookmark does not automatically move to our new commit. This is the biggest difference between bookmarks and Git branches. For now <code>push-nlrtlrxvuusk</code> still points at the commit below:</p>
+<div><pre><code data-language="bash">$ jj log -r n::
+@  wunttkrp ethan@example.com 2026-11-15 13:51:57 044f2d98
+│  (empty) (no description set)
+○  pptrztmx ethan@example.com 2026-11-15 13:51:57 2341ee4a
+│  Add a usage example
+○  nlrtlrxv ethan@example.com 2026-11-15 13:43:16 push-nlrtlrxvuusk aeb869ae
+│  Use the feature
+~
+</code></pre></div>
+
+<p>There are several ways to move the bookmark to the new commit. The easiest is probably <code>jj bookmark advance</code>, which moves the closest bookmark to the given commit:</p>
+<div><pre><code data-language="bash">$ jj bookmark advance --to @-
+Advanced 1 bookmarks to pptrztmx 2341ee4a push-nlrtlrxvuusk* | Add a usage example
+</code></pre></div>
+
+<p>Now we’re ready to push the moved bookmark.</p>
+<div><pre><code data-language="bash">$ jj git push -b push-nlrtlrxvuusk
+Changes to push to origin:
+  bookmark: push-nlrtlrxvuusk [move forward from aeb869aef99b to 2341ee4aa554]
+</code></pre></div>
+
+<h3 id="checking-out-a-remote-branch"><a href="#checking-out-a-remote-branch" aria-label="Anchor link for: checking-out-a-remote-branch">Checking out a remote branch</a></h3>
+<p>Since <code>jj</code> is branchless, strictly speaking, we don’t “check out” a branch, but we can create a commit on top of a remote branch. First do the equivalent of a <code>git fetch</code>, importing remote bookmarks:</p>
+<pre><code data-language="bash">$ jj git fetch
+</code></pre>
+<p>And create a new empty commit on top of the remote branch:</p>
+<pre><code data-language="bash">$ jj new some-cool-feature@origin
+</code></pre>
+<p>Our working copy now contains all the commits on the remote branch. However, if we were to drop back to <code>git</code>, we see that from <code>git</code>’s perspective, we’re in a <a href="https://git-scm.com/docs/git-checkout#_detached_head">detached head</a> state, not on any branch.</p>
+<div><pre><code data-language="bash">$ git status
+Not currently on any branch.
+nothing to commit, working tree clean
+</code></pre></div>
+
+<p>This is because <code>jj</code> is editing a commit above a bookmark, and does not have an equivalent to <code>git</code>’s “current branch” state.</p>
+<h3 id="pulling-in-changes-from-the-trunk"><a href="#pulling-in-changes-from-the-trunk" aria-label="Anchor link for: pulling-in-changes-from-the-trunk">Pulling in changes from the trunk</a></h3>
+<p>Syncing with the trunk (e.g. <code>main</code>) is just a specific example of this flow. We would <code>jj git fetch</code> to update our <code>main</code> to the upstream <code>main</code>, and then rebase our commits on top. For example, the following would rebase <code>my-branch</code> on top of a new <code>main</code>:</p>
+<pre><code>jj rebase -b my-branch -o main
+</code></pre>
+<h2 id="staying-oriented-in-the-graph"><a href="#staying-oriented-in-the-graph" aria-label="Anchor link for: staying-oriented-in-the-graph">Staying oriented in the graph</a></h2>
+<p><code>jj</code> commit graph manipulation is easiest when you have a live commit graph on screen. There are different ways you can accomplish this.</p>
+<p><a href="https://github.com/idursun/jjui">jjui</a> is a TUI for <code>jj</code> that allows you to edit the visual graph directly. I have not personally used this, but I know people who like it.</p>
+<p>I prefer to have an always-live <code>jj log</code> in the corner of my screen by way of <a href="https://github.com/sachaos/viddy">viddy</a> (a nicer version of <code>watch</code> that supports color):</p>
+<pre><code data-language="bash">viddy -t -n1 jj log --ignore-working-copy --color=always
+</code></pre>
+<p>I recommend filtering down this log to a revset that represents your current work. Here’s a starting point:</p>
+<pre><code>visible() &amp; (trunk() | (tracked_remote_bookmarks() &amp; ~::trunk()) | (mutable() &amp; mine())::)
+</code></pre>
+<p>You might also consider trying my experimental project <a href="https://github.com/ethanal/jj-stamp">jj-stamp</a>, which is a local code review GUI for the squash workflow. Even if you don’t use the squash review workflow, it makes a pretty good diff viewer with a live <code>jj log</code> on the side and a terminal for running <code>jj</code> operations.</p>
+<h2 id="stacked-prs-in-brief"><a href="#stacked-prs-in-brief" aria-label="Anchor link for: stacked-prs-in-brief">Stacked PRs, in brief</a></h2>
+<p>One of the biggest productivity gains from <code>jj</code> comes in its ability to support stacked PR workflows. This merits its own post, so I’ll keep it short.</p>
+<p>Large changes are easier to understand when they’re broken up into a series of logical steps. Breaking up a large change into smaller sequential atoms of review makes the whole change easier to understand. Stacked PRs attempt to leverage this fact to optimize merge throughput, while simultaneously removing pipeline stalls in the review process.</p>
+<p>Let’s say we’re building a new feature. We can decide we want to split up implementation into three stages:</p>
+<ol>
+<li>Refactor to make the feature easier to implement</li>
+<li>Implement the feature</li>
+<li>Use the feature in another system</li>
+</ol>
+<p><code>jj</code>’s ability to work on stacked changes with automatic rebase is a natural fit for implementing these three stages. Each of the three stages maps to a single commit, each with an associated bookmark/branch/PR:</p>
+<div><pre><code data-language="bash">$ jj log -r oomyzqmz::sxummoow
+○  sxummoow ethan@example.com 2026-11-15 14:10:48 ethan/sxummoow b5f0af21
+│  Use the feature
+○  vqpzktsp ethan@example.com 2026-11-15 14:06:27 ethan/vqpzktsp fe52c25f
+│  Implement the feature
+○  oomyzqmz ethan@example.com 2026-11-15 14:01:19 ethan/oomyzqmz 07f69717
+│  Refactor for the feature
+~
+</code></pre></div>
+
+<p>After you implement the first change, you can put up a PR for review and immediately start working on the next change. Your work stream becomes a long queue where you pop off the bottom as PRs are ready to merge and push to the top, with no pipeline stalls.</p>
+<p>It’s pretty easy to manually set up small PR stacks with <code>jj</code> and GitHub, but once you get hooked on the technique (making stacks 5–10 PRs deep), you’ll want a tool. <code>jj-pancake</code> is my entry into the ring of stacked PR tools. More on that soon.</p>
+<h2 id="resources"><a href="#resources" aria-label="Anchor link for: resources">Resources</a></h2>
+<ul>
+<li><a href="https://docs.jj-vcs.dev/">Official Jujutsu docs</a>. I most often refer to the <a href="https://docs.jj-vcs.dev/latest/revsets/">revset spec</a>.</li>
+<li><a href="https://steveklabnik.github.io/jujutsu-tutorial/">Steve Klabnik’s <code>jj</code> tutorial</a> was my first introduction to <code>jj</code>. I don’t think it’s maintained as a durable resource (and I don’t promise mine will be!), but it’s still a good read.</li>
+<li>I follow the <code>jj</code> releases <a href="https://github.com/jj-vcs/jj/releases/">RSS feed</a>. Lately the releases have been packed with new features. Overall <code>jj</code> is quite stable, but the occasional bug is fixed promptly.</li>
+<li>The <a href="https://discord.gg/dkmfj3aGQN">Jujutsu discord</a> is active and friendly!</li>
+<li>The <a href="https://ersc.io/blog">blog of East River Source Control</a>, a company that is building a new forge and code review platform intended to support Jujutsu well. The creator of Jujutsu, Martin von Zweigbergk, has joined as the CTO, and they have lots of other smart people as well. Perhaps a successor to GitHub one day? I’m rooting for them.</li>
+<li><a href="https://github.com/ethanal/dotfiles/blob/main/jj-config.toml">My personal <code>jj</code> config</a>. You might find some useful aliases or tricks here, but I haven’t attempted to make it readable.</li>
+<li>The <a href="https://github.com/thoughtpolice/a/blob/canon/tilde/aseipp/dotfiles/jj/config.toml"><code>jj</code> config of Austin Seipp</a>, a <code>jj</code> maintainer. Cool tricks lie within.</li>
+</ul>
+
+</div></div>
