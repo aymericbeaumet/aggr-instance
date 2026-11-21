@@ -1,0 +1,36 @@
+<div id="readability-page-1" class="page"><div id="main"><section><div><p>gopgext builds PostgreSQL extensions from plain Go code, using TinyGo. Mark a function with <code>//gopgext:function</code> and it becomes a SQL function: gopgext writes the C glue, the install script and the control file.</p></div><p><img src="https://jespino.github.io/gopgext/img/gopher-elephant.png" alt="The Go gopher in a PostgreSQL elephant costume" width="512" height="512"></p></section><div><p><span>Experimental</span>gopgext is experimental. Don’t use it in production: a bug in the generated code or the Go runtime runs inside the server, where it can crash it or corrupt data, and the API and generated SQL may change without notice.</p></div><section><div><h3>Just Go</h3><p>A project is plain Go files. The standard library works: <code>fmt</code>, <code>regexp</code>, <code>encoding/json</code>, <code>crypto/*</code>, maps, generics, iterators, <code>defer</code>/<code>recover</code>.</p></div><div><h3>Types map to SQL</h3><p>Strings, numbers, arrays, <code>NULL</code>s, sets, rows, timestamps, UUIDs and JSON map to SQL types. Define your own data types and composite types in Go.</p></div><div><h3>Queries and errors</h3><p>Run SQL through SPI, return errors with SQLSTATE codes, log, read settings and stay responsive to query cancellation.</p></div><div><h3>Beyond functions</h3><p>Write triggers, aggregates, GiST, GIN, SP-GiST and BRIN operator classes, index access methods, foreign data wrappers and query hooks.</p></div><div><h3>Proven on contrib</h3><p>Ports of PostgreSQL’s contrib modules (<code>pgcrypto</code>, <code>hstore</code>, <code>pg_stat_statements</code>, <code>cube</code>, …) pass upstream’s regression tests.</p></div><div><h3>Safe coexistence</h3><p>Several Go extensions load in one backend. PostgreSQL errors never unwind through Go frames, and results are copied into PostgreSQL memory.</p></div></section><div><h2 id="hello-world">Hello, world<a href="#hello-world" aria-label="Link to this section">#</a></h2><div><pre><code data-language="go">package main
+
+import (
+	"strings"
+
+	"gopgext/pg"
+)
+
+// Hello returns a greeting for name.
+//
+//gopgext:function immutable parallel=safe
+func Hello(name string) string {
+	return "Hello, " + name + "!"
+}
+
+// Shout upper-cases s. An empty string raises an error.
+//
+//gopgext:function immutable parallel=safe
+func Shout(s string) (string, error) {
+	if s == "" {
+		return "", pg.Errorf(pg.CodeInvalidParameterValue, "nothing to shout")
+	}
+	return strings.ToUpper(s) + "!", nil
+}
+
+func main() {} // runs once per backend, when PostgreSQL loads the library
+</code></pre></div><div><pre><code data-language="sh">gopgext init hello       # creates hello/go.mod and hello/main.go
+gopgext install hello    # builds hello.so, hello.control, hello--1.0.sql and installs them
+psql -c 'CREATE EXTENSION hello' -c "SELECT hello('world')"
+#     hello
+# ---------------
+#  Hello, world!
+</code></pre></div><p>The <a href="https://jespino.github.io/gopgext/docs/tutorial/">tutorial</a> walks through it step by step.</p><h2 id="a-sibling-project">A sibling project<a href="#a-sibling-project" aria-label="Link to this section">#</a></h2><p>gopgext uses the same approach as <a href="https://jespino.github.io/gokm/" rel="noopener">gokm</a>,
+which builds Linux kernel modules from Go: a custom TinyGo target and runtime
+layer for the host, a C runtime compiled by the host’s own build system
+(PGXS here, kbuild there), and generated glue.</p></div></div></div>
