@@ -13,5 +13,6 @@ html: 2026-10-08-l-ia-va-t-elle-tuer-les-maths-l-interview-d-hugo-duminil.html
 remote_preview:
   url: https://i1.ytimg.com/vi/HJFk7D5Vufc/hqdefault.jpg
 extra:
+  duration_seconds: 2470
   thumbnail: https://i1.ytimg.com/vi/HJFk7D5Vufc/hqdefault.jpg
 ---

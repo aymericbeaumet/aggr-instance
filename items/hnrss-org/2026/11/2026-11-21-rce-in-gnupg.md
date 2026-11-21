@@ -1,0 +1,227 @@
+---
+title: RCE in Gnupg
+link: https://lists.gnupg.org/pipermail/gnupg-announce/2026q4/000517.html
+source: hnrss-org
+published: 2026-11-21T08:32:58Z
+updated: 2026-11-21T08:32:58Z
+first_seen: 2026-11-21T19:04:53.634570545Z
+authors:
+- gdgghhhhh
+content: extracted
+html: 2026-11-21-rce-in-gnupg.html
+---
+
+**Werner Koch** [wk at gnupg.org](mailto:gnupg-announce%40gnupg.org?Subject=Re%3A%20%5BAnnounce%5D%20GnuPG%20Security%20Advisory%20for%20GPGME%20%28T8557%2CCVE-2026-129975%29&In-Reply-To=%3C87eccf4c1c.fsf%40jacob.g10code.de%3E "[Announce] GnuPG Security Advisory for GPGME (T8557,CVE-2026-129975)") \
+ *Fri Nov 20 19:01:51 CET 2026*
+
+- **Messages sorted by:** [\[ date \]](https://lists.gnupg.org/pipermail/gnupg-announce/2026q4/date.html#517) [\[ thread \]](https://lists.gnupg.org/pipermail/gnupg-announce/2026q4/thread.html#517) [\[ subject \]](https://lists.gnupg.org/pipermail/gnupg-announce/2026q4/subject.html#517) [\[ author \]](https://lists.gnupg.org/pipermail/gnupg-announce/2026q4/author.html#517)
+
+* * *
+
+```
+Hello!
+
+We are pleased to announce the availability of a new GPGME release:
+version 2.3.1.  This version fixes a *critical security bug* found in
+all prior versions.  We also release a new Gpg4win versions and and
+GnuPG Desktop and GnuPG VS-Desktop versions which all make use of GPGME.
+
+
+Description
+===========
+
+By using an OpenPGP key containing a crafted very long user id it is
+possible to trigger a double free.  This double free can be used
+exfiltrate data from applications by sending for example signed data.
+Exploiting this bug to mount an Remote Code Execution attack (RCE) can't
+be ruled out.  Thus an immediate update is highly suggested.
+
+Our internal ID is T8557 (https://static.dev.gnupg.org/T8557)
+The CVE-id is CVE-2026-129975.
+
+This vulnerability was discovered by Johan Carlsson and we were informed
+by GitLab on 2026-11-12.  Initially we set 2026-11-25 for a coordinated
+disclosure; due to the new Ruby2Shell bug GitLab had to update earlier
+and thus we also disclosed the GPGME bug on 2026-11-20.
+
+The root cause for this bug are two GPGME internal functions to read the
+status lines and key listings from gpg.  Initially a buffer of 1024
+bytes is allocated which is reallocated if more space is required.  When
+reallocating the pointer to the new buffer is used by the function but
+it is only assigned back to the context object at the end of the
+function.  Thus if the function returns early due to an read error or
+other events the context is not updated and keeps the stale pointer to
+the freed memory.  Eventually the context is released and the memory
+freed a second time.  Due to other allocations in between the common
+double free checks of memory allocators may not be triggered.
+
+
+Impact
+======
+
+All software using a GPGME version prior to 2.3.0 either as shared
+libary, DLL, or statically linked is affected.  Examples of software
+using GPGME are
+
+ - Gpg4win
+ - GnuPG Desktop
+ - GnuPG VS-Desktop
+ - Most mail clients
+ - Many XMPP clients
+ - Samba
+ - Flatpack
+
+
+Solution
+========
+
+Please update your GPGME shared library to version 2.3.1.  If you need a
+DLL you may take it from from the updated Gpg4win version.
+
+For statically linked binaries remmeber to build them against GPGME
+2.3.1.
+
+If for some reasons GPGME can't be updated, you may patch your GPGME
+version using the attached patch which likley applies cleanly even to
+very old versions.
+
+There is no need to udpate GPGMEPP or GPGMEQT.
+
+
+Noteworthy changes in version 2.3.1 (2026-11-19)
+================================================
+         [compared to version 2.2.0]
+
+ * New constants GPGME_PK_MLKEM, GPGME_PK_MLDSA, and GPGME_PK_DLTHM.
+   Add mappings for algos used bei backends.   [rMa85fa49236]
+
+ * Fix a double free in the status line read code.
+   [T8557,CVE-2026-129975]
+
+ * Interface changes relative to the 2.2.0 release:
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ GPGME_PK_DLTHM                NEW.
+ GPGME_PK_MLKEM                NEW.
+ GPGME_PK_MLDSA                NEW.
+
+ Release-info: https://dev.gnupg.org/T8427
+
+
+Getting the Software
+====================
+
+Please follow the instructions found at <https://gnupg.org/download/> or
+read on:
+
+The GPGME source code compressed using BZIP2 and its OpenPGP signature
+are available here:
+
+ https://gnupg.org/ftp/gcrypt/gpgme/gpgme-2.3.1.tar.bz2 (1393k)
+ https://gnupg.org/ftp/gcrypt/gpgme/gpgme-2.3.1.tar.bz2.sig
+
+A sufficient patch to solve the security bug for older versions is
+attached.   Note that version 2.3.0 was never publicly available.
+
+
+
+Debian Packages
+===============
+
+We also provide Debian style packages for a couple of Debian variants.
+See https://repos.gnupg.org/deb/gnupg/trixie/ or use the menu to switch
+to other distros/releases.
+
+
+Windows Installer
+=================
+
+A new version of Gpg4win (5.1.2), our full featured Windows installer,
+including the fixed version of GPGME, the Kleopatra GUI, and a PDF
+reader has also been released.  Head over to https://gpg4win.org/
+
+
+Checking the Integrity
+======================
+
+See https://gnupg.org/download/integrity_check.html
+
+The checksum for gpgme is:
+
+1134a407b50204ee6fb9efaa6e1451c2460e543e  gpgme-2.3.1.tar.bz2
+
+
+*Thank you all*
+
+   Your GnuPG hackers
+
+
+p.s.
+This is an announcement only mailing list.  Please send replies only to
+the gnupg-users at gnupg.org mailing list.
+
+* List of Release Signing Keys:
+  To guarantee that a downloaded version has not been tampered by
+  malicious entities we provide signature files for all tarballs and
+  binary versions.  The keys are also signed by the long term keys of
+  their respective owners.  Current releases are signed by one or more
+  of these five keys:
+
+    ed25519 2020-08-24 [SC] [expires: 2030-06-30]
+    6DAA 6E64 A76D 2840 571B  4902 5288 97B8 2640 3ADA
+    Werner Koch (dist signing 2020)
+
+    ed25519 2021-05-19 [SC] [expires: 2027-04-04]
+    AC8E 115B F73E 2D8D 47FA  9908 E98E 9B2D 19C6 C8BD
+    Niibe Yutaka (GnuPG Release Key)
+
+    rsa3072 2025-05-09 [SC] [expires: 2033-03-03]
+    3B76 1AE4 E63B F351 9CE7  D63B ECB6 64CB E133 2EEF
+    Alexander Kulbartsch (GnuPG Release Key)
+
+    ed25519 2026-07-20 [SC] [expires: 2036-06-30]
+    D02A E491 73BD AD56 E4F8  8223 707E 56D3 DEF4 115C
+    Ingo Klöcker (Release Signing Key 2026)
+
+    brainpoolP256r1 2021-10-15 [SC] [expires: 2029-12-31]
+    02F3 8DFF 731F F97C B039  A1DA 549E 695E 905B A208
+    GnuPG.com (Release Signing Key 2021)
+
+    brainpoolP384r1 2026-02-23 [SC] [expires: 2034-02-23]
+    1493 269D E61F 124A A69A  316E 3ADF 34EB DBB2 00A4
+    GnuPG.com (Release Signing Key 2026)
+
+  The keys are available at https://gnupg.org/signature_key.html and in
+  any recently released GnuPG tarball in the file g10/distsigkey.gpg .
+  Note that this mail has been signed by a different key.
+
+* Debian Package Signing Key:
+  The new Debian style packages are signed using this key:
+
+    ed25519 2025-07-08 [SC] [expires: 2035-07-14]
+    3209 7B71 9B37 45D6 E61D DA1B 85C4 5AE3 E1A2 B355
+    GnuPG.org Package Signing Key <package-maintainers at gnupg.org>
+
+  See the package website (https://repos.gnupg.org/deb/gnupg) for a list
+  of supported distributions and a download link for the key.
+
+--
+Arguing that you don't care about the right to privacy because you have
+nothing to hide is no different from saying you don't care about free
+speech because you have nothing to say.                - Edward Snowden
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: openpgp-digital-signature.asc
+Type: application/pgp-signature
+Size: 284 bytes
+Desc: not available
+URL: <https://lists.gnupg.org/pipermail/gnupg-announce/attachments/20261120/b5262e6e/attachment.sig>
+```
+
+* * *
+
+- **Messages sorted by:** [\[ date \]](https://lists.gnupg.org/pipermail/gnupg-announce/2026q4/date.html#517) [\[ thread \]](https://lists.gnupg.org/pipermail/gnupg-announce/2026q4/thread.html#517) [\[ subject \]](https://lists.gnupg.org/pipermail/gnupg-announce/2026q4/subject.html#517) [\[ author \]](https://lists.gnupg.org/pipermail/gnupg-announce/2026q4/author.html#517)
+
+* * *
+
+[More information about the Gnupg-announce mailing list](http://lists.gnupg.org/mailman/listinfo/gnupg-announce)

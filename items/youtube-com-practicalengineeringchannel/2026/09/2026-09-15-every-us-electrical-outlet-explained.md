@@ -29,6 +29,7 @@ images:
     height: 360
   color: '#000000'
 extra:
+  duration_seconds: 1293
   thumbnail: https://i3.ytimg.com/vi/n_1wzYQwnts/hqdefault.jpg
 ---
 
