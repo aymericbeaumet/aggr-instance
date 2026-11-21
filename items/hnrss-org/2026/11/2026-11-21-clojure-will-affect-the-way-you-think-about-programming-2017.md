@@ -1,0 +1,93 @@
+---
+title: Clojure will affect the way you think about programming (2017)
+link: https://eli.thegreenplace.net/2017/clojure-the-perfect-language-to-expand-your-brain/
+source: hnrss-org
+published: 2026-11-21T02:40:39Z
+updated: 2026-11-21T02:40:39Z
+first_seen: 2026-11-21T11:40:40.430579915Z
+authors:
+- sammatilda
+content: extracted
+html: 2026-11-21-clojure-will-affect-the-way-you-think-about-programming-2017.html
+remote_preview:
+  url: https://eli.thegreenplace.net/images/2017/brainclojure.png
+  alt: Brain with Clojure inside
+---
+
+I sometimes get asked for recommendations of what programming language to "learn next". It's great that folks appreciate the fact that being exposed to several sufficiently different programming languages is an important step on the path to programming enlightenment. But it's also true that, given limited free time, the choice of which languages to learn is important. As the famous quote by [Alan Perlis](https://en.wikiquote.org/wiki/Alan_Perlis) says:
+
+> A language that doesn't affect the way you think about programming, is not worth knowing.
+
+In this post I want to explain why I think Clojure is a *terrific* language for this task. Whatever your background, it's [almost guaranteed](http://www.paulgraham.com/icad.html) to affect the way you think about programming. It's a fairly new language (from 2007) that did a good job of collecting insights and paradigms from many existing languages and organizing them into a coherent whole. It's chock-full of great ideas. In other words, the *perfect language to expand your brain*.
+
+![Brain with Clojure inside](https://eli.thegreenplace.net/images/2017/brainclojure.png)
+
+## It's a Lisp!
+
+First and foremost, Clojure belongs to the Lisp family of languages, like Common Lisp, Scheme and Racket. Lisp is one of the oldest and still most important families of programming languages to be familiar with. Being a Lisp in this case means several things:
+
+- Clojure is a dynamic language. No matter where you stand on the static vs. dynamic typing debate, knowing languages in both camps is important. Clojure has a kind of optional typing, but in essence it's dynamic.
+- It promotes combinations of built-in data structures (lists, maps, vectors) over objects and has very good reasons for doing so.
+- It promotes programming with higher-order functions. Some built-in features like [reducers and transducers](https://eli.thegreenplace.net/2017/reducers-transducers-and-coreasync-in-clojure/) rely heavily on composing higher order functions for transforming other functions.
+- It has uniform syntax with full Lisp-style macro support! This capability has proved to be very elusive for non-Lisp languages, and seeing some *real* macros in action is enlightening. Clojure has a whole Go-like CSP equivalent implemented using macros in `core.async`.
+- It encourages REPL-based development, where functionality is built and testsed gradually from the bottom up in an interactive terminal.
+
+Importantly, Clojure is a very *modern* Lisp, with tons of libraries for tasks common in our day and age. It also builds upon important recent research in data structures, such as efficient persistent vectors, that only appeared in the 1990s or later. I've been dabbling with various Lisps for almost 15 years, and Clojure is the first Lisp I'd consider using in production.
+
+I want the stress the importance of full Lisp-style macros once again. Lisp's (and Clojure's) uniform syntax and macros force us to think about the [Meta-circular abstraction](https://en.wikipedia.org/wiki/Meta-circular_evaluator) - there's just no way around it! We have to think of our code as data, and this has profound implications. Back in 2005, when I was still a programming neophyte, I faced a performance challenge for a data-decoding program I was hacking on in Perl. Having learned some Lisp, I had the insight of [generating and evaluating new Perl code on the fly](https://eli.thegreenplace.net/2005/09/04/cool-hack-creating-custom-subroutines-on-the-fly-in-perl), which turned out to be key to the success of that program. I'm confident I could not have come up with that solution back then without being aware of the "Lisp way".
+
+## Pragmatism and hard-won experience
+
+The designers of Clojure are extremely pragmatic, building upon decades of industry experience. I strongly recommend watching some [YouTube videos of talks](https://www.youtube.com/user/ClojureTV) by leading Clojure developers. In particular, watch a few of the more popular talks by Rich Hickey - Clojure's original designer. The Alan Perlis quote mentioned above may be his most popular, but there's another I find at least as insightful:
+
+> Simplicity does not precede complexity, but follows it.
+
+There's a certain quality in programmers I believe we can all recognize. It can only come from *real*, hard-won experience of building systems for many years and pondering about how to build such systems more effectively next time. Rich Hickey certainly belongs to this quality category - his talks are very insightful, and this philosophy reigns in the design and implementation of Clojure, as well as its (friendly and vibrant) community.
+
+## Sequences and laziness for powerful in-language data processing
+
+Applications that process and extract useful bits of information from large datasets all look alike in many programming languages, at least to some extent. What we *really* want in many cases is SQL-like primitives built into our languages, but this is often challenging (.NET's LINQ is one example of a successful approach).
+
+Clojure combines pervasive sequence protocols with persistent data structures and laziness to make this kind of task natural, using only built-in tools. Here's a realistic example of a function taken from the [Clojure Applied](https://pragprog.com/book/vmclojeco/clojure-applied) book:
+
+```
+(defn revenue-by-department [carts]
+  (->> (filter :settled? carts)
+       (mapcat :line-items)
+       (map line-summary)
+       (group-by :dept)
+       (reduce-kv dept-total)))
+```
+
+All the functions used here are built-ins, including the `->>` macro. This code reads like SQL and it's efficient too. In fact, it can be made somewhat more efficient and even seamlessly parallelized using [Reducers and Transducers](https://eli.thegreenplace.net/2017/reducers-transducers-and-coreasync-in-clojure/).
+
+The [clojure.spec](https://clojure.org/guides/spec) library provides a degree of type-safety for nested data structures. If you've ever written comments like "this maps strings to lists, where each list element is a map of ...", `clojure.spec` makes it more formal and verifiable. This is very useful when working with data, and is another example of where Clojure's pragmatism shines; the language is dynamic in its core, but when you need static checking - it's there, optionally (`core.typed` is another option for a more statically typed flavor).
+
+## The right approach to object-orientation
+
+Historically, Lisp programmers weren't the biggest proponents of OOP. This doesn't mean that OOP has absolutely no value in Lisp-y languages, however. Common Lisp has had CLOS for decades, and Clojure also comes with an array of OO-like features.
+
+That said, Clojure's flavor of OOP is particularly powerful and tends to discourage bad practices. Clojure uses "protocols", which are a kind of interfaces, and encourages thinking in terms of protocols rather than in terms of classes with inheritance hierarchies, sort of like Go. Add to that an ability to do true [multiple dispatch](https://eli.thegreenplace.net/2016/a-polyglots-guide-to-multiple-dispatch-part-4/) and you have a powerful modeling tool at your fingertips.
+
+## Built-in support for concurrency and parallelism
+
+It wouldn't be a real language of the 2000s without powerful support for concurrency and parallelism right at the core. Clojure supports this in many ways, which are interleaved.
+
+First, it's a functional language with persistent data structures. Persistent data structures are effectively immutable, which makes them very attractive in a multi-threaded context. Clojure has a great implementation of persistent data structures even for things like vectors (which are quite challenging to implement in an efficient manner). This is a bigger deal than may originally appear. Pure functions are often great in theory but fail in practice due to too much copying of non-trivial data structures; Clojure's elegant usage of persistent data structures solves this problem, making pure functions efficient and thus much more applicable to a wide array of problems.
+
+Second, Clojure doesn't lock itself in the closet of purism and does support lower-level primitives for concurrency and mutation, where needed. Atoms are built-in mutable state units with atomic updates. [Refs and transactions](https://clojure.org/reference/refs) go further, implementing STM.
+
+Third, Clojure comes with a bunch of concurrency tools built in. Promises, futures and threads leverage the underlying JVM's threading utilities.
+
+Finally, Clojure has a pretty good implementation of Go's CSP in the `core.async` module. It provides two useful things:
+
+1. Channels and Go `select`-like functionality (`alts!!`) which makes it easy to work with safe concurrent queues and "share data by communicating".
+2. go-blocks with non-blocking primitives that [make it possible](https://eli.thegreenplace.net/2017/clojure-concurrency-and-blocking-with-coreasync/) to write cooperative "green threads" with ease.
+
+## Conclusion - try it
+
+Finally, it's important to mention that Clojure is far from being an academic exercise. It's used in production by several companies, and has strong roots in the massive Java ecosystem. Clojure's interoperability with Java is seamless - Java code can be called from Clojure with no special provisions, and all core Clojure entities are Java objects deep under the hood.
+
+On the client side, Clojurescript has been gaining traction recently as another language-compiled-to-JS option. It brings the elegance of Clojure to client-side programming, among with some unique features like `core.async` for callback-free concurrency.
+
+This doesn't mean that you should only consider Clojure as a fit for your next project. On the contrary, I recommend learning if even if there's little chance of using it in production any time soon. In fact, this was exactly my situation, Clojure is a great language to expand your programming horizons; who knows, maybe in the future you'll find it useful for some real work. If you do, great! If you don't, learning it will positively affect how you use other programming languages.
