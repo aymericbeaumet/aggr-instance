@@ -1,0 +1,96 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text">
+<p dir="auto"><em>Versión en español: <a href="https://github.com/sebaandrada-cell/PcapAnalyzer/blob/main/README.es.md">README.es.md</a>.</em></p>
+<p dir="auto">Find the network fault in seconds, not hours. Upload a <code>.pcap</code> / <code>.pcapng</code> capture
+(gzip too) and PcapAnalyzer tells you what is failing, why, and what to check next.
+It runs on your own machine, so captures never leave your network.</p>
+<p dir="auto"><strong>Free and open source (Apache 2.0). Status: beta.</strong></p>
+<ul dir="auto">
+<li>Try it without installing anything: <a href="https://pcap-analyzer-seven.vercel.app/#demo" rel="nofollow">https://pcap-analyzer-seven.vercel.app/#demo</a></li>
+<li>Download: <a href="https://sebaandrada6.gumroad.com/l/hspgx" rel="nofollow">https://sebaandrada6.gumroad.com/l/hspgx</a> (free) or clone this repository.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">What it does</h2><a id="user-content-what-it-does" aria-label="Permalink: What it does" href="#what-it-does"></a></p>
+<ul dir="auto">
+<li><strong>27 detectors</strong> that run on every capture, each with a severity and a next step:
+<ul dir="auto">
+<li>TCP: firewall blocks (SYN→RST), retransmissions, duplicate ACKs, loss and
+reordering, zero and full windows, resets after the handshake, slow handshakes.</li>
+<li>Path: PMTUD black holes, low MSS, IP fragmentation, ICMP errors, routing loops.</li>
+<li>Name and address services: unanswered or slow DNS, SERVFAIL, NXDOMAIN bursts,
+DHCP NAK / DECLINE / no answer, duplicate IPs, ARP storms.</li>
+<li>Applications: HTTP 4xx / 5xx and slow responses, TLS alerts, SSL 3.0 / TLS 1.0 / 1.1.</li>
+<li>Tunnels: IPsec (IKE and ESP), WireGuard, OpenVPN, GRE, L2TP and Teredo that are
+one-way, never answer a handshake or keep renegotiating.</li>
+<li>Security: port scans and sweeps, cleartext logins (FTP, POP3, IMAP, SMTP AUTH,
+HTTP Basic; credentials are never stored or shown), Telnet / SMBv1 / SNMP v1-v2c,
+ARP spoofing, overlapping IP fragments.</li>
+</ul>
+</li>
+<li><strong>Capture quality first.</strong> It warns when the capture itself limits the result:
+frames duplicated by a mirror port, traffic seen in one direction only, truncated
+packets, connections already open when the capture started.</li>
+<li><strong>Wireshark-style views:</strong> packet list with real Wireshark display filters over the
+whole capture, colouring, CSV export, expert info, HTTP / DNS / DHCP / TLS tables,
+response times and a flow diagram per conversation.</li>
+<li><strong>AI investigation (optional):</strong> an AI investigates the capture with tools (real
+filters, stream detail, statistics) and cites the packets behind every claim. You
+can then ask follow-up questions. It uses your own Anthropic API key; without one, a
+demo mode runs the full flow with text generated from the analysis, at no cost.</li>
+<li><strong>PDF report</strong>, Spanish and English interface, light and dark theme.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Quick start</h2><a id="user-content-quick-start" aria-label="Permalink: Quick start" href="#quick-start"></a></p>
+<p dir="auto">You need <strong>Docker</strong> with Docker Compose. On Windows, run the script from Git Bash or WSL.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="git clone https://github.com/sebaandrada-cell/PcapAnalyzer.git
+cd PcapAnalyzer
+./start.sh"><pre><code data-language="shell">git clone https://github.com/sebaandrada-cell/PcapAnalyzer.git
+cd PcapAnalyzer
+./start.sh</code></pre></div>
+<p dir="auto">The script creates a random access token (shown once, stored in <code>.env</code>) and starts the
+app. When the build finishes, open <a href="http://localhost:8080" rel="nofollow">http://localhost:8080</a>, paste the token into the
+"API token" field (top right) and upload a capture, or click "Try the sample capture".</p>
+<p dir="auto">The app listens on <code>127.0.0.1</code> only. Do not expose it on a network without an
+authenticated reverse proxy: the API can use your AI account.
+<a href="https://github.com/sebaandrada-cell/PcapAnalyzer/blob/main/QUICKSTART.md">QUICKSTART.md</a> has the details, the AI setup and troubleshooting.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Without Docker</h3><a id="user-content-without-docker" aria-label="Permalink: Without Docker" href="#without-docker"></a></p>
+<p dir="auto">You need Python 3.9+, Node 20+ and <strong>tshark</strong> (installed with Wireshark).</p>
+<div dir="auto" data-snippet-clipboard-copy-content="cd backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+export API_TOKENS=&quot;$(openssl rand -hex 32)&quot;
+.venv/bin/uvicorn app.main:app --reload"><pre><code data-language="shell">cd backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+export API_TOKENS="$(openssl rand -hex 32)"
+.venv/bin/uvicorn app.main:app --reload</code></pre></div>
+<div dir="auto" data-snippet-clipboard-copy-content="cd frontend
+npm install
+npm run dev"><pre><code data-language="shell">cd frontend
+npm install
+npm run dev</code></pre></div>
+<p dir="auto">Open <a href="http://localhost:5173" rel="nofollow">http://localhost:5173</a> and paste the same token. If tshark is not on your <code>PATH</code>,
+set <code>TSHARK_PATH</code> to the binary.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Privacy</h2><a id="user-content-privacy" aria-label="Permalink: Privacy" href="#privacy"></a></p>
+<ul dir="auto">
+<li>The capture is analysed on your machine. While an AI investigation lasts it is kept
+encrypted (60 minutes of inactivity, or until you press "Delete capture now") and is
+then deleted.</li>
+<li>The AI is optional. It only sees what its tools return (packet metadata; packet
+content only if you switch it on for that session), never the pcap file.</li>
+<li>No telemetry and no accounts for the self-hosted version.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Tests</h2><a id="user-content-tests" aria-label="Permalink: Tests" href="#tests"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="cd backend &amp;&amp; .venv/bin/python -m pytest -q    # needs tshark
+cd frontend &amp;&amp; npm test"><pre><code data-language="shell">cd backend &amp;&amp; .venv/bin/python -m pytest -q    # needs tshark
+cd frontend &amp;&amp; npm test</code></pre></div>
+<p dir="auto"><h2 tabindex="-1" dir="auto">Feedback</h2><a id="user-content-feedback" aria-label="Permalink: Feedback" href="#feedback"></a></p>
+<p dir="auto">PcapAnalyzer is a beta. It has been tested with synthetic fixtures and public sample
+captures, and the most useful feedback is a capture where it misses a problem or
+reports one that is not real. Please open an issue at
+<a href="https://github.com/sebaandrada-cell/PcapAnalyzer/issues">https://github.com/sebaandrada-cell/PcapAnalyzer/issues</a> and describe the case.
+<strong>Do not attach captures that contain real credentials or customer data</strong>; anonymise
+them first or describe the pattern.</p>
+<p dir="auto">The technical reference (JSON schema, detector thresholds, limits, API errors) is in
+<a href="https://github.com/sebaandrada-cell/PcapAnalyzer/blob/main/README.es.md">README.es.md</a>, in Spanish.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">License</h2><a id="user-content-license" aria-label="Permalink: License" href="#license"></a></p>
+<p dir="auto"><a href="https://github.com/sebaandrada-cell/PcapAnalyzer/blob/main/LICENSE">Apache License 2.0</a>. See <a href="https://github.com/sebaandrada-cell/PcapAnalyzer/blob/main/NOTICE">NOTICE</a> for third-party software: tshark /
+Wireshark (GPL) runs as a separate program and is not distributed with PcapAnalyzer.</p>
+</article></div></div>

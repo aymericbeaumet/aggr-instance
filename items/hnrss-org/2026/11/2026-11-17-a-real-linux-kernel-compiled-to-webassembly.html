@@ -1,0 +1,742 @@
+<div id="readability-page-1" class="page"><div data-hpc="true" containertiming="hpc"><article itemprop="text"><div dir="auto"><h2 tabindex="-1" dir="auto"><a target="_blank" rel="noopener noreferrer" href="https://github.com/pithings/unkernel/blob/main/assets/logo-wordmark.svg"><img alt="unkernel" src="https://github.com/pithings/unkernel/raw/main/assets/logo-wordmark.svg" width="400"></a></h2><a id="" aria-label="Permalink: " href="#"></a></div>
+<p dir="auto"><strong>A real Linux kernel, compiled to WebAssembly. It boots to a shell in less than a second.</strong></p>
+<p dir="auto">
+  <a href="https://unkernel.dev/" rel="nofollow"><b>Try it</b></a> ·
+  <a href="#-performance">Performance</a> ·
+  <a href="#-a-real-kernel">Features</a> ·
+  <a href="#-run-it-from-the-terminal">CLI</a> ·
+  <a href="#-how-it-works">How it works</a> ·
+  <a href="#-benchmarks">Benchmarks</a> ·
+  <a href="#-use-it-from-javascript">JavaScript SDK</a>
+</p>
+<p dir="auto">unkernel is Linux 7.x built as a single wasm module with a real MMU. The
+kernel (syscalls, scheduler, memory management, ext4, TCP/IP) is compiled
+code, not emulated, so programs get Linux's own behavior down to the edge
+cases. Only user programs are emulated: unmodified aarch64 (arm64) Linux
+binaries, so Alpine and Debian packages run as they are.</p>
+<p dir="auto"><a href="#-try-it-in-the-browser">Open a page</a> and you have a Linux machine with a
+shell, a package manager, a persistent disk, internet access, and a screen
+with sound. It runs entirely on your device, with nothing to install and no
+server, and every layer is open source. <a href="#-how-it-works">How it works</a>
+explains the design.</p>
+<p dir="auto">
+  <a target="_blank" rel="noopener noreferrer" href="https://github.com/pithings/unkernel/blob/main/assets/architecture.svg"><img alt="Linux programs run on kwemu, an aarch64 CPU linked into the Linux kernel, built together into unkernel.wasm, which talks to the JavaScript SDK" src="https://github.com/pithings/unkernel/raw/main/assets/architecture.svg" width="760"></a>
+</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">⚡ Performance</h2><a id="user-content--performance" aria-label="Permalink: ⚡ Performance" href="#-performance"></a></p>
+<p dir="auto">Much of what makes a system feel slow lives in the kernel: starting
+processes, syscalls, page faults, file and network I/O. In unkernel that
+path runs at wasm speed.</p>
+<ul dir="auto">
+<li><strong>Boot</strong>: the kernel reaches <code>/init</code> about 70 ms after it starts, and the Alpine
+prompt appears 0.3 s after <code>node</code> launches. The page downloads about
+10 MB, and Alpine boots in 48 MiB of guest memory.</li>
+<li><strong>Syscalls at close to native cost</strong>: <code>getppid</code> takes about 170 ns (110
+native, 1.7 µs under qemu-system), a 64-byte <code>read</code> about 170 ns (160
+native).</li>
+<li><strong>fork at native speed</strong>: fork + exit + wait takes about 60 µs, against
+about 70 µs natively and 1.2 ms under qemu-system.</li>
+<li><strong>A JIT for user code</strong>: hot aarch64 code, including the AES, PMULL and
+SHA instructions OpenSSL uses, is compiled to wasm while it runs. With
+it a shell loop runs 1.6 times and <code>sort</code> 2.3 times as fast as on the
+interpreter alone, and OpenSSL in the guest does AES-128-GCM at about
+100 MB/s and SHA-256 at about 160 MB/s.</li>
+</ul>
+<p dir="auto">The syscall and fork numbers were measured on 2026-11-14 (with the
+riscv64 user space the project started with; the path through the kernel
+is the same), the JIT numbers on 2026-11-18. CPU-heavy programs are well
+behind native: <code>apk search</code> over the main index takes about 0.8 s, <code>apk add python3</code> about 3.4 s. <a href="#-benchmarks">Benchmarks</a> has the full numbers.</p>
+
+<p dir="auto">Anything a program relies on, from <code>/proc</code> and <code>epoll</code> to cgroups and
+overlayfs, behaves as it does on a server, because it runs the same code.</p>
+<ul dir="auto">
+<li><strong>A real MMU</strong> (<code>arch/wasm</code> with Sv39 page tables): <code>fork</code>, <code>mmap</code>,
+copy-on-write, shared memory, threads and signals behave as they do on
+hardware. This is not a NOMMU port where programs are limited to <code>vfork</code>.</li>
+<li><strong>Linux's own file systems</strong>: ext4, overlayfs, tmpfs, loop devices, FUSE,
+and 9p, which <a href="#mount-host-files">mounts file systems</a> your program serves
+from the host. The root file system is an overlay: a read-only distro
+image under your changes, which go to a persistent ext4 disk, so
+everything you change survives a reload, and a safe mode recovers a
+system you broke.</li>
+<li><strong>Linux's own TCP/IP stack</strong>, with DHCP and DNS, reaching the internet
+through your host's sockets or a Wisp proxy
+(<a href="#add-a-network">Add a network</a>).</li>
+<li><strong>cgroups, namespaces, userfaultfd, fanotify and TUN</strong>: enough for
+systemd to boot Ubuntu 26.10 to <code>multi-user.target</code>.</li>
+<li><strong>Devices</strong>: a <a href="#display-input-and-sound">framebuffer (<code>/dev/fb0</code>), evdev keyboard, mouse and touch,
+sound through ALSA and <code>/dev/dsp</code></a>,
+<a href="#talk-over-vsock">AF_VSOCK</a>, and <a href="#share-memory">shared memory</a> with the
+host.</li>
+<li><strong>aarch64 user space</strong>: ARMv8.0-A with FP and AdvSIMD plus the AES,
+PMULL, SHA1, SHA2, SHA512, SHA3, CRC32 and LSE atomics extensions, so
+distribution binaries and
+OpenSSL's hardware AES, GHASH and SHA paths run unchanged. aarch64 is a
+first-class port of
+every distribution, so their full, current package archives are
+available.</li>
+</ul>
+<p dir="auto"><a href="#-known-limits">Known limits</a> lists what is still missing.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">🧰 What you can do with it</h2><a id="user-content--what-you-can-do-with-it" aria-label="Permalink: 🧰 What you can do with it" href="#-what-you-can-do-with-it"></a></p>
+<ul dir="auto">
+<li><strong><a href="#-try-it-in-the-browser">Carry a Linux shell anywhere</a>.</strong> Alpine Linux
+3.24 runs in Chrome, Edge, Firefox and Safari, including on phones. Install
+anything with <code>apk add</code> from Alpine's regular mirrors. Type a command that
+isn't installed, such as <code>htop</code>, and its package is installed for you. apk
+starts with only the <code>main</code> repository, because it is about 4x faster that
+way; <code>community</code> is added the first time a command needs it.</li>
+<li><strong>Run real runtimes and tools</strong>: Node and npm, Python, OpenSSL, curl and
+<code>wget</code>, straight from the distribution. Debian 13 boots the same way as
+Alpine (<code>--distro debian</code>), with apt.</li>
+<li><strong><a href="#display-input-and-sound">Write graphics and sound programs</a></strong> against
+<code>/dev/fb0</code>, evdev and ALSA. Try <code>glimmer</code>, a tiny game with sound.</li>
+<li><strong><a href="#-use-it-from-javascript">Embed Linux in your app</a></strong> with a
+zero-dependency TypeScript SDK, published as
+<a href="https://www.npmjs.com/package/unkernel" rel="nofollow"><code>unkernel</code></a>. The same kernel file
+runs in Node and in every supported browser, optionally <a href="#run-it-in-a-worker">in a
+worker</a>. <a href="#add-disks">Disks</a> can be local ext4 images,
+http(s) images fetched by range, or a persistent disk in IndexedDB. The SDK
+is MIT-licensed, and there is no closed engine or license key behind it, so
+you can ship it in your product and host it wherever you like.</li>
+<li><strong>Talk to the guest</strong> through <a href="#run-programs">terminal sessions</a>, each
+with its own pty and shell, <a href="#mount-host-files">host directories and in-memory file
+systems</a> mounted in the guest, <a href="#talk-over-vsock">vsock byte
+streams</a> and <a href="#share-memory">zero-copy shared memory</a>,
+with no network in between.</li>
+<li><strong>Script and test</strong>: <a href="#-run-it-from-the-terminal">the CLI</a> types input on a
+schedule, stops on a timeout, and reports how the guest ended in its exit
+code.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">🌐 Try it in the browser</h2><a id="user-content--try-it-in-the-browser" aria-label="Permalink: 🌐 Try it in the browser" href="#-try-it-in-the-browser"></a></p>
+<p dir="auto">Open <strong><a href="https://unkernel.dev/" rel="nofollow">unkernel.dev</a></strong>. A shell appears
+after a download of about 10 MB. Your changes are saved in the browser, and
+the status icon opens options, diagnostics, and export or reset for your
+disk. Ctrl-A n (or ⌘A n on a Mac) or <code>+</code> on the status line opens another
+terminal window with its own shell, up to 9; Ctrl-A and a digit switches.</p>
+<p dir="auto">The page takes a few URL parameters:</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>?mem=512</code></td>
+<td>Guest memory in MiB</td>
+</tr>
+<tr>
+<td><code>?append=...</code></td>
+<td>Extra kernel command line</td>
+</tr>
+<tr>
+<td><code>?net=0</code></td>
+<td>Boot without a network</td>
+</tr>
+<tr>
+<td><code>?wisp=wss://...</code></td>
+<td>Use your own <a href="https://github.com/MercuryWorkshop/wisp-protocol">Wisp</a> proxy</td>
+</tr>
+<tr>
+<td><code>?jit=0</code></td>
+<td>Interpreter only</td>
+</tr>
+<tr>
+<td><code>?data=0</code></td>
+<td>No persistent disk, a fresh system every time</td>
+</tr>
+<tr>
+<td><code>?worker=0</code></td>
+<td>Run the kernel on the page's thread (default: in a Web Worker where the page is cross-origin isolated)</td>
+</tr>
+<tr>
+<td><code>?cpus=2</code></td>
+<td>Boot on that many CPUs, each in a Web Worker (default: half the device's threads, up to 4 on desktops and 2 in Firefox, one on phones, in Safari and on iOS, where the page has the SMP kernel and is cross-origin isolated; <code>?cpus=1</code>: one CPU)</td>
+</tr>
+<tr>
+<td><code>?gl=0</code></td>
+<td>No guest GL (on by default on Debian: the guest's Mesa renders through your browser's WebGL2, see below)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">On Debian the guest gets a GPU (<code>/dev/dri</code>, Options, Guest GL): Mesa's
+virgl driver draws through your browser's WebGL2. The renderer behind it
+is downloaded only when a guest program first uses GL; the status panel's
+Guest GL row then names the GPU (a software renderer such as SwiftShader
+is flagged). Mesa is installed in the guest, not shipped:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="sudo apt-get install -y mesa-utils libegl-mesa0 libgles2 kmscube
+eglinfo -B -p gbm                 # OpenGL ES renderer: virgl (&lt;your GPU&gt;)
+kmscube                           # on the display (Enter ends it)
+sudo apt-get install -y xvfb xauth glmark2-es2-x11
+xvfb-run -a -s &quot;-screen 0 640x480x24&quot; glmark2-es2   # frame rates"><pre><code data-language="shell">sudo apt-get install -y mesa-utils libegl-mesa0 libgles2 kmscube
+eglinfo -B -p gbm                 # OpenGL ES renderer: virgl (&lt;your GPU&gt;)
+kmscube                           # on the display (Enter ends it)
+sudo apt-get install -y xvfb xauth glmark2-es2-x11
+xvfb-run -a -s "-screen 0 640x480x24" glmark2-es2   # frame rates</code></pre></div>
+<p dir="auto">Wayland apps show as windows on the page: <code>wland foot</code> (or the
+launcher's foot tile) starts wland's relay in the guest and runs the app
+against it; <a href="https://github.com/pithings/wland">wland</a>'s compositor runs in
+the page and reads the app's pixels straight from guest memory. The status
+line's desktop icon (Ctrl-A w) switches between the windows and the
+terminal.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="sudo apt-get install -y foot fonts-dejavu-core
+wland foot"><pre><code data-language="shell">sudo apt-get install -y foot fonts-dejavu-core
+wland foot</code></pre></div>
+<p dir="auto">Browsers can't open raw TCP sockets, so the page reaches the internet
+through a Wisp proxy. The default one accepts only known origins, so if you
+host the page somewhere else, point <code>?wisp=</code> at your own proxy.</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Browser</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Chrome / Edge 137+ (desktop and Android)</td>
+<td>✅ works</td>
+</tr>
+<tr>
+<td>Firefox 153+</td>
+<td>✅ works</td>
+</tr>
+<tr>
+<td>Safari 27+ on macOS, any browser on iOS/iPadOS 27</td>
+<td>✅ works</td>
+</tr>
+<tr>
+<td>Anything without <a href="#-how-it-works">JSPI</a></td>
+<td>the page tells you what's missing</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><h2 tabindex="-1" dir="auto">💻 Run it from the terminal</h2><a id="user-content--run-it-from-the-terminal" aria-label="Permalink: 💻 Run it from the terminal" href="#-run-it-from-the-terminal"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="npx unkernel"><pre><code data-language="shell">npx unkernel</code></pre></div>
+<p dir="auto">This boots Alpine, with networking over your host's sockets. Press
+<strong>Ctrl-]</strong> to quit. The package holds the kernel and a small base system;
+the first run downloads the Alpine image (about 4 MB) from the GitHub
+release of your version and keeps it in <code>~/.cache/unkernel</code>.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="npx unkernel --distro debian                 # Debian 13 instead (about 57 MB, downloaded once)
+npx unkernel --distro none                   # no distro: the base shell (busybox)
+npx unkernel --data my-data.img              # changes persist on a /data disk, created on first use
+npx unkernel --display --sound               # a framebuffer and a sound card
+npx unkernel --mem 1024 --no-net             # more memory, no network
+npx unkernel --mount .:/work                 # this directory at /work in the guest (:ro for read-only)
+npx unkernel --forward 8000:80               # host 127.0.0.1:8000 to port 80 in the guest
+npx unkernel --timeout 60 --input '{8}uname -a\n{2}poweroff\n'   # scripted: wait, type, wait, type
+npx unkernel --help                          # everything else"><pre><code data-language="shell">npx unkernel --distro debian                 # Debian 13 instead (about 57 MB, downloaded once)
+npx unkernel --distro none                   # no distro: the base shell (busybox)
+npx unkernel --data my-data.img              # changes persist on a /data disk, created on first use
+npx unkernel --display --sound               # a framebuffer and a sound card
+npx unkernel --mem 1024 --no-net             # more memory, no network
+npx unkernel --mount .:/work                 # this directory at /work in the guest (:ro for read-only)
+npx unkernel --forward 8000:80               # host 127.0.0.1:8000 to port 80 in the guest
+npx unkernel --timeout 60 --input '{8}uname -a\n{2}poweroff\n'   # scripted: wait, type, wait, type
+npx unkernel --help                          # everything else</code></pre></div>
+<p dir="auto">Without <code>--data</code>, changes to the root file system are kept in memory and
+gone at exit; with it, each distro keeps its own in <code>/data/distros/&lt;name&gt;/</code>.
+<code>--distro</code> also takes an image file or an http(s) URL, and
+<code>UNKERNEL_CACHE_DIR</code> moves the download cache.</p>
+<p dir="auto">Exit codes: 0 power off, 1 halt or boot failure, 2 restart, 124 timeout, 253
+kernel panic, 254 wasm trap, 255 fatal error. The CLI is built on the
+<a href="#-use-it-from-javascript">JavaScript SDK</a>: <code>--mount</code> uses its <a href="#mount-host-files">host
+mounts</a> and <code>--forward</code> its
+<a href="#talk-over-vsock"><code>vm.connect()</code></a>.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">🔍 How it works</h2><a id="user-content--how-it-works" aria-label="Permalink: 🔍 How it works" href="#-how-it-works"></a></p>
+<p dir="auto">Most "Linux in the browser" projects take one of three approaches:</p>
+<ul dir="auto">
+<li><strong>Emulate a whole PC</strong>, kernel included. This is faithful but slow,
+because every syscall and page fault goes through emulated hardware.</li>
+<li><strong>Emulate the CPU and reimplement the syscalls.</strong> Programs run on an
+emulated CPU, often with a JIT, and a runtime answers their syscalls, with
+no Linux kernel at all. This is fast, but it covers only as much of Linux
+as the runtime implements.</li>
+<li><strong>Compile programs to wasm</strong>, and run them on a kernel without an MMU or
+on a runtime that provides POSIX calls. This is fast, but native programs
+have to be rebuilt, and <code>fork</code> and anything else that needs an MMU breaks
+or is approximated.</li>
+</ul>
+<p dir="auto">unkernel keeps the best of each: the real Linux kernel, running at native
+wasm speed, under unmodified binaries with a real MMU.</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Kernel</th>
+<th>User space</th>
+<th>MMU</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Whole-machine emulators (v86, JSLinux, container2wasm, QEMU's wasm build)</td>
+<td>Linux, emulated</td>
+<td>unmodified, emulated</td>
+<td>emulated</td>
+</tr>
+<tr>
+<td>Syscall emulators</td>
+<td>none: a runtime reimplements the syscalls</td>
+<td>unmodified, emulated</td>
+<td>the runtime's own</td>
+</tr>
+<tr>
+<td>POSIX runtimes for wasm (Wasmer WASIX, WebContainers, BrowserPod)</td>
+<td>none: a runtime provides the syscalls</td>
+<td>rebuilt for wasm, or JavaScript</td>
+<td>none</td>
+</tr>
+<tr>
+<td>Linux without an MMU (linux-wasm, tombl/linux, WasmLinux (LKL))</td>
+<td>Linux, native wasm</td>
+<td>rebuilt for wasm</td>
+<td>none</td>
+</tr>
+<tr>
+<td><strong>unkernel</strong></td>
+<td><strong>Linux, native wasm</strong></td>
+<td><strong>unmodified aarch64, emulated</strong></td>
+<td><strong>real page tables</strong></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">The kernel is compiled straight to WebAssembly. User programs run on
+<strong>kwemu</strong>, an aarch64 CPU written in Zig and linked into the kernel. kwemu
+walks the kernel's own page tables, so memory management is done by the
+real Linux code.</p>
+<p dir="auto">When a program makes a syscall, kwemu returns to the kernel, which handles
+it as native wasm. There is no emulated trap and no emulated kernel mode in
+between. Task switches use JSPI (<code>WebAssembly.Suspending</code>), so the kernel
+gets real stacks that it can suspend and resume.</p>
+<p dir="auto">kwemu runs blocks of guest code decoded once into compact ops (what has
+no op runs through a reference interpreter), and hot user code goes
+through a second tier: a JIT that compiles those blocks to wasm modules
+at run time, with output that matches the interpreter bit for bit.
+<a href="#-benchmarks">Benchmarks</a> shows what each tier costs.</p>
+<p dir="auto">Devices are small paravirtual drivers that talk to the JavaScript host:
+<a href="#add-disks">block</a> (kwblk), <a href="#add-a-network">network</a> (kwnet, with a
+user-mode TCP/IP stack in JS), <a href="#display-input-and-sound">display, input and
+sound</a> (kwfb, kwinput, kwsnd),
+<a href="#talk-over-vsock">vsock</a> (kwvsock) and <a href="#share-memory">shared memory</a>
+(kwshm).</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">📊 Benchmarks</h3><a id="user-content--benchmarks" aria-label="Permalink: 📊 Benchmarks" href="#-benchmarks"></a></p>
+<p dir="auto">The design helps most with syscalls. These were measured under Node:</p>
+<p dir="auto">
+  <a target="_blank" rel="noopener noreferrer" href="https://github.com/pithings/unkernel/blob/main/assets/performance.svg"><img alt="Time per operation for native, qemu-user, qemu-system and unkernel: getppid 110, 320, 1662 and 172 ns; read 64 B from /dev/zero 161, 481, 2247 and 172 ns; pipe write + read 417, 1032, 7256 and 482 ns; fork + exit + wait 73, 537, 1178 and 57 µs" src="https://github.com/pithings/unkernel/raw/main/assets/performance.svg" width="760"></a>
+</p>
+<p dir="auto">In this test (2026-11-14) fork is faster than native. Pure computation is
+slower. kwemu's decoded-op interpreter runs integer code at about 250-300
+million guest instructions per second under Node (2026-11-17), and the
+JIT makes real Alpine work 1.6 to 2.3 times as fast as that (2026-11-18:
+an ash loop 2.5 s against 4.0 s, <code>seq 100000 | sort -r</code> 3.1 s against
+7.1 s, <code>seq 250000 | gzip | gunzip</code> 3.5 s against 6.5 s), which is still
+well behind native.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">🚧 Known limits</h3><a id="user-content--known-limits" aria-label="Permalink: 🚧 Known limits" href="#-known-limits"></a></p>
+<ul dir="auto">
+<li>The SDK and CLI boot one CPU by default; the page boots several where
+it can (<code>?cpus=</code>). A snapshot of several CPUs (SMP), and so a session
+suspended on the page, resumes only on as many.</li>
+<li>No IPv6, no UDP beyond DHCP and DNS, no inbound network connections
+(<a href="#talk-over-vsock"><code>vm.connect()</code>, <code>vm.fetch()</code></a> and <code>--forward</code> reach
+guest servers over vsock instead).</li>
+<li>No ptrace register sets, so <code>strace</code> and <code>gdb</code> don't work. No seccomp.</li>
+<li>Code that runs only a few times (a large program's startup, such as
+<code>npm</code>'s) stays on the interpreter, and FP and AdvSIMD floating point
+run through it even inside compiled code. Without wasm SIMD in the host
+engine, OpenSSL's AES and SHA paths run on the interpreter too.</li>
+<li>A wasm trap in the kernel ends the session.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">🧩 Use it from JavaScript</h2><a id="user-content--use-it-from-javascript" aria-label="Permalink: 🧩 Use it from JavaScript" href="#-use-it-from-javascript"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="npm install unkernel"><pre><code data-language="shell">npm install unkernel</code></pre></div>
+<div dir="auto" data-snippet-clipboard-copy-content="import { createKernel, fetchDistro } from &quot;unkernel&quot;;
+
+const vm = await createKernel({ distro: await fetchDistro(&quot;alpine&quot;) });   // Alpine, no network
+vm.onOutput((bytes) =&gt; process.stdout.write(bytes));
+vm.write(&quot;uname -a; poweroff\n&quot;);
+
+const { code, kind } = await vm.exited;          // 0, &quot;halt&quot;"><pre><code data-language="js">import { createKernel, fetchDistro } from "unkernel";
+
+const vm = await createKernel({ distro: await fetchDistro("alpine") });   // Alpine, no network
+vm.onOutput((bytes) =&gt; process.stdout.write(bytes));
+vm.write("uname -a; poweroff\n");
+
+const { code, kind } = await vm.exited;          // 0, "halt"</code></pre></div>
+<p dir="auto">Importing <code>unkernel</code> picks the Node or browser entry automatically, and
+<code>unkernel/node</code> or <code>unkernel/web</code> selects one explicitly. The kernel ships
+in the package (<code>unkernel/unkernel.wasm</code>) and loads from next to the entry,
+streamed and compiled while it downloads. It carries a small base system
+that mounts a distro image read-only under an overlay root and runs its
+init; <code>createKernel()</code> without <code>distro</code> boots the base shell
+(busybox and unkernel's tools), which needs no download.</p>
+<p dir="auto">The distro images are not in the package. On Node, <code>fetchDistro("alpine")</code>
+(or <code>"debian"</code>) downloads one once from the GitHub release of the
+package's version, checks it against the release's <code>distros.json</code> (size and
+SHA-256), keeps it in <code>~/.cache/unkernel</code> (<code>UNKERNEL_CACHE_DIR</code>) and
+returns its path; nothing else in the SDK downloads anything. In the
+browser, host the image yourself (it is read lazily with range requests)
+and pass its URL:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="const vm = await createKernel({ distro: &quot;/distros/alpine.erofs&quot; });"><pre><code data-language="js">const vm = await createKernel({ distro: "/distros/alpine.erofs" });</code></pre></div>
+<p dir="auto">Changes to the root file system stay in memory, unless a persistent data
+disk (labelled <code>kwdata</code>) is attached: then each distro keeps them in
+<code>/data/distros/&lt;name&gt;/</code> on it.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Add a network</h3><a id="user-content-add-a-network" aria-label="Permalink: Add a network" href="#add-a-network"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="import { createKernel, directBackend, wispBackend, DEFAULT_WISP_SERVERS } from &quot;unkernel&quot;;
+
+await createKernel({ net: directBackend() });                       // Node: host sockets
+await createKernel({ net: wispBackend(DEFAULT_WISP_SERVERS) });     // anywhere: a Wisp proxy"><pre><code data-language="js">import { createKernel, directBackend, wispBackend, DEFAULT_WISP_SERVERS } from "unkernel";
+
+await createKernel({ net: directBackend() });                       // Node: host sockets
+await createKernel({ net: wispBackend(DEFAULT_WISP_SERVERS) });     // anywhere: a Wisp proxy</code></pre></div>
+<p dir="auto">Networking is off unless you pass <code>net</code>. Any object with <code>connect</code> and
+<code>lookup</code> methods can carry the guest's TCP and DNS, so you can write your
+own backend.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Add disks</h3><a id="user-content-add-disks" aria-label="Permalink: Add disks" href="#add-disks"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="import { createImageFromKwsparse, createKernel, bundledBoot, openDisk } from &quot;unkernel/node&quot;;
+
+const vm = await createKernel({
+  distro,
+  disks: [await openDisk(&quot;data.img&quot;)],           // the data disk, or any ext4 image or https:// URL
+});"><pre><code data-language="js">import { createImageFromKwsparse, createKernel, bundledBoot, openDisk } from "unkernel/node";
+
+const vm = await createKernel({
+  distro,
+  disks: [await openDisk("data.img")],           // the data disk, or any ext4 image or https:// URL
+});</code></pre></div>
+<p dir="auto"><code>createImageFromKwsparse(file, template)</code> makes a new data disk from the
+template the kernel carries (<code>bundledBoot(module).datadisk</code>). In the
+browser, <code>openHttpDisk(url)</code> keeps your writes in IndexedDB and
+<code>openDataDisk()</code> gives you the persistent data disk that
+<a href="#-try-it-in-the-browser">the page</a> uses. Anything that implements
+<code>BlockDevice</code> works too, and a disk of your own can be the root:
+<code>cmdline: "console=hvc0 root=/dev/wda rw"</code> with <code>initrd: null</code>.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Console and lifecycle</h3><a id="user-content-console-and-lifecycle" aria-label="Permalink: Console and lifecycle" href="#console-and-lifecycle"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="// vm.output: a ReadableStream, everything since boot and then live
+vm.output.pipeTo(new WritableStream({ write: (b) =&gt; process.stdout.write(b) }));
+vm.write(&quot;ls /\n&quot;);                              // or write to vm.input, a WritableStream
+vm.resize(120, 40);                              // the foreground program gets SIGWINCH
+
+await vm.sync();                                 // flush the guest's disks
+console.log(vm.stats());                         // memory, disk, network and JIT counters
+const { code, reason, kind } = await vm.exited;  // stop() parks it at once"><pre><code data-language="js">// vm.output: a ReadableStream, everything since boot and then live
+vm.output.pipeTo(new WritableStream({ write: (b) =&gt; process.stdout.write(b) }));
+vm.write("ls /\n");                              // or write to vm.input, a WritableStream
+vm.resize(120, 40);                              // the foreground program gets SIGWINCH
+
+await vm.sync();                                 // flush the guest's disks
+console.log(vm.stats());                         // memory, disk, network and JIT counters
+const { code, reason, kind } = await vm.exited;  // stop() parks it at once</code></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Run programs</h3><a id="user-content-run-programs" aria-label="Permalink: Run programs" href="#run-programs"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="const { stdout, exitCode } = await vm.exec(&quot;uname&quot;, [&quot;-a&quot;]);
+const { stdout: sum } = await vm.exec(&quot;sha256sum&quot;, [], { input: &quot;hello&quot; });"><pre><code data-language="js">const { stdout, exitCode } = await vm.exec("uname", ["-a"]);
+const { stdout: sum } = await vm.exec("sha256sum", [], { input: "hello" });</code></pre></div>
+<p dir="auto"><code>exec()</code> runs a program on pipes and resolves with <code>{ stdout, stderr, exitCode, signal }</code>, also for a non-zero exit. Pass <code>encoding: "buffer"</code>
+for bytes, and <code>cwd</code> or <code>env</code> as you would to <code>child_process</code>. On the
+distro images programs run as the user <code>user</code> (uid 1000, in
+<code>/home/user</code>), who has <code>sudo</code> without a password; pass <code>user: "root"</code> (or
+another name or uid) to run as someone else. The base shell is root's.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="const sh = await vm.spawn();                     // a login shell on its own pty
+sh.output.pipeTo(new WritableStream({ write: (b) =&gt; process.stdout.write(b) }));
+await sh.write(&quot;cat /etc/alpine-release; exit\n&quot;);
+console.log(await sh.ended);                     // { type: &quot;exit&quot;, code: 0 }"><pre><code data-language="js">const sh = await vm.spawn();                     // a login shell on its own pty
+sh.output.pipeTo(new WritableStream({ write: (b) =&gt; process.stdout.write(b) }));
+await sh.write("cat /etc/alpine-release; exit\n");
+console.log(await sh.ended);                     // { type: "exit", code: 0 }</code></pre></div>
+<p dir="auto"><code>spawn(file, args, { cols, rows })</code> runs a program on a pty, in the
+zigpty / node-pty shape, with <code>resize()</code>, <code>kill(signal)</code> and <code>close()</code> (a
+hangup). Run as many as you like. Keep reading <code>output</code>: the guest program
+waits while nobody does.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="const gz = await vm.spawn(&quot;gzip&quot;, [&quot;-c&quot;], { pty: false });
+gz.stderr.cancel();                              // read both outputs, or cancel one
+const zipped = new Response(gz.stdout).bytes();
+await new Response(&quot;hello\n&quot;).body.pipeTo(gz.stdin);   // then EOF
+console.log((await zipped).length);"><pre><code data-language="js">const gz = await vm.spawn("gzip", ["-c"], { pty: false });
+gz.stderr.cancel();                              // read both outputs, or cancel one
+const zipped = new Response(gz.stdout).bytes();
+await new Response("hello\n").body.pipeTo(gz.stdin);   // then EOF
+console.log((await zipped).length);</code></pre></div>
+<p dir="auto">With <code>pty: false</code> the program gets pipes: <code>stdin</code>, <code>stdout</code> and <code>stderr</code>
+web streams, byte for byte.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Mount host files</h3><a id="user-content-mount-host-files" aria-label="Permalink: Mount host files" href="#mount-host-files"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="import { createKernel, MemoryFs, nodeFs } from &quot;unkernel&quot;;
+
+const mem = new MemoryFs();
+mem.onChange((c) =&gt; console.log(c.type, c.path));   // what the guest changed
+
+const vm = await createKernel({
+  mounts: {
+    &quot;/mnt/host&quot;: { &quot;hello.txt&quot;: &quot;hi&quot;, dir: { &quot;a.bin&quot;: bytes }, &quot;now.txt&quot;: () =&gt; Date() },
+    &quot;/mnt/mem&quot;: mem,
+  },
+});
+await vm.exec(&quot;cp&quot;, [&quot;/etc/os-release&quot;, &quot;/mnt/mem/&quot;]);
+console.log(mem.readText(&quot;/os-release&quot;));
+
+const work = await vm.mount(&quot;/work&quot;, nodeFs(&quot;.&quot;), { readOnly: true });   // Node only
+await work.unmount();"><pre><code data-language="js">import { createKernel, MemoryFs, nodeFs } from "unkernel";
+
+const mem = new MemoryFs();
+mem.onChange((c) =&gt; console.log(c.type, c.path));   // what the guest changed
+
+const vm = await createKernel({
+  mounts: {
+    "/mnt/host": { "hello.txt": "hi", dir: { "a.bin": bytes }, "now.txt": () =&gt; Date() },
+    "/mnt/mem": mem,
+  },
+});
+await vm.exec("cp", ["/etc/os-release", "/mnt/mem/"]);
+console.log(mem.readText("/os-release"));
+
+const work = await vm.mount("/work", nodeFs("."), { readOnly: true });   // Node only
+await work.unmount();</code></pre></div>
+<p dir="auto">A file system is a plain object tree (a function is a computed file,
+evaluated once per open), a <code>MemoryFs</code> you read and write from the host,
+<code>nodeFs(dir)</code>, or your own <code>Fs</code>: <code>getattr</code>, <code>readdir</code> and <code>open</code> by path,
+sync or async, plus whichever change methods you want. Mounts are served
+over 9p on vsock. Each guest write reaches the host as it happens, and a
+host change shows in the guest within a second.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Talk over vsock</h3><a id="user-content-talk-over-vsock" aria-label="Permalink: Talk over vsock" href="#talk-over-vsock"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="const listener = vm.vsock.listen(5000);          // guest programs connect to CID 2, port 5000
+vm.write(&quot;echo hello | kwvsock connect 5000\n&quot;);
+const conn = await listener.accept();
+console.log(await new Response(conn.readable).text());   // &quot;hello\n&quot;
+conn.close();
+
+const c = await vm.vsock.connect(6000);          // a guest program listening on port 6000
+await c.writable.getWriter().write(&quot;ping&quot;);"><pre><code data-language="js">const listener = vm.vsock.listen(5000);          // guest programs connect to CID 2, port 5000
+vm.write("echo hello | kwvsock connect 5000\n");
+const conn = await listener.accept();
+console.log(await new Response(conn.readable).text());   // "hello\n"
+conn.close();
+
+const c = await vm.vsock.connect(6000);          // a guest program listening on port 6000
+await c.writable.getWriter().write("ping");</code></pre></div>
+<p dir="auto">These are byte streams with real flow control and no network in between.
+vsock is on unless you pass <code>vsock: false</code>.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="const sock = await vm.connect(8000);             // TCP to the guest's 127.0.0.1:8000
+await new Response(&quot;hello\n&quot;).body.pipeTo(sock.writable);   // then EOF (a half-close)
+console.log(await new Response(sock.readable).text());"><pre><code data-language="js">const sock = await vm.connect(8000);             // TCP to the guest's 127.0.0.1:8000
+await new Response("hello\n").body.pipeTo(sock.writable);   // then EOF (a half-close)
+console.log(await new Response(sock.readable).text());</code></pre></div>
+<p dir="auto"><code>vm.connect(port)</code> reaches a TCP server on the guest's loopback through
+the guest's kwtty, over vsock, so it needs no network. It resolves once
+the guest has connected (<code>PtyError</code> <code>ECONNREFUSED</code> if nothing listens) with
+<code>readable</code> and <code>writable</code> byte streams, half-close included, <code>close()</code> and
+<code>closed</code>. <a href="#-run-it-from-the-terminal">The CLI's</a> <code>--forward HOSTPORT:GUESTPORT</code> uses it.</p>
+<p dir="auto"><code>vm.fetch(url, init)</code> sends an HTTP/1.1 request to a server in the guest
+and returns a <code>Response</code> whose body streams. It always connects to the
+guest's 127.0.0.1 at the URL's port; the host name only goes into the
+<code>Host</code> header, so <code>vm.fetch("http://localhost:8000/")</code> reaches a dev server
+listening on port 8000. <code>fetchOver(connect, url, init)</code> is the same client
+over any byte stream.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Share memory</h3><a id="user-content-share-memory" aria-label="Permalink: Share memory" href="#share-memory"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="const vm = await createKernel({ shm: true });
+await vm.exec(&quot;sh&quot;, [&quot;-c&quot;, &quot;printf result &gt; /dev/shm/output&quot;]);
+
+const output = await vm.shm.open(&quot;output&quot;);      // a file a guest program made
+const data = await output.read();
+const views = output.views();                    // zero-copy, until the kernel runs again
+
+const input = await vm.shm.create(&quot;input&quot;, 1 &lt;&lt; 20);   // /dev/shm/input in the guest
+await input.write(0, bytes);"><pre><code data-language="js">const vm = await createKernel({ shm: true });
+await vm.exec("sh", ["-c", "printf result &gt; /dev/shm/output"]);
+
+const output = await vm.shm.open("output");      // a file a guest program made
+const data = await output.read();
+const views = output.views();                    // zero-copy, until the kernel runs again
+
+const input = await vm.shm.create("input", 1 &lt;&lt; 20);   // /dev/shm/input in the guest
+await input.write(0, bytes);</code></pre></div>
+<p dir="auto"><code>/dev/shm</code> exists once the guest's init has mounted it, so wait for the
+guest before <code>create()</code> (an <code>exec()</code> waits for it). <code>openId(id)</code> opens a
+memfd that a guest program exported through <code>/dev/kwshm</code>. <code>views()</code> and
+<code>readSync()</code> work where <code>vm.shm.inPlace</code> is true: inline, and in worker mode
+with several CPUs and shared memory (cross-origin isolated pages, Node);
+elsewhere <code>read()</code> crosses to the kernel's worker.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Display, input and sound</h3><a id="user-content-display-input-and-sound" aria-label="Permalink: Display, input and sound" href="#display-input-and-sound"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="import { createKernel, domCodeToLinux, pcmToFloat32 } from &quot;unkernel&quot;;
+
+const vm = await createKernel({
+  display: { width: 800, height: 600 },          // the guest gets /dev/fb0
+  onDisplay: (mode) =&gt; console.log(mode),        // a program opened it (its mode) or closed it (null)
+  sound: { onChunk: ({ data, format }) =&gt; play(pcmToFloat32(data, format)) },
+});
+
+const frame = vm.frame();                        // RGBA, or null while nothing draws
+if (frame) ctx.putImageData(new ImageData(frame.data, frame.width, frame.height), 0, 0);
+
+addEventListener(&quot;keydown&quot;, (e) =&gt; {
+  const key = domCodeToLinux(e.code);
+  if (key &amp;&amp; vm.evdev.keyboardOpen) vm.evdev.key(key, true);
+});"><pre><code data-language="js">import { createKernel, domCodeToLinux, pcmToFloat32 } from "unkernel";
+
+const vm = await createKernel({
+  display: { width: 800, height: 600 },          // the guest gets /dev/fb0
+  onDisplay: (mode) =&gt; console.log(mode),        // a program opened it (its mode) or closed it (null)
+  sound: { onChunk: ({ data, format }) =&gt; play(pcmToFloat32(data, format)) },
+});
+
+const frame = vm.frame();                        // RGBA, or null while nothing draws
+if (frame) ctx.putImageData(new ImageData(frame.data, frame.width, frame.height), 0, 0);
+
+addEventListener("keydown", (e) =&gt; {
+  const key = domCodeToLinux(e.code);
+  if (key &amp;&amp; vm.evdev.keyboardOpen) vm.evdev.key(key, true);
+});</code></pre></div>
+<p dir="auto"><code>evdev</code> also has <code>button()</code>, <code>move()</code>, <code>moveTo()</code> and <code>wheel()</code> for a
+mouse or tablet. <code>onInput</code> tells you when a program opens the keyboard
+and mouse; until then, send keys to the console. <code>readFrame()</code> waits for
+a fresh frame.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">GL in the guest (browsers)</h3><a id="user-content-gl-in-the-guest-browsers" aria-label="Permalink: GL in the guest (browsers)" href="#gl-in-the-guest-browsers"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="const vm = await createKernel({ distro: &quot;/distros/debian.erofs&quot;, gl: true });
+await vm.gl.ready;                               // the guest is linked; the renderer loads on its first GL use
+await vm.exec(&quot;sudo&quot;, [&quot;apt-get&quot;, &quot;install&quot;, &quot;-y&quot;, &quot;mesa-utils&quot;, &quot;libegl-mesa0&quot;, &quot;libgles2&quot;]);
+const r = await vm.exec(&quot;sh&quot;, [&quot;-c&quot;, &quot;GALLIUM_DRIVER=virpipe LIBGL_ALWAYS_SOFTWARE=1 eglinfo -B -p surfaceless&quot;]);"><pre><code data-language="js">const vm = await createKernel({ distro: "/distros/debian.erofs", gl: true });
+await vm.gl.ready;                               // the guest is linked; the renderer loads on its first GL use
+await vm.exec("sudo", ["apt-get", "install", "-y", "mesa-utils", "libegl-mesa0", "libgles2"]);
+const r = await vm.exec("sh", ["-c", "GALLIUM_DRIVER=virpipe LIBGL_ALWAYS_SOFTWARE=1 eglinfo -B -p surfaceless"]);</code></pre></div>
+<p dir="auto">The guest's Mesa (Debian; its <code>virpipe</code> driver) renders through
+virglrenderer compiled to wasm (<code>virgl.wasm</code>, fetched only with <code>gl</code>, and
+only on the guest's first GL use; <code>vm.gl.status</code> tells, <code>vm.gl.load()</code>
+starts it, and <code>gl: { eager: true }</code> loads it before the boot so that a
+failure shows up front) on one WebGL2 context of the page, and gets its
+frames back by readback: GL 2.1 and GLES 3.0, surfaceless or under Xvfb.
+Node has no WebGL, so there <code>gl</code> is ignored with a log line.</p>
+<p dir="auto">With <code>gpu: true</code> as well (and a kernel with kwvirtio), the guest gets a
+virtio-gpu device with 3D on the same renderer: stock Mesa finds
+<code>/dev/dri/renderD128</code> and <code>card0</code> (driver <code>virtio_gpu</code>) and renders through
+it with no variables set, and a KMS client's frames (kmscube,
+<code>glmark2-es2-drm</code>, a Wayland compositor) come from the renderer's texture:</p>
+<div dir="auto" data-snippet-clipboard-copy-content="const vm = await createKernel({ distro, gl: true, gpu: true, display: { width: 1280, height: 720 } });
+// per animation frame: the scanout's latest frame, no readback (null: no GL client on it)
+if (vm.gl.gpu.drawFrame(ctx) === null) { /* show vm.frame() as above */ }
+// the window resized: a hotplug with a new preferred mode, which KMS clients may take
+vm.updateDisplaySize({ width: 1600, height: 900 });"><pre><code data-language="js">const vm = await createKernel({ distro, gl: true, gpu: true, display: { width: 1280, height: 720 } });
+// per animation frame: the scanout's latest frame, no readback (null: no GL client on it)
+if (vm.gl.gpu.drawFrame(ctx) === null) { /* show vm.frame() as above */ }
+// the window resized: a hotplug with a new preferred mode, which KMS clients may take
+vm.updateDisplaySize({ width: 1600, height: 900 });</code></pre></div>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Run it in a worker</h3><a id="user-content-run-it-in-a-worker" aria-label="Permalink: Run it in a worker" href="#run-it-in-a-worker"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="const vm = await createKernel({
+  worker: true,
+  distro,                                        // a path or URL
+  net: { kind: &quot;net&quot;, backend: { kind: &quot;direct&quot; } },
+  disks: [{ kind: &quot;file&quot;, path: &quot;data.img&quot; }],
+});"><pre><code data-language="js">const vm = await createKernel({
+  worker: true,
+  distro,                                        // a path or URL
+  net: { kind: "net", backend: { kind: "direct" } },
+  disks: [{ kind: "file", path: "data.img" }],
+});</code></pre></div>
+<p dir="auto">The kernel runs in a worker thread or Web Worker, with the same API. Disks
+and the network are given as specs, which the worker builds: <code>{ kind: "file", path }</code> on Node, <code>{ kind: "http", url }</code> and <code>{ kind: "data", template: "bundled" }</code> in browsers. Input and frames go through shared
+memory when it is available (<code>vm.transport</code> says). This mode is
+experimental.</p>
+<p dir="auto">An SMP kernel (a bundle with the SMP patch) boots on several CPUs with
+<code>cpus: 4</code>, each CPU in a thread of its own on one shared memory. In
+browsers that needs a cross-origin isolated page and <code>worker: true</code>,
+because a CPU blocks while it waits for another, which a page's main
+thread may not; <code>webCpuBlocker()</code> says why it cannot, and
+<code>vm.stats().cpus</code> how many CPUs the kernel got.</p>
+<p dir="auto">On a server, <code>worker: true</code> keeps the event loop free at no cost in speed,
+and <code>cpus: 4</code> gets most of what more CPUs give (about 3x on parallel work;
+8 or 16 add little, and each CPU adds to boot time and takes 9 MiB of
+guest memory). <code>node test/profile.ts</code> measures your host, and the page's
+<code>/profile.html</code> a browser.</p>
+<p dir="auto"><h3 tabindex="-1" dir="auto">Boot options and helpers</h3><a id="user-content-boot-options-and-helpers" aria-label="Permalink: Boot options and helpers" href="#boot-options-and-helpers"></a></p>
+<div dir="auto" data-snippet-clipboard-copy-content="import { checkSupport, ConsoleRouter, createKernel } from &quot;unkernel&quot;;
+
+const support = await checkSupport();            // JSPI and the rest, before you boot
+if (!support.ok) throw new Error(support.problems.join(&quot;\n&quot;));
+
+const vm = await createKernel({
+  kernel: &quot;./my-kernel.wasm&quot;,                    // a URL, bytes, a Response or a WebAssembly.Module
+  initrd: &quot;./initramfs.cpio.gz&quot;,                 // null: none
+  cmdline: &quot;console=hvc0 rdinit=/init&quot;,
+  memoryMiB: 1024,
+  jit: false,                                    // interpreter only
+  onProgress: (p) =&gt; console.log(p.stage),
+});
+
+const router = new ConsoleRouter({               // kernel log lines apart from program output
+  onKernelLine: (line, { important }) =&gt; important &amp;&amp; console.warn(line),
+  onUserOutput: (text) =&gt; process.stdout.write(text),
+});
+vm.onOutput((bytes) =&gt; router.write(bytes));"><pre><code data-language="js">import { checkSupport, ConsoleRouter, createKernel } from "unkernel";
+
+const support = await checkSupport();            // JSPI and the rest, before you boot
+if (!support.ok) throw new Error(support.problems.join("\n"));
+
+const vm = await createKernel({
+  kernel: "./my-kernel.wasm",                    // a URL, bytes, a Response or a WebAssembly.Module
+  initrd: "./initramfs.cpio.gz",                 // null: none
+  cmdline: "console=hvc0 rdinit=/init",
+  memoryMiB: 1024,
+  jit: false,                                    // interpreter only
+  onProgress: (p) =&gt; console.log(p.stage),
+});
+
+const router = new ConsoleRouter({               // kernel log lines apart from program output
+  onKernelLine: (line, { important }) =&gt; important &amp;&amp; console.warn(line),
+  onUserOutput: (text) =&gt; process.stdout.write(text),
+});
+vm.onOutput((bytes) =&gt; router.write(bytes));</code></pre></div>
+<p dir="auto">The SDK has some limits, on top of the kernel's <a href="#-known-limits">known
+limits</a>. There is no guest agent beyond terminal sessions, so
+you drive the guest through a terminal or its console, or over vsock with your
+own program. <code>stop()</code> doesn't shut the guest down cleanly, so prefer
+<code>poweroff</code>. Only one kernel can run per thread. Types ship as <code>.d.mts</code> and use
+the DOM's <code>WebAssembly</code> types, so a Node-only TypeScript project needs <code>"lib": ["dom"]</code> or <code>skipLibCheck</code>.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">🛠️ Building from source</h2><a id="user-content-️-building-from-source" aria-label="Permalink: 🛠️ Building from source" href="#️-building-from-source"></a></p>
+<p dir="auto">You need Linux (x86-64 or arm64), Zig 0.16, Node 24, clang 21+ with the
+wasm target, and the usual build tools. <code>./setup.sh --check</code> lists what's
+missing. The first build takes about 12 minutes, most of it spent on a
+patched <code>wasm-ld</code>, and uses 5 GiB of disk.</p>
+<div dir="auto" data-snippet-clipboard-copy-content="./setup.sh              # check, then build everything
+node js/cli.ts          # boot your build (Alpine from vendor/build/distro/)
+pnpm install &amp;&amp; pnpm dev   # the web page at http://localhost:8080
+zig build test          # emulator tests"><pre><code data-language="shell">./setup.sh              # check, then build everything
+node js/cli.ts          # boot your build (Alpine from vendor/build/distro/)
+pnpm install &amp;&amp; pnpm dev   # the web page at http://localhost:8080
+zig build test          # emulator tests</code></pre></div>
+<p dir="auto">The build makes the kernel bundle <code>vendor/build/bundle/unkernel.wasm</code> and
+the distro images <code>vendor/build/distro/{alpine,debian}.erofs</code> with their
+index <code>distros.json</code>; a source checkout uses those and never downloads
+them. <a href="https://github.com/pithings/unkernel/blob/main/guest/README.md">guest/README.md</a> describes the base system and how
+to add a distro.</p>
+<p dir="auto"><a href="https://github.com/pithings/unkernel/blob/main/kernel/README.md">kernel/README.md</a> maps the kernel directory and its
+build steps. <a href="https://github.com/pithings/unkernel/blob/main/AGENTS.md">AGENTS.md</a> and <a href="https://github.com/pithings/unkernel/blob/main/.agents">.agents/</a> hold the
+contributor notes: the kernel, its devices and the guest image, invariants,
+workflows, which tests to run, and the <a href="https://github.com/pithings/unkernel/blob/main/.agents/status.md">roadmap</a>.</p>
+<p dir="auto"><h2 tabindex="-1" dir="auto">🙏 Credits</h2><a id="user-content--credits" aria-label="Permalink: 🙏 Credits" href="#-credits"></a></p>
+<p dir="auto">Made with ♥ by <a href="https://x.com/_pi0_" rel="nofollow">Pooya Parsa</a> (<a href="https://github.com/pi0">pi0</a>), sponsored by
+<a href="https://vercel.com/open-source-program" rel="nofollow">▲ Vercel</a>.</p>
+<p dir="auto">Thanks to:</p>
+<ul dir="auto">
+<li><a href="https://github.com/imxieyi/Kernarium">Kernarium</a>, for the idea: a native
+kernel with emulated user space behind a software MMU.</li>
+<li><a href="https://github.com/joelseverin/linux-wasm">linux-wasm</a> by Joel Severin,
+for the <code>arch/wasm</code> port this kernel grew from, the wasm-ld linker-script
+patches and the Kbuild toolchain wrapper.</li>
+<li><a href="https://github.com/ish-app/ish">iSH</a> and <a href="https://github.com/copy/v86">v86</a>,
+for showing how to build a fast user-mode emulator and a wasm JIT.</li>
+<li><a href="https://alpinelinux.org/" rel="nofollow">Alpine Linux</a>, <a href="https://wterm.dev/" rel="nofollow">wterm</a> and
+<a href="https://github.com/WebAssembly/binaryen">Binaryen</a>.</li>
+</ul>
+<p dir="auto"><h2 tabindex="-1" dir="auto">📄 License</h2><a id="user-content--license" aria-label="Permalink: 📄 License" href="#-license"></a></p>
+<p dir="auto">Everything is open source: the kernel patches, the emulator and its JIT,
+the patched linker, the SDK and the page. <code>./setup.sh</code> rebuilds the kernel
+file from source.</p>
+<p dir="auto">The project is GPL-2.0-or-later (<a href="https://github.com/pithings/unkernel/blob/main/LICENSE">LICENSE</a>) unless a file says
+otherwise. The JavaScript SDK and page (<code>js/</code>, <code>web/</code>, SDK tests) are MIT
+(<a href="https://github.com/pithings/unkernel/blob/main/LICENSE-MIT">LICENSE-MIT</a>), so you can embed them anywhere.</p>
+<p dir="auto">The npm package ships a Linux kernel (GPL-2.0) with a small base system
+(Alpine's static busybox, GPL-2.0, and unkernel's own tools), so it is <code>MIT AND GPL-2.0-only</code>. The distro images it downloads hold the distributions'
+packages, which keep their own licenses. The
+kernel's source is Linux 7.3.4 plus
+<a href="https://github.com/pithings/unkernel/blob/main/kernel/patches/linux">kernel/patches/linux</a> (<code>arch/wasm</code> is based on
+linux-wasm's). Those patches and
+<code>kernel/tools/fake-llvm</code> are GPL-2.0-only, and the patches in
+<code>kernel/patches/llvm</code> follow LLVM's license (Apache-2.0 WITH
+LLVM-exception).</p>
+</article></div></div>
