@@ -42,6 +42,7 @@ html: 2026-11-20-the-riemann-hypothesis-falls-reaction-numberphile.html
 remote_preview:
   url: https://i4.ytimg.com/vi/sMZMpsHeFKc/hqdefault.jpg
 extra:
+  duration_seconds: 812
   thumbnail: https://i4.ytimg.com/vi/sMZMpsHeFKc/hqdefault.jpg
 ---
 

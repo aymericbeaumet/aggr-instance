@@ -13,6 +13,7 @@ html: 2026-11-20-the-nginx-situation-is-crazy.html
 remote_preview:
   url: https://i4.ytimg.com/vi/sFuzabpwL7o/hqdefault.jpg
 extra:
+  duration_seconds: 903
   thumbnail: https://i4.ytimg.com/vi/sFuzabpwL7o/hqdefault.jpg
 ---
 

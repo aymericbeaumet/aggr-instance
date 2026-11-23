@@ -1,0 +1,58 @@
+<div id="readability-page-1" class="page"><div>
+            <p>TL;DR: GitHub Actions accepts several invalid YAML productions, making it
+difficult (read: impossible) to parse some real-world action and workflow
+definitions with a properly conforming YAML parser.</p>
+<p>This is related to <a href="https://github.com/zizmorcore/zizmor/issues/1116">zizmor#1116</a>, which has been bugging me for a year and a half.</p>
+<p>Last April, a user reported that <a href="https://docs.zizmor.sh">zizmor</a> was rejecting a workflow containing
+a step that looks like this:</p>
+<pre><code data-language="yaml">- name: Create NPM Remote Repository JSON
+  uses: jsdaniell/create-json@v1.2.3
+  with:
+    name: "npm-remote-template.json"
+    json: '{
+      "key": "npm-remote",
+      "rclass": "remote",
+      "packageType": "npm",
+      "url": "https://registry.npmjs.org"
+    }'
+</code></pre>
+<p>Apart from the use of a multi-line flow-style string for the <code>json:</code> key, nothing particularly
+stands out about this step.</p>
+<p>Except: it isn't valid YAML! YAML says this about flow-style nodes that are nested inside
+of a block-style parent collection (read: map or array):</p>
+<blockquote>
+<p>Flow nodes must be indented by at least one more space than the parent block collection.
+Note that flow nodes may begin on a following line.</p>
+<p><em>Source</em>: <a href="https://yaml.org/spec/1.2.2/#823-block-nodes">YAML 1.2.2 § 8.2.3</a></p>
+</blockquote>
+<p>That means the <em>correct</em> syntax is instead:</p>
+<pre><code data-language="yaml">- name: Create NPM Remote Repository JSON
+  uses: jsdaniell/create-json@v1.2.3
+  with:
+    name: "npm-remote-template.json"
+    json: '{
+      "key": "npm-remote",
+      "rclass": "remote",
+      "packageType": "npm",
+      "url": "https://registry.npmjs.org"
+     }'
+</code></pre>
+<p>The difference is barely visible:</p>
+<pre><code data-language="diff">-    }'
++     }'
+</code></pre>
+<p>YAML is a big and complicated spec, so it didn't even occur to me that this <em>was</em>
+invalid. Instead, I opened <a href="https://github.com/tree-sitter-grammars/tree-sitter-yaml/pull/36">tree-sitter-yaml#36</a> to "fix" it. I've now
+opened <a href="https://github.com/tree-sitter-grammars/tree-sitter-yaml/pull/51">tree-sitter-yaml#51</a> to revert that misbegotten fix.</p>
+<p>On GitHub's side, I'm not sure if they have a clean path towards spec
+conformance here. Much of the code behind Actions is proprietary,
+but it seems likely that the underlying parser on their end is <a href="https://www.nuget.org/packages/yamldotnet/">YamlDotNet</a>.</p>
+<p>Actions <a href="https://github.com/actions/runner/blob/7e211dc69c347b78fc398e630e74facb11a13235/src/Sdk/Sdk.csproj#L29">appears to use YamlDotNet 5.3.0</a>, which was <a href="https://github.com/aaubry/YamlDotNet/releases/tag/v5.3.0">released in 2018</a>.
+However, even upgrading to the newest version (18.1.0 as of writing)
+wouldn't fix this particular bug, since it's <a href="https://github.com/aaubry/YamlDotNet/blob/748334a8fa7c227740018b284b71ad95cc6b7fc7/YamlDotNet/Core/Scanner.cs#L1841-L1844">still present</a> on that
+version (note the <code>!isSingleQuoted</code> guard).</p>
+<p>My best guess is that a 2020 patch (<a href="https://github.com/aaubry/YamlDotNet/pull/467">YamlDotNet#467</a>) only fixed the double-quoted
+form because YAML's official test suite only tests rule 8.2.3 with a double-quoted
+string, despite it applying to both forms.</p>
+
+        </div></div>

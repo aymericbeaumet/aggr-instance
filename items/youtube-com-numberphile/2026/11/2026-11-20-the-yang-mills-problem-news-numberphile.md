@@ -44,6 +44,7 @@ html: 2026-11-20-the-yang-mills-problem-news-numberphile.html
 remote_preview:
   url: https://i3.ytimg.com/vi/ZCu5KGpCl68/hqdefault.jpg
 extra:
+  duration_seconds: 1012
   thumbnail: https://i3.ytimg.com/vi/ZCu5KGpCl68/hqdefault.jpg
 ---
 

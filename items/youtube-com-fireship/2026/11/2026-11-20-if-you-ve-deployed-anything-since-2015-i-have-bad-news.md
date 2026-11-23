@@ -21,6 +21,7 @@ html: 2026-11-20-if-you-ve-deployed-anything-since-2015-i-have-bad-news.html
 remote_preview:
   url: https://i3.ytimg.com/vi/rMaMe32qQkA/hqdefault.jpg
 extra:
+  duration_seconds: 334
   thumbnail: https://i3.ytimg.com/vi/rMaMe32qQkA/hqdefault.jpg
 ---
 

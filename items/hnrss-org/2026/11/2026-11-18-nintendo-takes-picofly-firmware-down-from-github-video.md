@@ -12,6 +12,8 @@ html: 2026-11-18-nintendo-takes-picofly-firmware-down-from-github-video.html
 remote_preview:
   url: https://i.ytimg.com/vi/-TLCGUpoD6c/hqdefault.jpg
   alt: Nintendo takes Picofly firmware down from GitHub [video]
+extra:
+  duration_seconds: 610
 ---
 
 Article URL: [https://www.youtube.com/watch?v=-TLCGUpoD6c](https://www.youtube.com/watch?v=-TLCGUpoD6c)

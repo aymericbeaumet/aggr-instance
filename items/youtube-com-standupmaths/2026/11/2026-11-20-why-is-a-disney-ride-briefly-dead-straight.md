@@ -13,6 +13,7 @@ html: 2026-11-20-why-is-a-disney-ride-briefly-dead-straight.html
 remote_preview:
   url: https://i4.ytimg.com/vi/GUww8Y4Sexc/hqdefault.jpg
 extra:
+  duration_seconds: 1010
   thumbnail: https://i4.ytimg.com/vi/GUww8Y4Sexc/hqdefault.jpg
 ---
 

@@ -21,6 +21,7 @@ html: 2026-11-16-why-microsoft-couldn-t-fix-its-own-servers-for-36-hours.html
 remote_preview:
   url: https://i2.ytimg.com/vi/ytmawkPTP24/hqdefault.jpg
 extra:
+  duration_seconds: 382
   thumbnail: https://i2.ytimg.com/vi/ytmawkPTP24/hqdefault.jpg
 ---
 

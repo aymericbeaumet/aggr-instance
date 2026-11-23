@@ -39,6 +39,7 @@ html: 2026-11-20-openai-is-cooked.html
 remote_preview:
   url: https://i1.ytimg.com/vi/pAGwvAWV4bk/hqdefault.jpg
 extra:
+  duration_seconds: 750
   thumbnail: https://i1.ytimg.com/vi/pAGwvAWV4bk/hqdefault.jpg
 ---
 

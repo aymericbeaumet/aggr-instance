@@ -13,6 +13,7 @@ html: 2026-11-19-java-situation-is-insane.html
 remote_preview:
   url: https://i3.ytimg.com/vi/ZjcyRr-f5Pc/hqdefault.jpg
 extra:
+  duration_seconds: 826
   thumbnail: https://i3.ytimg.com/vi/ZjcyRr-f5Pc/hqdefault.jpg
 ---
 
