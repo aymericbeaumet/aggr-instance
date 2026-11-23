@@ -1,0 +1,569 @@
+<div id="readability-page-1" class="page"><div> 
+<h2>
+	<a id="overview" href="#overview" rel="nofollow">
+		
+	</a>
+	<span>
+		Overview
+	</span>
+</h2>
+<p>AI evaluations help shape which systems people build, adopt, and trust. An evaluation gives a system tasks, checks its answers or actions, and produces a score. Building and maintaining a useful evaluation therefore takes real work: defining tasks that reflect domain expertise, scoring them reliably, and checking that the results support the claims made. When methods, code, and data stay private, that work is harder for others to scrutinize or build on.</p>
+<p>Open source offers a means to build stronger, more frequently updated, and more comparable evaluations and the infrastructure around them.  Existing tasks, environments, and tools give builders a starting point, so their effort can go to domain expertise and validation. Sharing how an evaluation was built, including what went wrong, lets others find errors, improve it, and reuse it.</p>
+<p>The Hugging Face hub is the home for AI evaluation: we host around 3500 eval leaderboards and have seen about a <a href="https://huggingface.co/spaces/huggingface/hub-stats">16X growth in eval datasets on the hub in the past year</a>, to about 17000 datasets. In recent months, we have also incorporated support for agentic abstractions that are relevant to evaluation. For example, <a href="https://huggingface.co/docs/hub/en/agent-traces">Traces</a> that store an agent’s work in an easily reviewable and sharable way; <a href="https://huggingface.co/datasets?benchmark=benchmark%3Aofficial">Benchmarks</a> that highlight datasets used to evaluate models with leaderboards; and <a href="https://huggingface.co/blog/rl-environments">Environments</a> that show datasets used as agentic RL or evaluation environments.</p>
+<p>This guide covers four things:</p>
+<ul>
+<li><a href="#1-introduction-how-evaluation-design-has-changed" rel="nofollow"><strong>Three eras of evaluation</strong></a> (section 1). Evaluations moved from checking answers, to checking what an agent did, to checking what a team of agents produces. Each step adds software that can change the score.</li>
+<li><a href="#2-building-an-eval-what-to-reuse-adapt-and-validate" rel="nofollow"><strong>The steps in an agentic evaluation</strong></a> (section 2). We follow one task through eight steps, from the claim to the reported score. The full walkthrough, with commands, is in <a href="#appendix-a-practical-example-agentic-deployment-in-a-physics-lab" rel="nofollow">Appendix A</a>.</li>
+<li><a href="#3-bitter-lessons-when-a-benchmark-is-wrong" rel="nofollow"><strong>When a benchmark is wrong</strong></a> (section 3). Errors in tasks and graders are common. We look at how they are found and corrected.</li>
+<li><a href="#4-open-sourcing-an-evaluation-strategically" rel="nofollow"><strong>What to open strategically and why</strong></a> (section 4). A table sets out, component by component, what to share and what can stay protected.</li>
+</ul>
+<blockquote>
+<p>In the research community, AI evaluation terminology is <a href="https://ai.scal.ing/p/evals-intro-1" rel="nofollow">notoriously inconsistent</a>. The <a href="#glossary" rel="nofollow">glossary</a> at the end defines each term we use and notes the other names you may come across.</p>
+</blockquote>
+<h2>
+	<a id="1-introduction-how-evaluation-design-has-changed" href="#1-introduction-how-evaluation-design-has-changed" rel="nofollow">
+		
+	</a>
+	<span>
+		1. Introduction: how evaluation design has changed
+	</span>
+</h2>
+<p>AI evaluation design has evolved in three forms as language models have become more capable and able to perform more complex work: question answer, agentic, and teams or swarms. Question-answer benchmarks such as <a href="https://huggingface.co/papers/2009.03300">MMLU</a> (2020) and <a href="https://huggingface.co/papers/2311.12022">GPQA</a> (2023) measure knowledge and reasoning through the answers models produce. As models became capable of planning and using tools, agentic benchmarks such as <a href="https://huggingface.co/papers/2310.06770">SWE-bench</a> and <a href="https://huggingface.co/papers/2307.13854">WebArena</a> expanded the scope to resolving software issues and completing tasks on websites. These tasks require evaluation setups that account for the environment in which the system operates and the changes it makes.</p>
+<p>Lately, research on multi-agent systems has started to add another dimension: how agents coordinate and what they accomplish together. This includes <a href="https://huggingface.co/papers/2505.04364">decentralized swarms</a>, <a href="https://aclanthology.org/2026.findings-emnlp.662/" rel="nofollow">teams managed by an orchestrator</a>, and <a href="https://arxiv.org/abs/2610.07763" rel="nofollow">specialized agents collaborating on scientific work</a>. Figure 1 shows a rough timeline of these three eras of evaluations.</p>
+
+
+<p><em>Figure 1. Three types of language model evals. Question-and-answer benchmarks check a response against a key. Agentic benchmarks check what an agent changed in an environment. Team and swarm benchmarks score what a group of agents produced.</em></p>
+<p>We’ll focus on agentic evaluations in this article for two reasons. First, they are becoming increasingly the most prominent type in <a href="https://claude.ai/artifact/22cBPJt6Aos6bYpjmB1BHw#distribution" rel="nofollow">model release announcements</a> due to high user and enterprise interest in agentic deployment. Second, they offer a useful starting point for understanding how evaluation design affects model performance. Team and swarm evaluations introduce further complexity through interactions between agents, which we leave outside the scope of this guide. Once an agent uses tools to complete a task, each part of the surrounding software can affect its score. For instance, in an <a href="https://icml.cc/virtual/2026/82793" rel="nofollow">audit of Terminal-Bench</a>, researchers kept the model fixed and changed the agent harness. Accuracy varied by up to 29.9 percentage points. To understand differences like that, we examine the anatomy of an agentic evaluation and follow one task from the instructions the agent receives to the checks that determine whether it passed.</p>
+<h3>
+	<a id="the-anatomy-of-an-agentic-evaluation" href="#the-anatomy-of-an-agentic-evaluation" rel="nofollow">
+		
+	</a>
+	<span>
+		The anatomy of an agentic evaluation
+	</span>
+</h3>
+
+
+<p><em>Figure 2. The different components of an agentic evaluation.</em></p>
+<p>There are various parts to an agentic evaluation. A task gives the agent its instruction. The agent harness wraps the model and its tools, letting it work inside a pinned environment. During one rollout, the agent attempts the task from start to finish: it may run several commands, inspect their output, and try again before it stops. The evaluation harness runs several rollouts for each task. When a rollout ends, the verifier grades the environment's final state. Each rollout also leaves a trace, and traces and scores together become part of the final published evidence. Each part can be published, inspected, and reused separately.</p>
+<h3>
+	<a id="why-benchmark-release-decisions-matter" href="#why-benchmark-release-decisions-matter" rel="nofollow">
+		
+	</a>
+	<span>
+		Why benchmark release decisions matter
+	</span>
+</h3>
+<p>Demand for independent evaluation is growing. Policymakers, enterprises, and researchers want evaluations they can verify, and today they mostly cannot: <a href="https://huggingface.co/papers/2606.09809">98.2% of model-benchmark scores are reported by only one party</a>, and researchers have argued that <a href="https://huggingface.co/papers/2503.16861">in-house evaluation is not enough</a>.</p>
+<p>At the same time, more benchmarks are holding back test items to reduce contamination: questions or solutions entering training data, so scores may reflect prior exposure. Artificial Analysis <a href="https://x.com/ArtificialAnlys/status/2115265133467635877" rel="nofollow">says 60% of its Intelligence Index v5</a>, announced in October 2026, rests on evaluations with private test sets or held-out answers. Google DeepMind recently piloted <a href="https://deepmind.google/blog/piloting-the-worlds-first-double-blind-ai-evaluations/" rel="nofollow">double-blind evaluations</a>, where a secure enclave hides an outside evaluator's test prompts from the model provider and the model's weights from the evaluator. While that can reduce contamination, privacy by itself does not guarantee quality, and withholding supporting materials can make expert review harder. We argue that builders can and should still share infrastructure, grading methods, and evidence about task design. Scrutiny depends on giving others a way to question the measurement and correct mistakes, including controlled review where public release is unsuitable.</p>
+<h2>
+	<a id="2-building-an-eval-what-to-reuse-adapt-and-validate" href="#2-building-an-eval-what-to-reuse-adapt-and-validate" rel="nofollow">
+		
+	</a>
+	<span>
+		2. Building an eval: what to reuse, adapt, and validate
+	</span>
+</h2>
+<p>With the anatomy in place, we now build one agentic evaluation for a real use case: an agent that analyzes measurements for a physics lab. Rather than starting from scratch, we adapt an open task, so most of our effort goes into domain expertise and validation.</p>
+<p>We work through eight steps: <a href="#step-1-define-the-claim" rel="nofollow">define the claim</a>, <a href="#step-2-find-a-starting-task" rel="nofollow">find a task</a>, <a href="#step-3-run-the-task-unchanged" rel="nofollow">run it unchanged</a>, <a href="#step-4-adapt-the-task" rel="nofollow">adapt it</a>, <a href="#step-5-check-the-evaluation" rel="nofollow">check the evaluation</a>, <a href="#step-6-run-it-and-read-the-traces" rel="nofollow">read the traces</a>, <a href="#step-7-report-the-score" rel="nofollow">report the score</a>, and <a href="#step-8-compare-models" rel="nofollow">compare models</a>. We then take stock of what we reused. The full walkthrough is in <a href="#appendix-a-practical-example-agentic-deployment-in-a-physics-lab" rel="nofollow">Appendix A</a>. Figure 3 maps the steps and what each produced in our example.</p>
+
+
+<p><em>Figure 3. The eight steps of building an agentic evaluation. The left panel highlights each step in turn, and the right panel shows what it involved in our example. Yellow steps work on the evaluation itself, and orange steps run models and read the results.</em></p>
+<h3>
+	<a href="#method" rel="nofollow">
+		
+	</a>
+	<span>
+		Method
+	</span>
+</h3>
+<p><strong>Claim.</strong> Consider a physics lab that wants an agent to fit peaks in a Raman spectrum. A Raman spectrum is a measurement whose peaks reveal properties of a material, here graphene. The agent's job is ordinary coding: read the data file, fit a curve to each peak, and save the results (Figure 5 in Appendix A). For the purposes of this article, our claim is deliberately narrow: fit the specified peaks, calculate the requested D-to-G ratio (the intensity of one peak relative to another, which can indicate defects in the material; we also call it the defect ratio), and save accurate results consistently. Reviewing a whole lab report would need additional skills and evidence.</p>
+<p><strong>Starting task and baseline.</strong> We reused the <a href="https://docs.harborframework.com/" rel="nofollow">Harbor</a> task format and Terminal-Bench's <a href="https://hub.harborframework.com/tasks/terminal-bench/raman-fitting" rel="nofollow">raman-fitting</a> task. Harbor is an open source evaluation harness, and Terminal-Bench is an open benchmark of tasks that an agent completes in a terminal. We first ran the task's reference solution, which passed, and then ran the original task three times with <a href="https://docs.harborframework.com/agents/pre-integrated-agents" rel="nofollow">Terminus-2</a>, a terminal agent harness, and <a href="https://huggingface.co/openai/gpt-oss-120b">gpt-oss-120b</a>, an open-weight model from OpenAI. Harbor ran inside an HF Job, each rollout used its own HF Sandbox, and Inference Providers supplied the model responses. Reusing the runner and task format let us concentrate on the physics, grading, and review. Only the agent harness needed no new work. Every other component needed checking or new work, which we list part by part at <a href="#how-we-reused-existing-open-components" rel="nofollow">the end of Appendix A</a>.</p>
+<p><strong>Adaptation.</strong> We built <a href="https://huggingface.co/datasets/burtenshaw/raman-lab">raman-lab</a>: eight synthetic spectra with known parameters and varied noise and defect levels. The adaptation fits three peaks instead of two and reports a defect ratio. We used an agent to help generate the spectra, reviewed them by hand, and wrote new instructions, reference fits, and output checks. The new instructions state the units and parameter definitions that the original left implicit. These eight tasks are a development set, meaning tasks we use while building the evaluation; broader coverage should follow the variation in real measurements.</p>
+<p><strong>Checks.</strong> Before executing more model runs, we tested the evaluation itself. We ran the reference solution, an agent that does nothing, and a shortcut that skips the required work. The reference solution should pass every task, and the other two should fail. Our shortcut read the height of each peak straight from the data and guessed the widths. It returned the expected defect ratio on all eight tasks without fitting the spectra, so we added checks on the fit itself.</p>
+<p><strong>Shortcut.</strong> We also tested a shortcut to check how robust the evaluation is against cheating. Our shortcut is a short script that skips the actual fitting. It reads the tallest point of each peak straight from the data, guesses the peak widths, and divides the D height by the G height. Even so, it returned the expected defect ratio on all eight tasks, so a grader that checked only the ratio would have given it full marks. We added checks on each fitted peak, and the final verifier rejects it.</p>
+<h3>
+	<a id="results" href="#results" rel="nofollow">
+		
+	</a>
+	<span>
+		Results
+	</span>
+</h3>
+
+
+<p><em>Figure 4. What we learned by measuring different aspects while building the evaluation. (A) Testing the grader with a shortcut showed that a ratio-only check could be fooled. (B) Reading gpt-oss-120b’s traces showed that most of its failures came from stopping early. (C) Running other models showed that the tasks can be solved.</em> <a href="#appendix-a-practical-example-agentic-deployment-in-a-physics-lab" rel="nofollow"><em>Appendix A</em></a> <em>has the detailed results in Figure 7 (how gpt-oss-120b’s attempts ended), Figure 8 (all six models) and Figure 9 (when each model said it was done).</em></p>
+<p><strong>Baseline.</strong> On the original task, gpt-oss-120b passed 0 of 3 rollouts. In two it declared completion before observing relevant output; in the third it could not read the data file, which uses decimal commas that the reference solution converts before loading. The score alone could not tell these failures from an incorrect fit. The traces could.</p>
+<p><strong>Traces and score.</strong> On the eight adapted tasks, we ran three rollouts per task. The adapted setup passed 11 of 24 rollouts. In 19, the model called <code>mark_task_complete</code> in its first response; 11 of those attempts produced no results file. Several of these began with a script failing because NumPy or SciPy was missing, which the task expects the agent to install. Most failures therefore came from stopping early or from a missing package, and only two of the 13 failed the fit check (Figure 7 in Appendix A). Our pass@3 was 7/8: seven tasks succeeded at least once. Our pass^3 was 1/8: one task succeeded every time. Retries may be acceptable when a person reviews the output. Unattended processing needs consistency, so the second measure matters more. The mean pass rate was 0.46, with a standard error of about 0.11 when rollouts are clustered by task. A repeat run passed 10 of 24. With eight development tasks, we would be cautious about generalizing either result to new spectra.</p>
+<p><strong>Model comparison.</strong> We then compared six models on the same eight tasks (Figure 4). Several providers can serve the same open-weight model with different quantization and context limits, so we pinned one provider per model. With DeepInfra pinned as the provider, gpt-oss-120b passed 13 of 24 rollouts, compared with 11 of 24 in the earlier run, which used the default provider. Only gpt-oss-120b declared completion in its first response, in 22 of 24 rollouts. None of the other five models did so in any rollout (Figure 9 in Appendix A). The comparison also shows the limits of the development set. <a href="https://huggingface.co/Qwen/Qwen3.8-27B">Qwen3.8-27B</a>, <a href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash">DeepSeek-V4.1-Flash</a>, and <a href="https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash">MiniMax-M3.1-Flash</a> passed all 24 raman-lab rollouts, so these tasks cannot rank them. That will take harder tasks.</p>
+<h2>
+	<a id="3-bitter-lessons-when-a-benchmark-is-wrong" href="#3-bitter-lessons-when-a-benchmark-is-wrong" rel="nofollow">
+		
+	</a>
+	<span>
+		3. Bitter lessons: when a benchmark is wrong
+	</span>
+</h2>
+<p>Our shortcut returned the expected defect ratio without fitting a spectrum. A verifier that checked only the ratio would have given it full marks on all eight tasks. We found it by trying to break the grader with a solution we knew was incomplete, then added checks on the fitted spectrum (<a href="#step-5-check-the-evaluation" rel="nofollow">Appendix A, Step 5</a>).</p>
+<p>The shortcut got the right answer for the wrong reason, like a student who copies the final number without the working. The lesson for us was to test what the output demonstrates. A faster valid method should pass; a method that skips a required skill should not. Domain experts can help set tolerances so the verifier accepts alternative correct fits without accepting work that misses the point of the task.</p>
+<p>Such errors are common, and they move scores considerably. A <a href="https://huggingface.co/papers/2507.02825">review of agentic benchmarks</a> found that flaws in task setup or reward design can shift measured performance by up to 100% in relative terms.</p>
+<h3>
+	<a id="public-review-is-essential-for-correcting-benchmarks" href="#public-review-is-essential-for-correcting-benchmarks" rel="nofollow">
+		
+	</a>
+	<span>
+		Public review is essential for correcting benchmarks
+	</span>
+</h3>
+<p>Public review can expose errors in instructions and tests that benchmark builders missed. Terminal-Bench 2.1 fixed <a href="https://www.tbench.ai/news/terminal-bench-2-1" rel="nofollow">28 of its 89 tasks</a> after user reports, including one whose tests expected Spark SQL while its instructions asked for PostgreSQL, and <a href="https://icml.cc/virtual/2026/82793" rel="nofollow">agent rankings stayed stable</a> through the correction.</p>
+<p>Access to the evidence also determines how much work an outside audit takes. CritPt keeps its reference solutions private, so the <a href="https://arxiv.org/abs/2609.13009" rel="nofollow">physicists who audited it</a> had to solve the problems themselves before finding errors in 21 of the 56 challenges they reviewed. The authors then released a <a href="https://artificialanalysis.ai/evaluations/critpt-v2" rel="nofollow">corrected version</a>. OpenAI's audit of <a href="https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/" rel="nofollow">SWE-bench Verified</a> found material issues in 59.4% of the 138 problems it examined, working from tasks and tests that anyone can read. For a builder, outside scrutiny is part of validation: publish what reviewers need to challenge a task, give them a way to report problems, and record what changed.</p>
+<p>Similar flaws emerged in SWE-bench Pro. In July 2026 OpenAI <a href="https://openai.com/index/separating-signal-from-noise-coding-evaluations/" rel="nofollow">estimated that about 30% of SWE-Bench Pro tasks were broken</a> and withdrew its recommendation to adopt it. Benchmark validation needs to continue after release.</p>
+<h3>
+	<a id="check-the-claim-as-well-as-the-code" href="#check-the-claim-as-well-as-the-code" rel="nofollow">
+		
+	</a>
+	<span>
+		Check the claim as well as the code
+	</span>
+</h3>
+<p>A consistent score can still measure the wrong thing. <a href="https://huggingface.co/papers/2511.04703">Measuring what Matters</a>, a review of 445 LLM benchmarks by 29 expert reviewers, found recurring patterns in tasks and metrics that undermine construct validity: whether the tasks and metrics support claims about the intended capability.</p>
+<p>For example, fitting synthetic spectra does not establish that an agent can review lab reports. That may also require recognizing a poor measurement or asking for help. If every task supplies a usable spectrum, the test cannot show whether the agent knows when a fit would be inappropriate.</p>
+<p><a href="https://arxiv.org/abs/2611.03494" rel="nofollow">Harder Than the Task</a> extends this concern to organizational work, where authority, distributed knowledge, and dependencies can decide success. Its authors find that fewer than one quarter of prominent benchmarks claim to cover any such dimension. An agent may need calibration data from another team or permission to replace a measurement, and supplying everything at the outset removes those difficulties. If they matter to the claim, they belong in the evaluation. If they do not, it is enough to say that they remain untested.</p>
+<p>Each error is worth a short record: the failed assumption, how it was found, and what changed. The record should also name the affected versions and say whether earlier scores remain comparable.</p>
+<h3>
+	<a id="contamination-vs-saturation" href="#contamination-vs-saturation" rel="nofollow">
+		
+	</a>
+	<span>
+		Contamination vs saturation
+	</span>
+</h3>
+<p>The SWE-bench Verified audit described above also found contamination: every frontier model tested could reproduce the reference patch or verbatim problem details for some tasks. SWE-bench's public repositories and wide use exposed tasks to training. The openness that enabled scrutiny of bad tests also made items easier to encounter before evaluation.</p>
+<p>However, if contamination is carefully controlled for during training, hiding the test set by itself does not prevent saturation. A <a href="https://huggingface.co/papers/2602.16763">study of 60 language model benchmarks</a> found similar saturation in public and private ones, and concluded that hiding test data does not prevent saturation once a benchmark is widely adopted, meaning a good benchmark falls out of use due to saturation without developers being able to learn from and build on it. What did correspond to lower saturation was expert curation and a larger test set.</p>
+<p>This leaves a practical release question: what can we expose for review while protecting active test items?</p>
+<h2>
+	<a id="4-open-sourcing-an-evaluation-strategically" href="#4-open-sourcing-an-evaluation-strategically" rel="nofollow">
+		
+	</a>
+	<span>
+		4. Open sourcing an evaluation strategically
+	</span>
+</h2>
+<p>Balancing contamination risks against saturation requires a strategic approach to what content is made public. Rather than treating openness as an all-or-nothing decision, benchmark creators can decide what to release part by part, protecting active test tasks from data leakage while still sharing the underlying infrastructure, grading methods, and reference examples that allow external researchers to audit and build upon the evaluation.</p>
+<p>Existing benchmarks show a range of openness. <a href="https://arcprize.org/arc-agi/2" rel="nofollow">ARC-AGI-2</a> publishes a training set and a 120-task evaluation set, and holds back semi-private and private sets of 120 tasks each. <a href="https://mlcommons.org/ailuminate/faq/" rel="nofollow">AILuminate</a> keeps its official prompts confidential, publishes its methods and taxonomy, and keeps the underlying evidence for controlled review by authorized auditors and trusted researchers. Terminal-Bench publishes its tasks and marks their files with a <a href="https://huggingface.co/datasets/harborframework/terminal-bench-2.1/blob/main/tasks/raman-fitting/solution/solve.sh">canary string</a> asking that they stay out of training corpora. No public reviewer can check a protected item, so whatever stays closed needs a review route of its own.</p>
+<p>Table 1 outlines the core considerations of open sourcing an evaluation: what can be open, where it lives on the Hugging Face Hub, and what may stay protected. It has one row for each component in Figure 2, so you can go straight to the part you are about to release.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Part</th>
+<th>What can be open</th>
+<th>How to share on the Hugging Face Hub</th>
+<th>What can stay protected with alternatives for public review</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Task</td>
+<td>Specifications, categories, construction methods, and a public development split</td>
+<td>A dataset repository, with a <a href="https://huggingface.co/docs/hub/datasets-cards">dataset card</a> recording the source task, changes, license, and limitations</td>
+<td>Active test items and answers, kept in a separate <a href="https://huggingface.co/docs/hub/datasets-gated">gated dataset</a> with manual approval of each access request. Release retired items where permissible.</td>
+</tr>
+<tr>
+<td>Environment</td>
+<td>Container definition, build files, pinned dependencies, and synthetic fixtures</td>
+<td>In the dataset repository, declared as an <a href="https://huggingface.co/datasets?other=rl-environment&amp;sort=trending">environment type</a> in the dataset card</td>
+<td>Private data, credentials, licensed assets, or dangerous details. Document how public substitutes differ.</td>
+</tr>
+<tr>
+<td>Agent harness and tools</td>
+<td>Agent-loop code, tool interfaces, adapters, permissions, and budgets</td>
+<td>A link to the harness source and its pinned version, kept in the run record with the configuration used. Give the pinned harness version in the notes field of each <code>.eval_results</code> entry, so it’s next to the score</td>
+<td>Secrets, private services, and sensitive tool implementations. Provide safe substitutes and authorized inspection.</td>
+</tr>
+<tr>
+<td>Rollout and trace</td>
+<td>Public-task traces, reviewed excerpts, and analysis code</td>
+<td>A dataset or storage bucket. Harbor's <a href="https://github.com/harbor-framework/harbor/blob/26106c6d9c66848a1440faf5724d336affac52aa/docs/content/docs/training-workflows/sft.mdx" rel="nofollow">trace exporter</a> pushes rollout records, and the Hub's <a href="https://huggingface.co/docs/hub/agent-traces">trace viewer</a> opens supported session formats. Link scores to these traces through the source field of each <code>.eval_results</code> entry</td>
+<td>Traces exposing tasks, private data, or restricted model behavior. Offer protected analysis and case inspection.</td>
+</tr>
+<tr>
+<td>Reference solution</td>
+<td>Solution method and code for public examples</td>
+<td>The dataset repository, with each task</td>
+<td>Solutions that reveal protected items. Let authorized reviewers check them against the task.</td>
+</tr>
+<tr>
+<td>Evaluation harness</td>
+<td>Rollout orchestration, model configuration, logging, score aggregation, and version records</td>
+<td>A run record kept with the dataset: the job script, model and harness configuration, and package versions. Inspect writes its logs straight to an <code>hf://buckets/</code> path</td>
+<td>Credentials and item-identifying configuration. Keep a reviewable record of the exact restricted run.</td>
+</tr>
+<tr>
+<td>Verifier</td>
+<td>Rubrics, grader code, tolerances, and worked examples</td>
+<td>The dataset repository, with each task</td>
+<td>Reference answers and logic that reveal protected items. Authorized experts should inspect disputed judgments.</td>
+</tr>
+<tr>
+<td>Claims and task design</td>
+<td>Intended use, selection rationale, contextual assumptions, and validation evidence</td>
+<td>The dataset card. Bundle the task dataset, trace dataset, any harness Space, and the paper into one Hub Collection</td>
+<td>Sensitive source material may need redaction.</td>
+</tr>
+<tr>
+<td>Results</td>
+<td>Scores, uncertainty, costs, exclusions, and limitations, with the model setup and other reproducibility details</td>
+<td>Register the dataset as a Hub Benchmark with an <code>eval.yaml</code>. Scores go in each model repo's <code>.eval_results/</code> folder, opened as a <a href="https://huggingface.co/docs/hub/eval-results">pull request</a>, with source linking to the trace dataset. Optionally, also convert them to the <a href="https://github.com/evaleval/every_eval_ever" rel="nofollow">EEE schema</a></td>
+<td>Task-revealing detail in results. Publish safe summaries and arrange review of the underlying evidence.</td>
+</tr>
+<tr>
+<td>Corrections</td>
+<td>A correction history that names the affected versions</td>
+<td><a href="https://huggingface.co/docs/hub/repositories-pull-requests-discussions">Pull requests and discussions</a> on the repository, with a change log in the card</td>
+<td>The protected example behind a correction. Still record which versions it affected.</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><em>Table 1. What to open, how to share it on the Hugging Face Hub, and what can stay protected, for each evaluation component.</em></p>
+<p>Our own example follows this approach. We released raman-lab as a <a href="https://huggingface.co/datasets/burtenshaw/raman-lab">dataset on the Hub</a>. It includes eight synthetic graphene spectra in Harbor task format, each with its environment, reference fit, verifier, and tolerances. The raw rollouts behind our results are shared as <a href="https://huggingface.co/datasets/burtenshaw/raman-lab-runs">a separate dataset</a> including Harbor trial folders with trajectories and verifier output for all six models. The spectrum generator, analysis code, and results are in a companion <a href="https://github.com/burtenshaw/raman-lab-evals" rel="nofollow">GitHub repository</a>, so both the agent harness and the evaluation harness can be inspected and rerun.</p>
+<p>In a more sensitive domain, a clinical evaluation could open its environment definition, harness, tool interfaces, and grading framework, with synthetic cases for development use. Patient records and reference answers would stay under controlled access while authorized reviewers inspect disputed judgments. Each restriction should come with a condition for revisiting it.</p>
+<h3>
+	<a id="strategic-open-sourcing-checklist" href="#strategic-open-sourcing-checklist" rel="nofollow">
+		
+	</a>
+	<span>
+		Strategic open sourcing checklist
+	</span>
+</h3>
+<p>We recommend a short checklist, drawn in part from the more comprehensive <a href="https://huggingface.co/papers/2507.02825">Agentic Benchmark Checklist</a>. Before releasing or retiring an evaluation, check that another builder can:</p>
+<ul>
+<li>Identify what it measures, its intended use, and the conditions it leaves out.</li>
+<li>Find the reusable artifacts, their licenses and versions, and a way to report problems.</li>
+<li>See how a do-nothing agent scores and, where possible, how a human expert does.</li>
+<li>Read each score with its uncertainty, and with guidance on what known flaws mean for it.</li>
+<li>Learn which flaws were found, how they were handled, and how far they could move the results.</li>
+<li>Know how and when tasks will be refreshed to limit contamination and overfitting.</li>
+</ul>
+<p>These release decisions also determine what remains useful when the benchmark no longer separates the systems it was built to compare.</p>
+<h2>
+	<a id="5-conclusion-giving-the-evaluation-a-useful-afterlife" href="#5-conclusion-giving-the-evaluation-a-useful-afterlife" rel="nofollow">
+		
+	</a>
+	<span>
+		5. Conclusion: giving the evaluation a useful afterlife
+	</span>
+</h2>
+<p>Benchmarks have a lifecycle. They are built, adopted, optimized against, and in time stop separating the systems they were made to compare. The <a href="https://huggingface.co/papers/2602.16763">saturation study</a> from section 3 rated 29 of its 60 language model benchmarks as highly saturated, with rates rising with age. Saturation is not a failure in itself, since it can mean the capability has arrived.</p>
+<p>What a benchmark leaves behind depends on how open it was. Publishing only scores leaves future builders little they can run or adapt. When the tasks, environments, verifiers, and traces are open, each keeps working after the leaderboard stops. A solved task becomes a regression check for a new harness. Its environment and verifier can seed a harder successor. Open benchmarks also get repaired and reissued: MMLU's questions became <a href="https://huggingface.co/datasets/edinburgh-dawg/mmlu-redux-2.0">MMLU-Redux</a>, and Terminal-Bench 2.0 became <a href="https://www.tbench.ai/news/terminal-bench-2-1" rel="nofollow">2.1</a> through community contributions. Our own walkthrough is an afterlife of this kind: raman-lab began as one task in a benchmark built for general terminal work.</p>
+<p>That is the promise of building evaluations openly. The work that goes into an evaluation can outlive the benchmark itself, giving others a foundation to ask new questions, test new capabilities, and improve on what came before. The more we share what we build and learn, the less each new evaluation has to start from scratch.</p>
+<p>If you’re curious what this looks like in practice, then follow our practical example.</p>
+<h2>
+	<a id="appendix-a-practical-example-agentic-deployment-in-a-physics-lab" href="#appendix-a-practical-example-agentic-deployment-in-a-physics-lab" rel="nofollow">
+		
+	</a>
+	<span>
+		Appendix A. Practical example: agentic deployment in a physics lab
+	</span>
+</h2>
+<p>Consider a physics lab that wants an agent to fit peaks in a Raman spectrum. Raman spectroscopy shines a laser on a sample and measures shifts in the frequency of the scattered light; the resulting peaks reveal properties of the material. For graphene, an atom-thick sheet of carbon, the G and 2D peaks near 1580 and 2700 cm⁻¹ <a href="https://arxiv.org/abs/cond-mat/0606284" rel="nofollow">identify the number of layers</a>. A third peak, D, appears when the lattice is disordered, and its intensity relative to G <a href="https://arxiv.org/abs/1306.5856" rel="nofollow">can indicate defects</a>. Figure 5 shows the setup.</p>
+
+
+<p><em>Figure 5. Our intended setup. A laser lights a graphene sample, and a spectrometer records how the scattered light has shifted. The agent receives that spectrum as a file, fits a curve to each peak, and saves the fitted values. The verifier checks the saved values against reference fits. The curve shown is a sketch, not measured data.</em></p>
+<p>We start by building on a task from an open benchmark. <a href="https://huggingface.co/datasets/harborframework/terminal-bench-2.0">Terminal-Bench 2</a> already includes <a href="https://hub.harborframework.com/tasks/terminal-bench/raman-fitting" rel="nofollow">raman-fitting</a>: fit a Lorentzian curve, a mathematical peak shape, to each of those two peaks and save eight parameters to <code>/app/results.json</code>. That gives us a runnable starting point for a narrower lab evaluation. We run these on the open source evaluation harness, <a href="https://docs.harborframework.com/" rel="nofollow">Harbor</a>. Table 2 lists what the task provides and what to check before reusing each part.</p>
+<div>
+	<table>
+		<thead><tr>
+<th>Part</th>
+<th>In raman-fitting</th>
+<th>Check before reuse</th>
+</tr>
+
+		</thead><tbody><tr>
+<td>Task</td>
+<td><code>instruction.md</code> asks for two peak fits saved to <code>/app/results.json</code>.</td>
+<td>Are units, parameter definitions, and the output format explicit?</td>
+</tr>
+<tr>
+<td>Environment</td>
+<td>A pinned container image holding the spectrum; <code>task.toml</code> sets resources and limits.</td>
+<td>Which packages must the agent install? Are resources and permissions suitable?</td>
+</tr>
+<tr>
+<td>Agent harness and tools</td>
+<td>Terminus-2 connects the model to shell commands.</td>
+<td>Can the agent inspect what its commands produced?</td>
+</tr>
+<tr>
+<td>Rollout and trace</td>
+<td>One attempt, recorded in <code>agent/trajectory.json</code>.</td>
+<td>Does the record show what happened before the agent stopped?</td>
+</tr>
+<tr>
+<td>Reference solution</td>
+<td><code>solution/solve.sh</code> runs the known fit.</td>
+<td>Does it pass in the supplied environment?</td>
+</tr>
+<tr>
+<td>Evaluation harness</td>
+<td>Harbor runs rollouts and collects scores and traces.</td>
+<td>Are versions and execution settings recorded?</td>
+</tr>
+<tr>
+<td>Verifier</td>
+<td><code>tests/test.sh</code> checks eight fitted values against reference tolerances.</td>
+<td>Does it grade the saved file and accept valid alternative fits?</td>
+</tr>
+</tbody>
+	</table>
+</div>
+<p><em>Table 2. What to check before reusing each component.</em></p>
+<h3>
+	<a id="step-1-define-the-claim" href="#step-1-define-the-claim" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 1. Define the claim
+	</span>
+</h3>
+<p>A good place to start is a <em>claim</em>: a plain statement of what the agent can do, which the evaluation is meant to support. "The agent can fit a Raman spectrum" is a claim, and so is "the agent can process a lab report." From there, you can break the claim into smaller skills that can be checked one at a time, such as reading the file, locating the peaks, and writing the output.</p>
+<p>For the purposes of this article, our claim is deliberately narrow: fit the specified peaks, calculate the requested D-to-G ratio, and save accurate results consistently. Reviewing a whole lab report would need additional skills and evidence.</p>
+<p>Domain experts can help here. We suggest asking them to choose realistic noise levels, tolerances, and available software, then score examples independently and investigate disagreements. From there, you can break the claim into parts you can check and map each part to what each task tests.</p>
+<h3>
+	<a id="step-2-find-a-starting-task" href="#step-2-find-a-starting-task" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 2. Find a starting task
+	</span>
+</h3>
+<p>For your own domain, the Hugging Face Hub is a good place to look, under its Benchmark and Environment dataset types. When you find a candidate, it is worth inspecting its instructions, environment, <a href="https://huggingface.co/datasets/harborframework/terminal-bench-2.1/blob/main/tasks/raman-fitting/solution/solve.sh">reference solution</a>, and tests. Even a task that models already solve can provide useful infrastructure. From raman-fitting we inherit a working task format. It has only one spectrum, though, and a lab's measurements vary, so we expand on this task further as described in Step 4.</p>
+<h3>
+	<a id="step-3-run-the-task-unchanged" href="#step-3-run-the-task-unchanged" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 3. Run the task unchanged
+	</span>
+</h3>
+<p>Before running any model, it helps to run the reference solution (also called oracle). If it fails, the fault lies in the task, environment, or verifier, and needs to be fixed before you read anything into model failures. After that, you can run the model several times without changing the setup.</p>
+<p>We ran Harbor inside an <a href="https://huggingface.co/docs/hub/jobs-overview">HF Job</a>, which supplied compute for the runner. Each rollout used its own <a href="https://huggingface.co/docs/huggingface_hub/guides/sandbox">HF Sandbox</a> for commands and files, and <a href="https://huggingface.co/docs/inference-providers/index">Inference Providers</a> supplied the model responses. With Harbor's <code>hf-sandbox</code> extra installed and <code>HF_TOKEN</code> set, these commands test the oracle, then run three rollouts with <a href="https://docs.harborframework.com/agents/pre-integrated-agents" rel="nofollow">Terminus-2</a>, a terminal agent harness, and <a href="https://huggingface.co/openai/gpt-oss-120b">gpt-oss-120b</a>, an open-weight model from OpenAI.</p>
+<pre><code data-language="bash">harbor run -t terminal-bench/raman-fitting \
+  -a oracle -e hf-sandbox
+
+OPENAI_API_KEY="$HF_TOKEN" harbor run \
+  -t terminal-bench/raman-fitting -k 3 -e hf-sandbox \
+  -a terminus-2 -m openai/openai/gpt-oss-120b \
+  --ak api_base=https://router.huggingface.co/v1
+</code></pre>
+<p>In these commands, <code>-t</code> names the task, <code>-a</code> the agent, <code>-e</code> the environment, <code>-m</code> the model, and <code>-k</code> the number of rollouts per task.</p>
+<p>The model passed 0 of 3 rollouts. In two it declared completion before observing relevant output; in the third it could not read the data file, which uses decimal commas that the reference solution converts before loading. The score alone could not tell these failures from an incorrect fit. The traces could.</p>
+<h3>
+	<a id="step-4-adapt-the-task" href="#step-4-adapt-the-task" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 4. Adapt the task
+	</span>
+</h3>
+<p>We built <a href="https://huggingface.co/datasets/burtenshaw/raman-lab">raman-lab</a>: eight synthetic spectra with known parameters and varied noise and defect levels. The adaptation fits three peaks instead of two and reports a defect ratio. We used an agent to help generate the spectra, reviewed them by hand, and wrote new instructions, reference fits, and output checks. These eight tasks are a development set, meaning tasks we use while building the evaluation; broader coverage should follow the variation in real measurements.</p>
+<p>The D-to-G intensity ratio can indicate defects, but its interpretation <a href="https://pubmed.ncbi.nlm.nih.gov/21696186/" rel="nofollow">depends on the laser excitation energy and the disorder regime</a>. An evaluation asking for a "defect ratio" must say which peaks, whether intensity means height or integrated area, and how the result is checked.</p>
+<p>The original <a href="https://huggingface.co/datasets/harborframework/terminal-bench-2.1/blob/main/tasks/raman-fitting/instruction.md">instruction.md</a> shows why such definitions matter: it asks for x0, gamma, amplitude, and offset without defining them or their units. The reference solution treats them as peak center, half-width at half-maximum, height above background, and background level, and converts the x-axis from nanometres to Raman shift. We put choices like these into the adapted instructions, so that the verifier's requirements are visible. Figure 6 shows the two files side by side.</p>
+
+
+<p><em>Figure 6. The <code>instruction.md</code> files for</em> <a href="https://huggingface.co/datasets/harborframework/terminal-bench-2.1/blob/main/tasks/raman-fitting/instruction.md"><em>raman-fitting</em></a> <em>and</em> <a href="https://huggingface.co/datasets/burtenshaw/raman-lab/blob/main/graphene-s01/instruction.md"><em>raman-lab</em></a><em>, side by side. The highlighted additions cover the new parts of the claim: the D peak, the defect ratio, and both in the saved results. The remaining part, handling varied measurements, lives in the data: all eight raman-lab tasks share this instruction, and only the spectrum, with its noise and defect level, changes.</em></p>
+<p>The verifier is guided by three rules:</p>
+<ul>
+<li>Grade what the agent produced: inspect the saved output, not its claim to have finished. <a href="https://huggingface.co/papers/2406.12045">τ-bench</a> does this by comparing the final database state with an annotated goal state.</li>
+<li>State every checked fact in the instruction, including units, parameter conventions, tolerances, and required fields.</li>
+<li>Generate synthetic data from known parameters so the reference answer is available, then review whether the examples represent the intended problem.</li>
+</ul>
+<p>The shared format can stay as it is while the data and checks change. This command creates a task scaffold:</p>
+<pre><code data-language="bash">harbor task init my-org/task-01 -p datasets/my-evals
+</code></pre>
+<h3>
+	<a id="step-5-check-the-evaluation" href="#step-5-check-the-evaluation" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 5. Check the evaluation
+	</span>
+</h3>
+<p>Before executing more model runs, test the evaluation itself. Here <code>datasets/my-evals</code> contains the adapted tasks.</p>
+<pre><code data-language="bash">harbor run -p datasets/my-evals -a oracle -e hf-sandbox
+harbor run -p datasets/my-evals -a nop -e hf-sandbox
+</code></pre>
+<ul>
+<li>The oracle should pass every task, i.e., the known solution must work in the supplied environment.</li>
+<li>The no-op agent does nothing, so it should fail every task. A blank exam paper should not pass. A <a href="https://huggingface.co/papers/2507.02825">review of agentic benchmarks</a> found one that counted empty responses as successes.</li>
+<li>A shortcut that skips required work should fail. One way to test this is with a deliberately lazy solution, such as one that outputs a plausible answer without doing the work, to see whether the verifier accepts it. Also try plausible wrong answers and alternative correct methods, to catch both false passes and false failures.</li>
+</ul>
+<p>Our shortcut returned the expected defect ratio on all eight tasks without fitting the spectra, so we added checks on the fit itself. Section 3 explains what that means for verifier design.</p>
+<h3>
+	<a id="step-6-run-it-and-read-the-traces" href="#step-6-run-it-and-read-the-traces" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 6. Run it and read the traces
+	</span>
+</h3>
+<p>It is helpful to read both successful and failed rollouts. Harbor records messages, tool calls, and observations in <code>agent/trajectory.json</code> using <a href="https://docs.harborframework.com/agents/atif" rel="nofollow">ATIF</a>, a shared trace format. Grouping failures by cause makes the patterns easier to see: parsing the data, executing a tool, stopping too early, or grading the output.</p>
+<p>The adapted setup passed 11 of 24 rollouts. In 19, the model called <code>mark_task_complete</code> in its first response; 11 of those attempts produced no results file.</p>
+
+
+<p><em>Figure 7. On 19 of 24 attempts, the agent called <code>mark_task_complete</code> in its first response. Eleven produced no results file, seven passed, and one failed the fit check. Of the five remaining attempts, four passed and one failed the fit check.</em></p>
+<p>Several missing-file failures began with missing NumPy or SciPy. The published task expects the agent to install them; its reference solution starts with a pip install. A lab evaluation of fitting with supplied tools could install and pin them in advance. Dependencies also drift: Terminal-Bench 2.1 <a href="https://www.tbench.ai/news/terminal-bench-2-1" rel="nofollow">repaired nine tasks</a> whose external dependencies had changed after release.</p>
+<p>Preinstalling changes the evaluation condition, so keep the model, harness, tasks, and rollout count fixed when comparing the two setups.</p>
+<p>Finally, we adapt the setup, repeat the checks in step 5, and rerun. Harbor's <a href="https://github.com/harbor-framework/harbor/blob/26106c6d9c66848a1440faf5724d336affac52aa/docs/content/docs/training-workflows/sft.mdx" rel="nofollow">trace exporter</a> can prepare records for sharing on the Hub. It is worth reviewing them for protected content first, and keeping both successes and failures so others can investigate the result.</p>
+<h3>
+	<a id="step-7-report-the-score" href="#step-7-report-the-score" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 7. Report the score
+	</span>
+</h3>
+<p>The right metric depends on the decision you need to make:</p>
+<ul>
+<li><a href="https://huggingface.co/papers/2107.03374">pass@k</a> asks whether at least one of k rollouts succeeds. Our pass@3 was 7/8: seven tasks succeeded at least once.</li>
+<li><a href="https://huggingface.co/papers/2406.12045">pass^k</a> asks whether all k rollouts succeed. Our pass^3 was 1/8: one task succeeded every time.</li>
+</ul>
+<p>Retries may be acceptable when a person reviews the output. Unattended processing needs consistency, so the second measure matters more.</p>
+<p>A mean is more useful with its uncertainty beside it. Rollouts of the same spectrum share its difficulty, so they are not independent, and the standard error should be <a href="https://huggingface.co/papers/2411.00640">clustered by task</a>. Clustering gave a mean success rate of 0.46 with a standard error of about 0.11. A repeat run passed 10 of 24 rollouts, compared with 11 of 24 in the first run. With only eight development tasks, we would be cautious about generalizing either result to new spectra.</p>
+<p>Harbor writes a <code>result.json</code> per rollout, which it calls a trial. We group these by task, check that each task has three rollouts, and record errors or exclusions. Reporting tokens, elapsed time, and tool calls beside the score lets readers compare setups that reach similar results at different costs.</p>
+<h3>
+	<a id="step-8-compare-models" href="#step-8-compare-models" rel="nofollow">
+		
+	</a>
+	<span>
+		Step 8. Compare models
+	</span>
+</h3>
+<p>When a single model fails a task, that run alone cannot tell us what went wrong. It could be the model, the agent harness, or the evaluation itself. Running more models on the same tasks helps narrow the possibilities. When several models fail the same task, inspect the instructions, environment, and verifier for a shared cause. When one model repeatedly fails in a distinctive way, compare its traces with successful attempts.</p>
+<p>Inference Providers serves many open-weight models through the same router, so each new model is one more value for <code>-m</code>. Several providers can serve the same model with different quantization and context limits, so it helps to pin one with a suffix such as <code>:deepinfra</code> and record it beside the score.</p>
+<pre><code data-language="bash">OPENAI_API_KEY="$HF_TOKEN" harbor run -p datasets/my-evals -k 3 \
+  -e hf-sandbox -a terminus-2 -m openai/Qwen/Qwen3.8-27B:deepinfra \
+  --ak api_base=https://router.huggingface.co/v1
+</code></pre>
+<p>Figure 8 shows the raman-lab results for each model.</p>
+
+
+<p><em>Figure 8. raman-lab results per model, with pass@3, pass^3, and the mean pass rate with its clustered standard error. Select a square to inspect that rollout.</em></p>
+<p>The comparison makes one pattern in gpt-oss-120b clearer: it often declares completion before seeing command output. In this separate run with DeepInfra pinned as the provider, it called <code>mark_task_complete</code> in its first response in 22 of 24 rollouts, while none of the other five models did so (Figure 9). The Step 6 run used the router's default provider and recorded 19 of 24 such early completions. It passed 11 of 24 rollouts, compared with 13 of 24 in the DeepInfra run. Both counts use the same test: whether the model called <code>mark_task_complete</code> in its first response.</p>
+
+
+<p><em>Figure 9. raman-lab rollout outcomes by when the agent declared completion. Left: the agent observed command output first. Right: it called <code>mark_task_complete</code> in its first response.</em></p>
+<p>The comparison also shows the limits of the development set. <a href="https://huggingface.co/Qwen/Qwen3.8-27B">Qwen3.8-27B</a>, <a href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash">DeepSeek-V4.1-Flash</a>, and <a href="https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash">MiniMax-M3.1-Flash</a> passed all 24 raman-lab rollouts, so these tasks cannot rank them. That will take harder tasks.</p>
+<p>Inference for all six models cost under $5 at the router's list prices. The median raman-lab rollout used about 6,000 tokens for gpt-oss-120b and about 90,000 for MiniMax-M3.1-Flash. The <a href="https://github.com/burtenshaw/raman-lab-evals" rel="nofollow">companion repository</a> holds <a href="https://huggingface.co/datasets/burtenshaw/raman-lab-runs">the traces</a>, the per-rollout results, and the scripts to add another model.</p>
+<h3>
+	<a id="how-we-reused-existing-open-components" href="#how-we-reused-existing-open-components" rel="nofollow">
+		
+	</a>
+	<span>
+		How we reused existing open components
+	</span>
+</h3>
+<p>Reusing the runner and task format let us concentrate on the physics, grading, and review. We could reuse them because Harbor and Terminal-Bench publish their code and tasks.</p>
+<ul>
+<li><p><strong>Task:</strong> We reused the Harbor task format and Terminal-Bench's raman-fitting task. The new work was a narrower claim, skill coverage, and instructions for raman-lab.</p>
+</li>
+<li><p><strong>Task data:</strong> The original spectrum served as a starting example. We built a generator for eight spectra with known parameters and reviewed them manually.</p>
+</li>
+<li><p><strong>Environment:</strong> Harbor's environment support and HF Sandbox ran the tasks. We checked package requirements and diagnosed missing dependencies.</p>
+</li>
+<li><p><strong>Agent harness and tools:</strong> Terminus-2 with shell access, with Inference Providers for model responses. This part needed no new work.</p>
+</li>
+<li><p><strong>Rollout and trace:</strong> Harbor's rollout records and ATIF captured each run. We reviewed successes and failures and grouped them by cause.</p>
+</li>
+<li><p><strong>Reference solution:</strong> We kept the convention of running <code>solution/solve.sh</code> and wrote a reference fit for each new task.</p>
+</li>
+<li><p><strong>Evaluation harness:</strong> Harbor ran in an HF Job. We configured the run and grouped results by task.</p>
+</li>
+<li><p><strong>Verifier:</strong> We reused the <code>tests/test.sh</code> entry point and its way of writing the score to a file. The new work was fit and ratio checks, plus tests for shortcuts and incorrect outputs.</p>
+</li>
+</ul>
+<h2>
+	<a id="references" href="#references" rel="nofollow">
+		
+	</a>
+	<span>
+		References
+	</span>
+</h2>
+<ul>
+<li>Akhtar, M., Reuel, A., Soni, P., et al. (2026). When AI Benchmarks Plateau: A Systematic Study of Benchmark Saturation. arXiv:2602.16763. <a href="https://huggingface.co/papers/2602.16763">https://huggingface.co/papers/2602.16763</a></li>
+<li>Ansari, A., Sun, H., Liu, A. Z., et al. (2026). How Good Are Frontier Models at Physics? Expert Re-Grading Reveals Broken Evaluations and Near-Saturation of Leading Benchmarks. arXiv:2609.13009. <a href="https://arxiv.org/abs/2609.13009" rel="nofollow">https://arxiv.org/abs/2609.13009</a></li>
+<li>Anthropic. (2026). Demystifying evals for AI agents. Anthropic Engineering, January 2026. <a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents" rel="nofollow">https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents</a></li>
+<li>ARC Prize Foundation. (n.d.). ARC-AGI-2. <a href="https://arcprize.org/arc-agi/2" rel="nofollow">https://arcprize.org/arc-agi/2</a></li>
+<li>Artificial Analysis. (2026). Announcing Artificial Analysis Intelligence Index v5. Post on X, October 2026. <a href="https://x.com/ArtificialAnlys/status/2115265133467635877" rel="nofollow">https://x.com/ArtificialAnlys/status/2115265133467635877</a></li>
+<li>Barres, V., Barton, A., Foss, N. J., &amp; Nielsen, H. M. (2026). Harder Than the Task: From Technical to Organizational Difficulty in AI Benchmarking. arXiv:2611.03494. <a href="https://arxiv.org/abs/2611.03494" rel="nofollow">https://arxiv.org/abs/2611.03494</a></li>
+<li>Bean, A. M., Kearns, R. O., Romanou, A., et al. (2025). Measuring what Matters: Construct Validity in Large Language Model Benchmarks. arXiv:2511.04703. <a href="https://huggingface.co/papers/2511.04703">https://huggingface.co/papers/2511.04703</a></li>
+<li>Buchanan, E. K., Linderman, S., &amp; Ré, C. (2026). Benchmarks as Software: A Case Study on Terminal-Bench. ICML 2026. <a href="https://icml.cc/virtual/2026/82793" rel="nofollow">https://icml.cc/virtual/2026/82793</a></li>
+<li>Cançado, L. G., Jorio, A., Ferreira, E. H., et al. (2011). Quantifying defects in graphene via Raman spectroscopy at different excitation energies. Nano Letters, 11(8), 3190–3196. <a href="https://pubmed.ncbi.nlm.nih.gov/21696186/" rel="nofollow">https://pubmed.ncbi.nlm.nih.gov/21696186/</a></li>
+<li>Chen, M., Tworek, J., Jun, H., et al. (2021). Evaluating Large Language Models Trained on Code. arXiv:2107.03374. <a href="https://huggingface.co/papers/2107.03374">https://huggingface.co/papers/2107.03374</a></li>
+<li>Ferrari, A. C., &amp; Basko, D. M. (2013). Raman spectroscopy as a versatile tool for studying the properties of graphene. Nature Nanotechnology, 8, 235–246. <a href="https://arxiv.org/abs/1306.5856" rel="nofollow">https://arxiv.org/abs/1306.5856</a></li>
+<li>Ferrari, A. C., Meyer, J. C., Scardaci, V., et al. (2006). Raman spectrum of graphene and graphene layers. Physical Review Letters, 97, 187401. <a href="https://arxiv.org/abs/cond-mat/0606284" rel="nofollow">https://arxiv.org/abs/cond-mat/0606284</a></li>
+<li>Gema, A. P., Leang, J. O. J., Hong, G., et al. (2024). Are We Done with MMLU? arXiv:2406.04127. <a href="https://huggingface.co/papers/2406.04127">https://huggingface.co/papers/2406.04127</a></li>
+<li>Ghosh, A., Reuel, A., Chim, J., et al. (2026). Evaluation Cards: An Interpretive Layer for AI Evaluation Reporting. arXiv:2606.09809. <a href="https://huggingface.co/papers/2606.09809">https://huggingface.co/papers/2606.09809</a></li>
+<li>Harbor Framework. (n.d.). Harbor documentation. <a href="https://docs.harborframework.com/" rel="nofollow">https://docs.harborframework.com/</a></li>
+<li>Isaac, W., Messing, S., &amp; Lum, K. (2026). Piloting the world's first double-blind AI evaluations. Google DeepMind, August 2026. <a href="https://deepmind.google/blog/piloting-the-worlds-first-double-blind-ai-evaluations/" rel="nofollow">https://deepmind.google/blog/piloting-the-worlds-first-double-blind-ai-evaluations/</a></li>
+<li>Longpre, S., Klyman, K., Appel, R. E., et al. (2025). In-House Evaluation Is Not Enough: Towards Robust Third-Party Flaw Disclosure for General-Purpose AI. arXiv:2503.16861. <a href="https://huggingface.co/papers/2503.16861">https://huggingface.co/papers/2503.16861</a></li>
+<li>Miller, E. (2024). Adding Error Bars to Evals: A Statistical Approach to Language Model Evaluations. arXiv:2411.00640. <a href="https://huggingface.co/papers/2411.00640">https://huggingface.co/papers/2411.00640</a></li>
+<li>MLCommons. (n.d.). AILuminate: frequently asked questions. <a href="https://mlcommons.org/ailuminate/faq/" rel="nofollow">https://mlcommons.org/ailuminate/faq/</a></li>
+<li>OpenAI. (2026). Why we no longer evaluate SWE-bench Verified. February 2026. <a href="https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/" rel="nofollow">https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/</a></li>
+<li>OpenAI. (2026). Separating signal from noise in coding evaluations. July 2026. <a href="https://openai.com/index/separating-signal-from-noise-coding-evaluations/" rel="nofollow">https://openai.com/index/separating-signal-from-noise-coding-evaluations/</a></li>
+<li>Paniego, S., &amp; Gosthipaty, A. R. (2026). Harness, Scaffold, and the AI Agent Terms Worth Getting Right. Hugging Face blog, May 2026. <a href="https://huggingface.co/blog/agent-glossary">https://huggingface.co/blog/agent-glossary</a></li>
+<li>Skarlinski, M., Laurent, J., Bou, A., &amp; White, A. (2025). About 30% of Humanity's Last Exam chemistry/biology answers are likely wrong. FutureHouse, July 2025. <a href="https://www.futurehouse.org/research/hle-exam" rel="nofollow">https://www.futurehouse.org/research/hle-exam</a></li>
+<li>Terminal-Bench. (2026). Terminal-Bench 2.1. Release notes, May 2026. <a href="https://www.tbench.ai/news/terminal-bench-2-1" rel="nofollow">https://www.tbench.ai/news/terminal-bench-2-1</a></li>
+<li>Wei, K. (2026). A primer on AI evaluations for policymakers: Part I. Matters of Scale, November 2026. <a href="https://ai.scal.ing/p/evals-intro-1" rel="nofollow">https://ai.scal.ing/p/evals-intro-1</a></li>
+<li>XLANG Lab. (2025). Introducing OSWorld-Verified. July 2025. <a href="https://xlang.ai/blog/osworld-verified" rel="nofollow">https://xlang.ai/blog/osworld-verified</a></li>
+<li>Yao, S., Shinn, N., Razavi, P., &amp; Narasimhan, K. (2024). τ-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains. arXiv:2406.12045. <a href="https://huggingface.co/papers/2406.12045">https://huggingface.co/papers/2406.12045</a></li>
+<li>Zhu, Y., Jin, T., Pruksachatkun, Y., et al. (2025). Establishing Best Practices for Building Rigorous Agentic Benchmarks. arXiv:2507.02825. <a href="https://huggingface.co/papers/2507.02825">https://huggingface.co/papers/2507.02825</a></li>
+</ul>
+<h2>
+	<a id="glossary" href="#glossary" rel="nofollow">
+		
+	</a>
+	<span>
+		Glossary
+	</span>
+</h2>
+<p><strong>Agent harness:</strong> The software around a model that turns its responses into actions, such as shell commands. Terminus-2 is the agent harness in this post.</p>
+<p><strong>Agentic evaluation:</strong> An evaluation that scores what an agent changed in an environment, not only the text it returned.</p>
+<p><strong>ATIF:</strong> Agent Trajectory Interchange Format, a shared format for recording an agent's messages, tool calls and observations.</p>
+<p><strong>Canary string:</strong> A unique marker in benchmark files that lets model trainers find and exclude them from training data.</p>
+<p><strong>Clustered standard error:</strong> A standard error that treats rollouts of the same task as related, which gives a wider and more honest margin than treating each rollout as independent.</p>
+<p><strong>Container image:</strong> A fixed package of operating system, files and software, so every rollout starts from the same environment.</p>
+<p><strong>Contamination:</strong> Test questions or solutions appearing in training data, so a score may reflect memory rather than skill.</p>
+<p><strong>Context limit:</strong> The maximum amount of text, counted in tokens, that a model can read in one request.</p>
+<p><strong>D, G and 2D peaks:</strong> Features in graphene's Raman spectrum. G and 2D indicate the number of layers, and D appears when the carbon lattice has defects.</p>
+<p><strong>Defect ratio:</strong> The intensity of the D peak divided by that of the G peak, used to indicate defects in graphene. Also called the D-to-G ratio.</p>
+<p><strong>Development set:</strong> Tasks used while building and debugging an evaluation, as opposed to a held-back test set used for final scores.</p>
+<p><strong>Environment:</strong> The software, files and resources an agent works in during a task.</p>
+<p><strong>Evaluation harness:</strong> The software that runs tasks, repeats rollouts, collects traces and aggregates scores. Harbor is the evaluation harness in this post.</p>
+<p><strong>Gated dataset:</strong> A Hugging Face dataset that can be downloaded only after the owner approves an access request.</p>
+<p><strong>Harbor:</strong> An open-source evaluation harness for agentic tasks.</p>
+<p><strong>HF Job:</strong> Compute on Hugging Face that runs a script. Here it runs Harbor.</p>
+<p><strong>HF Sandbox:</strong> An isolated Hugging Face environment where a single rollout runs its commands and stores its files.</p>
+<p><strong>Held-out test set:</strong> Test items kept private so that models cannot be trained or tuned on them.</p>
+<p><strong>Inference Providers:</strong> A Hugging Face service that routes model requests to third-party providers through one API, called the router.</p>
+<p><strong>Lorentzian:</strong> A mathematical curve commonly used to model the shape of a spectral peak.</p>
+<p><strong>No-op agent:</strong> An agent that does nothing. A sound evaluation gives it a score of zero.</p>
+<p><strong>Open-weight model:</strong> A model whose trained parameters are published for anyone to download and run.</p>
+<p><strong>Oracle:</strong> An agent that runs the reference solution, used to check that every task can be solved in the supplied environment.</p>
+<p><strong>pass@k:</strong> The share of tasks where at least one of k rollouts succeeds.</p>
+<p><strong>pass^k:</strong> The share of tasks where all k rollouts succeed.</p>
+<p><strong>Pinning:</strong> Fixing the exact versions of software, images or model providers so a run can be repeated.</p>
+<p><strong>Quantization:</strong> Storing model weights at lower numerical precision to run faster and cheaper, which can change outputs slightly.</p>
+<p><strong>Raman shift:</strong> The difference in frequency between the laser light and the light a sample scatters, measured in cm⁻¹.</p>
+<p><strong>Raman spectroscopy:</strong> A technique that shines a laser on a sample and measures shifts in the scattered light to identify properties of the material.</p>
+<p><strong>Reference solution:</strong> A known correct way to complete a task, stored with the task.</p>
+<p><strong>Rollout:</strong> One attempt by an agent at one task. Harbor calls it a trial.</p>
+<p><strong>Run record:</strong> A record of what ran behind a score: the exact task, environment, model configuration and code versions.</p>
+<p><strong>Saturation:</strong> The point where most models reach top scores on a benchmark, so it no longer separates them.</p>
+<p><strong>Synthetic data:</strong> Data generated from known parameters, so the correct answer is known in advance.</p>
+<p><strong>Terminal-Bench:</strong> An open benchmark of tasks that an agent completes in a computer terminal.</p>
+<p><strong>Terminus-2:</strong> The terminal agent harness used in this post. It connects the model to shell commands.</p>
+<p><strong>Token:</strong> The unit of text a model reads and writes, roughly a short word or part of a word.</p>
+<p><strong>Trace:</strong> The full record of a rollout: the model's messages, its tool calls and what each command returned. Also called a trajectory.</p>
+<p><strong>Verifier:</strong> The code that grades a rollout by checking the saved output or the environment's final state.</p>
+</div></div>
