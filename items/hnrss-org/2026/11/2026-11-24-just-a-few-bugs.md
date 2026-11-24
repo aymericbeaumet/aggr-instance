@@ -1,0 +1,314 @@
+---
+title: Just a Few Bugs
+link: https://www.justafewbugs.xyz/
+source: hnrss-org
+published: 2026-11-24T09:47:59Z
+updated: 2026-11-24T09:47:59Z
+first_seen: 2026-11-24T17:30:21.295672362Z
+authors:
+- jjjegly
+content: extracted
+html: 2026-11-24-just-a-few-bugs.html
+remote_preview:
+  url: https://www.justafewbugs.xyz/evidence/ev-7f3a.png
+  alt: Issue tracker screenshot, 23 January 2026
+---
+
+I'm an independent security researcher. Over the years I've reported vulnerabilities to a number of vendors and manufacturers, and several of those reports have become CVEs.
+
+For most of the past year I've been working on Google's current Pixel phones. I reverse engineered the Samsung radio stack (under embargo), the IMS and RTP media code, the Trusty trusted apps, the MediaTek M90 modem RIL and the Android telephony framework, amongst other things. In that time I filed 95 reports through the Android and Google Devices Vulnerability Reward Program (VRP), and around 95% of them came with a working proof of concept.
+
+In total, the VRP has paid me $250, in a single payment.
+
+I should say at the outset that I have nothing against Google. My project Box began as a fork of their AI Edge Gallery; I've worked on it most days for a year, and Google have taken features from my fork back into their own. I also maintain Iris, a hardened fork of Chromium. Much of what I do is built on Google's work. This page is solely about what happened to the security bugs I reported through their programme over twelve months.
+
+Three things kept happening.
+
+**Bugs were fixed after being closed.** For every closed report, I extracted the relevant binary from Google's current factory image and compared the exact function the report referred to. Eight had been fixed in shipped code, with a bounds check, a permission or a validation step added precisely where I'd said one was missing. All eight had originally been closed as a "duplicate" or as "not a vulnerability". None was paid and none was credited. Two more have since been fixed in the QPR3 beta.
+
+**Bugs were closed for reasons the code doesn't bear out.** More than a dozen others were closed as duplicate, infeasible or "can't reproduce", yet the defect is still there, unchanged, in the current build. I'm not suggesting anyone owes a reward for a bug that hasn't been fixed, and I'm not claiming one. My point is simply that the stated reasons for closing them don't hold up once you look at the binary.
+
+**A reward promised in writing has never been paid.** In January Google confirmed a valid bug and raised both its severity and its reward, in writing. Three months later they reversed all of it, with no new evidence. They then said they would "stand by our word" and pay $250 anyway as a "discretionary payment exception". That was in January. Ten months of "processing", "soon" and "no date" later, it still hasn't been paid. The report itself was submitted before December 2025.
+
+One line in that thread still puzzles me. Google told me in writing that they were paying the Safety Center reward *"even though our final technical assessment rated it as a duplicate of a report with no security impact."* If the bug had no security impact, there is nothing to pay for. If it's worth paying for, then it did have an impact. Both statements are in the same ticket.
+
+## Where things stand
+
+- **$250 Safety Center reward (Moderate).** Approved in writing in January and confirmed in writing several times since. Ten months on it remains unpaid, and the ticket has been closed.
+- **Two High severity reports, still "Assigned".** Google formally rated both as High. Neither has a reward decision or a CVE yet. One of them has already been fixed in shipped code three times: in the QPR3 beta (DP11.261002.005) in October, in the **public November stable release** (CP4A.261105.040.D1, rolled out to all Pixels on 10 November 2026), and again in the latest QPR3 beta (DP11.261030.003, released on 12 November 2026). The ticket is still "Assigned" and the reward field is still empty.
+- **One Moderate report, still "Assigned".** Rated Moderate on 28 October. No reward decision.
+- **Ten findings fixed after being closed.** Each was closed as a duplicate, infeasible or not a vulnerability, and later fixed in shipped code. No reward and no credit for any of them.
+- **Total received: $250.**
+
+Everything in the tables below is a **closed** report, and Google's wording is quoted directly from the issue tracker. I've deliberately left out the technical details of the three reports that are still "Assigned", along with anything under active coordinated disclosure.
+
+Every report on this page is a closed ticket. Google's own position, stated on these tickets, is that they do not grant or deny permission for disclosure and that researchers are free to publish at their discretion. Nothing still under assessment or active coordinated disclosure is included here.
+
+## How I checked
+
+I followed the same process for every closed report in the tables:
+
+1. Extract the exact binary, library or jar named in the report from Google's current factory image (rango and yogi Pixel builds, September and October 2026).
+2. Unpack it with the appropriate tool for the container: `debugfs` for ext4, `fsck.erofs` for EROFS, and a second pass through `apex_payload.img` for APEX modules.
+3. Locate the function the report cited, using symbols where they survive and, where they don't, matching byte patterns from the disassembly quoted in the report.
+4. Compare the shipped code against what the report described as vulnerable, using the NDK's `llvm-objdump`. The system binutils has no AArch64 backend and returns nothing without raising an error, which is worth knowing before you trust an empty diff.
+
+Each report was given one of four verdicts: **PATCHED** (a check has been added that wasn't there when I reported it), **STILL PRESENT** (the code is unchanged), **N/A** (reported against this exact build, or Google described it as intended design) and **CANT-DETERMINE** (the binary is missing or the build doesn't match).
+
+I didn't rely on Google's security bulletins or the supplementary patch lists. A silent fix with no bulletin entry and no credit won't appear there by definition, so the only way to find one is to compare the shipped code yourself.
+
+## The reward promised in writing that was never paid
+
+This concerns ticket **467575499 / 470814942**. On **23 January 2026** Google wrote that they had "confirmed this is a valid bug", were "increasing severity" and "increasing reward", and would "issue a payment for the new amount once it has been processed". On **24 April**, without any further analysis, they reversed all three. In what they called a "Final Assessment", the same bug now "does not qualify for a reward or severity increase".
+
+In June they wrote that they wished to "stand by our word regarding the reward". On **10 July** they set out the figures: "$250 for Safety Center, $250 for the mic bug, $500USD total". They described this as "honoring our initial promise", whilst still referring to the Safety Center half as a duplicate with no security impact. The microphone half was paid. The Safety Center half was moved into a "discretionary payment exception" with, in their words, no "exact credit date". The most recent reply, in October, says much the same: still approved, still no date.
+
+[![Issue tracker screenshot, 23 January 2026](https://www.justafewbugs.xyz/evidence/ev-7f3a.png)](https://www.justafewbugs.xyz/evidence/ev-7f3a.png)\
+Figure 1. 23 January 2026: "confirmed this is a valid bug", severity and reward both increased, and "we will issue a payment for the new amount once it has been processed".
+
+[![Issue tracker screenshot, 24 April 2026](https://www.justafewbugs.xyz/evidence/ev-2c9d.png)](https://www.justafewbugs.xyz/evidence/ev-2c9d.png)\
+Figure 2. 24 April 2026: all three reversed without further analysis. The same report now "does not qualify for a reward or a severity increase", under the heading "Final Assessment".
+
+[![Issue tracker screenshot, 9 July 2026](https://www.justafewbugs.xyz/evidence/ev-b148.png)](https://www.justafewbugs.xyz/evidence/ev-b148.png)\
+Figure 3. 9 July 2026: Google agree to pay regardless, "even though our final technical assessment rated it as a duplicate of a report with no security impact".
+
+[![Issue tracker screenshot, 10 July 2026](https://www.justafewbugs.xyz/evidence/ev-9e05.png)](https://www.justafewbugs.xyz/evidence/ev-9e05.png)\
+Figure 4. 10 July 2026: the figures in writing, $250 + $250, $500 in total. The Safety Center half is placed into a "discretionary payment exception" with no "exact credit date". The sidebar shows ASR Payment 250.
+
+[![Issue tracker screenshot, 31 October 2026](https://www.justafewbugs.xyz/evidence/ev-4a7c.png)](https://www.justafewbugs.xyz/evidence/ev-4a7c.png)\
+Figure 5. 31 October 2026: still no date and no Bugcrowd reference, although "your $250 reward is fully approved". The same message adds: "We also respect your right to publish a public write-up about your findings and your experience."
+
+## Rated High by Google, fixed in shipped code, reward still blank
+
+Not every report ended as a duplicate or "not a vulnerability". In this case Google's own panel rated the report **High severity, High quality** and assigned it for remediation. The fix has since shipped three times: in the QPR3 beta (DP11.261002.005) in October, in the public November stable build (CP4A.261105.040.D1), and in the latest QPR3 beta (DP11.261030.003). The ticket is still marked "Assigned", and the reward and CVE fields are still blank, so I've kept the vulnerability itself out of this write-up. The screenshots below show only the process: a report Google rated High and confirmed in writing as eligible for a reward, then left sitting at "Assigned" after the very condition they had set had been met.
+
+[![Issue tracker screenshot, 7 October 2026](https://www.justafewbugs.xyz/evidence/ev-d620.png)](https://www.justafewbugs.xyz/evidence/ev-d620.png)\
+Figure 6. 7 October 2026: rated High severity, High quality. In the sidebar, ASR Severity reads High, whilst ASR Eligible, ASR Payment and CVE are all blank.
+
+[![Issue tracker screenshot, 31 October 2026](https://www.justafewbugs.xyz/evidence/ev-1f88.png)](https://www.justafewbugs.xyz/evidence/ev-1f88.png)\
+Figure 7. 31 October 2026: "yes, your report is eligible for a reward". The amount is "still reviewing" and the ASR fields remain blank.
+
+[![Issue tracker screenshot, 4 November 2026](https://www.justafewbugs.xyz/evidence/ev-5bca.png)](https://www.justafewbugs.xyz/evidence/ev-5bca.png)\
+Figure 8. 4 November 2026: the condition, in their words. The ticket stays "Assigned" and the CVE will be assigned "once the stable update is available to the public". They also confirm that "the change you found in the beta is indeed the fix".
+
+[![Issue tracker screenshot, 13 November 2026](https://www.justafewbugs.xyz/evidence/ev-3d71.png)](https://www.justafewbugs.xyz/evidence/ev-3d71.png)\
+Figure 9. 13 November 2026: the stable update is now public, so the condition has been met. The reply moves the goalposts: the fix is now "being scheduled for a future Pixel Update Bulletin" and the reward is "still reviewing". The ASR fields are still blank.
+
+It isn't the only one. A second, unrelated report was also rated **High severity, High quality** by the same panel. A month later it is still "Assigned", the reward is still "with the panel" and the ASR fields are still blank. I haven't named the report or included any technical detail; the screenshots show only the rating and the state of the reward.
+
+[![Issue tracker screenshot, second High severity report](https://www.justafewbugs.xyz/evidence/ev-a2e9.png)](https://www.justafewbugs.xyz/evidence/ev-a2e9.png)\
+Figure 10. A second, separate report, independently rated High severity, High quality. ASR Severity reads High, whilst ASR Eligible, ASR Payment and CVE are all blank.
+
+[![Issue tracker screenshot, the second report a month later](https://www.justafewbugs.xyz/evidence/ev-6c40.png)](https://www.justafewbugs.xyz/evidence/ev-6c40.png)\
+Figure 11. More than a month later, on the same report: "you have been waiting a month for the reward decision". Still "with the panel", no date given, and the ASR fields still blank.
+
+## The duplicate ID Google admitted was wrong
+
+When Google closes a report as a duplicate, it's closed against an internal "canonical" bug ID. I asked for the IDs behind several of mine. For two entirely unrelated bugs they gave me **the same internal ID, 479203197**: one was a Rust keystore panic in a trusted app, the other a C++ out-of-bounds read in the RTP media parser. They're written in different languages, sit in different subsystems and belong to different teams. A single internal report cannot be the original for both.
+
+Google acknowledged this in writing on both tickets: "Giving you this ID for your other report was a mistake on our end," and, separately, "we made a mistake when linking the duplicate tickets." So at least one supposedly verified duplicate was marked as such without anyone checking it against the report it named.
+
+## Duplicates that appear months later, against reports I can't see
+
+Many of my reports followed the same course. Filed, assigned, worked on by an engineer, and then, months later and with no new technical comment in between, quietly changed to Duplicate. The original is always an internal ticket I can't view, usually accompanied by a note that it was "previously reported by an internal Google engineer". I have no means of seeing that report, confirming that it exists, or confirming that it predates mine.
+
+There are a great many of these. Of the 95 reports I've filed, 34 were closed as duplicates. A few of those are my own resubmissions and appeals folded back together, so it comes to roughly 26 distinct findings that Google accepted as real and then attributed to a report I'm not allowed to see. A duplicate isn't a rejection: it's Google confirming that the bug exists and saying someone else found it first. In 26 of my cases, that someone was an internal engineer who, by Google's account, found the identical bug in the same month I did, in firmware that had only just been released.
+
+It's the timing I keep coming back to. I always work from the current month's factory image, so every report I file concerns firmware released that month, often only a few days earlier. When a bug I found in an image that shipped last week comes back weeks later as something Google has apparently had open internally for months, I'm in no position to check it, and it happens again and again.
+
+On the one occasion I pressed hard enough to find out which build the original was filed against, the explanation was at least plausible. Report 549662989 was marked as a duplicate of one filed against a Pixel 10 (blazer:16/CP1A.260505.005), and PixelModemService ships the same code on both generations, so I accepted it. That was the exception. The ID mix-up described above shows what the process looks like when I can actually check it: the same internal ID given as the "original" for two completely unrelated bugs, and admitted in writing to be a mistake. If one supposedly verified duplicate was marked without anyone comparing it to the report it named, I've no reason to assume the two dozen I can't check were handled any more carefully.
+
+The DCMO `DcmoReceiver` bug is a case in point. Google say my re-filed report (585012607) duplicates 545652324, which they describe as having been filed on 12 August 2026 by another external researcher, with the same root cause. I can't confirm any of that. Opening 545652324 returns "Access denied", as has every other original I've been referred to, so the date, the author and the root cause are Google's word alone. What I can check is the code, and the defect is still present and unpatched in CP4A.261105.040.D1, months after the date they give for the original report.
+
+## The "not a security vulnerability" template
+
+Early on, Google closed one of my findings with their standard message: "not a security vulnerability, logged for potential remediation in a future version, considered closed". They later withdrew it in writing: "You are completely correct. This finding is indeed a legitimate security vulnerability. It was incorrectly closed as 'not a security vulnerability' due to an oversight during triage of this specific ticket."
+
+The same template has since been used to close several more of my reports. On my own tickets alone it has been shown to be wrong more than once, by Google's own admission, and the issue was subsequently patched using the code I had submitted.
+
+## Closed as "Intended Behavior" by a "rate-limit bot"
+
+From now on, whenever Google closes one of my reports, I'll publish it here. The two reports below were closed in the same way, so it's worth being precise about what happened. Both had already been assigned and triaged. A Google triager then manually moved each one back to "New", and a minute later, **from the same personal account**, posted a message describing itself as "an automatically generated message" from the "Google Security Bot". The message closed the report as **Won't Fix (Intended Behavior)** on the grounds of a rate limit, and stated "we will not be able to see any of your responses".
+
+The genuinely automated messages on my tickets come from a separate system account. These came from the person who had handled the ticket manually a minute before, which is difficult to reconcile with an automated rate limiter. The second report was closed in this way even after I'd supplied a full reproduction on a locked, release-keys phone. Both defects can be verified directly from the shipping image.
+
+| Ticket                           | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Closure                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 560456349                        | An app with no permissions can control the Pixel 11's carrier satellite (NTN) stack. Two exported `SatelliteGateway` receivers have no permission, so any app can force satellite sessions and churn gateway auth keys. `ITelephony` transaction 420 (`overrideCarrierRoamingNtnEligibilityChanged`) has no permission check, although all ~30 of its sibling methods enforce one. Its only gate is a mock-modem default that fails open: it ships as `true`, the only one of 11 such checks to do so (AOSP defaults to false). This lets the app pin or spoof the "carrier satellite available" signal until the phone is rebooted. Missing authorisation, Moderate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Assigned on 12 September 2026. On 16 September, "currently reviewing the technical details". On 14 November it was moved back to "New" and closed as **Won't Fix (Intended Behavior)**, with an "automated" rate-limit message posted from the same triager account that had moved it a minute earlier. No technical assessment was given.                                                              |
+| 585028881 (re-file of 561846309) | An app with no permissions can install a forged but genuinely **Google-signed** platform config across all eight `ConfigUpdater` surfaces: the emergency number database, the telephony and satellite config, the intent firewall rules, the SMS short-code list, the carrier ID database and the three TextClassifier models. The change takes effect immediately and survives a reboot. **Defect A:** the config signature isn't tied to the update type. `PhenotypeHelper.getCertificate()` returns the same certificate for every type, whereas its sibling `getContentUrl()` switches on type, so a blob Google signed for one type verifies for all eight (CWE-347). I proved this offline against the real production signing certificate (serial `0xcb320d3f85c0cbaf`). **Defect B:** a `cts_test_` version-skip hook with no build gate. `shouldSkipVersionCheck()` checks only for a `file://` scheme and a `cts_test_` filename, so it also fires on production user builds (CWE-1220/489). Reproduced on a locked, release-keys Pixel 6a, where an app with no permissions overwrote the live satellite config and the change persisted across a reboot. High integrity impact, and still unpatched in CP4A.261105.040.D1. | First filed as 561846309 and closed as WAI. Re-filed on 12 November 2026 with a full on-device reproduction, then assigned and CLA'd. On 17 November it was moved back to "New" and closed as **Won't Fix (Intended Behavior)** a minute later, with the same "automated" rate-limit message from the same triager account. The same outcome as the first time, only now with the reproduction in hand. |
+
+## A zero-click SMS remote code execution chain in the radio daemon, closed as "not a security vulnerability"
+
+This is ticket 559521028. The MediaTek RIL on the Pixel 11 (`libmtkmipc-ril.so`, loaded by `mtkfusionrild`) reimplements the AOSP SMS, WAP push and 3GPP2 parsers in native C++, but keeps AOSP's habit of indexing `buf[i]` without checking bounds. In Java, reading past the end of a buffer throws an exception that gets caught. In native code nothing is thrown, so an over-read leaks memory and an over-write corrupts it.
+
+There are two defects. Both can be reached with a single incoming SMS, with no user interaction and no app installed:
+
+- **Defect A, a heap over-read that leaks data to the sender.** `PduParser::getAddress` and `constructUserData` take their copy length straight from a length byte in the PDU, which the attacker controls (the TP-OA length, or TP-UDL set to 0xFF). Neither checks it against the real buffer size, so both can read up to about 255 bytes beyond the end of the PDU buffer. Those bytes are copied into the parsed message and passed up the stack, which means a remote sender can read rild's heap memory back out of the delivered message, the notification or the delivery report. That leaks heap and library pointers and defeats rild's ASLR. On this build `mtkfusionrild` isn't instrumented with MTE (only BTI and PAC), so memory tagging doesn't catch the read.
+- **Defect B, an out-of-bounds write the attacker controls.** `BearerData::specialProcessForCtWapPush` masks its output cursor with `& 0xffff` but never checks it against the 255-byte destination, and one branch uses a raw byte from the message as the `memcpy` length. A crafted 3GPP2 bearer data message drives the write past the end of the buffer with content of the attacker's choosing.
+
+Use the leak to defeat ASLR, then use the write to corrupt a chosen object. That's the standard route to remote code execution in rild, the radio daemon, which runs as the radio user and has a direct channel to the baseband.
+
+I was particularly specific about how the code is reached. The RIL does have one sanity check on PDUs, `smsDeliverPduCheck`, but it only sits on the branch that forwards the raw PDU to the framework. The native parser is reached by a separate path, from `dispatchSms` to `onHandleSmsMessage` to `dispatchSuplMsg` to `SmsMessage::createFromPdu`, with no check on it at all. That path depends on a SUPL gate, `doesSuplExist()`, which returns true for as long as rild is running on any normal device: its global is initialised to 2 in `.data` (confirmed in the shipped binary) and changes to 1 as soon as MediaTek's location daemon starts. The unchecked parser therefore runs on every incoming SMS, and the trigger can be a silent Type 0 SMS that the user never sees.
+
+I re-checked both defects in three shipped builds: the October stable release (CD1A.261005.003), the November stable release (CP4A.261105.040.D1, SPL 2026-11-05) and the DP11 QPR3 beta. No bounds check had been added to any of these paths.
+
+This is static analysis of the shipped binary. I don't have a modem test rig, as the report makes clear, so there's no runtime exploit attached. On 12 November the team asked for a live software proof of concept. Two days later, on 14 November, the report was closed as Won't Fix (Infeasible) with the template "we have investigated this issue and determined that this is not a security vulnerability... logged for potential remediation in a future version", and the ASR Severity field was set to NSBC. That is the same template Google have already withdrawn on another of my reports, here applied to an unchecked, attacker-controlled `memcpy` length in the radio daemon that can be reached with zero clicks and is still present in the shipping build.
+
+## Some of the other closed bugs, in plain terms
+
+A few more of the closed reports, kept short. Each is the bug, roughly how it works, and how it is reached.
+
+**An OTA update the device will install, signed by the wrong key (ticket 541986810, closed Duplicate).** `RecoverySystem.verifyPackage` is the check that decides whether an update package is really signed by Google. It looks at two certificates and never confirms they are the same one. The trust check looks at the certificate sitting first in the package. The signature is then verified against a different certificate, chosen by an issuer and serial number that are also read from the package. So an attacker puts Google's genuine, public signing certificate first to pass the trust check, puts their own certificate further in, points the signature at that one, and signs the package with their own key. The check passes for a package they signed. It is reached through the sideload or update path, where the signature gate that is supposed to stop an unofficial package does not.
+
+**DNS still leaves the phone when you turn on "Block connections without VPN" (ticket 552188030, closed Duplicate).** VPN lockdown is meant to stop any traffic that is not inside the tunnel. DNS queries are left exempt from that block, for every app, not just the device's own traffic. So even with lockdown on, an app's DNS lookups leave the device outside the VPN, which leaks which sites are being resolved and gives a channel the lockdown is supposed to close.
+
+**Any app can switch off your Lock-on-Disconnect (ticket 552305734, closed Infeasible, still present).** The Cross-Device stack exports a broadcast receiver, `PermissionBroadcastReceiver`, with no permission on it, and it acts on the broadcast without checking who sent it. Any installed app, holding no permissions, can send that broadcast and force an immediate un-enrollment of the user's Lock-on-Disconnect security feature, turning off a protection the user had switched on.
+
+**The share sheet fetching a picture it should not (ticket 538314136, closed Infeasible, still present).** The intent resolver renders a caller-supplied icon URI without checking the caller is allowed to read it. An app hands it a URI that points at content belonging to another user or profile, and a privileged process fetches it on the attacker's behalf and hands it back.
+
+**Any app cancelling another app's on-device AI model load (ticket 558472707, closed Infeasible, still present).** `cancelModelLoad` in the NPU manager service does not check who is calling, so any app can cancel a different app's model load and deny it the hardware AI path.
+
+**A radio service you can crash with one value (ticket 555984702, closed Can't Reproduce, still present).** The `grilservice` radio-config path reads an array size straight from an incoming parcel with no cap and allocates it. A crafted size forces a huge allocation and takes the service down, dropping telephony.
+
+**Any app can bind the Play Store's setup service (ticket 564059393, closed Working As Intended).** Play Store exports `IPlaySetupServiceV2`, and the permission meant to guard it declares no protection level, so Android treats it as a normal permission and auto-grants it to any app that asks. Any installed app can then bind the service. The same pattern, a guard permission with no protection level so it auto-grants, turned up across 31 exported components in the shipped image.
+
+**An unprotected "setup finished" broadcast that rewrites your system locale (ticket 563958561, closed Infeasible).** `SETUP_WIZARD_FINISHED` is not a protected broadcast, so any app can send it. Nine privileged, system-UID receivers act on it, and one of them persistently rewrites the device's system locale. A zero-permission app sends one broadcast and changes a system-wide setting it has no right to touch.
+
+**A preinstalled app slipping past the account-ownership check (ticket 559524832, closed Infeasible).** `AccountManagerService.isSystemUid()` actually tests whether the caller is preinstalled, not whether it is the system UID. Any preinstalled app therefore passes a guard meant only for the system, and can see and remove accounts it does not own.
+
+**Faking that you are standing next to your car (ticket 560453159, closed Can't Reproduce).** Two chained UWB bugs: one leaks the secure-ranging session key, the other hijacks the Digital Key radio path. Together a zero-permission app could spoof the physical proximity that passive car entry relies on, without being anywhere near the vehicle.
+
+**One Wi-Fi frame reading out of bounds in the kernel (ticket 568933934, closed Can't Reproduce).** An unsigned integer underflow in the Broadcom Wi-Fi driver's QoS-Map action-frame handler causes an out-of-bounds read in kernel heap memory. A single 25-byte 802.11 action frame from a nearby Wi-Fi peer triggers it, with no association or pairing.
+
+**A VoLTE call message that hangs the IMS stack (ticket 560878423, closed Can't Reproduce).** A SIP message with a negative Content-Length is parsed as a signed value, the offset goes negative, and the receive loop never ends. One zero-click message puts the VoLTE/IMS stack into a permanent hang.
+
+**Any app reading and tampering with your Now Playing history (ticket 562215877, closed Infeasible).** Private Compute Services exports `NowPlayingRelayService` as a binder with no caller check, unlike four sibling services in the same app. Any installed app can read and alter the record of music the phone has recognised around you.
+
+**Any app triggering a recognition pass and reading the result (ticket 561838690, closed Infeasible).** The Android System Intelligence `MusicRelayService` binder does no caller check across its 19 transactions, so any app can read your Now Playing history and silently start a new recognition pass, listening to what is around you.
+
+**An RCS suggestion that runs JavaScript in-app with one tap (ticket 572199671, closed Working As Intended).** Google Messages' blocklist for RCS suggested-action URLs misses the `javascript:` and `data:` schemes, so a crafted suggestion loads into a JavaScript-enabled bridged WebView, and one tap runs the attacker's JavaScript inside the app.
+
+**Any app reading the CBRS radio database and its coordinates (ticket 579289116, closed Duplicate).** The `CbsdContentProvider` in SCONE is exported with no guard, so any installed app can read the CBRS CBSD database, including the CBSD location coordinates, that it should have no access to.
+
+**A Wi-Fi attribute reading out of bounds in the kernel (ticket 547477982, closed Duplicate).** The Broadcom Wi-Fi driver does not validate a NAN SDEA attribute length before using it, so a crafted value causes an out-of-bounds read in kernel memory. It is reachable from a nearby Wi-Fi peer.
+
+**A system service handed the keys to start anything (ticket 558470054, closed Infeasible).** `dcservice`, an app-tier component, is given the SELinux permission to start any init service, the only domain on the whole device with that broad grant, and for a capability its own code never uses. It is exactly the kind of over-grant that turns a small foothold into a larger one.
+
+**The SDK sandbox taking attacker file paths (ticket 561840524, closed Can't Reproduce).** `computeSdkStorage` is the one method on the SDK Runtime sandbox service that is missing the check that the caller is the system server, so any zero-permission app can bind the service and call it with paths of its choosing.
+
+**A two-byte location message that exhausts the stack (ticket 568936058, closed Can't Reproduce).** The GNSS daemon's SUPL message framing recurses into itself with no base case when a message declares a zero length, so a two-byte message drives it into infinite recursion and crashes the daemon.
+
+**A WAP-push SMS that quietly kills texting (ticket 543183960, closed Infeasible).** A malformed WAP-push message lands in a loop with an empty catch block, so instead of failing cleanly the telephony process hangs and SMS silently stops working.
+
+**A SIP message body that overflows a stack buffer (ticket 540746953, closed Duplicate).** The IMS SIP encoder copies a message body into a fixed 65535-byte array on the stack with no cap, so an oversized body overflows it.
+
+**An eUICC update any app can kick off (ticket 532021672, closed Infeasible).** `StartOtaReceiver` is exported and unprotected, so any unprivileged app can trigger the eUICC OTA flow by sending the broadcast it listens for.
+
+**A system app that fetches URLs for you (ticket 537921665, closed Working As Intended).** ConfigUpdater's exported receivers take a URL from broadcast extras and fetch it, with no checks, so an app with no INTERNET permission can make a system app perform requests on its behalf, a server-side request forgery.
+
+**Tethered traffic walking straight past VPN lockdown (ticket 552196751, closed Infeasible).** "Block connections without VPN" does not cover tethered clients, so anything connected over USB, Ethernet or the Wi-Fi hotspot bypasses the VPN entirely. Google closed it as working by construction.
+
+**Any app repainting the real enterprise-enrollment screen (ticket 552200665, closed Infeasible).** A zero-permission app can drive the phone's genuine enterprise-enrollment screen and place its own logo on it, on demand, which is the groundwork for a convincing enrollment phish.
+
+**Impersonating another process by renaming yourself (ticket 559533853, closed Infeasible).** The process-monitor daemon identifies the process it watches only by reading `/proc/pid/cmdline`, with no UID check when the vendor config leaves the uid out. Any app can set its own process name to match the target and be treated as it.
+
+**An NFC firmware-update reply read past its buffer (ticket 537923579, closed Duplicate).** The NFC firmware-update handler indexes into the response from the NFC chip using a length it does not check. It sits on the trust boundary with the physically attached NFC controller.
+
+**Any app making a system installer install an APK (ticket 563677600, closed Duplicate).** WebAppService runs as a privileged app holding INSTALL\_PACKAGES. By declaring a single intent-filter, any zero-permission app can make it install an APK, borrowing its install privilege.
+
+**A CDMA text message that overflows the radio daemon's stack (ticket 568929629, closed Duplicate).** The MediaTek RIL's CDMA CT-WAP SMS decoder (`BearerData::specialProcessForCtWapPush`) writes past a fixed buffer on a crafted message, with no interaction. This is the write half of the SMS chain described above, filed on its own.
+
+**A reported heap write in the Messages image decoder (ticket 537918512, closed Working As Intended).** A crafted animated-WebP image delivered by MMS or RCS, where the frame-disposal step in `libframesequence` was reported to clear a region using a width and height taken from the file without clamping them, overflowing the pixel buffer. Google closed it Working As Intended, and unlike most of the entries here I could not fully confirm the path in the shipped binary, so it is listed as reported and closed rather than verified.
+
+## Fixed in shipped code, closed without a reward
+
+Each row is a closed report, checked against Google's current factory image. "Fixed" means the code the report described has changed: the report was right, the fix shipped, the ticket stayed closed and nothing was paid.
+
+| Ticket    | Component / function                              | Closure                                    | Verdict                                                                         |
+| --------- | ------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
+| 549662989 | PixelModemService `MintReceiver` guard permission | Duplicate                                  | Fixed. `MINT_CONFIGURATION_UPDATE_BROADCAST` now defined, signature&#124;privileged. |
+| 538369053 | framework.jar `PduParser.parseParts`              | Duplicate ("internal Google engineer")     | Fixed. Bounds check against `stream.available()` added before the allocation.   |
+| 560866996 | framework.jar `PduParser` (same defect)           | Duplicate, "internal Google engineer"      | Fixed, same change as 538369053.                                                |
+| 545948346 | libpixelimsmedia.so `numberOfReportBlocks`        | Duplicate, "internal Google engineer"      | Fixed. Underflow check added before the division.                               |
+| 540755547 | libpixelimsmedia.so `decodeRtcpChunk`             | Duplicate                                  | Fixed. Bounds check on the SDES item length before the copy.                    |
+| 541096815 | libpixelimsmedia.so `DecodeRtpHeaderExtension`    | Infeasible, "not a security vulnerability" | Fixed. Length byte now read unsigned, new bounds check after it.                |
+| 540753210 | libpixelimsmedia.so `decodeRtcpFbPacket`          | Duplicate                                  | Fixed. Length check added before the op that underflowed.                       |
+| 529518244 | ShannonRcs.apk `DeviceProvisioningService`        | Duplicate                                  | Fixed. Now requires a signature&#124;privileged permission where it had none.   |
+
+That's eight tickets, closed as duplicate or infeasible, that have been fixed in the shipping image. I re-checked all eight against the October builds and the fixes are still in place.
+
+Two more have been fixed in the QPR3 beta (DP11.261002.005) but not yet in a stable release:
+
+| Ticket                | Component / function                                   | Closure     | Verdict                                                                                                                                   |
+| --------------------- | ------------------------------------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 555981160             | telephony-common.jar `ValueParser.retrieveItemsIconId` | Can't Repro | Fixed on QPR3 beta: a `length < 1` guard added before the array allocation. Still unchanged on the current stable image.                  |
+| 538367541 / 543174762 | telephony-common.jar `WapPushOverSms.decodeWapPdu`     | Duplicate   | Fixed on QPR3 beta: a bounds check (`decodedDataLength + value <= buffer length`) added before the allocation. Still unchanged on stable. |
+
+## The WAP push bug has now been made public
+
+On 30 October 2026 another researcher independently disclosed a zero-click WAP push crash in Android's telephony stack (smsofdeath.com), which has been reported here: [cybersecuritynews.com/zero-click-android-vulnerability](https://cybersecuritynews.com/zero-click-android-vulnerability/). A single malformed WAP push SMS causes `WapPushOverSms.decodeWapPdu` to allocate an array from an unvalidated, truncated header length. This throws an uncaught `NegativeArraySizeException` that kills the telephony process, and because the carrier keeps redelivering the unacknowledged message, one SMS becomes a recurring outage.
+
+I reported that exact defect twice, with the root cause in `WspTypeDecoder` and `WapPushOverSms` traced frame by frame, and a working proof against the shipped decoder:
+
+- Issue 538367541, filed on 24 July 2026: [issuetracker.google.com/issues/538367541](https://issuetracker.google.com/issues/538367541)
+- Issue 543174762, filed on 6 August 2026: [issuetracker.google.com/issues/543174762](https://issuetracker.google.com/issues/543174762)
+
+Both were closed as duplicates of internal report 517376969, which Google say was filed by their internal automated testing in late May 2026. The fix, a bounds check before the allocation, shipped in the QPR3 beta (`DP11.261002.005`) and is still missing from the current stable build. On 30 October 2026 Google told me on the record that, because their internal tool found it first, my reports are "not eligible for a reward".
+
+So in this one pair of tickets you can see the whole pattern: reported early, verified against the source, closed as a duplicate, fixed without comment in a later build, disclosed publicly by someone else, and never paid.
+
+## The fix ships before the report is resolved
+
+The clearest way to see this is to put two factory images with the same patch level side by side. Take the WAP push crash (538367541 / 543174762, closed as Duplicate) and the SIM Toolkit crash (555981160, closed as "not reproducible" and later changed to Duplicate). Both are closed, and neither was paid.
+
+The same file, at the same security patch level, in two builds:
+
+- Stable, google/yogi/yogi:17/CD1A.261005.003 (2026-10-05): still unguarded, exactly as reported.
+- QPR3 beta, google/yogi\_beta/yogi:17/DP11.261002.005 (same patch level): the guard the report asked for is already there. For the WAP push bug, a bounds check before the allocation; for the SIM Toolkit bug, a `length < 1` check before it.
+
+You can compare them yourself:
+
+```
+jadx -d out telephony-common.jar
+```
+
+The bug was real enough to fix, and the fix is in a shipping build. Yet the report that found it, and described that exact fix, was closed as a duplicate or a non-issue and paid nothing. The credit went instead to an internal report I'm not allowed to see, filed on a date I can't verify, against firmware that had only just been released.
+
+## Still unpatched, closed for reasons that don't hold up
+
+I'm not claiming payment for any of these; none of them has been fixed. They're listed because the reason given for closing each one doesn't match the code. The defect is still there, unchanged, in the current factory image. Every one of these reports has been closed.
+
+| Ticket                         | Component / function                                              | Closure      | Verdict                                                                                                                                                                                                                                                                               |
+| ------------------------------ | ----------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 561846309                      | ConfigUpdater.apk `PhenotypeHelper.getCertificate()`              | WAI          | Unchanged. Returns one certificate for every config type while its sibling methods switch on type.                                                                                                                                                                                    |
+| 552305734                      | CrossDeviceAccessServicePrimary.apk `PermissionBroadcastReceiver` | Infeasible   | Unchanged. Exported, no permission.                                                                                                                                                                                                                                                   |
+| 558478942 (re-filed 585012607) | DCMO.apk `DcmoReceiver`                                           | Duplicate    | Unchanged. Exported, no permission, fail-open `isVerizon()` carrier gate (empty operator && empty IMSI returns true, so a bogus subscription id passes it). Re-filed 12 Nov 2026 after re-verifying it in CP4A.261105.040.D1; re-closed Duplicate of 545652324, a report I can't see. |
+| 557568085                      | TelephonyProvider.apk `updateSynchronized()`                      | Duplicate    | Unchanged. Caller-supplied selection concatenated with no parentheses before the ownership clause.                                                                                                                                                                                    |
+| 555984702                      | grilservice.apk `RadioConfig.readFromParcel`                      | Can't Repro  | Unchanged. Raw `readInt()` size used as an allocation, no upper bound.                                                                                                                                                                                                                |
+| 552188030                      | services.jar `Vpn.setVpnForcedLocked()`                           | Duplicate    | Unchanged. UID 0 excluded from the VPN lockdown range.                                                                                                                                                                                                                                |
+| 558472707                      | service-npumanager.jar `cancelModelLoad`                          | Infeasible   | Unchanged. No caller-identity check, unlike sibling methods on the same class.                                                                                                                                                                                                        |
+| 537920968                      | nfc\_nci.st21nfc.default.so `handlePollingLoopData`               | Infeasible   | Unchanged. Same undersized length-check logic at the function's new address.                                                                                                                                                                                                          |
+| 538311587                      | android.hardware.secure\_element-service.uicc                     | Infeasible   | Unchanged. Same mutex/slot/type offsets, no per-call correlation token.                                                                                                                                                                                                               |
+| 538314136                      | IntentResolver.apk `UriMetadataReaderImpl.getMetadata`            | Infeasible   | Unchanged. No ownership check on the cross-profile URI read, after a refactor.                                                                                                                                                                                                        |
+| 561843639                      | libmtkmipc-ril.so `handleUssdInd`                                 | (reply only) | Unchanged, recompiled only. Wrong TLV length still used as the copy length.                                                                                                                                                                                                           |
+| 529102332                      | ShannonRcs.apk `DebugBroadcastReceiver`                           | Duplicate    | Unchanged. Exported, no permission.                                                                                                                                                                                                                                                   |
+| 541986810                      | framework.jar `RecoverySystem.verifyPackage`                      | Duplicate    | Unchanged. The certificate checked and the certificate used for verification can still differ.                                                                                                                                                                                        |
+| 547481980                      | services.jar `FileService.enqueueOperation`                       | Duplicate    | Unchanged (high confidence). No ownership or permission check before dispatch.                                                                                                                                                                                                        |
+
+## In total
+
+- Fixed in shipped code with no reward or credit: eight in the stable release and two in the QPR3 beta. Ten in all, each a separate ticket.
+- Still present, after being closed for reasons the code contradicts: the tickets above, plus further Samsung and MediaTek reports submitted through the same programme.
+- Undetermined: a handful where a build or device mismatch, a missing partition or a stripped binary made the comparison unreliable. These are marked as such rather than guessed.
+
+## Similar cases
+
+Other researchers have described much the same experience with Google's reward programmes. These are the cases that have been reported publicly.
+
+**Config Connector, 2026.** In June 2026 [The Register reported](https://www.theregister.com/security/2026/06/18/google-told-researcher-nice-catch-then-denied-bug-bounty-for-flaw-it-still-hasnt-fixed/5258076) on Justin O'Leary's "ConfigConfusion" flaw in Google Config Connector, which allowed a user in one Kubernetes namespace to obtain organisation owner rights in GCP. He reported it on 8 March. Google replied "Nice catch!", rated it P1/S1 and accepted it, then reversed its position, said the product was working as intended and refused the reward. Google's view was that not paying a reward "does not mean that the product team won't fix the issue". Months later the ticket still showed as accepted, with no CVE and no fix. O'Leary's argument was straightforward: if it needs fixing, it isn't intended behaviour, and if it isn't intended behaviour, it qualifies for a reward.
+
+**Antigravity, 2025.** When Google launched its Antigravity AI coding tool, researchers at Mindgard reported that a tampered workspace could plant code that would run every time the application started. Google [closed the report on 21 November as "Won't Fix (Intended Behavior)"](https://mindgard.ai/blog/google-antigravity-persistent-code-execution-vulnerability), and only reopened and escalated it after Mindgard published their findings four days later. The issue was later fixed.
+
+**Pixel lock screen bypass, 2022.** David Schütz found that he could unlock a Pixel without its passcode by swapping the SIM card and entering the PUK code. He reported it in June 2022 and, some months later, was told it was a duplicate. The earlier report was one Google had been unable to reproduce. Only after he kept pressing, and demonstrated the bypass to Google engineers in person, was it fixed in the November 2022 update (CVE-2022-20465). He was [paid $70,000](https://www.securityweek.com/google-pays-70k-android-lock-screen-bypass), rather than the $100,000 available for a lock screen bypass, because his report was still treated as a duplicate.
+
+In 2020 CSO Online covered the wider problem (J.M. Porup, *"Bug bounty platforms buy researcher silence, violate labor laws, critics say"*). Critics in that piece, including legal scholars such as Amit Elazari and Katie Moussouris, argue that these programmes can be used to suppress disclosure, that researchers often have no legal safe harbour, and that the model raises questions under labour law. The description of researchers as disposable contractors whose finished work can be rejected without recourse is mine, not theirs.
