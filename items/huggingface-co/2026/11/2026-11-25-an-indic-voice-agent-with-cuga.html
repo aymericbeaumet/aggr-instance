@@ -1,0 +1,116 @@
+<div id="readability-page-1" class="page"><div> 
+<p>Most useful knowledge is written and digitized in English. Most of the people who need it speak, and think, in their own regional languages like Hindi, Tamil, Telugu, Gujarati, Marathi and many others. Many would rather talk than type.</p>
+<p>We built a small voice agent to close that gap, using <a href="https://cuga.dev" rel="nofollow">CUGA</a> as the agent harness. This post explains the use case and what we learned. You can try it yourself in <a href="https://huggingface.co/spaces/ibm-research/cuga-apps">CUGA Apps</a>.</p>
+<h2>
+	<a id="the-use-case-a-farm-assistant" href="#the-use-case-a-farm-assistant" rel="nofollow">
+		
+	</a>
+	<span>
+		The use case: a Farm Assistant
+	</span>
+</h2>
+<p>A farmer asks a question aloud, in their own language: <em>how do I tell good seed from bad?</em> The agent:</p>
+<ol>
+<li><strong>Listens</strong> and turns the speech into text.</li>
+<li><strong>Searches</strong> a 154-page agricultural handbook, which is written in English.</li>
+<li><strong>Answers</strong> in two to four spoken sentences, in the language the question was asked in, using only what the handbook says.</li>
+<li><strong>Speaks</strong> the answer back and shows the source pages, so the answer can be checked.</li>
+</ol>
+<p>If someone asks about cricket or coding, it politely steers them back to farming instead of making something up.</p>
+<h2>
+	<a id="where-cuga-fits" href="#where-cuga-fits" rel="nofollow">
+		
+	</a>
+	<span>
+		Where CUGA fits
+	</span>
+</h2>
+<p><a href="https://cuga.dev" rel="nofollow">CUGA</a> (ConfigUrable Generalist Agent) is IBM Research's open-source agent harness. It handles the model wiring, tool management, state and guardrails, so you write tools and a prompt instead of the agent loop. Here we use it as an embedded SDK inside a small web app, for three things:</p>
+<ul>
+<li><strong>One agent, any model.</strong> Switch between watsonx and OpenAI with one setting.</li>
+<li><strong>The knowledge engine.</strong> Parse a PDF, chunk it, embed it, and search it locally with <code>agent.knowledge.search()</code>.</li>
+<li><strong>Conversation threads.</strong> Each question gets a fresh thread, so one person's language or context never leaks into another's.</li>
+</ul>
+<p>The key design idea is simple: <strong>CUGA is a text-in, text-out brain.</strong> Voice is two thin layers around it.</p>
+<pre><code>audio ──▶ speech-to-text ──▶ knowledge.search ──▶ CUGA (grounded answer) ──▶ text-to-speech ──▶ audio
+</code></pre>
+<p>Because the agent only ever sees text, you can build and test it with plain text first, then add the ears and the mouth. You can also swap speech providers without touching the agent. We support two: Sarvam AI's cloud speech APIs, called directly from the user's browser, and open-source models (SraVaani for speech-to-text, Svara for text-to-speech) running on your own server.</p>
+<h3>
+	<a id="the-hard-part-is-not-the-voice" href="#the-hard-part-is-not-the-voice" rel="nofollow">
+		
+	</a>
+	<span>
+		The hard part is not the voice
+	</span>
+</h3>
+<p>Adding speech is the easy part. The hard part is <strong>cross-lingual retrieval</strong>: a Hindi question has to find an English paragraph.</p>
+<p>Search works by turning text into vectors and finding the nearest ones. CUGA's default embedding model is English-only, so it turns Hindi into vectors that carry almost no meaning. With it, a Hindi or Tamil question still retrieves five passages, but they are the wrong ones. The model, correctly told to answer only from what it was given, quietly says "the handbook doesn't cover that". Every layer behaves correctly, so there is no error and no warning.</p>
+<p>The fix is to use a multilingual embedding model (we use <code>intfloat/multilingual-e5-large</code>), so the same meaning lands in the same place whatever the language. Conceptually simple, though wiring it into CUGA took a small workaround (shown in the tutorial). After that, one English document serves every language, and you do not need translated copies of anything.</p>
+<p>Our advice: before you tune a single prompt, ask your agent one question in a non-English language and check that it finds the right pages.</p>
+<h3>
+	<a id="making-it-sound-right-and-keeping-it-safe" href="#making-it-sound-right-and-keeping-it-safe" rel="nofollow">
+		
+	</a>
+	<span>
+		Making it sound right and keeping it safe
+	</span>
+</h3>
+<p>A few small decisions mattered more than we expected:</p>
+<ul>
+<li><strong>Write for the ear.</strong> Markdown, bullet points, citation tags and bracketed translations such as "millet (बाजरा)" all sound wrong when read aloud. The prompt asks the model not to produce them, and a light formatter strips any that slip through before speech.</li>
+<li><strong>Keep guardrails cheap.</strong> Simple input checks catch obvious off-topic questions. If one gets through, the model starts its reply with <code>OFF_TOPIC</code>, and the app swaps in a polite redirect. No second LLM call, so the voice path stays fast.</li>
+<li><strong>Ground every answer.</strong> The model sees only the retrieved passages, is told not to use outside knowledge, and the page sources are shown to the user.</li>
+<li><strong>Keep keys out of the server.</strong> With the Sarvam option, the browser talks to Sarvam directly. The server receives only text and never sees the user's key.</li>
+</ul>
+<h2>
+	<a id="try-it" href="#try-it" rel="nofollow">
+		
+	</a>
+	<span>
+		Try it
+	</span>
+</h2>
+<p>You do not need to set anything up to see it work. Open the voice agent in <strong>CUGA Apps</strong> on Hugging Face Spaces, ask a farming question in your language, and listen to the answer:</p>
+<p><strong><a href="https://huggingface.co/spaces/ibm-research/cuga-apps">CUGA Apps on Hugging Face →</a></strong></p>
+<p>Want to build one yourself? Our step-by-step tutorial, <a href="https://huggingface.co/blog/ibm-research/build-an-indic-voice-agent-with-cuga.md">Build an Indic Voice Agent with CUGA</a>, starts from an empty folder and adds each layer in turn.</p>
+<h2>
+	<a id="beyond-farming-scaling-for-bharat" href="#beyond-farming-scaling-for-bharat" rel="nofollow">
+		
+	</a>
+	<span>
+		Beyond farming: Scaling for Bharat
+	</span>
+</h2>
+<p>Nothing here is specific to agriculture. Swap the handbook for scheme documents, health advisories, or legal guides, and you have a different assistant. Swap the speech provider and you change the deployment model, such as cloud for speed or on-premises for data sovereignty, without rewriting the agent.</p>
+<p>Voice-first, multilingual assistants are how digital services can reach people who were never served well by English-only text screens. Building them on an open, auditable harness, with answers tied to sources people can check, is how they earn trust.</p>
+<p>This approach sits precisely at the intersection of what we are building with IBM Bharat Core. Bharat Core is an optimized AI stack built on top of IBM Sovereign Core, designed specifically for the Indian ecosystem to run Indic AI workloads securely on local infrastructure. When scaling a voice agent from a prototype to a secure enterprise application (like a vernacular KYC system or multilingual government bot), you need greater control over data sovereignty. By pairing CUGA’s flexible agent harness with Bharat Core’s ready-to-deploy Indic connectors and fine-tuned models, developers can build fully compliant, sovereign AI solutions tailored to India's unique linguistic diversity.</p>
+<p>If you are building for India at scale, see the work happening at <strong><a href="https://www.ibmbharatcore.info/" rel="nofollow">IBM Bharat Core</a></strong>.</p>
+<h2>
+	<a id="learn-more-about-cuga" href="#learn-more-about-cuga" rel="nofollow">
+		
+	</a>
+	<span>
+		Learn more about CUGA
+	</span>
+</h2>
+<p>New to CUGA? Here are some places to start:</p>
+<ul>
+<li><strong><a href="https://cuga.dev" rel="nofollow">cuga.dev</a></strong>: the CUGA home page.</li>
+<li><strong><a href="https://github.com/cuga-project/cuga-agent" rel="nofollow">CUGA on GitHub</a></strong>: the open-source harness (Apache 2.0). Star it, file issues, or pick up a good first issue.</li>
+<li><strong><a href="https://docs.cuga.dev" rel="nofollow">CUGA documentation</a></strong>: setup, the SDK, knowledge, policies and configuration.</li>
+<li><strong><a href="https://github.com/cuga-project/cuga-apps" rel="nofollow">CUGA Apps gallery on GitHub</a></strong>: the source for the apps in the Hugging Face Space.</li>
+</ul>
+<p>Spaces you can try in your browser:</p>
+<ul>
+<li><strong><a href="https://huggingface.co/spaces/ibm-research/cuga-agent">CUGA Agent</a></strong>: the general-purpose agent, running on a demo CRM scenario.</li>
+<li><strong><a href="https://huggingface.co/spaces/ibm-research/cuga-apps">CUGA Apps</a></strong>: launch working CUGA apps from one dashboard.</li>
+<li><strong><a href="https://huggingface.co/spaces/ibm-research/cuga-policy-playground">CUGA Policy Playground</a></strong>: two live agents side by side, one with policies and one without.</li>
+</ul>
+<p>More CUGA posts on the Hugging Face blog:</p>
+<ul>
+<li><strong><a href="https://huggingface.co/blog/ibm-research/cuga-on-hugging-face">CUGA on Hugging Face: Democratizing Configurable AI Agents</a></strong>: the introduction to CUGA and its configurable reasoning modes.</li>
+<li><strong><a href="https://huggingface.co/blog/ibm-research/cuga-apps">Build real agentic apps using CUGA: two dozen working examples on a lightweight harness</a></strong>: the app gallery this voice agent belongs to.</li>
+<li><strong><a href="https://huggingface.co/blog/ibm-research/cuga-harness">Same Model, Different Harness: CUGA, Hermes, and Deep Agents — When to Pick CUGA?</a></strong>: how much the harness matters when the model stays the same.</li>
+</ul>
+<hr>
+</div></div>
