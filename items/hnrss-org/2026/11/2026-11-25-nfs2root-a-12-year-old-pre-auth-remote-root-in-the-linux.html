@@ -1,0 +1,84 @@
+<p>If your Linux server speaks NFS, anyone who can reach port 2049 can own it. No password, no account, no click. For 12 years, one TCP connection has been enough to corrupt kernel memory, and OpenSec&#39;s Antara turned that into a root shell on its own.</p><div id="readability-page-1" class="page"><div><p>Port 2049 sits open on file servers, NAS appliances, build farms and Kubernetes storage nodes. Since 2014, the Linux kernel listening on it has let anyone who can reach it write into kernel memory before logging in. We pointed OpenSec's Antara at it. It came back with a root shell.</p>
+<div role="note" aria-label="Advisory CVE-2026-99362"><div><p><span>Advisory</span><a href="https://www.cve.org/CVERecord?id=CVE-2026-99362" rel="noopener noreferrer">CVE-2026-99362</a><span>critical</span><span>CVSS 9.8</span></p></div><p>Pre-auth heap overflow in the Linux NFS server (nfsd)</p><p>Fixed in Linux 6.12.117, 6.18.61, 7.3.2 and 7.4-rc1. Update the kernel and reboot.</p></div>
+<section id="summary"><p>What you need to know</p><ul>
+<li><strong>What:</strong> a pre-auth heap overflow in the kernel's NFS server, <code>nfsd</code>.</li>
+<li><strong>Who:</strong> any Linux host serving NFSv4.1 or 4.2 (the default) on a reachable tcp/2049.</li>
+<li><strong>Impact:</strong> one TCP connection writes 61 bytes past a kernel heap object; chained, that gives a root shell.</li>
+<li><strong>Now:</strong> patch and reboot. Until then, firewall tcp/2049.</li>
+</ul></section>
+<section><p>Key facts</p><ul>
+<li><strong>Severity</strong> 9.8 Critical (AV:N/AC:L/PR:N/UI:N)</li>
+<li><strong>Attack</strong> Remote, unauthenticated, tcp/2049</li>
+<li><strong>Impact</strong> Kernel heap overflow → remote root shell</li>
+<li><strong>Bug age</strong> 12 years, since Linux 3.16 (2014)</li>
+<li><strong>Affected</strong> In-kernel nfsd with NFSv4.1 or 4.2</li>
+<li><strong>Fixed in</strong> 6.12.117 · 6.18.61 · 7.3.2 · 7.4-rc1</li>
+</ul></section>
+<h2 id="one-connection-no-login">One connection, no login</h2>
+<p>The NFS server runs inside the kernel and parses network input before it knows who you are. CVE-2026-99362 lives in that gap: a client can shrink its reply cache to zero bytes, then make the server copy a full reply into it. The copy lands on the kernel heap, and the client picks most of the bytes.</p>
+<figure><img src="https://opensec.in/blog/media/63924b61-ee67-4f14-a358-c3611501d6e6.jpg" alt="Diagram of the NFS2ROOT attack path: an attacker on the network sends NFSv4.1 requests to tcp/2049 on a Linux server, the in-kernel nfsd overflows its reply cache, and the kernel ends up running a root shell" loading="lazy" decoding="async"><figcaption>How NFS2ROOT reaches a Linux NFS server: one unauthenticated TCP connection to port 2049</figcaption></figure>
+<h2 id="twelve-years-in-a-few-lines-of-c">Twelve years in a few lines of C</h2>
+<section><p>Timeline</p><ol><li><time>Mar 2014</time><p>Commit <code>47ee52986472</code> narrows the reply buffer while handling <code>SEQUENCE</code>. It ships in Linux 3.16.</p></li><li><time>2014 to 2026</time><p><span>12 years</span>Every kernel since 3.16 carries it: LTS, distribution and appliance kernels.</p></li><li><time>17 Aug 2026</time><p>Jérémy Jean of ANSSI sends a fix upstream with a KASAN report.</p></li><li><time>21 Sep 2026</time><p>OpenSec's Antara flags the bug, scores it 9.8 and turns it into a root shell on its own.</p></li><li><time>20 Nov 2026</time><p>CVE-2026-99362 is published with fixes.</p></li></ol></section>
+<h2 id="watch-it-run">Watch it run</h2>
+<p>A real run, end to end. Left: the victim's console. Right: our client on another machine, talking to the victim only over tcp/2049.</p>
+<figure id="video"><figcaption>NFS2ROOT recording: an unauthenticated client gets a root shell on a Linux NFS server</figcaption></figure>
+<figure><img src="https://opensec.in/blog/media/85692da2-be77-4b62-bb8e-4b7f22172519.jpg" alt="Two terminal windows: the victim console shows a kernel WARNING from nfsd4_check_resp_size while the attacker window shows the exploit leaking kernel memory" loading="lazy" decoding="async"><figcaption>The overflow. The kernel warns in <code>nfsd4_check_resp_size</code>, but the out-of-bounds copy has already happened.</figcaption></figure>
+<figure><img src="https://opensec.in/blog/media/cd2844be-4b3a-4a31-8234-ccfe30ebd25a.jpg" alt="Victim console printing root and uid=0(root) gid=0 after the attacker closes its connection, beside the attacker window reporting remote root code execution confirmed" loading="lazy" decoding="async"><figcaption>Root. The attacker hangs up, and the victim's kernel runs our command: <code>root</code>, then <code>uid=0(root)</code>, then power-off.</figcaption></figure>
+<h2 id="root-cause">Root cause</h2>
+<p>Each NFSv4.1 session slot caches its last reply, so a retried request is answered exactly once. The client decides how big that cache is.</p>
+<p>Set it to the minimum and every slot's buffer is zero bytes. <code>nfsd4_sequence()</code> then shrinks the reply buffer to that limit <em>before</em> it accepts the slot. Pad the request's tag so the buffer fills right after the <code>SEQUENCE</code> opcode, and the encoder quits without flagging an error. The server believes <code>SEQUENCE</code> succeeded and caches the whole reply, headers and tag included, into a buffer with room for nothing.</p>
+<figure><figcaption><span>KASAN report from the upstream fix</span><span>text</span></figcaption><pre><code data-language="text">BUG: KASAN: slab-out-of-bounds in read_bytes_from_xdr_buf+0x1bc/0x390
+Write of size 80 at addr ffff888003a549cd
+ __asan_memcpy+0x38/0x60
+ read_bytes_from_xdr_buf+0x1bc/0x390
+ nfsd4_sequence_done+0x5b0/0x810
+ nfs4svc_encode_compoundres+0x1bf/0x240</code></pre></figure>
+<p>That is 80 bytes copied, 61 of them past the end of the heap object, 40 of them chosen by the client.</p>
+<figure><img src="https://opensec.in/blog/media/42e4b31c-c66c-403b-b3f9-d747e5eb23f4.jpg" alt="Diagram of the root cause: a SEQUENCE reply is copied into a zero-length per-slot reply cache, overflowing into the neighbouring kmalloc-96 heap object" loading="lazy" decoding="async"><figcaption>Inside NFS2ROOT: the reply is copied into a slot buffer with no room for it.</figcaption></figure>
+<p>The fix checks that the reply fits before taking the slot, and makes the encoder report what it can't fit.</p>
+<h2 id="from-overflow-to-root">From overflow to root</h2>
+<p>The exploit stays private. Each step is an ordinary NFS request:</p>
+<section><ol><li><strong>Overflow</strong><p>The write corrupts the neighbouring slot's bookkeeping.</p></li><li><strong>Leak</strong><p>A replay request returns 3.8 KB of kernel heap, and with it the KASLR slide.</p></li><li><strong>Free</strong><p>A forged pointer makes the kernel free an object we choose.</p></li><li><strong>Reclaim</strong><p>We refill that memory with a fake callback built from NFS client names.</p></li><li><strong>Trigger</strong><p>We hang up. <code>nfsd</code> calls the fake callback, and the kernel runs <code>/bin/sh</code> as root.</p></li></ol></section>
+<p>In the recording, that command is <code>whoami; id; poweroff -f</code>: the victim prints <code>root</code>, then <code>uid=0(root)</code>, and switches itself off.</p>
+<h2 id="found-and-proven-by-a-machine">Found and proven by a machine</h2>
+<p>Antara, OpenSec's white-box harness, flagged the <code>nfsd</code> reply-cache path, scored it 9.8, and built the leak, the arbitrary free and the root shell shown in the video by itself: end to end, with no human in the loop.</p>
+<blockquote>
+<p>Kernel hardening does not remove the overflow. Patch every host.</p>
+</blockquote>
+<h2 id="am-i-exposed">Am I exposed?</h2>
+<p>Tick what's true for your host. All four means exposed, today.</p>
+<section><p>Am I exposed?</p><ul><li><label><span><strong>Kernel</strong><small>Older than 6.12.117, 6.18.61, 7.3.2 or 7.4-rc1, with no distribution backport</small></span><code>uname -r</code></label></li><li><label><span><strong>nfsd running</strong><small>The in-kernel NFS server is loaded</small></span><code>lsmod | grep -w nfsd</code></label></li><li><label><span><strong>NFSv4.1 or 4.2 on</strong><small>The list shows <code>+4.1</code> or <code>+4.2</code></small></span><code>cat /proc/fs/nfsd/versions</code></label></li><li><label><span><strong>2049 reachable</strong><small>Listening on an address other than loopback</small></span><code>ss -ltn 'sport = :2049'</code></label></li></ul><output aria-live="polite">0 of 4 conditions met</output></section>
+<h2 id="what-to-do">What to do</h2>
+<h3 id="patch-and-reboot">Patch and reboot</h3>
+<div tabindex="0"><table><thead><tr><th>Branch</th><th>Fixed in</th></tr></thead><tbody><tr><td>6.12 LTS</td><td>6.12.117</td></tr><tr><td>6.18</td><td>6.18.61</td></tr><tr><td>7.3</td><td>7.3.2</td></tr><tr><td>mainline</td><td>7.4-rc1</td></tr></tbody></table></div>
+<p>On a distribution kernel, install the update that lists CVE-2026-99362.</p>
+<h3 id="can-t-patch-today-close-2049">Can't patch today? Close 2049</h3>
+<figure><figcaption><span>Only the storage network may reach nfsd</span><span>Bash</span></figcaption><pre><code data-language="bash">nft add rule inet filter input tcp dport 2049 ip saddr != 10.20.0.0/16 drop</code></pre></figure>
+<h3 id="or-turn-off-nfsv4-1-and-4-2">Or turn off NFSv4.1 and 4.2</h3>
+<figure><figcaption><span>/etc/nfs.conf</span><span>ini</span></figcaption><pre><code data-language="ini">[nfsd]
+vers4.1=n
+vers4.2=n</code></pre></figure>
+<p>Then restart <code>nfs-server</code>. This turns off pNFS and some 4.2 features.</p>
+<h2 id="hunting-for-it">Hunting for it</h2>
+<p>The attack is valid NFS, so there is no network signature. Look for:</p>
+<ul>
+<li><strong>Kernel warnings</strong> from <code>nfsd4_check_resp_size</code>, on every attempt, successful or not.</li>
+<li><strong>Oopses</strong> with <code>nfsd4_*</code>, <code>svc_*</code> or <code>call_usermodehelper*</code> frames.</li>
+<li><strong>Shells spawned by kernel workers</strong> on a file server.</li>
+<li><strong>Bursts of short NFSv4.1 sessions</strong> from one source.</li>
+</ul>
+<h2 id="disclosure">Disclosure</h2>
+<p>We reported the bug to the NFSD maintainers and <a href="mailto:security@kernel.org" rel="noopener noreferrer">security@kernel.org</a> on 22 September 2026 with the full remote-root exploit, and sent a patch the same day. CVE-2026-99362 was published with fixes on 20 November.</p>
+<h2 id="credits">Credits</h2>
+<ul>
+<li><strong>OpenSec Intelligence:</strong> found the bug with Antara, which escalated it to pre-auth root on its own, and reported it with the full exploit and a patch.</li>
+<li><strong>Jérémy Jean (ANSSI):</strong> found it independently and wrote the upstream fix, <code>5d5a72e965c8</code> and <code>241848cc774e</code>.</li>
+<li><strong>Chuck Lever and Jeff Layton:</strong> the NFSD maintainers.</li>
+</ul>
+<h2 id="references">References</h2>
+<p><a href="https://github.com/torvalds/linux/commit/5d5a72e965c8" rel="noopener noreferrer"><span><span>nfsd: preflight SEQUENCE replies before accepting a slot</span><span>The upstream fix for CVE-2026-99362, by Jérémy Jean.</span><span><span>github.com</span></span></span></a>
+<a href="https://github.com/torvalds/linux/commit/241848cc774e" rel="noopener noreferrer"><span><span>nfsd: set op-&gt;status when an operation's header cannot be encoded</span><span>The follow-up guard in the NFSv4 encoder.</span><span><span>github.com</span></span></span></a></p><ul>
+<li>Introduced by <a href="https://github.com/torvalds/linux/commit/47ee52986472" rel="noopener noreferrer">47ee52986472</a> (Linux 3.16)</li>
+<li><a href="https://patch.msgid.link/20260817-jean-v1-1-9e356596ab85@kernel.org" rel="noopener noreferrer">Patch thread</a></li>
+<li><a href="https://lore.kernel.org/linux-nfs/20260922112608.1256363-1-mayank.jangid.moon@gmail.com/" rel="noopener noreferrer">OpenSec's patch submission</a></li>
+</ul></div></div>
