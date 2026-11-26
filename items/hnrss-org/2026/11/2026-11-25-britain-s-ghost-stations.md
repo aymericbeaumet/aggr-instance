@@ -1,0 +1,44 @@
+---
+title: Britain's ghost stations
+link: https://spectator.com/article/britains-ghost-stations-are-fascinating/
+source: hnrss-org
+published: 2026-11-25T17:43:46Z
+updated: 2026-11-25T17:43:46Z
+first_seen: 2026-11-26T02:47:10.395377406Z
+authors:
+- translocator
+summary: 'https://archive.ph/pfVdX Comments URL: https://news.ycombinator.com/item?id=50645074 Points: 100 # Comments: 21'
+content: extracted
+html: 2026-11-25-britain-s-ghost-stations.html
+remote_preview:
+  url: https://spectator.com/wp-content/uploads/2026/11/GettyImages-929334326-e1795346317691.jpg
+---
+
+-
+- [Comments](https://spectator.com/article/britains-ghost-stations-are-fascinating/#comments-container)
+
+When I stepped off a train at Achanalt station into the frosty Highlands one morning last March, I did notice that it wasn’t quite Waterloo in the rush hour, but I didn’t realise what an exclusive club I had just joined. According to a list of Britain’s most and least-used stations published this week, I was one of only 352 people to board or get off a train there in the entire 12 months from April 2025 to March 2026.
+
+Flanders and Swann wrote ‘The Slow Train’ about the Beeching closures, lamenting the rural stations which were to close. They needn’t have worried: over half a century on, such places still exist.
+
+My instinct is to attack the waste of public money in keeping a station open when hardly anyone uses it, but the absurdity of Britain’s ‘ghost’ stations fascinates me more than angers me. In any case, having paid £11 to travel 20 miles down the line from Strathcarron, I did rather feel that I had single-handedly covered the annual cost of maintaining what is really little more than a platform and Perspex shelter.
+
+Achanalt, it turns out, is only the 15th least-used station in Britain. The honour of being the least-used this year is taken by Reddish South, on an obscure line from Stockport to Stalybridge in Greater Manchester, which was used by only 94 passengers. It is an achievement it will be hard-pressed to repeat next year, as the country’s least-used station invariably receives a leap in custom as railway fanatics descend on it just for the sake of being there: station-visiting has apparently taken over from train-spotting now that few trains have proper locomotives any more. Last year’s winner of the title for least-used station, Elton and Orston, in Nottinghamshire, saw its annual passenger numbers jump from 68 to 102, demoting it to third place. I wouldn’t be surprised if every single one of the extra passengers wore an anorak and carried a bag of Marmite sandwiches.
+
+### Most popular
+
+#### [Tali Fraser](https://spectator.com/writer/tali-fraser)
+
+##### Burnham’s dad jokes couldn’t save him at PMQs
+
+[![Burnham’s dad jokes couldn’t save him at PMQs](https://spectator.com/wp-content/uploads/2026/11/Screenshot-2026-11-25-at-16.11.10.png)](https://spectator.com/article/burnhams-dad-jokes-couldnt-save-him-at-pmqs/?most-popular=1)
+
+There are two types of ghost station. Firstly, there are those such as Reddish South which are the product of public opposition to the Beeching closures. Some time in the 1970s, British Rail stopped closing stations, reckoning that the bureaucracy and expense of going through the consultation procedure required to remove them from the railway map altogether was greater than simply running down the service to a minimal level. As a result, Reddish South receives one train a week in each direction, on a Saturday morning. You can’t even get a day out in Stockport: catch the 8.46 from Reddish South and you only get five minutes before the train home.
+
+The second type of ghost station is those like Achanalt, which offer a full service of several trains a day; it is just that there aren’t many people who want to travel there. In Achanalt’s case, it isn’t hard to wonder why. The ‘village’, if it can be called that, consists of four houses. Nor is the station all that much good for doing what I was doing: accessing the nearby hills, as a river cuts them off to the south and a thick forestry plantation lies in the way to the north. If you want to go for a walk, it is almost certainly going to involve a few miles’ romp along the A832.
+
+It is pretty absurd that Dr Beeching left a station like this open while depriving Dudley (population 335,000) and Mansfield (114,000) of a rail service – although the latter has subsequently reopened. But at least Achanalt serves four properties. Even more bizarre is Altnabreac station on the Far North Line between Inverness and Wick.
+
+Maybe Dr Beeching couldn’t even find it on the map. It lies up a track seven miles from the nearest public road and there is precisely one house within five miles: the former station house. Trouble is, owners, who presumably could have bought a remote property anywhere in the empty vastness of Caithness, don’t seem to like trains very much. In 2023, a gang of workers from Network Rail turned up to repair the platform and found the gate locked. After a stand-off lasting many months, involving many lawyers and a court case, and a threat by Network Rail to compulsorily purchase the property so that access could be restored, an injunction finally gave the work gang access.
+
+In the meantime, no trains ran at all: the official passenger numbers for the year 2024/25 were zero. Happily, services have now been restored and the walkers and bird-spotters have returned to the platform. Er, all 172 of them last year.
