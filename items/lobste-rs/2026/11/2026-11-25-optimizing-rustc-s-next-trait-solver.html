@@ -1,0 +1,524 @@
+<div id="readability-page-1" class="page"><div>
+     <p>The next rust trait solver, a large subsystem of the rust compiler that we've been trying to replace, will finally land in rust 1.102.0.
+In the last stages, before stabilizing it, its performance was a major blocker.
+But what is "a trait solver"? And why is its performance a problem?
+My goal for this blog post is to answer those questions in a way where you don't need <em>any</em> prior knowledge.
+I think discussions of the trait solver can quickly become quite involved, and daunting.
+So today, we'll start from the very basics!</p>
+<p>This is a writeup of my <a href="https://youtu.be/OFZxcds9HRc?si=uRHxj8WO2Aewq7rX">eurorust 2026 talk</a> of the same name, that I gave on October 15, 2026.</p>
+<p>And if you'd rather watch than read this talk, you can do so here on youtube:</p>
+
+<p>The new solver is the codebase I work on daily, and I've done so for about a year full-time.
+I'm not the main person driving its stabilization though, that would be 
+<a href="https://github.com/lcnr">
+    <img alt="lcnr's github avatar" src="https://github.com/lcnr.png">
+    <span>lcnr</span>
+</a>
+, who's worked on it for far longer than I've been around in the Rust project.
+My main focus has been optimizing the new solver's performance.</p>
+<blockquote>
+<p>Many people have worked avery hard, for years, to make the new solver a reality.
+You can find some of them <a href="https://rust-lang.org/governance/teams/#team-project-trait-system-refactor">here</a>, and <a href="https://rust-lang.org/governance/teams/#team-types">here</a>.</p>
+</blockquote>
+<p>My work here is only possible because of Hexcat and RustNL paying me and others to work on rust compiler development.
+Consider whether you or your company could sponsor <a href="https://hexcat.nl/">Hexcat</a> or the <a href="https://rustnl.org/maintainers/">RustNL maintainer team</a>.</p>
+<h2>History of the new solver</h2>
+<p>On the 15th of May, 2015, Rust reached a major milestone. The very first stable version of rust was released. <a href="https://blog.rust-lang.org/2015/05/15/Rust-1.0/">Version 1.0.0</a>.
+Just 72 days later, on the 24th of July, work started on a new trait solver. Or well, that's when the <a href="https://github.com/rust-lang/chalk">Chalk</a> project got its first commit.
+It seems the initial goal was to formalize the trait system so we could prove its correctness.
+One reason that didn't work well is because the trait system wasn't very correct at all.</p>
+<p>Chalk is, according to its github description, "An implementation and definition of the Rust trait system using a PROLOG-like logic solver".
+The fact that it's "PROLOG-like" we'll come back to in a few paragraphs, it's quite interesting!
+However, Chalk isn't around anymore. Its README.md says it has been "sunset in favor of the newer next-generation trait solver".
+In October 2022, this project was <a href="https://github.com/rust-lang/types-team/issues/58">officially started</a> to turn the lessons learned from Chalk,
+into an actual new subsystem of the rust compiler, that, once finished, could replace the code of the old trait solver.</p>
+<p>The goal of the new trait solver is to make sure we wouldn't have as many correctness bugs in the trait system.
+We now call this project <a href="https://goals.rust-lang.org/2026/roadmap-project-zero.html">"project zero"</a>, referring to the number of soundness bugs we'd ideally like to have in our type system.
+There have been several very long standing bugs in Rust's (old) trait solver.
+Like <a href="https://github.com/rust-lang/rust/issues/25860">this one</a>, that has been open since May 28, 2015 (just 13 days after Rust 1.0!).
+It abuses something called "implied bounds" to convince the Rust compiler to turn a short lifetime <code>'a</code> <em>into</em> a <code>'static</code> lifetime, allowing you to use a reference after its already freed.
+Some of these bugs were fundamentally impossible to fix with the way the old trait solver worked.</p>
+<blockquote>
+<p>Note: Chalk and the new trait solver aren't the same thing. Chalk came first, and learned a lot of lessons incorporated in the new solver.</p>
+</blockquote>
+<p>But what is a trait system? And how does a trait solver solve it?</p>
+<h2>What is a trait solver?</h2>
+<p>The first place to look for documentation about the Rust compiler is the "rustc dev guide".
+It <a href="https://rustc-dev-guide.rust-lang.org/solve/trait-solving.html?highlight=trait%20solving%20core#core-concepts">says</a> "The goal of the trait system is to check whether a given trait bound is satisfied. Most notably when typechecking the body of - potentially generic - functions.".
+But I promised I'd start at absolute zero, so what's a trait?</p>
+<p>Some types act in similar ways. They share certain properties.
+For example, a lot of different types can be cloned, or copared for equality.
+To codify these properties, we can use traits.
+In other words, a trait is a <em>property of a type</em>.</p>
+<pre><code data-language="rust">// Declare that a property called "Clone" exists.
+trait Clone {
+    // ...
+}
+
+// Declares that the type `u64` has this property
+impl Clone for u64 {
+    // ...
+}
+</code></pre>
+<p>Notably, you can associate behaviors with these properties.
+The standard library's <a href="https://doc.rust-lang.org/stable/std/clone/trait.Clone.html">definition of <code>Clone</code></a> also includes
+two methods that can be called to perform this cloning operation.</p>
+<p>To check whether the code you wrote is correct, the Rust compiler sometimes has to check that these properties hold.
+If you're trying to clone a value, the compiler has to check whether that value <em>can</em> be cloned.</p>
+<h3>Prolog</h3>
+<p>Prolog is a cool programming language that works and looks very differently to what you may be used to.
+However, it is just as powerful (i.e. turing complete) as any other.
+The way it works has strong parallels to our trait system, let me show you.
+Here's an example:</p>
+<pre><code data-language="rust">Copy(u64).
+Clone(String).
+
+Clone(x) :- Copy(x).
+
+?- Clone(String)
+?- Clone(u64)
+</code></pre>
+<p>A Prolog program consists of a set of statements, called "facts", as well as relationships between facts.
+In the above program, there are two facts: <code>u64</code> has the property <code>Copy</code>, <code>String</code> has the property <code>Clone</code>, And there's also a relationship between these two properties.
+If some variable <code>x</code> has the <code>Copy</code> property, it also has the <code>Clone</code> property.</p>
+<p>Finally, we can ask the prolog program some questions. For example, Does the type <code>u64</code> have the <code>Clone</code> property?
+To answer that question, the runtime of a prolog program has to analyze all the known facts and relations.
+In this program we haven't said that <code>u64</code> has the <code>Clone</code> property. However, we have said that it has the <code>Copy</code> property.
+And by using the relationship between <code>Copy</code> and <code>Clone</code>, the solver can derive that both questions (starting with <code>?-</code>) are true!</p>
+<p>The reason Chalk was using a "prolog-like" solver, is because as you can see, the trait system is extremely similar to a logic solver.
+Both "facts" and "relations" can be written using <code>impl</code> blocks.
+In fact, I can write the above program as a Rust program:</p>
+<pre><code data-language="rust">struct u64;
+struct String;
+
+trait Copy {}
+trait Clone {}
+
+impl Copy for u64 {}
+impl Clone for String {}
+
+impl&lt;T&gt; Clone for T
+    where T: Copy
+{}
+
+// To ask direct questions to the solver,
+// we have to get a tiny bit creative:
+fn foo()
+    where
+        String: Clone,
+        u64: Clone
+{}
+</code></pre>
+<p>Neither the new solver or the old solver state as plainly as chalk does that they're using a "prolog-like solver".
+However, given the similarities, both the old solver and the new solver really aren't so different from how you'd implement a prolog runtime.</p>
+<h3>A note about type inference</h3>
+<p>Trait solving is not the same as type inference.
+This is a common misconception.
+Inside the Rust compiler, the two are completely different subsystems.
+Type inference is the process of replacing blanks with types.
+Throughout this text I'll refer to some the following example code (with slight variations):</p>
+<pre><code data-language="rust">fn weird_add&lt;T&gt;(a: T, b: T) -&gt; T
+    where T: Add&lt;T, Output = T&gt;
+{
+    a + b + b
+}
+
+fn main() {
+    let a = 4;
+    let b = 5
+
+    println!("{}", weird_add(a, b))
+}
+</code></pre>
+<p>We use type inference to determine that the type of the variable <code>a</code> is an integer. The same for <code>b</code>.</p>
+<p>Having said that, sometimes during type inference we do have to ask things about traits, and will call into the trait solver.
+Furthermore, the trait solver sometimes "unifies type variables", which means that while Rust makes a query about traits,
+we might make some progress on figuring out what the types of some variables are.</p>
+<h2>Trait solving</h2>
+<p>In the example code, one place where the trait solver comes into effect is when we call <code>weird_add</code>.
+On the function there's a <code>where</code> bound. A <code>where</code> bound is a requirement that the Rust compiler must check before allowing a call to that function.
+In this case, Rust has to make sure that <code>i32</code> (a type we found through type inference) implements the <code>Add</code> trait.
+To do that, the solver can use one of a couple of strategies, and we'll look at each.
+In this case, we'll be looking for an <code>impl</code> block that mentions the <code>i32</code> type, and we'll find one of those in the standard library!</p>
+<pre><code data-language="rust">impl Add for i32 {
+    type Output = i32;
+    // ...
+}
+</code></pre>
+<p>Once the trait solver finds this <code>impl</code> block, it acts as an answer to the question "does i32 implement Add?".
+We somtimes refer to this answer as a a proof that the statement holds.</p>
+<p>The example code contains several more calls to the trait solver.
+One you may not have thought about is that all local variables in Rust have to implement the <code>Sized</code> trait to be allowed on the stack.
+The <code>Sized</code> trait codifies that the compiler knows how many bytes of memory the value takes up, so it can be allocated on the stack.
+So, there will also be a query to the trait solver asking "does i32 implement Sized?".</p>
+<p>The proof for this statement doesn't come from an <code>impl</code> block though. I did say that the compiler has several stratagies to derive proofs.
+In this case, the fact that some primitive types implement <code>Sized</code> is built-in to the compiler.
+<code>i32</code> is <em>inherently</em> Sized, and there is no <code>impl</code> block anywhere that says so.</p>
+<p>Answering <code>Sized</code> queries in general turns out to be quite hard because of the shear volume at which it occurs.
+To compile rust's standard library, we'll ask "does type implement Sized?" about 800 000 times!
+Additionally, answering it isn't always this simple.
+Let's take a slightly more involved example:</p>
+<pre><code data-language="rust">struct Kitten {
+    name: String,
+    cuteness: f64,
+}
+</code></pre>
+<p>To prove <code>Kitten: Sized</code>, a recursive process takes place. Both fields have to implement <code>Sized</code> too.
+So in the process of answering this question, the trait solver will produce more questions to be answered.
+<code>Kitten: Sized</code> leads to <code>String: Sized</code> &amp; <code>f64: Sized</code>. <code>f64</code> luckily is trivial again, and built into the compiler.
+<code>String</code> isn't though, and we go one more layer deeper to <code>Vec&lt;u8&gt;: Sized</code>, etcetera.</p>
+<h2>Generic functions</h2>
+<p>In Rust, generic functions can be type checked standalone. The example using <code>weird_add</code> doesn't need a <code>main</code> function to be checked,
+and may emit its own type errors.</p>
+<pre><code data-language="rust">fn weird_add&lt;T&gt;(a: T, b: T) -&gt; T
+    where T: Add&lt;T, Output = T&gt;
+{
+    a + b + b
+}
+</code></pre>
+<p>This is where the trait solver actually does the most work.
+For example, to type check <code>weird_add</code>, we have to prove that <code>a + b</code> is valid.
+<code>a + b</code> desugars to <code>a.add(b)</code>, and when finding the method <code>add</code> the trait solver gets invoked,
+since the <code>add</code> method comes from the <code>Add</code> trait.</p>
+<p>Previously, <em>proof candidates</em> came either from <code>impl</code> blocks or they were built into the compiler.
+Not here though! A new proof strategy is used here instead.
+When calling <code>weird_add</code> we saw that a <code>where</code> bound acts as a requirement that has to be checked before calling,
+but that means that <em>inside</em> <code>weird_add</code> we can assume that where bound holds and thus it acts as a proof strategy.
+Concretely, we know <code>a</code> has the type <code>T</code>, and to answer the question "does T implement Add" we find a <code>where</code> bound that says so.</p>
+<p><code>Add</code> isn't the only trait bound that has to be proven inside <code>weird_add</code>. This is another place where we have to prove that <code>T: Sized</code>.
+Again we have to look for candidates, and there's no built in one for generic types <code>T</code>, nor is there an <code>impl</code> block, nor a <code>where</code> bound that mentions <code>Sized</code>.
+So how does that work? Well, it turns out the <code>where bound is implicit</code>. <code>T: Add</code> <em>really</em> means <code>T: Add + Sized</code>, and so proving <code>Sized</code> works the same as proving <code>Add</code>.</p>
+<pre><code data-language="rust">fn weird_add&lt;T&gt;(a: T, b: T) -&gt; T
+    where T: Add&lt;T, Output = T&gt;
+        /* Rust automatically adds */
+        + Sized
+{
+    a + b + b
+}
+</code></pre>
+<blockquote>
+<p>On <a href="https://lobste.rs/s/lyyksp/optimizing_rustc_s_next_trait_solver#c_fmxsd7">lobsters</a> I got asked about whether the <code>Add</code> bound is required to add the <code>Sized</code> bound.
+The <code>T: Sized</code> implicit bound gets added for any generic. Even if there was <em>not</em> already an <code>Add</code> bound, <code>T</code> would still be <code>Sized</code>.
+Currently, you can opt out of that implicit bound using <code>T: ?Sized</code> (or in the example, <code>T: Add + ?Sized</code>). In the future we may change the syntax for that to
+<code>T: MetaSized</code>. Look for the keyword "Sized Hierarchy" if you want to learn more. <a href="https://github.com/rust-lang/goals/blob/main/src/2026/scalable-vectors.md">This document</a> should also give you a primer.</p>
+</blockquote>
+<p>Finally, this code will actually give a type error, because there's one more trait to prove. Because <code>b</code> gets mentioned twice, we have to clone or copy values of type <code>T</code>.
+The function signature really should have been:</p>
+<pre><code data-language="rust">fn weird_add&lt;T&gt;(a: T, b: T) -&gt; T
+    where T: Add&lt;T, Output = T&gt;
+        + Copy
+        /* Rust automatically adds */
+        + Sized
+{
+    a + b + b
+}
+</code></pre>
+<p>To summarize, trait solving is the process of answering questions about relations between types and traits.
+These questions are submitted to the trait solver, and the trait solver looks for candidates in the form of:</p>
+<ul>
+<li><code>impl</code> blocks,</li>
+<li>built-in candiates,</li>
+<li>or <code>where</code> bounds.</li>
+</ul>
+<p>When it finds one of these, we say we've found a proof, and if we cannot find one, a type error is emitted.</p>
+<h2>Multi-step trait solving</h2>
+<p>Sofar, all trait solving came down to finding a single candidate, but that's not always how it works.
+Let's look at the definition of the <code>From</code> and the <code>Into</code> traits:</p>
+<pre><code data-language="rust">impl From&lt;u32&gt; for u64 {
+    fn from(t: u32) -&gt; u64 {
+        t as u64
+    }
+}
+
+impl&lt;T, U&gt; Into&lt;U&gt; for T
+where
+    U: From&lt;T&gt;,
+{
+    fn into(self) -&gt; U {
+        U::from(self)
+    }
+}
+</code></pre>
+<p>If the trait solver gets a question like <code>u32: Into&lt;u64&gt;</code> (does <code>u32</code> implement the <code>Into&lt;u64&gt;</code> trait), it will find the impl block above.
+However, the <code>impl</code> block is generic, and has a <code>where</code> bound that says "T implements Into U <strong>IF</strong> U implements From T".
+Luckily there's another <code>impl</code> block that gives that implementation and so the initial statement can be proven.</p>
+<p>What this all means, is that while answering a question, the trait solver emits more questions.
+These subquestions get added to an internal queue in the trait solver, and this queue of questions will be proven one after the other.
+Like this, some questions can turn into several subquestions, which can even have their own subquestions again.</p>
+<p>Also, in the example from above, the second question actually has two proofs!
+There are two impl blocks that apply, since there's also this blanket implementation for identity conversion:</p>
+<pre><code data-language="rust">impl&lt;T&gt; From&lt;T&gt; for T {
+    fn from(t: T) -&gt; T {
+        t
+    }
+}
+</code></pre>
+<p>Some preference takes place here. Since this is a blanket implementation, the other more specific one takes precedence.
+We can think about the trait solving about answering a tree of candidates that may apply.
+In this case, the single candidate for <code>u32: Into&lt;u64&gt;</code> turns into two, <code>u64: From&lt;u32&gt;</code> <em>and</em> <code>T: From&lt;T&gt;</code>.</p>
+<p>Something we'll not cover today, but this tree of candidates in reality is not a tree, it can have cycles!
+This has been the cause of both many bugs, and many rust compiler developers' nightmares.</p>
+<h2>Associated types</h2>
+<p>The trait solver doesn't <em>just</em> deal with traits. An important thing it has to also consider is the associated types of traits.
+Let's look at the <code>Add</code> trait:</p>
+<pre><code data-language="rust">pub trait Add&lt;Rhs = Self&gt; {
+    // Associated type
+    type Output;
+
+    // Required method
+    fn add(self, rhs: Rhs) 
+        -&gt; Self::Output;
+}
+</code></pre>
+<p>An implementation of the <code>Add</code> trait can decide what the <code>Output</code> type will be equal to.
+Remember the definition of <code>Add</code> for integers?</p>
+<pre><code data-language="rust">impl Add for i32 {
+    type Output = i32;
+}
+</code></pre>
+<p>It says that when you add two <code>i32</code>s, we get back an <code>i32</code>.
+The reason the trait solver cares about associated types is that sometimes answering questions creates <em>subquestions</em> that mention associated types.</p>
+<p>Remember <code>weird_add</code>?</p>
+<pre><code data-language="rust">fn weird_add&lt;T&gt;(a: T, b: T) -&gt; T
+    where T: Add&lt;T, Output = T&gt;
+        + Copy
+        /* Rust automatically adds */
+        + Sized
+{
+    a + b + b
+}
+</code></pre>
+<p>Because we wrote <code>Output = T</code>, the trait solver has to check that the candidate <code>impl</code> block has an <code>Output</code> type that's equal to <code>T</code>.
+We could've also written a more general function signature to something like:</p>
+<pre><code data-language="rust">fn weird_add&lt;T&gt;(a: T, b: T) -&gt; &lt;T as Add&lt;T&gt;&gt;::Output
+    where T: Add&lt;T&gt;
+        + Copy
+        /* Rust automatically adds */
+        + Sized
+{
+    a + b + b
+}
+</code></pre>
+<details>
+<summary>
+<p>Or really to make it works you have to go one step further (click to expand).</p>
+</summary>
+<pre><code data-language="rust">fn weird_add&lt;T&gt;(a: T, b: T) -&gt; 
+    &lt;T::Output as Add&lt;T&gt;&gt;::Output
+    where T: Add&lt;T&gt;
+        + Copy
+        /* Rust automatically adds */
+        + Sized,
+        &lt;T as Add&lt;T&gt;&gt;::Output: Add&lt;T&gt;
+{
+    a + b + b
+}
+</code></pre>
+</details>
+<h2>What makes trait solving slow</h2>
+<p>Hold on!
+<code>impl</code> blocks can define <em>inputs</em> they act on, like <code>impl Foo for i32</code> applies when the input is <code>i32</code>.
+It can make these inputs variables, like <code>impl&lt;T&gt; Foo for T</code>.
+And <code>impl</code> blocks can also define <em>outputs</em> thrugh associated types.</p>
+<p>What we've done here, is make <code>impl</code> blocks powerful enough to act as <em>functions</em>, with inputs and outputs.
+And Alonzo Church proved that a language with <em>only</em> pure functions is in fact turing complete.</p>
+<p>This is why <code>Prolog</code> is a fully-fledged turing complete programming language, and <em>so is Rust's type system</em>.
+People have defined numbers completely in Rust's type system in a crate called <a href="https://docs.rs/typenum/latest/typenum/">typenum</a>,
+and have gone even further by implementing <a href="https://github.com/Dragon-Hatcher/type-system-chess">a chess engine</a> inside the type system.</p>
+<p>Trait solving ends up being a subsystem that the compiler spends quite a large portion of its time in.
+In general, there are two reasons for that:</p>
+<ul>
+<li>During compilation, we call into the trait solver very often, to answer many answering many different questions.</li>
+<li>A single call into the trait solver can effectively perform arbitrary computation (up to some recursion limit), which may potentially scale exponentially with the size of the program.</li>
+</ul>
+<p>This ends up replacing the trait solver more complicated than you might think. People have already written many programs using the old solver,
+and because the new solver internally makes different assumptions (sometimes in the name of soundness, remember the old solver has many bugs),
+we end up having programs that take both longer and shorter to compile.
+Sometimes with a polynomial factor, sometimes even with an exponential factor.</p>
+<p>For example, the crate <code>unic-ucd</code> contains code <em>along the lines of</em>:</p>
+<pre><code data-language="rust">const A: &amp;[&amp;[&amp;str]] = &amp;[
+    &amp;[SPACE],
+    &amp;[EXCLAMATION, MARK],
+    &amp;[QUOTATION, MARK],
+    &amp;[DOLLAR, SIGN],
+    &amp;[PERCENT, SIGN],
+    &amp;[LEFT, PARENTHESIS],
+    &amp;[RIGHT, PARENTHESIS],
+    // ...
+]
+</code></pre>
+<p>It lists a whole bunch of unicode characters, and each constant inside these slices are themselves <em>string literals</em>.
+That means each of them has an associated lifetime variable, that at some point gets inferred to <code>'static</code> since we're assigning to a const.
+Now the new trait solver, in some cases where the old solver did not, reasons about lifetimes.</p>
+<p>Now sometimes, the rust compiler attempts see if two types are equal.
+This process may have side effects, in that it may make some progress towards inferring other types in the program.
+Because these side effects are sometimes undesireable, we have a system to "attempt" to unify types, and then roll back the results.
+To be able to do rollbacks we sometimes keep a trace of all operations we perform, so we can run them in reverse to get back to where we started.
+However, sometimes this tracking is more expensive than simply making a copy of the state and putting that copy back.</p>
+<p>In this case, during borrow checking, we call into the the trait solver and end up unifying two "lifetime variables", which we roll back.
+This specific rollback involves a copy, though there was a shortcut.
+We keep track of a single boolean: "was any lifetime variable modified". If none were, the rollback can be skipped.
+The old solver wouldn't do such unifications, so the rollback could always be skipped,
+while in the new solver we couldn't do so.</p>
+<p>Often, there are very few lifetime variables in scope, so doing a rollback isn't so bad. However, the example above lists every unicode character in existence,
+so the list is rather long. And for every item in the list, we'd do such a rollback, that copied all lifetime variables (for which there is one per element in the list).
+So <code>N</code> undos copying a list of <code>N</code> lifetime variables, that's a quadratic factor!
+So this crate would compile just fine with the old solver, and be 200 times slower with the new solver. Oops!</p>
+<h2>What we do to make trait solving fast</h2>
+<p>There are two important strategies we use to make the trait solver faster.
+First of all, there's caching, and a lot of it.
+For example, in the following example we prove that <code>i32: Sized</code> three times:</p>
+<pre><code data-language="rust">fn main() {
+    let x = 3; // &lt;-- first time
+    let y = 4; // &lt;-- and again
+    let z = x + y; // &lt;-- again for the result!
+}
+</code></pre>
+<p>We'd like to make it so we only need to figure out whether a specific type is <code>Sized</code> once,
+and so we cache the result.</p>
+<p>The second optimization we use a lot is <em>not caching</em> funnily enough. Accessing the cache can be rather expensive (we'll get to why).
+So in this case, since <code>i32</code> is trivially <code>Sized</code>, we can answer the question faster by never looking in the cache.
+For more complicated types this is not true.</p>
+<h3>Caching</h3>
+<p>A naive cache would be a mapping from questions asked to the trait solver, to answers (errors or proofs).
+So, something like <code>HashMap&lt;Question, Answer&gt;</code>, but this wouldn't perform so well.
+Let's look at this example:</p>
+<pre><code data-language="rust">fn foo&lt;T, U&gt;(t: T) -&gt; U
+    where T: Into&lt;U&gt; {
+    // prove Sized for i32
+    let x = 3; 
+    t.into()
+}
+
+fn bar&lt;T, U&gt;(t: T) -&gt; U {
+    // proof is the same
+    let x = 3; 
+    t.into()
+}
+</code></pre>
+<p>Here we've renamed the variables <code>T</code> and <code>U</code> between <code>foo</code> and <code>bar</code>.
+We'll prove two question, that <code>T: Into&lt;U&gt;</code> and later <code>U: Into&lt;T&gt;</code>.
+Because of the renamings these two proofs are the same, but the questions are technically different.
+If we don't do something about variable renaming, we'd have cache misses all the time.</p>
+<p>Another issue is that this cache wouldn't even work.
+By now, we've learned that candidates for proofs can come from three sources:</p>
+<ul>
+<li><code>impl</code> blocks</li>
+<li>compiler built-ins</li>
+<li><code>where</code> bounds</li>
+</ul>
+<p>The first two play nicely, because the same <code>impl</code> blocks and compiler built-ins are around for all questions submitted to the trait solver.
+Howver, <code>where</code> bounds are different for every function, and thus a proof that a type implements a trait inside of one function,
+may not be reusable inside another function.</p>
+<pre><code data-language="rust">fn foo&lt;T, U&gt;(t: T) -&gt; U
+    where T: Into&lt;U&gt;
+{
+    t.into() // OK
+}
+
+fn bar&lt;T, U&gt;(t: T) -&gt; U {
+    t.into() // Not OK
+}
+</code></pre>
+<p>In the example above, we prove that <code>T: Into&lt;U&gt;</code> twice. Inside <code>foo</code> that's ok, but not inside of <code>bar</code>.
+So if we naively cached that <code>T: Into&lt;U&gt;</code> we wouldn't notice that <code>bar</code> is incorrect.</p>
+<p>We call the set of bounds that are in-scope during trait solving the <code>ParamEnv</code> (parameter environment), and so the cache would really have to look like
+<code>HashMap&lt;(ParamEnv, Question), Answer&gt;</code>. Since for every function, the <code>ParamEnv</code> is different, we'd have even more cache misses.</p>
+<p>To improve our chances of a cache hit, we perform a process called "Canonicalization".
+During canonicalization, we do two things. First we'll rename all variables with numbers.
+So, <code>T: Into&lt;U&gt;</code> will become <code>?0: Into&lt;?1&gt;</code> (<code>variable 0</code> implements Into <code>variable 1</code>).
+Since this process is consistent, another renamed input like <code>U: Into&lt;T&gt;</code> <em>also</em> gets this numbering and is compatible.</p>
+<p>In addition, we'll try very hard to figure out which <code>where</code> bounds in the <code>ParamEnv</code> actually matter.
+If there are bounds that won't affect the result of the query, we can avoid putting them in the cache key, making cache hits more likely.</p>
+<p>So, in the rust compiler, the cache really looks more like a <code>HashMap&lt;(Paramenv, CanonicalQuestion), CanonicalAnswer&gt;</code>
+Note that the answer of every query now has to be de-canonicalized. We call this "instantiation".
+When we turn <code>T: Into&lt;U&gt;</code> into <code>?0: Into&lt;?1&gt;</code>, and cache its result, and we later look for <code>U: Into&lt;T&gt;</code>,
+we have to turn the answer (that mentions variables <code>0</code> and <code>1</code>) into <code>U</code> and <code>T</code> respectively.
+In other words, by canonicalizing we make cache hits much more likely, but the process isn't free.
+Hence not caching is sometimes worth it for simple questions.</p>
+<p>Now is this worth it? Below I've plotted the hit rate of the new solver's cache for various popular crates, and one internal rust compiler benchmark.</p>
+<p><img src="https://donsz.nl/static/images/optimizing-rustcs-next-trait-solver/caching.png" alt="A chart showing, for various crates, how many percent of questions are cached. Diesel (81.8% hit rate), Serde (86.6% hit rate), Syn (81.4% hit rate) and wg-grammar (73% hit rate). It also shows an &quot;improved&quot; wg-grammar with 79% hit rate"></p>
+<h3>Wg-grammar optimizations</h3>
+<p>As you can see, we can often avoid almost 80% of all trait solving by caching.
+The last two bars are for a crate called <code>wg-grammar</code>. It is a crate that used to be particularly slow with the new trait solver.
+Part of my job this year used to be specifically optimizing it.</p>
+<p>The problem was that there's one more property that has to be part of the cache key: which opaque types are in scope.
+An opaque type is a type you write as a "return position impl trait". For example:</p>
+<pre><code data-language="rust">fn foo&lt;T&gt;(t: T) -&gt; impl IntoIterator&lt;Item = T&gt; {
+    vec![t]
+}
+</code></pre>
+<p><code>foo</code> returns <code>impl IntoIterator</code>. By doing so, callers of this function don't get to know what specific type is returned.
+Only that they can iterate over whatever they get back.
+Inside of this function <code>foo</code>, the trait solver will infer which specific type gets returned (a <code>Vec</code>),
+but in other functions calling <code>foo</code>, this information is not available.
+So, this is another piece of information that may affect answers from function to function, just like the <code>ParamEnv</code>.</p>
+<p>So, the real cache has one more input: <code>HashMap&lt;(ParamEnv, OpaqueTypes, CanonicalQuestion), CanonicalAnswer&gt;</code>.
+What that really means is that the following two functions both submit the question <code>i32: Clone</code> to the trait solver,
+but cannot reuse the cache entry:</p>
+<pre><code data-language="rust">fn foo() -&gt; impl Sized {
+    15.clone()
+}
+
+fn bar() -&gt; i32 {
+    15.clone()
+}
+</code></pre>
+<p>This ends up mattering a lot in <code>async</code> code, or code like parser-generators that tend to return <code>-&gt; impl Parser</code> from functions.
+That's unfortunate, because the fact that opaque types are different ends up <em>almost never</em> affecting the outcome of a question.
+Sure, we can come up with examples where it does, but in practice it almost never does.</p>
+<p>So, the fix here is to remove opaque types from the cache key to the cached value like so: <code>HashMap&lt;(ParamEnv, CanonicalQuestion), (CanonicalAnswer, OpaqueTypeState)&gt;</code>.
+Then, every time we answer a question that <em>may be different</em> because of opaque types, we record in the opaque type state under what condition it may affect the answer,
+and continue <em>assuming</em> the answer is unaffected (this is often the case).
+Then, when we get a cached answer in a specific environment, we look at the opaque type state, to see whether the answer might be affected by current context.
+It almost never is, but if it ends up mattering, we retry the question but now no longer assuming opaque types don't matter.</p>
+<p>This sometimes makes performance worse (we sometimes do double work), but since its so rare, we get an improvement over all by having more cache hits.
+In the graph from above, there are two bars for wg-grammar. One where the hit rate is 73% and one where the hit rate is 79%.
+This 6% difference translates to some the <code>wg-grammar</code> crate first taking 28 seconds to compile, and afterwards only 14 seconds. That's 2x faster!</p>
+<details>
+<summary>
+On Reddit I got the following question that I liked:
+<div><p>
+The opaque type retry path is what I want to understand better: when an answer was recorded assuming opaque types don't matter and the retry says otherwise, do you evict the entry or keep both keyed by the recorded state?
+</p><p><a href="https://www.reddit.com/r/rust/s/o3fvHcS9kk">Author: kevinbaiv</a></p>
+</div>
+<p>(click to expand for me going into a little more detail about this)</p>
+</summary>
+<p>Technically even when we use opaque type tracking, the list of opaques is still part of the key.
+We just set it to be an empty list.
+That means that in the rerun, we un-empty it and we get a different cache key.
+Now because we keep the cache entry with the empty list around too, when a new query comes along it will also empty the list,
+find a cache hit that matches this empty list but <em>with</em> tracking information (so it's not redoing work getting that tracking).
+Then, if it decides it needs to rerun, it adds back the list of opaques and could totally get a cache hit again if we've tried with those exact opaques before.</p>
+<p>Of note is also that sometimes we run multiple dependent queries without their opaques like this.
+We can only un-empty the list once we get back up to the root at the point where we emptied the list to see if they may be unnecessary.
+To make sure we don't spend too much time running giant query trees we have a bailing mechanism built in to the tracking.
+Once a query and it's dependencies try to access opaques more than 3 times (or when they do so in very specific ways) we assume that it's unlikely for opaques <em>not</em> to influence the outcome of the query in any way,
+and we bail out of the "erased" attempts (recording in each dependent result that it's likely a rerun is necessary) and rerun without every knowing the original (erased) result, since it's unlikely to be correct.
+Future queries will see that this happened in the tracking information, and never attempt to erase opaque types. They know that the attempt is likely wasted.</p>
+<p>Now there's an even more subtle thing going on.
+Sometimes assuming that opaques are empty (in a specific path related to coroutines) leads to query cycles.
+So, in that case we are forced to do this bailing and to rerun with opaque types even if the answer would've maybe been correct with the erased environment,
+because the compiler would crash if it encountered the cycle and we want to avoid those at all costs.
+In this case we may end up rerunning with opaque types, get to the exact same point, and continue to return the exact same result as we would have when we erased the environment previously.
+This is sadly unavoidable.</p>
+</details>
+<p>This, and more optimizations meant that wg-grammar used to take almost 200 Billion cpu cycles to compile, and now only about 7 Billion.</p>
+<p><img src="https://donsz.nl/static/images/optimizing-the-new-trait-solver/wg-grammar.png" alt="A plot of the wg-grammar benchmark from perf.rust-lang.org between may and august 2026"></p>
+<p>Now this is my second blog post about trait solver optimization. <a href="https://donsz.nl/blog/new-solver-performance">The other one</a> is a little more technical,
+and goes into all the different things we did over the past year to bring the new trait solver towards stabilization.
+Go read it next if you're interested, and thank you for reading!
+If you're still interested in learning more about this, I'm happy to answer any questions if you reach out.</p>
+<p>Also, hell yea! you made it to the end. Here's my cat.</p>
+<p><img src="https://donsz.nl/static/images/cats/jazz-on-bed.jpg" alt="Jazz on my bed"></p>
+ 
+
+    
+<blockquote>
+    <b>NO large language models were or are used in any of my open source contributions or anything I do.
+        Not for proof-reading, not for trying out random ideas, not for generating code or text.
+        LLMs and the companies that create and sell them destroy communities and the world around us.
+        If you see something that I made online: that is <i>me</i>, and I take full responsibility for it.</b>
+</blockquote>
+
+</div></div>
