@@ -1,0 +1,57 @@
+<div id="readability-page-1" class="page"><div><p>Many retailers are adopting a modern, <a href="https://machalliance.org/mach-technology">MACH</a> approach to their commerce experiences, including for in-person payments. For example, they may create a version of their ecommerce website that is specific to in-person payments, and that is meant to be used by salespeople on a showroom floor. This is especially true for digital-first retailers, where the device is used by a salesperson on the floor and shown to the customer -  for example, to explore customization options, additional sizes, and choices, or even to sign up for loyalty programs. Retailers already spend considerable time on that ecommerce web stack, and want to use as much of it for in-person as well, instead of maintaining two separate stacks.</p>
+<p>If the reader they chose is a smart reader, such as the <a href="https://docs.stripe.com/terminal/payments/setup-reader/stripe-reader-s700">Stripe Reader S700</a>, then their website might make use of our <a href="https://docs.stripe.com/terminal/designing-integration?reader=S700&amp;platform=server-driven">server-driven integration</a> path. However, if they want to use a mobile form factor - for example, an iPad paired with an <a href="https://docs.stripe.com/terminal/payments/setup-reader/stripe-m2">M2</a>, or an Android tablet leveraging <a href="https://docs.stripe.com/terminal/payments/setup-reader/tap-to-pay">Tap to Pay</a> - things get more complicated. Indeed, the M2 (or the <a href="https://docs.stripe.com/terminal/payments/setup-reader/bbpos-wisepad3">WisePad 3</a>, outside of the US) can only integrate via our mobile SDKs since they lack Internet connectivity capabilities. So an iPad can only communicate with a Bluetooth-connected M2 via the iOS (or React Native) SDK. The same limitation applies to Tap to Pay - a web browser running on a mobile device or NFC-equipped tablet cannot communicate directly with the local reader to take payments - it needs to integrate via our mobile SDKs.</p>
+<p>In general, this all means the web-based POS needs to be completely refactored into a native app. This is clearly a sizable undertaking, and defeats the economies of scale discussed above.</p>
+<p>This article describes the concept of a wrapper app, which simultaneously:</p>
+<ul>
+<li>Loads the web-based POS and allows the salesperson to interact with the site</li>
+<li>Integrates with a mobile or Tap to Pay reader via SDK</li>
+<li>Detects events from the former to initiate payment requests to the latter</li>
+</ul>
+<p>This post offers a proof-of-concept in React Native, which you could then use for:</p>
+<ul>
+<li>A tablet paired with a Bluetooth reader</li>
+<li>A phone or tablet using Tap to Pay technology</li>
+</ul>
+<h2 id="application-overview">Application overview</h2>
+<p>The application comprises:</p>
+<ul>
+<li>A wrapper App component, which defines a <code>handleMessage</code> function. This function listens to events coming from the WebView component and sets a state variable to keep track of the cart's details. This could be as simple as a cart ID - for security purposes, only the backend would have the details of the cart, so it cannot be manipulated into a cheaper basket.</li>
+<li>A <a href="https://www.npmjs.com/package/react-native-webview">WebView</a> component, which loads the web-based POS itself. That component takes the <code>handleMessage</code> function as a prop.</li>
+<li>A web-based POS that can build a cart and save its details to a backend. When ready to pay, the salesperson presses a button in the site that fires <code>window.ReactNativeWebView.postMessage(JSON.stringify(data));</code> where <code>data</code> contains information about the cart. This would be the cart ID, salesperson ID, store ID, and any other relevant information.</li>
+<li>A ReaderManager component, running the <a href="https://github.com/stripe/stripe-terminal-react-native">Stripe Terminal React Native SDK</a>, which is tasked with discovering readers and connecting to them. This could be an <a href="https://docs.stripe.com/terminal/payments/connect-reader?terminal-sdk-platform=react-native&amp;reader-type=bluetooth">M2 reader, via Bluetooth</a>, or even a <a href="https://docs.stripe.com/terminal/payments/connect-reader?terminal-sdk-platform=react-native&amp;reader-type=tap-to-pay">local reader, via Tap to Pay</a>. This component takes the cart state variable from the parent App component. At the appropriate time (e.g. the <code>cart</code> state is populated with an ID and a state), the component queries the backend to calculate how much to charge the customer, and then calls the <code>createPaymentIntent()</code>, <code>collectPaymentMethod()</code>, and <code>confirmPaymentIntent()</code> SDK methods.</li>
+</ul>
+<p>Notifying the web-based POS that the payment was successful might be done via webhooks (fired from Stripe to the POS backend, and then to the POS frontend via websockets), or via the POS frontend polling its backend.</p>
+<h2 id="wrapper-application-architecture">Wrapper application architecture</h2>
+<p>The application has 3 main components - an App parent component, where state is managed, a WebView component, and a ReaderManager component. You could also use a state management library like <a href="http://recoiljs.org/">Recoil</a>.</p>
+<p>This diagram shows the Stripe React Native SDK managing an M2 reader but, as mentioned previously, this could be a WisePad 3 or Tap to Pay reader.</p>
+<p><span><span><img src="https://stripe.dev/images/web-pos-mobile-terminal-integration/image1.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<h2 id="processing-a-transaction">Processing a transaction</h2>
+<p><span><span><img src="https://stripe.dev/images/web-pos-mobile-terminal-integration/image2.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<ol>
+<li>The salesperson consults with the customer and adds items to the cart. As items are added to the cart, they may be saved in a cookie and/or sent to the POS backend.</li>
+<li>At the conclusion of the browsing session, the salesperson clicks a button that saves the final cart details to the backend.</li>
+<li>The salesperson clicks a button signifying the customer is ready to pay. This emits a <code>window.ReactNativeWebView.postMessage(JSON.stringify({ cart_id: 'ABC123', status: 'ready_to_pay' }))</code> message.</li>
+<li>The WebView component detects this message via its <code>handleMessage</code> function, which was passed as a property by the parent App component. This function sets the cart state value in the App component, to something like <code>{ cart_id: 'ABC123', status: 'ready_to_pay' }</code>.</li>
+<li>The ReaderManager component gets the updated cart state and finds it is ready for payment.</li>
+<li>The ReaderManager queries the backend to retrieve cart details based on the cart ID - these details might include the owed amount based on server-side calculations.</li>
+<li>The ReaderManager calls the SDK method <a href="https://stripe.dev/stripe-terminal-react-native/api-reference/interfaces/StripeTerminalSdkType.html#createpaymentintent"><code>createPaymentIntent</code></a> with the right amount, currency, <a href="https://docs.stripe.com/api/metadata">metadata</a>, etc. Metadata attributes should include the cart ID.</li>
+<li>The ReaderManager calls the SDK method <a href="https://stripe.dev/stripe-terminal-react-native/api-reference/interfaces/StripeTerminalSdkType.html#collectpaymentmethod"><code>collectPaymentMethod</code></a> to instruct the reader to receive card details via tap or insert.</li>
+<li>The ReaderManager calls the SDK method <a href="https://stripe.dev/stripe-terminal-react-native/api-reference/interfaces/StripeTerminalSdkType.html#confirmpaymentintent"><code>confirmPaymentIntent</code></a> to confirm the payment. Stripe gets the card details at that stage, sends the request to the card issuer, via the networks, and returns an auth status which the ReaderManager can then surface to the salesperson (e.g. "card accepted" or "card declined").</li>
+<li>The ReaderManager knows the payment status but the POS does not. In order for it to be notified, the backend listens for the <code>payment_intent.succeeded</code> webhook event which has the cart ID passed in the metadata attribute, and then sends the notification to the POS via a WebSocket.</li>
+</ol>
+<h2 id="example-application">Example application</h2>
+<p><span><span><img src="https://stripe.dev/images/web-pos-mobile-terminal-integration/image3.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>The following is a mock-up of what such an application could look like:</p>
+<ul>
+<li>The gray bar at the top is the main app component.</li>
+<li>The icons to the right of the gray bar are part of the ReaderManager component. They show some high-level status information (for example, is the reader connected, are there pending offline payments, etc.)</li>
+<li>The ReaderManager can also show a Settings panel to help end-users select the reader type they want to connect to (for example, M2, or Tap to Pay), the reader they want to connect to, etc.</li>
+<li>The main panel in white is the WebView component. In the upper-left hand corner, a drop down allows the end-user to select various web-based POS experiences.</li>
+</ul>
+<h2 id="limitations-and-security-considerations">Limitations and security considerations</h2>
+<p>WebView does introduce some limitations compared to a native application. Performance might not be as smooth, especially with complex web apps, and offline mode is limited if the web app itself doesn't utilize caching effectively. Security must be evaluated carefully, and debugging the web app and the wrapper is more complex than just debugging one—the whole is more than the sum of its parts. Additionally, some native functionality may not be accessible from a web app being served in a WebView.</p>
+<p>The main security risks for React Native apps with WebView components include WebView script injection accessing the native bridge, spoofed bridge messages altering or triggering charges, weak IDs or sessions enabling tampering, and webhook/API replay attacks. Several strategies can help mitigate these risks: implementing strict HTTPS and Content Security Policy (CSP), using origin-checked and signed bridge messages, incorporating schemas and one-time nonces in bridge communications, and implementing server-side amount and cart validation.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>This wrapper app approach offers retailers a practical solution for integrating web-based point-of-sale systems with mobile Terminal readers like the M2 or Tap to Pay technology. By combining a React Native wrapper with WebView components and the Stripe Terminal SDK, retailers can use their existing ecommerce infrastructure for in-person payments without requiring a complete native app rebuild.</p>
+<p>The architecture enables communication between web-based POS systems and mobile readers through message passing and state management. While this approach introduces some limitations, it provides significant cost savings and development efficiency compared to maintaining separate technology stacks.</p>
+<p>To learn more about developing applications with Stripe, visit our <a href="https://www.youtube.com/stripedevelopers">YouTube Channel</a>.</p></div></div>

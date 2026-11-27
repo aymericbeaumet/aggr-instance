@@ -1,0 +1,109 @@
+---
+title: Tracking customer spend in an omnichannel or multiprocessor environment
+link: https://stripe.dev/blog/tracking-customer-spend-omnichannel-multiprocessor-environment
+source: stripe-com
+published: 2025-02-19T00:00:00Z
+updated: 2025-02-19T00:00:00Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+authors:
+- Andrew Robinson
+summary: Discover how to effectively track customer spending across multiple channels and payment processors. Learn about the challenges of fragmented payment systems and explore solutions like the Payment Account Reference (PAR) to gain a unified view.
+content: extracted
+html: 2025-02-19-tracking-customer-spend-in-an-omnichannel-or-multiprocessor.html
+remote_preview:
+  url: https://stripe.dev/og/blog/tracking-customer-spend-omnichannel-multiprocessor-environment.png
+  alt: 'Stripe Developer Blog: Tracking customer spend in an omnichannel or multiprocessor environment'
+---
+
+As more businesses shift into digital commerce, merchants want to understand their customers’ spending patterns across multiple channels—from websites and mobile apps to physical stores to shelf edge selling models. This data helps to create a personalized customer experience, enhancing operations, and guiding business decisions.
+
+Getting a complete view of customer activity is difficult due to the fragmentation of payment systems. Customers pay across different methods such as physical cards, digital wallets (like Apple Pay, Google Pay), or other tokenized payment methods. These payments can happen across different channels and payment processors, making tracking the full customer journey hard.
+
+The [Payment Account Reference (PAR)](https://www.securetechalliance.org/wp-content/uploads/EMVCo-PAR-WP-FINAL-April-2018.pdf) helps to solve these challenges. In this post, we’ll look at what PAR is, how merchants can use it, and the benefits it brings to both businesses and their customers.
+
+## What Is a Payment Account Reference?
+
+The Payment Account Reference (PAR) is a 29-character alphanumeric identifier introduced by [EMVCo](https://www.emvco.com/) to help merchants link transactions and accounts without compromising sensitive payment data. It was introduced by EMVCo in 2014, with an aim of reducing the usage of PANs for merchants, as this has significant PCI burdens for them by bringing different systems in scope for a PCI audit. Many merchants were moving over to tokenization strategies, where PANs are tokenized; however, this brought additional complexity with a token being mapped 1:1 with a PAN, meaning any changes to the PAN would result in a new token. The question that PARs answer is “How can we store a non-sensitive value that provides better insights than a token and does not reduce functionality”.
+
+## Key Characteristics of PAR:
+
+- Unique Relationship: PAR has a one-to-one relationship with a primary account number (PAN) but supports a one-to-many relationship with tokens. For example, PAR links the physical card PAN and its corresponding digital wallet tokens (e.g., device PANs for Google Pay and Apple Pay).
+- Non-Financial Reference: PAR is not usable for initiating payments or financial transactions. It’s solely a reference tool for linking transactions across systems.
+- Non-Reversible: PAR cannot be reverse-engineered to derive the PAN or payment tokens, making it secure and compliant with data protection regulations like [PCI DSS](https://www.pcisecuritystandards.org/standards/pci-dss/).
+- Cross-Channel and Cross-Processor Visibility: Since it’s independent of the payment processor and payment method, a PAR remains the same regardless of where or how the cardholder transacts.
+
+The PAR’s purpose is to empower merchants with better visibility into customer activities across payment ecosystems, without exposing sensitive payment information. In effect the PAR represents the cardholders payment account with the issuing bank, rather than a specific PAN or token.
+
+![](https://stripe.dev/images/tracking-customer-spend-omnichannel-multiprocessor-environment/image1.png)
+
+## The Evolution: From PAN to Tokenization to PAR
+
+Historically, merchants relied on the primary account number (PAN) to link transactions to cards. However, the PAN is sensitive data, subject to stringent PCI DSS requirements, and cannot always account for shifts in customer behavior—such as the use of digital wallet tokens or new card issuance after a card replacement.
+
+Tokenization addressed some of these security challenges, enabling the use of dynamic PANs (e.g., device-specific PANs for mobile wallets) without exposing the actual card details. However, tokenization didn’t solve the fragmentation issue, as each token remains unique to a specific channel, environment, or platform.
+
+That’s where PAR comes in: By aggregating all of these variations under a single reference that spans across cards, tokens, and payment processors, PAR provides a unified view of customer activity.
+
+## PAR in Action: An Omnichannel Use Case
+
+Let’s take a closer look at how merchants can benefit from PAR with a typical omnichannel example, imagine a retail brand with both an online presence and a nationwide chain of brick-and-mortar stores.
+
+If we visualize this approach, a retail customer buys a pair of trainers, and has a monthly subscription for a delivery pass both using a physical card. They then buy a coffee from the restaurant in a retail location where they pay with Apple Pay on their Apple Watch, and then buy the gift wrapping service for the trainers they just bought using Apple Pay with their iPhone.
+
+Even if all these transactions are processed by different payment processors, you would still have the same PAR value returned, meaning you can now attribute that spend to the right customer. Even if the customer replaces their card due to loss, you’d still get the same PAR value returned, this helps you build a true picture of your customers' overall lifetime spending, helping you to further optimize and understand their needs, and supplement their experience with targeted marketing campaigns.
+
+![](https://stripe.dev/images/tracking-customer-spend-omnichannel-multiprocessor-environment/image2.png)
+
+To dive into this in more detail, with the different customer journeys we’ve highlighted;
+
+1. **Online Purchase with a Digital Wallet**: A customer places an order on the retailer’s website using Apple Pay. Along with other payment details, the transaction returns a PAR value from the card network, captured by the retailer’s systems for future reference.
+2. **In-Store Purchase with Chip & PIN**: The same customer visits a physical store and pays using their physical card. Even though the in-store transaction takes place in a different channel and is processed by a different payment provider, the PAR returned by the card network matches the one linked to the Apple Pay transaction.
+3. **Continuity Despite Card Replacement**: Months later, the customer loses their card and receives a replacement with a new PAN. Both in-store and online purchases still return the same PAR value—ensuring continuity in linking the customer’s past and future transactions.
+
+Using the PAR, the retailer can stitch together the customer’s transaction history into a cohesive picture, regardless of the payment method, channel, or processor.
+
+## Benefits of PAR for Merchants
+
+The introduction of PAR offers several tangible technical and business benefits for merchants, especially those operating across multiple channels or processors:
+
+### 1\. Enhanced Customer Profile and Personalization
+
+PAR enables merchants to aggregate customer purchase data into a unified profile. This can unlock powerful insights into preference trends, spending behavior, and cross-channel activities. With this data, merchants can design personalized marketing offerings (such as loyalty rewards or product recommendations) and improve the overall customer experience. The unique identifier of a PAR ensures that even if customers replace their payment cards or switch devices, their transactional journey remains intact and visible to the merchant. By breaking down the barriers of fragmented data, PAR makes it feasible for merchants to personalize interactions at every touchpoint, enhance customer satisfaction, and strengthen customer loyalty.
+
+### 2\. Cross-Channel Visibility
+
+For omnichannel merchants, PAR bridges the gap between transactions made via physical cards, mobile wallets, or online payments. By providing a single reference point across these diverse payment methods, PAR helps to reduce the silos of transactional data, enabling merchants to implement cohesive loyalty programs, reconcile complex sets of payments effortlessly, and accurately measure performance across all channels. This not only streamlines operational workflows but also enables merchants to discover actionable insights from a comprehensive view of customer activities, which ultimately leads to a more unified customer experience.
+
+### 3\. Reduced Security Risks
+
+Since PAR is a non-financial token and is not considered PCI account data, merchants can reduce their reliance on PAN storage, mitigating the risks associated with sensitive payment data and reducing compliance overhead. By minimising the need to handle and store PANs, merchants not only enhance their security posture but also decrease the burden of compliance with stringent regulations like PCI DSS. This reduction in data sensitivity allows companies to innovate and expand their payment systems without compromising security.
+
+### 4\. Resilience to Account Changes
+
+Customers frequently replace their cards for various reasons—such as loss, expiration, or fraud. As PAR remains consistent regardless of PAN or token changes, merchants can maintain seamless continuity in transaction tracking and customer accounts. By using a stable reference (the PAR), this allows businesses to preserve the historical continuity of a customer's transaction history, ensuring that individualized customer insights are not disrupted by changes in payment credentials. This resilience helps maintain a consistent customer experience, bolstering customer trust and loyalty in the face of inevitable account updates.
+
+### 5\. Processor Independence
+
+When working with multiple payment processors, maintaining a consistent view of transactions can be complex. PAR’s processor-agnostic nature ensures that merchants get the same referencing system across multiple platforms or processors, simplifying data analysis. This consistency allows merchants to switch between or integrate additional processors without the risk of losing customer transaction continuity, enhancing operational flexibility and enabling more strategic partnerships and innovations in payment processing. As a result, businesses can optimize their payment systems to better suit their evolving needs without being hindered by technological constraints.
+
+### 6\. Customer Benefits
+
+As a customer, PAR brings significant benefits that directly enhance your shopping experience and security. With PAR enabling merchants to create a unified view of your purchasing journey across multiple channels and payment methods, you enjoy more personalized and relevant interactions. This means you receive tailored offers, loyalty rewards, and product recommendations that truly match your interests and needs, making your shopping experience more enjoyable and engaging.
+
+The use of PAR also contributes to increased security for your personal payment information. Since PAR is a non-financial reference that does not store sensitive card data, merchants are better equipped to protect your information against data breaches, leading to a safer transactional environment.
+
+## Conclusion: Unlocking New Opportunities with PAR
+
+The Payment Account Reference (PAR) is more than just a technical addition to payment infrastructure—it’s a step forward in empowering merchants to adapt to modern customer behaviors and complex payment ecosystems. By enabling a unified view of transactions across cards, wallets, processors, and even PAN changes, PAR helps merchants deliver better customer experiences, make data-driven decisions, and stay secure in an ever-evolving payments landscape.
+
+Whether you’re an omnichannel merchant, a multiprocessor business, or an enterprise looking to deepen customer insights, PAR is a valuable tool to add to your toolkit.
+
+Useful resources:
+
+- [American Express PAR guide](https://developer.americanexpress.com/products/payment-account-reference-public/overview)
+- [Visa PAR guide](https://developer.visa.com/capabilities/visa-par-inquiry)
+- [Mastercard PAR guide](https://developer.mastercard.com/payment-account-management/documentation/api-overview/get-par/)
+- [Discover PAR guide](https://www.discoverglobalnetwork.com/content/dam/discover/en_us/dgn/docs/payment-account-reference-overview.pdf)
+- [Role of the Payment Account Reference (PAR) Within the Payments Lifecycle](https://www.uspaymentsforum.org/role-of-the-payment-account-reference-par-within-the-payments-lifecycle/)
+
+To learn more about developing applications with Stripe, visit our [YouTube Channel](https://www.youtube.com/stripedevelopers).

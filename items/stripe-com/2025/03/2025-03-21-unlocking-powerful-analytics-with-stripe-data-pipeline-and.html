@@ -1,0 +1,229 @@
+<div id="readability-page-1" class="page"><div><p>As businesses scale, understanding revenue data is critical for making informed decisions and deriving valuable insights. <a href="https://stripe.com/en/data-pipeline">Stripe Data Pipeline</a> (SDP) simplifies the process of exporting modeled revenue data into your data storage of choice.</p>
+<p>In this blog post, we'll walk through how to integrate your Stripe Data Pipeline set up with  <a href="https://cloud.google.com/storage/docs">Google Cloud Storage (GCS)</a> to run analytics in <a href="https://cloud.google.com/bigquery/docs">BigQuery</a>. You'll learn how to seamlessly move data from GCS to BigQuery, and how to automate this process for continuous reporting and analysis.</p>
+<p><span><span><img src="https://stripe.dev/images/unlock-powerful-analytics-stripe-data-pipeline-bigquery/1.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<h2 id="why-use-stripe-data-pipeline-for-analytics">Why use Stripe Data Pipeline for analytics?</h2>
+<ol>
+<li>
+<p><strong>Automate data delivery at scale</strong>: Stripe Data Pipeline makes it easier for businesses to export their data from Stripe. It allows businesses to automatically export their data, including transactions, invoices, subscriptions, and payments, directly to a Google Cloud Storage (GCS) bucket. This means less manual data handling and fewer errors, providing a smooth flow of data for analytics.</p>
+</li>
+<li>
+<p><strong>Do more with your data</strong>: Speed up your financial close process and unlock new insight by centralizing your Stripe data with our business data. Using SDP means that multiple teams are using the same source of truth for accounting, product, growth, and different use cases.</p>
+</li>
+<li>
+<p><strong>Direct and secure integration</strong>: Send your data directly to Google Cloud Storage without involving a third party to handle your sensitive revenue data.</p>
+</li>
+<li>
+<p><strong>Avoid data outages and delays</strong>: Offload delivery and pipeline maintenance from your data engineering teams. Businesses can access fresh data available for analysis frequently, ensuring that you have timely insights to make informed decisions while still benefiting from a reliable and automated pipeline. For more details, read more about freshness expectations <a href="https://docs.stripe.com/stripe-data/available-data">in the documentation</a>.</p>
+</li>
+</ol>
+<h2 id="integrating-stripe-data-pipeline-with-google-cloud-storage-and-bigquery">Integrating Stripe Data Pipeline with Google Cloud Storage and BigQuery</h2>
+<p>At a high level, these are the steps you must follow:</p>
+<ol>
+<li>Set up the Stripe Data Pipeline in the Stripe Dashboard.</li>
+<li>Use Google Cloud Run Job to set up the transfer pipeline.</li>
+<li>Test the integration by triggering the job.</li>
+<li>Verify that data is present in BigQuery.</li>
+<li>Set up a Scheduler to run the recurring job.</li>
+</ol>
+<p>Below is a detailed description for each of these steps  with code examples on how to set up the whole pipeline.</p>
+<h3 id="prerequisites">Prerequisites</h3>
+<ul>
+<li>Administrator access for your Stripe account.</li>
+<li>Access to <a href="https://cloud.google.com/docs">Google Cloud Platform</a> account and a <a href="https://developers.google.com/workspace/guides/create-project">Project</a>.</li>
+<li>A <a href="https://cloud.google.com/bigquery/docs/datasets">BigQuery Dataset</a> for running the analytics and queries.</li>
+</ul>
+<h3 id="step-1-set-up-stripe-data-pipeline">Step 1: Set up Stripe Data Pipeline.</h3>
+<p>Navigate to the Stripe Dashboard, and choose <em>Reporting &gt; Data Management</em>. Follow the steps in the self-serve onboarding. Once configured, you have access to a structured set of files organized by time. The first data load can take up to 12 hours.</p>
+<h3 id="step-2-use-a-google-cloud-run-job-to-set-up-the-transfer-pipeline">Step 2: Use a Google Cloud Run Job to set up the transfer pipeline.</h3>
+<ol>
+<li>
+<p>Create an empty repository on your local machine. Add the code snippets shared below to create a data pipeline using Python.  Later you will deploy it as a recurring job using <a href="https://cloud.google.com/sdk/docs">Google Cloud CLI</a>.</p>
+</li>
+<li>
+<p>Finding the latest Data Snapshot: Stripe Data Pipeline maintains a file <code>data_load_times.json</code> which has the information for all the tables that were added to GCS and their latest folder path:</p>
+</li>
+</ol>
+<pre><code>{
+ "tableLoadTimes": [
+   {
+     "tableName": "connected_account_external_account_bank_accounts",
+     "rundate": "2025031106",
+     "dataset": "connect-coreapi",
+     "mode": "LIVEMODE",
+     "succeededAt": 1741693893927,
+     "path": "2025031106/livemode/connected_account_external_account_bank_accounts"
+   },
+   {
+     "tableName": "connected_account_products",
+     "rundate": "2025031106",
+     "dataset": "connect-coreapi",
+     "mode": "LIVEMODE",
+     "succeededAt": 1741693894217,
+     "path": "2025031106/livemode/connected_account_products"
+   },
+   .
+   .
+   .
+  ]
+}</code></pre>
+<p>Using the <a href="https://cloud.google.com/python/docs/reference/storage/latest">Python Client for Google Cloud Storage</a>, you can load this file and convert it to a Python dictionary to find the paths of the data to be loaded to BigQuery.</p>
+<pre><code>from google.cloud import storage, bigquery
+import json
+import concurrent.futures
+
+# Initialize clients for GCS and BigQuery
+storage_client = storage.Client()
+bigquery_client = bigquery.Client()
+
+# Set up your project, bucket and BigQuery dataset
+bucket_name = "stripe-data"  # Your GCS bucket name
+dataset_id = "stripe_data"  # BigQuery dataset name
+project_id = "my-test-proj-12345" # Your GCP project ID
+mode = "LIVEMODE"  # The mode for which the data is being loaded
+
+# Function to get the latest folder based on the data_load_times.json file
+def get_latest_load_time_dict():
+   # Load the JSON file from GCS
+   bucket = storage_client.get_bucket(bucket_name)
+   blob = bucket.blob('data_load_times.json')
+   data_load_times_content = blob.download_as_text()
+
+   # Parse the JSON data
+   data_load_times = json.loads(data_load_times_content)
+   print("Latest folder found")
+   return data_load_times</code></pre>
+<ol start="3">
+<li><strong>Listing Data Files in GCS</strong>: Each table shared by SDP is loaded as a folder. You must iterate over each table and list all the Parquet files present in the folder to be loaded to BigQuery:</li>
+</ol>
+<pre><code># Function to list all tables folders and their .parquet files
+def list_tables_and_files(data_load_times):
+   # Create a dictionary of table names and their corresponding folders
+   table_folders_dict = {}
+   for table_data in data_load_times["tableLoadTimes"]:
+       if table_data.get("mode") == mode:
+           table_folders_dict[table_data["tableName"]] = table_data['path']
+   print(f"Table folders dict loaded: Found {len(table_folders_dict)} tables")
+   # Now for each table folder, list the .parquet files
+   table_files_dict = {}
+   for table_name, table_folder in table_folders_dict.items():
+       parquet_files = []
+       blobs = storage_client.list_blobs(bucket_name, prefix=table_folder)
+      
+       for blob in blobs:
+           if blob.name.endswith(".parquet"):
+               parquet_files.append(blob.name)
+      
+       table_files_dict[table_name] = parquet_files
+  
+   print("Table files dict loaded")
+   return table_files_dict</code></pre>
+<ol start="4">
+<li><strong>Loading Parquet Files into BigQuery</strong>: Once you have a list of your data tables in GCS, you must load the Parquet files into BigQuery. Using the <code>google-cloud-bigquery</code> client, you can configure the load job to write the data directly into BigQuery tables. You can optimize the load time by running multiple of these jobs in parallel.</li>
+</ol>
+<pre><code># Function to load the data from GCS into BigQuery
+def load_to_bigquery(gcs_paths, table_name):
+   try:
+       # Define the BigQuery load job configuration for Parquet files
+       job_config = bigquery.LoadJobConfig(
+           source_format=bigquery.SourceFormat.PARQUET,
+           write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,  # Always truncate the table before loading
+           create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED,  # Create table if it doesn't exist
+       )
+
+       # Map the file path to full URI
+       uri_list = [f"gs://{bucket_name}/{gcs_path}" for gcs_path in gcs_paths]
+     
+       # Load data into BigQuery
+       load_job = bigquery_client.load_table_from_uri(
+           uri_list,
+           f"{project_id}.{dataset_id}.{table_name}",
+           job_config=job_config,
+       )
+
+       # Wait for the load job to complete
+       load_job.result()  # This will wait for the load job to finish
+
+       # Check if the job completed successfully
+       if load_job.error_result is None:
+           print(f"Loaded data into BigQuery table {dataset_id}.{table_name}")
+       else:
+           raise Exception(f"{load_job.error_result}")
+      
+   except Exception as e:
+       print(f"Error occurred while loading data into BigQuery table {dataset_id}.{table_name} : {e}")
+       raise e
+
+# Use ThreadPoolExecutor to load data in parallel
+def load_tables_in_parallel(table_files):
+   error_dict = {}
+   error_count = 0
+
+   # Use ThreadPoolExecutor for parallel loading
+   with concurrent.futures.ThreadPoolExecutor() as executor:
+       # Submit all load tasks to the executor
+       future_to_table = {executor.submit(load_to_bigquery, gcs_paths, table_name): table_name for table_name, gcs_paths in table_files.items()}
+
+       # Collect exceptions if any occur during execution
+       for future in concurrent.futures.as_completed(future_to_table):
+           table_name = future_to_table[future]
+           try:
+               future.result()  # This will raise any exception that occurred in load_to_bigquery
+           except Exception as e:
+               error_dict[table_name] = str(e)
+               error_count += 1
+
+   return error_dict, error_count</code></pre>
+<ol start="5">
+<li><strong>Putting it all together</strong>: Finally, you must stitch together all these functions to find the latest snapshot, read the data and insert to BigQuery:</li>
+</ol>
+<pre><code># Cloud Function main entry point
+def load_latest_data():
+   try:
+       # Get the latest folder based on the data_load_times.json file
+       latest_load_time_dict = get_latest_load_time_dict()
+      
+       # List all tables and their .parquet files under the livemode folder
+       table_files = list_tables_and_files(latest_load_time_dict)
+      
+       # Load the data into BigQuery in parallel
+       error_dict,error_count = load_tables_in_parallel(table_files)
+
+       if error_count &gt; 0:
+           print(f"Data loading completed with {error_count} errors. Error details: {error_dict}")
+       else:
+           print("Data loading completed successfully.")
+
+   except Exception as e:
+       print(f"Error processing request: {e}")
+
+if __name__ == "__main__":
+   load_latest_data()</code></pre>
+<p>Also add a <code>requirement.txt</code> file with the needed dependencies:</p>
+<pre><code>google-cloud-storage
+google-cloud-bigquery
+</code></pre>
+<p>And a file named “Procfile” without any extension:</p>
+<pre><code>web: python3 main.py
+</code></pre>
+<h3 id="step-3-test-the-integration">Step 3: Test the integration.</h3>
+<p>The script is now ready to be tested. You are going to use Google Cloud Run Job to run the script for inserting data to BigQuery. Make sure you have <a href="https://cloud.google.com/sdk/gcloud">Gcloud CLI</a> installed and logged in using this <a href="https://cloud.google.com/sdk/docs/install">guide</a> before continuing.</p>
+<p>From the same folder where you created this script, run the following command:</p>
+<pre><code>gcloud run jobs deploy job-sdp-dataload \
+   --source . \
+   --max-retries 5</code></pre>
+<p>Choose the preferred region and select <code>[Y]</code> for creating an artifact registry. This creates the Docker image for the script, uploads it to Google Artifact Registry, and deploys the Cloud Run job.</p>
+<p>You can then run the job using the Gcloud Console or by running the command:</p>
+<pre><code>gcloud run jobs execute job-sdp-dataload</code></pre>
+<h3 id="step-4-verify-the-data">Step 4: Verify the data.</h3>
+<p>You can now verify the data by visiting the BigQuery Console and checking that all tables have been created under your specified DataSet. Since you use <code>WRITE_TRUNCATE</code> while writing the tables to BigQuery, you only see the latest snapshot of data in BigQuery.</p>
+<p>This is how the tables appear once they are loaded to BigQuery:</p>
+<p><span><span><img src="https://stripe.dev/images/unlock-powerful-analytics-stripe-data-pipeline-bigquery/2.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<h3 id="step-5-schedule-the-google-cloud-run-job">Step 5: Schedule the Google Cloud Run Job.</h3>
+<p>Once the integration is running, you can schedule it to run every 6 hours to ensure the latest data is in BigQuery. To do this, visit the <em>Add Trigger</em> page on the created Cloud Run Job page.</p>
+<p><span><span><img src="https://stripe.dev/images/unlock-powerful-analytics-stripe-data-pipeline-bigquery/3.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<h2 id=""><span><span><img src="https://stripe.dev/images/unlock-powerful-analytics-stripe-data-pipeline-bigquery/4.png" alt="" loading="lazy" decoding="async"></span></span></h2>
+<h2 id="conclusion">Conclusion</h2>
+<p>Integrating Stripe Data Pipeline (SDP) with Google Cloud Storage and BigQuery unlocks powerful analytics capabilities for Stripe users. The seamless integration between SDP and GCS allows businesses to easily export their payment data, while BigQuery offers the performance and scalability needed for querying and analyzing large datasets.</p>
+<p>Whether you are looking to build automated data pipelines, perform real-time analytics, or unlock business insights, using SDP with Google Cloud provides a flexible, cost-effective, and scalable solution.</p>
+<p>By using Stripe Data Pipeline, businesses can analyze their Stripe data effortlessly and gain a competitive edge through timely and data-driven decisions.</p>
+<p>To learn more about developing applications with Stripe, visit our <a href="https://www.youtube.com/stripedevelopers">YouTube Channel</a>.</p></div></div>

@@ -1,0 +1,162 @@
+---
+title: AI didn't write our SDK. It changed how we built it.
+link: https://stripe.dev/blog/ai-didnt-write-our-sdk-it-changed-how-we-built-it
+source: stripe-com
+published: 2026-08-28T00:00:00Z
+updated: 2026-08-28T00:00:00Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+authors:
+- Mike North
+summary: AI was involved at every stage of building Stripe's extensibility SDK, but the story isn't that it wrote code faster. Here's how prototypes, agent-drafted specs, and persistent guidance got ideas into reviewable shape sooner.
+content: extracted
+html: 2026-08-28-ai-didn-t-write-our-sdk-it-changed-how-we-built-it.html
+remote_preview:
+  url: https://stripe.dev/og/blog/ai-didnt-write-our-sdk-it-changed-how-we-built-it.png
+  alt: 'Stripe Developer Blog: AI didn''t write our SDK. It changed how we built it.'
+---
+
+When we shipped Stripe's [extensibility SDK](https://docs.stripe.com/stripe-apps) this year, AI was involved at every stage. But the story people expect - "AI wrote a lot of code and we shipped faster" - isn't the interesting one.
+
+The interesting part is what AI did to the stages that usually slow platform work down: the gap between an idea and a working prototype, between a prototype and a reviewable spec, between a spec and aligned implementation, and between implementation and polished deliverable.
+
+AI compressed all of those gaps - not by replacing human judgment, but by making human judgment more effective by giving it better artifacts to operate on, earlier in the process. That changed the quality of our decisions, not just the speed of our output.
+
+## Platform work has an abstraction problem
+
+When you're building an SDK, you're not building a feature a user clicks on. You're building primitives other developers will compose. The hard questions aren't "can we build this?" but "should we build it this way?"
+
+What should the developer experience feel like? Where should boundaries live? What belongs in the model and what's intentionally outside it? How do you keep six product surfaces coherent when each team could reasonably optimize in a different direction?
+
+In a traditional cycle, you discuss the idea, write a design doc, debate feasibility in the abstract, eventually build a prototype, discover rough edges weeks later, and course-correct. Each stage is expensive, so you do fewer of them, sequentially.
+
+That sequential cost is the real bottleneck in platform work, not the typing speed. The bottleneck is how long it takes to get from idea to an artifact the whole team can evaluate.
+
+## A working prototype in two days
+
+Early on, we were shaping how developers would define custom objects and attach behavior to them - part product design, part architecture, part platform strategy. We weren't asking "can we add methods to [custom objects](https://docs.stripe.com/custom-objects)?" We were asking what the authoring experience should feel like, how much of the existing platform we could reuse, and whether the approach was sustainable as part of Stripe's broader extensibility architecture.
+
+Without AI, this would have been a two-to-three-week effort of stubbing out the type system, building the transform pipeline, wiring up the demo, and writing the docs. The kind of work that's well-understood but time-consuming enough that you'd normally skip the prototype entirely and go straight to a design doc.
+
+With an AI coding assistant, one engineer on the team built a working prototype in roughly two days - complete with a demo and documentation site.
+
+That prototype wasn't the production code we shipped. But it was conceptually close to the production direction: author-defined custom objects, methods attached to those objects, generated runtime machinery, and a model that reused existing platform pieces rather than creating a bespoke system.
+
+The value wasn't that one person built something fast. It was that the team's conversation shifted from speculation to evaluation. Without the prototype, we'd have been debating a design document, and design documents require the suspension of disbelief. People have to imagine the developer experience, imagine the runtime behavior, imagine whether the pieces fit together. A working prototype removed that gap. The discussion moved from "Could this work?" to "Is this the right shape?" and "Where should the boundaries live?"
+
+That prototype ultimately convinced us to reprioritize the feature into scope for our next major launch. The decision happened weeks earlier than it would have otherwise, because we had a concrete artifact to evaluate rather than a speculative proposal to debate.
+
+## AI as architecture collaborator
+
+The next challenge was turning prototype intuition into coherent architecture.
+
+Prototypes create momentum, but platform work needs clean boundaries and durable abstractions. AI became useful differently here: not writing implementation, but helping us explore and articulate the implications of design choices across multiple surfaces.
+
+Much of the architectural work was sharpening important distinctions:
+
+- Product code shouldn't know or care how an extension is implemented
+- Low-latency enforcement belongs in deterministic declarative artifacts, not user-authored functions on every write path
+- A state machine is a lifecycle artifact; expressions are predicates inside that lifecycle
+- Dashboard-authored and code-authored experiences should wrap the same primitive, not fork into incompatible languages
+
+AI didn't invent those distinctions (the team's judgment was the source of truth) but AI helped us write down implications quickly enough to test whether our abstractions held across scripts, workflows, custom objects, SDK generation, runtime enforcement, and developer tooling.
+
+Platform work is especially vulnerable to local optimization. Any individual surface can be made to work alone. The system only becomes coherent if the same abstractions hold everywhere. AI helped us keep more of the system in view at once.
+
+## Spec-first agent delegation
+
+As the architecture solidified, we identified work naturally suited for delegation: bounded scope, clear correctness criteria, well-known patterns, strong connection to developer-facing behavior.
+
+ESLint rules were a good example: they encode what's allowed in the authoring experience, what's unsafe, and what should fail early. But we didn't hand an agent a vague goal and hope for the best. That's the common failure mode with AI coding, and it produces work that looks plausible while quietly violating deeper constraints.
+
+Instead, the workflow became disciplined:
+
+1. Identify work bounded enough for agent delegation
+2. Ask the agent to draft a detailed spec
+3. Review those specs as GitHub issues before implementation begins
+4. Implement using agent skills grounded in domain-specific guidance
+5. Review output against architectural intent
+
+Here's what one of those specs looked like in practice. A GitHub issue for a rule that prevents developers from using bare numbers in Custom Object fields (they should use Integer or Decimal instead):
+
+```
+## Rule Contract
+
+- Rule name: co/no-bare-number
+- Purpose: Disallow bare `number` in Custom Object fields, requiring Integer or Decimal instead.
+- Spec reference: S-002 Custom Object DDL §4, §3.7, §12.1
+- Severity: error
+- Auto-fix: yes
+- Requires type-checker: yes
+
+## Required Behavior
+
+Applies only to *.object.ts files. Targets type positions within the fields type — the type argument F passed to BaseObject<F>. The type-checker is required to resolve aliases and nested references.
+
+## Invalid Examples
+
+interface OrderFields {
+  total: number;     // error
+  discount?: number; // error
+}
+
+type MyNum = number;
+
+interface OrderFields {
+  count: MyNum;      // error (resolved through alias)
+}
+
+## Valid Examples
+
+interface OrderFields {
+  total: Integer;
+  rate: Decimal;
+}
+
+## Auto-fix behavior
+
+* Offer two auto-fix options: update the field to use the `Integer` or `Decimal` types from the extensibility-sdk
+```
+
+The spec defines exactly what "correct" means: which files it applies to, what it catches, what it doesn't, whether it auto-fixes. The agent drafts this, the team reviews and refines it, and only then does implementation begin. The review catches design issues such as "should this also fire inside action parameter types?" that would have been discovered much later in a code review-only workflow.
+
+As this pattern scaled, we used it to produce roughly twenty ESLint rules that enforce the SDK's authoring constraints - sandbox boundaries, import restrictions, type safety requirements. The spec-review-implement cycle actually caught design issues earlier than a conventional "just write it" approach would have, because the spec review forced us to articulate what "correct" meant before anyone touched implementation.
+
+## Persistent guidance, not one-off prompts
+
+Complex platform work can't rely on one-off prompting. Agents need context that persists: product principles, implementation constraints, architectural invariants, pitfalls specific to your system.
+
+We invested in repository-local documentation written for AI consumption - architectural principles, boundary definitions, known anti-patterns. When agents made changes, the output was more likely to be globally consistent with platform intent, not just locally correct in isolation.
+
+If the architecture says build-time validation is authoritative, the agent shouldn't defer a check until deploy. If the product model says expressions are deterministic, the implementation must reject loopholes that let side-effecting code into the evaluator path. Making those invariants available at the point of work raised the floor of what arrived for human review.
+
+This also solved a collaboration problem. When multiple teams contribute to a shared codebase, onboarding cost is usually high. Persistent AI guidance reduced it. Engineers from adjacent teams could make architecturally consistent changes without weeks of context-building. The documentation that helped agents helped humans too.
+
+## Compressing the feedback loop
+
+Near the end of the project, AI shifted to high-throughput refinement. As feedback came in from demos, design reviews, and hands-on use, we could turn around changes same-day that would normally take two to three days each. AI helped explore edge cases, reproduce subtle bugs, update documentation, adjust examples, generate targeted tests, and keep multiple artifacts consistent while details were still changing.
+
+The final mile of platform work is where quality is won or lost. The architecture might be sound, but the deliverable only lands if examples are clear, demos are believable, docs match implementation, and rough edges are caught before users find them.
+
+This is usually the phase where quality gets triaged away. Every piece of feedback competes with remaining implementation work, and most of it loses. AI changed that calculus. The marginal cost of responding to feedback dropped enough that we could incorporate most of it before the deadline rather than deferring to the next quarter. The deliverable shipped tighter than it would have otherwise.
+
+## What AI didn't do
+
+AI did not replace architectural judgment. It didn't decide which abstractions were load-bearing. It didn't know which tradeoffs mattered most for Stripe's platform. It didn't automatically understand that two things similar in code represent fundamentally different product concepts.
+
+In several places, raw output needed correction. AI could blur boundaries that needed to stay sharp. It could generate implementations that looked locally reasonable while quietly violating a deeper invariant. It could make plausible architectural claims that were subtly wrong. The more AI amplified output volume, the more important review discipline became — which is why the spec-first delegation model mattered so much.
+
+The lesson is not that AI can independently drive complex platform work. It's that AI dramatically increases the surface area over which a strong team can apply judgment. The judgment still has to be there. AI makes it go further.
+
+## What this means for how we work
+
+AI changes the economics of making ideas concrete.
+
+Before, a working prototype, a detailed architecture brief, a full set of implementation specs, agent-readable guidance, and a tight test-and-refine loop would each have competed for scarce engineering time. Because they were expensive, you'd choose fewer of them - which meant more abstract discussion, later feedback, and less confidence early on.
+
+With AI, the cost dropped enough that we could use more of them, earlier, across more surfaces. Instead of asking stakeholders to trust a document, we showed a prototype. Instead of asking engineers to infer intent, we wrote detailed specs. Instead of asking agents to guess constraints, we gave them reviewed issues and persistent guidance. Instead of accepting late feedback as too expensive, we folded it in.
+
+That's the shift. Not "AI writes code faster" but "AI makes more of the development loop concrete earlier." When ideas become artifacts sooner, teams make better decisions, catch problems earlier, and build with more confidence.
+
+For platform work - where the hardest part is getting a cross-functional team to agree to a shared conviction about the right abstractions - that's exactly the kind of leverage that compounds.
+
+We're still early in understanding what this means for how engineering teams should be organized and how projects should be structured. But the direction is clear: the teams that benefit most from AI won't be the ones that use it to type faster. They'll be the ones that redesign their workflows around the new economics of making ideas real.

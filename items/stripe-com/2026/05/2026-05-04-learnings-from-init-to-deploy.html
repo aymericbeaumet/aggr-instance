@@ -1,0 +1,65 @@
+<div id="readability-page-1" class="page"><div><p>Last week, I wrote about <a href="https://stripe.dev/blog/building-with-agents-stripe-projects">building a transcription app for my team using Stripe Projects, OpenRouter, and Vercel</a>. This app takes video software-generated subtitles and runs them through an AI agent via the OpenRouter API, taking in a detailed system prompt and tool calls to Stripe documentation to ensure speakers and service names are spelled and capitalized correctly, and returns a correctly-formatted transcription file.</p>
+<p>This was my first foray into using an agent to carry a project all the way from <code>init</code> to deploy, and I picked up a few takeaways from the process.</p>
+<h3 id="always-have-a-plan">Always have a plan</h3>
+<p>If anyone still remembers the days of software engineering before agentic workflows, a new feature would usually start with the lead engineer writing a design document with proposed architecture changes, features, and UX flows. Then, the team would read the doc and point out gaps or alternatives; in the end, a better doc led to a better implementation.</p>
+<p>This is still true, even if it’s now an agent writing the doc and possibly another agent or two reviewing it along with the engineer. Like a good design doc, an agent-designed plan should have a goal, an understanding of data flow (if applicable), an architecture section, whether a diagram or a list of new services, and a list of tasks.</p>
+<p>It’s the agent’s job to design this based on your requirements in the initial planning prompt; it’s your job to read it thoroughly and make changes where required based on your judgement. If you have questions, it’s better to either pause to do some research on your own or go back and forth with the agent for clarification.</p>
+<p>As the agent is coming up with the plan, you may get asked clarifying questions. One for me was whether to use streaming or not when receiving the fixed transcription contents. I followed up by asking the agent, based on my current setup of a Vercel-hosted NextJS app, would I be able to support streaming, and did it make sense for my use case of transcripts that could run thousands of lines. Its answer:</p>
+<pre><code>Streaming is the only architecture that can realistically handle long auto-generated subtitle transcripts on Vercel. Non-streaming serverless functions are capped at 10s on Hobby and 60s on Pro, and must return the full response within that window — so given your use case of a ~1,500-line transcript, it would routinely get cut off as a 504, with nothing to show for the tokens already paid for.
+</code></pre>
+<p>I verified that answer and did end up implementing streaming, and so far I haven't run into any timeout issues.</p>
+<h3 id="do-your-own-research">Do your own research</h3>
+<p><a href="https://projects.dev">Stripe Projects</a> makes it really, <em>really</em> easy to add new services, including services you haven't used before. That makes it tempting to skip the research that goes into deciding which service to use and how to use it and let the agent run wild, but you'll quickly find gaps in your knowledge when even your agent is asking you clarifying questions.</p>
+<p>Because I was completely new to OpenRouter, I wasn't aware of its <a href="https://openrouter.ai/openrouter/free">Free Models Router</a> during my initial setup, and later ended up revising my implementation to first try a free model, and only use a paid one if the user chooses to. This gave me important data on model quality and helped me better finalize my app design.</p>
+<p>When working with agents, taking the time to come up with a solid plan up front will save you time debugging or changing course in the long run. The same is true when choosing providers and getting to know their APIs - at least the ones most relevant to your project.</p>
+<h3 id="dont-skimp-on-models">Don't skimp on models</h3>
+<p>My transcription app initially offered three tiers of models: free, auto, and Claude. OpenRouter has a variety of free models with various results, and a handy <a href="https://openrouter.ai/openrouter/auto">auto router</a> that will select an appropriate (and usually more affordable) model based on the complexity of the prompt. My initial tries with the free model were ...disappointing; rather than following the instructions in the system prompt, which included strongly-worded decrees to stick to the initial script as much as possible, it ended up taking a 700-line script from my <a href="https://youtu.be/1kBFmOufiNE?si=k29VGEiO_4FuC-PT">Meetup talk</a>, and condensing it into a 100-line summary like so:</p>
+<pre><code>1  
+00:00:00,360 --&gt; 00:00:07,200  
+Hello, Dublin. My name is Anna Spysz. And today I'll show you how to integrate Stripe payments seamlessly.  
+
+2  
+00:00:07,200 --&gt; 00:00:13,880  
+Stripe offers three options: payment links, embedded buttons, or custom development. Choose based on your needs.  
+
+[...]
+
+6  
+00:00:34,279 --&gt; 00:00:41,280  
+For more details, visit stripe.com.  
+
+7  
+00:00:41,280 --&gt; 00:00:47,600  
+Now, let’s see how to implement this.  
+
+8  
+00:00:47,600 --&gt; 00:00:53,799  
+Start with the checkout flow. Ensure it matches your site’s design.  
+
+[...] 
+
+15  
+00:01:41,329 --&gt; 00:01:48,169  
+Finally, integrate the payment button into your site.  
+
+16  
+00:01:48,169 --&gt; 00:01:54,709  
+Double-check everything before launch.  
+
+17  
+00:01:54,709 --&gt; 00:02:01,690  
+Done! Your site now accepts payments smoothly.  
+</code></pre>
+<p>Well... at least it kept the (now inaccurate) timestamps 🤦.</p>
+<p>Repeated results like this made me remove the free option completely and instead default to <code>openrouter/auto</code> for the model. More testing revealed that reasoning models, though slower, were far more accurate, so I ended up swapping out Claude Sonnet 4.5 for Claude Opus 4.5 - thinking.</p>
+<p>The same is true for choosing the model that will plan your feature or app and then build it. If possible, use higher-quality thinking models for at least the planning and reviewing (more on that below). If you're on a token budget, you can then use less complex models for the actual code implementation, as long as they follow the plan and you're the ultimate reviewer of the code.</p>
+<h3 id="check-in-your-agent-files">Check in your agent files</h3>
+<p>When working on larger repos, my instinct had previously been to add the contents of <code>.agents/</code> or <code>.cursor/</code> to <code>.gitignore</code> - after all, these are <em>my</em> personal, hard-fought and probably too-niche-for-my-team learnings. This time, however, I checked in all of my files when I noticed that <code>stripe projects init</code> only (rightfully) added <code>.env</code> and cache files to <code>.gitignore</code> but kept all of the agent-specific files committed.</p>
+<p>Today, that feels like the right workflow: if I'm using an agent, and so is my teammate, we want our agents to have shared knowledge (skills) and shared rules so our code remains consistent. Just as I wouldn't add <code>eslint.config</code> to <code>.gitignore</code>, I'll no longer be adding <code>AGENTS.md</code>.</p>
+<h3 id="be-your-own-adversary">Be your own adversary</h3>
+<p>Just as you always want to read carefully through the agent-created plan, you need to read through agent-created code before checking it in - but you don’t need to be the first reviewer. In my <code>./agents</code> directory, I have <code>agents/pr-reviewer.md</code>, which is an agent persona that follows my organization’s best practices when reviewing PRs, including internal tools that exist to help in that process, style guides, testing coverage guides, accessibility and security guidelines, and so on.</p>
+<p>Once the agent has completed all of the tasks in the plan, spin up another agent, load the <code>pr-reviewer</code> persona, and ask it to go through the changes in your branch compared to <code>main</code> and list issues or problems, if any. The last part is important - an agent will find issues if you tell it to, so be sure to give it an opportunity to say “LGTM” if the code is good as is. Agents can be just as guilty of over-engineering as humans!</p>
+<p>If the agent does find problems, it will list them in order of severity; at this point, you should start reviewing the code yourself to see if you agree with the issues and if you can find better solutions than those proposed. Then you can ask the agent to address the issues you agree with, and now you’re ready to review the entire changeset before you put up your PR!</p>
+<h3 id="get-started-with-projects">Get started with Projects</h3>
+<p>I hope these learnings are useful to others building with agents. If you want to get started with Stripe Projects yourself, head to <a href="https://projects.dev/">projects.dev</a>. All it takes is one command to give your agents access to a growing list of service providers:</p>
+<pre><code>stripe projects init</code></pre></div></div>

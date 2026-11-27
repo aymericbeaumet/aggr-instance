@@ -1,0 +1,147 @@
+<div id="readability-page-1" class="page"><article>
+         <dl>
+             <dt>Author</dt>
+             <dd>
+                 <img alt="Sam Ruby" src="https://fly.io/static/images/sam.webp">
+               <dl>
+                 <dt>Name</dt>
+                 <dd>
+                   Sam Ruby
+                 </dd>
+                  <dt>bsky:intertwingly.net</dt>
+                  <dd>
+                    <a href="https://bsky.app/profile/intertwingly.net" target="_blank">
+                      bsky:intertwingly.net
+                    </a>
+                  </dd>
+               </dl>
+             </dd>
+         </dl>
+
+        <section>
+            <figure>
+                <img src="https://fly.io/blog/mcp-provisioning/assets/Hello.webp" alt="" fetchpriority="high" decoding="async">
+                <figcaption>
+                  <span>Image by</span>
+                  
+
+
+                    <a href="https://annieruygtillustration.com/" target="_blank">
+                      Annie Ruygt
+                    </a>
+                </figcaption>
+            </figure>
+          <p>Today’s state of the art is K8S, Terraform, web based UIs, and CLIs.  Those days are numbered.</p>
+<p>On Monday, I created my first fly volume using an <a href="https://modelcontextprotocol.io/introduction" title="">MCP</a>. For those who don’t know what MCPs are, they are how you attach tools to <a href="https://en.wikipedia.org/wiki/Large_language_model" title="">LLM</a>s like Claude or Cursor. I added support for
+<a href="https://docs.fly.io/flyctl/cmd/fly_volumes_create" title="">fly volume create</a> to <a href="https://docs.fly.io/flyctl/cmd/fly_mcp_server" title="">fly mcp server</a>, and it worked the first time.
+A few hours later, and with the assistance of GitHub Copilot, i added support for all <a href="https://docs.fly.io/flyctl/cmd/fly_volumes" title="">fly volumes</a> commands.</p>
+
+<hr>
+
+<p>I’m reminded of the memorable scene in the film <a href="https://en.wikipedia.org/wiki/Star_Trek_IV:_The_Voyage_Home" title="">Star Trek IV: The Voyage Home</a> (1986). Chief Engineer Scotty, having time-travelled 200 years back to late 20th century San Francisco with his crew mates, encounters an early Personal Computer (PC).</p>
+
+<p>Sitting in front of it, he addresses the machine affably as “Computer!” Nothing happens. Scotty repeats himself; still no response. He doesn’t realise that voice recognition capability hadn’t arrived yet.</p>
+
+<p>Exasperated, he picks up the mouse and speaks into it: “Hello, computer?” The computer’s owner offers helpful advice: “Just use the keyboard.”</p>
+
+<p>Scotty looks astonished. “A keyboard?” he asks, and adds in a sarcastic tone: “How quaint!”</p>
+
+<hr>
+
+<p>A while later, I asked for a list of volumes for an existing app, and Claude noted that I had a few volumes that weren’t attached to any machines. So I asked it to delete the oldest unattached volume, and it did so. Then it occurred to me to do it again; this time I captured the screen:</p>
+<p><img loading="lazy" decoding="async" alt="Deleting a volume using MCP: &quot;What is my oldest volume&quot;? ... &quot;Delete that volume too&quot;" width="495" height="719" src="https://fly.io/blog/mcp-provisioning/assets/volume-delete.png"></p>
+<p>A few notes:</p>
+
+<ul>
+<li>I could have written a program using the <a href="https://docs.fly.io/machines/api/volumes-resource" title="">machines API</a>, but that would have required some effort.
+</li><li>I could have used <a href="https://docs.fly.io/flyctl/cmd/fly_volumes" title="">flyctl</a> directly, but to be honest, I would have had to use the documentation and a bit of copy/pasting of arguments.
+</li><li>I could have navigated to a list of volumes for this application in the Fly.io dashboard, but there currently isn’t any way to sort the list or delete a volume. Had those been in place, that would have been a reasonable alternative if that was something I was actively looking for. This felt different to me, the LLM noted something, brought it to my attention, and I asked it to make a change as a result.
+</li><li>Since this support is built on <code>flyctl</code>, I would have received an error had I tried to destroy a volume that is currently mounted. Knowing that gave me the confidence to try the command.
+</li></ul>
+
+<p>All in all, I found it to be a very intuitive way to make changes to the resources assigned to my application.</p>
+
+<hr>
+
+<p>Imagine a future where you say to your favorite LLM “launch my application on Fly.io”, and your code is scanned and you are presented with a plan containing details such as regions, databases, s3 storage, memory, machines, and the like. You are given the opportunity to adjust the plan and, when ready, say “Make it so”.</p>
+
+<p>For many, the next thing you will see is that your application is up and running. For others, there may be a build error, a secret you need to set, a database that needs to be seeded, or any number of other mundane reasons why your application didn’t work the first time.</p>
+
+<p>Not to fear, your LLM will be able to examine your logs and will not only make suggestions as to next steps, but will be in a position to take actions on your behalf should you wish it to do so.</p>
+
+<p>And it doesn’t stop there. There will be MCP servers running on your Fly.io private network - either on separate machines, or in “sidecar” containers, or even integrated into your app. These will enable you to monitor and interact with your application.</p>
+
+<p>This is not science fiction. The ingredients are all in place to make this a reality. At the moment, it is a matter of “some assembly required”, but it should only be a matter of weeks before all this comes together into a neat package..</p>
+
+<hr>
+
+<p>Meanwhile, you can try this now. Make sure you run <a href="https://docs.fly.io/flyctl/cmd/fly_version_upgrade" title="">fly version upgrade</a> and verify that you are running v0.3.117.</p>
+
+<p>Then configure your favorite LLM. Here’s my <code>claude_desktop_config.json</code> for example:</p>
+<div>
+    <pre><code data-language="wrapper">{
+  "mcpServers": {
+    "fly.io": {
+      "command": "/Users/rubys/.fly/bin/flyctl",
+      "args": [ "mcp", "server" ]
+    }
+  }
+}
+</code></pre>
+  </div>
+<p>Adjust the path to <code>flyctl</code> as needed.  Restart your LLM, and ask what tools are available. Try a few commands and let us know what you like and let us know if you have any suggestions. Just be aware this is not a demo, if you ask it to destroy a volume, that operation is not reversable. Perhaps try this first on a throwaway application.</p>
+
+<p>You don’t even need a LLM to try out the flyctl MCP server. If you have Node.js installed, you can run the <a href="https://modelcontextprotocol.io/docs/tools/inspector" title="">MCP Inspector</a>:</p>
+<div>
+    <pre><code data-language="wrapper">fly mcp server -i
+</code></pre>
+  </div>
+<p>Once started, visit <a href="http://127.0.0.1:6274/">http://127.0.0.1:6274/</a>, click on “Connect”, then “List Tools”, select “fly-platform-status”, then click on “Run Tool”.</p>
+
+<p>The plan is to see what works well and what doesn’t work so well, make adjustments, build support in a bottoms up fashion, and iterate rapidly.</p>
+
+<p>By providing feedback, you can be a part of making this vision a reality.</p>
+
+<hr>
+
+<p>At the present time, <em>most</em> of the following are roughed in:</p>
+
+<ul>
+<li><a href="https://docs.fly.io/flyctl/cmd/fly_apps" title="">apps</a>
+</li><li><a href="https://docs.fly.io/flyctl/cmd/fly_logs" title="">logs</a>
+</li><li><a href="https://docs.fly.io/flyctl/cmd/fly_machine" title="">machine</a>
+</li><li><a href="https://docs.fly.io/flyctl/cmd/fly_orgs" title="">orgs</a>
+</li><li><a href="https://docs.fly.io/flyctl/cmd/fly_platform" title="">platform</a>
+</li><li><a href="https://docs.fly.io/flyctl/cmd/fly_status" title="">status</a>
+</li><li><a href="https://docs.fly.io/flyctl/cmd/fly_volumes" title="">volumes</a>
+</li></ul>
+
+<p>The code is open source, and the places to look is at <a href="https://github.com/superfly/flyctl/blob/master/internal/command/mcp/server.go" title="">server.go</a> and the <a href="https://github.com/superfly/flyctl/tree/master/internal/command/mcp/server" title="">server</a> directory.</p>
+
+<p>Feel free to open <a href="https://github.com/superfly/flyctl/issues" title="">issues</a> or start a discussion on <a href="https://community.fly.io/" title="">community.fly.io</a>.</p>
+
+<hr>
+
+<p>Not ready yet to venture into the world of LLMs? Just remember, resistance is futile.</p>
+
+          
+        </section>
+        <dl>
+            <dt>
+              Next post  ↑
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/mcp-launch/">
+                Launching MCP Servers on Fly.io
+              </a>
+            </dd>
+            <dt>
+              Previous post  ↓
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/30-minute-mcp/">
+                30 Minutes With MCP and flyctl
+              </a>
+            </dd>
+        </dl>
+      </article></div>

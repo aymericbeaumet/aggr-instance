@@ -1,0 +1,157 @@
+<div id="readability-page-1" class="page"><div><p>Every day, we navigate a world filled with asynchronous events. My coffee order is ready for pick-up. A package arrives at my front step. A payment succeeds. Events are occurrences or changes in state.</p>
+<p>Airports are one of my favorite settings to think about events. As you walk through the terminal to your gate, numerous things are happening: an inbound aircraft lands, a gate changes, a flight is delayed. While these types of events have been around since the advent of commercial air travel, it is only in recent years that airlines have started to publish these events to travelers through mobile apps and websites. This transparency benefits both travelers and airlines alike.</p>
+<p>Stripe makes extensive use of events to communicate changes in state to our users through <a href="https://docs.stripe.com/event-destinations">event destinations</a>. Event destinations enable Stripe users to receive real-time notifications of state changes across multiple channels, including webhook endpoints and <a href="https://docs.stripe.com/event-destinations">Amazon EventBridge</a>. This design allows users to build responsive applications that react promptly to payment status changes, subscription updates, or account modifications, minimizing latency between Stripe backend changes and the user interface.</p>
+<p>Stripe events are available for many API resource changes, including:</p>
+<ul>
+<li>Successful or failed payment transactions</li>
+<li>Updates to existing subscriptions</li>
+<li>Modifications to connected account profiles, like business information or compliance status</li>
+</ul>
+<p>Currently, Stripe supports two types of events: <a href="https://docs.stripe.com/api/events">snapshot (v1)</a> and <a href="https://docs.stripe.com/api/v2/core/events">thin (v2)</a> events. These two event types differ primarily in the information encoded within the event payload. Snapshot events carry a full copy of the resource state at the time of the event, whereas thin events include only a reference object, requiring additional API calls for complete details. Depending on filtering needs and system design, either type may be appropriate.</p>
+<p>Similar to the airport scenario, updating user-facing applications (e.g., mobile apps, websites) when Stripe API resources change can significantly enhance user experience and operational efficiency. Imagine sellers receiving near-instant notifications confirming payments, or merchants building rich integrations with Stripe Terminal that inform employees when payment processing is underway. Real-time alerts could also notify users that an outbound payment has been successfully sent or a subscription has been paused.</p>
+<p>In this blog post, we will explore approaches for connecting Stripe events received by your backend services to your frontend applications. We will delve into asynchronous, event-driven integrations that foster agility, responsiveness, and scalability across client-server interactions.</p>
+<h2 id="push-or-pull">Push or pull?</h2>
+<p>Integration between frontend applications and backend servers has traditionally been built using a synchronous request/response pattern. This approach is well understood and supported by mature technologies such as REST APIs. The client requests data, and the server responds immediately—a straightforward pull model. However, this method can become inefficient in highly dynamic systems.</p>
+<p>Polling tends to generate excessive network traffic as the client repetitively asks the server for updates, even when no changes have occurred. This chatter increases latency and resource consumption on both ends. Polling frequency determines responsiveness, but increasing it can tax infrastructure, while decreasing it can make the app feel sluggish or outdated. Another subtle challenge lies in computing the delta — the difference between current and previous responses — which is necessary to update only changed data efficiently but can quickly become complicated as the application evolves.</p>
+<p>A push or subscription model offers distinct advantages, especially within event-driven systems. Instead of endlessly querying for updates, clients subscribe to receive messages when relevant changes occur. More sophisticated subscription patterns enable clients to filter and receive only updates pertinent to their interests—for example, notifications tied to specific payment intents or account IDs.</p>
+<p><span><span><img src="https://stripe.dev/images/seamlessly-connect-stripe-events-to-your-frontend/image1.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>While subscriptions mitigate many inefficiencies and improve the user experience with near-instant updates, they also introduce additional architectural complexity. Implementing robust subscription models often requires new technologies such as WebSockets, MQTT, or managed pub/sub services.</p>
+<p>Depending on the nature of your workload — for instance, the frequency of state changes or scale of concurrent users — these trade-offs may or may not justify the complexity. Polling may still suffice for infrequent updates or simple applications.</p>
+<p>In practice, real-world applications often use a hybrid model: a synchronous API request to load the initial or bulk state, complemented by an asynchronous subscription to receive incremental updates. Returning to the airport analogy, this is akin to checking the departures board once before your trip, then watching live updates for delays, gate changes, or boarding announcements as they happen.</p>
+<h2 id="connecting-stripe-events-to-your-frontend">Connecting Stripe events to your frontend</h2>
+<p>Stripe supports two primary options for receiving events: webhook endpoints and Amazon EventBridge. Choosing between these options depends largely on your needs around resiliency, scalability, and integration into your existing system architecture.</p>
+<ul>
+<li><strong>Webhook Endpoints</strong>: Stripe delivers HTTP POST requests to URL(s) you configure whenever specific events occur. You must handle retries, idempotency, security verification, and potential spikes in traffic.</li>
+<li><strong>Amazon EventBridge</strong>: A serverless event bus service that can natively ingest Stripe events, route them, and integrate with various AWS services. EventBridge supports event filtering, transformation, and sophisticated routing patterns out of the box.</li>
+</ul>
+<p>Regardless of the event ingestion method, a robust event-processing architecture must address key challenges such as:</p>
+<ul>
+<li><strong>Idempotency</strong>: Ensuring that re-delivery of the same event does not cause duplicate processing or side effects.</li>
+<li><strong>Message ordering</strong>: Preserving event sequence to maintain data consistency.</li>
+<li><strong>Duplication</strong>: Detecting and discarding duplicate events.</li>
+<li><strong>Failure handling</strong>: Graceful recovery from transient network or service failures.</li>
+</ul>
+<p>Once your backend receives a Stripe event, several technical strategies are available to publish relevant information to your frontend clients. Managing these communication channels yourself can be complex, so many teams leverage managed services that offload service maintenance, scalability, and security concerns.</p>
+<p>Examples of such managed services include:</p>
+<ul>
+<li><strong>AWS AppSync</strong>: A managed GraphQL service that supports real-time subscriptions and integrates with various data sources.</li>
+<li><strong>Momento</strong>: A real-time cache and event streaming platform designed to minimize latency for event-driven applications.</li>
+</ul>
+<p>When selecting an approach, consider several key factors:</p>
+<ul>
+<li><strong>Messaging pattern</strong>: Will your messages be sent to individual clients (peer-to-peer) or broadcast to many subscribers?</li>
+<li><strong>Message direction</strong>: Is communication one-way (server to client) or bidirectional (client and server over the same connection)?</li>
+<li><strong>Latency requirements</strong>: How quickly must updates reach your subscribers for an acceptable user experience?</li>
+</ul>
+<p>The following table outlines some common communication patterns and technologies suitable for pushing or polling updates between frontend and backend applications, including latency expectations and sample implementations:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="region" aria-label="Scrollable table" tabindex="0"><table><thead><tr><th>Technology</th><th>Model</th><th>Patterns Supported</th><th>Latency</th><th>Sample Implementations*</th></tr></thead><tbody><tr><td><strong>WebSockets</strong></td><td>Push</td><td>Broadcast, P2P, One or Two-Way</td><td>Low</td><td>AWS AppSync, Amazon API Gateway</td></tr><tr><td><strong>MQTT</strong></td><td>Push</td><td>Broadcast, P2P, Two-Way</td><td>Low to Medium</td><td>AWS IoT Core</td></tr><tr><td><strong>gRPC</strong></td><td>Push</td><td>Broadcast, P2P, Two-Way</td><td>Very Low</td><td>Google Pub/Sub, Momento Topics</td></tr><tr><td><strong>Server-Sent Events</strong></td><td>Push</td><td>Broadcast, P2P, One-Way</td><td>Medium</td><td>Express SSE, Django</td></tr><tr><td><strong>Polling</strong></td><td>Pull</td><td>Broadcast, P2P, One-Way</td><td>Medium to Long</td><td>Amazon API Gateway, Apigee</td></tr></tbody></table></div>
+<p><em>Note that this table is non-exhaustive. Latencies and capabilities may vary based on implementation details, network conditions, and system architecture.</em></p>
+<p>Ultimately, your choice depends on your application's technical ecosystem and business needs. For example, if you publish events to Amazon EventBridge, it's possible to send messages directly using <a href="https://docs.aws.amazon.com/appsync/latest/eventapi/event-api-welcome.html">AWS AppSync Events</a>, enabling sophisticated user experiences without writing extensive custom connectors. Filtering and authorization are also differentiating features to investigate.</p>
+<h2 id="connecting-card-present-payment-events">Connecting card present payment events</h2>
+<p>Let’s return to the airport. During a long layover, you decide to visit an airport lounge but need to purchase a day pass for entry. The lounge integrates <a href="https://stripe.com/terminal">Stripe Terminal</a> with their management software to enable visitors to buy access conveniently with credit cards.</p>
+<p>The lounge’s management software uses a <a href="https://docs.stripe.com/terminal/payments/collect-card-payment?terminal-sdk-platform=server-driven">server-side integration with Stripe Terminal</a> to facilitate payment collection. This pattern allows the server to orchestrate payment workflows and control the local Terminal reader, which accepts card-present payments securely.</p>
+<p>The payment process begins by creating a new <code>PaymentIntent</code>:</p>
+<pre><code>let pi = await stripe.paymentIntents.create({
+  amount: 5000, // one-time payment of $50 (in cents)
+  currency: "usd",
+  capture_method: "automatic",
+  payment_method_types: [ "card_present" ],
+});</code></pre>
+<p>Next, the lounge software instructs the Terminal reader to authorize and confirm the transaction represented by the <code>PaymentIntent</code>:</p>
+<pre><code>await stripe.terminal.readers.processPaymentIntent(
+  "{{TERMINAL_READER_ID}}",
+  {
+    payment_intent: pi.id,
+  }
+);</code></pre>
+<p>At this point, the reader will light up, ready to accept a card-present payment. Meanwhile, Stripe publishes events to the configured event destinations, informing other parts of the system of state changes.</p>
+<p>The lounge management software can take advantage of these events by publishing relevant portions to the frontend interface using the technologies described earlier. For instance, the software can instantly notify the lounge agent when the reader is ready for payment, indicated by the <code>payment_intent.requires_payment_method</code> event.</p>
+<p>If the lounge software uses Amazon EventBridge as an event destination, it can take advantage of the native routing and filtering capabilities to route the event to AWS AppSync Events:</p>
+<p><span><span><img src="https://stripe.dev/images/seamlessly-connect-stripe-events-to-your-frontend/image2.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>Though a full walkthrough of an EventBridge + AWS AppSync setup is beyond this post’s scope, here’s an abbreviated sketch of the solution:</p>
+<ol>
+<li>Create an&nbsp;<a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html">event pattern</a>&nbsp;to match the&nbsp;<code>payment_intent.requires_payment_method</code>&nbsp;event:</li>
+</ol>
+<pre><code>{
+  "source": [{
+    "prefix": "aws.partner/stripe.com"
+  }],
+  "detail-type": ["payment_intent.requires_payment_method"]
+}</code></pre>
+<ol start="2">
+<li>Use an&nbsp;<a href="https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-api-destinations.html">EventBridge API destination</a>&nbsp;to publish a message to the AWS AppSync Events endpoint. The message structure is flexible; the payload might resemble:</li>
+</ol>
+<pre><code>{
+  "channel": "payment/lounges/123",
+  "events": [
+    "{ \"event\": \"payment_required\", \"id\": \"&lt;pid&gt;\", \"amount\": \"&lt;amount&gt;\" }"
+  ]
+}</code></pre>
+<ol start="3">
+<li>On the client side, subscribe to the AWS AppSync Events channel to receive and react to updates. For example, a React application could use the&nbsp;<a href="https://docs.aws.amazon.com/amplify/">AWS Amplify</a>&nbsp;library:</li>
+</ol>
+<pre><code>await eventsClient.connect(`payments/lounges/${lounge_id}`).subscribe({
+  next: (data) =&gt; {
+    if (data.type === "requires_payment_method") {
+    setReadyToCollect(true);
+    }
+  },
+})</code></pre>
+<p>While the example above leverages AWS services, you could implement similar flows using any of the previously discussed technologies, trading off complexity, latency, and cost. For instance, you might configure a webhook event destination that publishes a message to a <a href="https://www.gomomento.com/platform/topics/">Momento Topic</a> when payment data changes, enabling real-time frontend updates without AWS.</p>
+<h3 id="conclusion">Conclusion</h3>
+<p>Extending Stripe events to the frontend empowers you to build rich, responsive, and interactive applications powered by real-time data streams. With this foundation, retailers can notify merchants of individual sales moments after they occur, subscription platforms can instantly alert users to changes in billing status, and support teams can monitor account events as they happen to provide proactive service.</p>
+<p>Consider additional real-world use cases such as:</p>
+<ul>
+<li><strong>Inventory Updates</strong>: Automatically adjust stock levels shown on e-commerce frontends once payments settle.</li>
+<li><strong>Customer Support Dashboards</strong>: Display real-time payment and subscription changes to customer success teams.</li>
+<li><strong>Analytics and Reporting</strong>: Feed live metrics into dashboards for operational visibility.</li>
+</ul>
+<p>By combining Stripe’s powerful event architecture with modern frontend technologies and  subscription patterns, developers can deliver compelling experiences that delight users and drive business outcomes.</p>
+<p>To learn more about developing applications with Stripe and unlock new possibilities with event-driven integrations, visit our&nbsp;<a href="https://www.youtube.com/stripedevelopers">YouTube Channel</a>. Or check out <a href="https://www.youtube.com/watch?v=DIsGgXfp7RI">my conversation with James Beswick</a> on this topic.</p></div></div>

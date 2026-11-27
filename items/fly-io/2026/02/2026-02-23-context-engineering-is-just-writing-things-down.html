@@ -1,0 +1,105 @@
+<div id="readability-page-1" class="page"><article>
+         <dl>
+             <dt>Author</dt>
+             <dd>
+                 <img alt="Daniel Botha" src="https://fly.io/static/images/danielb.webp">
+               <dl>
+                 <dt>Name</dt>
+                 <dd>
+                   Daniel Botha
+                 </dd>
+               </dl>
+             </dd>
+         </dl>
+
+        <section>
+            <figure>
+                <img src="https://fly.io/blog/context-engineering-is-just-writing-things-down/assets/context-engineering-is-just-writing-things-down.jpg" alt="Teaching Claude your project conventions in a Sprite" fetchpriority="high" decoding="async">
+            </figure>
+          <p>“Context engineering” is the internet’s new shibboleth. Fine. We’ve had worse.
+So here’s an argument starter: The only interesting thing about <a href="https://fly.io/blog/openclaw-in-a-sprite/" title="">OpenClaw</a> is its context engineering. The way it manages and inserts memory into agent context. Yes, this is because I live in a world where everything you need from a computer is just a few prompts away. So no, I don’t think a Slack connector or a WhatsApp bridge is interesting. The memory system is cool though.</p>
+
+<p>People are having fun with SOUL.md because it lets you set a persistent personality and some behavioral traits. MEMORY.md is … memories, and daily logs capture ongoing session context, but these are standard agent equipment. What’s worth a look is how each of these are managed. Daily logs are append-only and decay in relevance over time. They’re noise with signal in it. MEMORY.md doesn’t decay, it only changes when the agent or the user deliberately promotes something into it. One is a stream, the other is curated.</p>
+
+<p>Then there’s memory recall. A hybrid of keyword search (BM25) and vector search, weighted 70/30, with diversity re-ranking so you don’t get five variations of the same result. It finds both exact matches like error codes and conceptual matches like “that thing we discussed about auth.” All backed by local SQLite.</p>
+
+<p>Of course these aren’t revolutionary features, but they serve to make my point. The quality of an agent’s work is far more dependent on how much it knows about your project and its environment than it is about model capability.</p>
+
+<p>This is why we’re working our collective ass off to help <a href="https://fly.io/sprites/" title="">Sprites</a> understand how to operate themselves and other Sprites with built-in documentation. Just Tell Claude To Do It covered what comes in the box. But when it comes to your specific Sprite project, these should be considered a starting point.</p>
+
+<p>There are four different ways to make your Sprite better at working on your project:</p>
+
+<ol>
+<li><strong>CLAUDE.md</strong> — project conventions, commands, patterns. Claude reads this on every session.
+</li><li><strong>Skills</strong> — reusable multi-step workflows that activate by description.
+</li><li><strong>Hooks</strong> — scripts that inject live environment state into Claude’s context.
+</li><li><strong>Checkpoints</strong> — snapshots that make the whole investment durable.
+</li></ol>
+
+<p>Used together, these can turn a Sprite that everyone else has into a specialised coding agent environment that knows your project and your workflow inside out. Try this:</p>
+<h2 id="the-project"><a href="#the-project" aria-label="Anchor"></a><span>The Project</span></h2>
+<p>Let’s build an excuse-as-a-service API called <code>Alibi</code> in a Sprite. We want to be able to hit it with “late to standup”, “forgot to review the PR”, “haven’t replied in three days” situations and have it generate a plausible excuse. It’s a Bun + Hono backend with Postgres for storing excuse templates and usage stats. Yes, we’ll open source it.</p>
+<h2 id="claude-md"><a href="#claude-md" aria-label="Anchor"></a><span>CLAUDE.md</span></h2>
+<p>See <a href="https://alibi-beony.sprites.app/docs/claude-md" title="">Alibi’s CLAUDE.md</a></p>
+
+<p><a href="https://code.claude.com/docs/en/memory" title=""><code>CLAUDE.md</code></a> is read from your project root at the start of every session. Write one before you ask Claude to do anything. Add what you know you want about the project; the stack, the commands, the conventions you care about. Then remember to grow it as you work. Any time Claude uses <code>console.log</code> instead of your logger, or puts tests in the wrong directory, or forgets the auth middleware, tell it to fix it and update <code>CLAUDE.md</code>. By the time Alibi soft launches, my <code>CLAUDE.md</code> has the stack, the commands, the migration naming scheme, the error response format, the logging convention, and a note about where test files go.</p>
+<h2 id="skills-for-repeated-workflows"><a href="#skills-for-repeated-workflows" aria-label="Anchor"></a><span>Skills for Repeated Workflows</span></h2>
+<p>See <a href="https://alibi-beony.sprites.app/docs/skills/preflight" title="">Alibi’s preflight skill</a></p>
+
+<p><code>CLAUDE.md</code> is not for multi-step processes you run repeatedly. That’s where I wanna use Skills.</p>
+
+<p>In preparation for the millions of users that Alibi will have, I want a robust preflight check before every PR. Tell Claude:</p>
+
+<blockquote>
+<p>Write a Claude Code skill called “preflight” that runs tests, type checking, linting, and checks for leftover TODOs, in that order. Stop at the first failure.</p>
+</blockquote>
+
+<p>Yeah I could just say this every time, but I’ll probably describe it differently every time and give Claude an excuse to screw it up. With a skill at <code>~/.claude/skills/preflight/SKILL.md</code>, I just say run preflights. Done.</p>
+<h2 id="hooks-for-things-you-forget"><a href="#hooks-for-things-you-forget" aria-label="Anchor"></a><span>Hooks for Things You Forget</span></h2>
+<p>See <a href="https://alibi-beony.sprites.app/docs/hooks/sprite-env-check" title="">Alibi’s environment hook</a> and <a href="https://alibi-beony.sprites.app/docs/hooks/git-state-check" title="">git state hook</a></p>
+
+<p>Use <a href="https://code.claude.com/docs/en/hooks" title="">hooks</a> to inject anything you want Claude to know about the state of the environment <em>right now</em>. </p>
+
+<p>Try a Sprite environment hook that warns Claude about crashed services and stale checkpoints, and/or a git state hook that feeds branch, uncommitted changes, and ahead/behind status into context. </p>
+
+<p>Hooks are how you stop Claude from building inside a windowless house. No more explaining environment errors it should already know about. No more soul-destroying moments where Claude says “Alibi is live!” when Postgres has been dead for ten minutes.</p>
+<h2 id="checkpoint-the-investment"><a href="#checkpoint-the-investment" aria-label="Anchor"></a><span>Checkpoint the Investment</span></h2>
+<p>See <a href="https://alibi-beony.sprites.app/docs/settings" title="">Alibi’s hook config</a></p>
+
+<p>Claude should already be checkpointing automatically because the Sprite docs tell it to. If it’s not, tell it to. Sternly. A checkpointed Sprite is a safe place of work. Everything you’ve built; the CLAUDE.md, the skills, the hooks, the installed dependencies, the running Postgres service, the very project itself, is on the Sprite’s filesystem. </p>
+
+<p>This is the part you don’t get on your laptop. This stuff is scattered across your machine and easy to lose. In a Sprite, it’s all environment state. This is the quiet joy of the humble checkpoint.</p>
+<h2 id="the-payoff"><a href="#the-payoff" aria-label="Anchor"></a><span>The Payoff</span></h2>
+<p>A week from now, a user from Yakutsk reports that excuse generation is returning duplicates when their category has fewer than ten templates. I open my Sprite, start Claude, and say:</p>
+
+<blockquote>
+<p>There’s a bug where excuse generation returns duplicates when a category has fewer templates than the requested count. Investigate and fix.</p>
+</blockquote>
+
+<p>Claude checks the git state hook: Clean working tree, on <code>main</code>. It reads the service logs. It finds the query in <code>src/services/generator.ts</code>, spots the issue (sampling with replacement instead of without), fixes it, writes a regression test next to the source file using <code>bun test</code>, runs the suite, and checkpoints.</p>
+
+<p>It used the right test runner. It put the test in the right place. It logged with pino. It followed the error response format. It checkpointed. I said none of that. The context layer did.</p>
+
+<p>Look mom, I’m a context engineer! No mom, I didn’t even need a vector database or a RAG pipeline or some token-bingeing memory flush before compaction. Just files on disk, curated from real use, in an environment where they persist.</p>
+
+          
+        </section>
+        <dl>
+            <dt>
+              Next post  ↑
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/local-llm-on-a-sprite/">
+                Run a Local LLM on a CPU With BitNet and a Sprite
+              </a>
+            </dd>
+            <dt>
+              Previous post  ↓
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/agent-swarms-on-sprites/">
+                Agent Swarms on Sprites
+              </a>
+            </dd>
+        </dl>
+      </article></div>

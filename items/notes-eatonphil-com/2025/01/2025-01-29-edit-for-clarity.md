@@ -1,0 +1,47 @@
+---
+title: Edit for clarity
+link: http://notes.eatonphil.com/2025-01-29-edit-for-clarity.html
+source: notes-eatonphil-com
+published: 2025-01-29T00:00:00Z
+updated: 2025-01-29T00:00:00Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+labels:
+- writing
+summary: 'I have the fortune to review a few important blog posts every year and the biggest value I add is to call out sentences or sections that make no sense. It is quite simple and you can do it too. Without clarity only those at your company in marketing and sales (whose job it is to work with what they get) will give you the courtesy of a cursory read and a like on LinkedIn. This is all that most corporate writing achieves. It is the norm and it is understandable. But if you want to reach an audience beyond those folks, you have to make sure you''re not writing nonsense. And you, as reviewer and editor, have the chance to call out nonsense if you can get yourself to recognize it. Immune to nonsense But especially when editing blog posts at work, it is easy to gloss over things that make no sense because we are so constantly bombarded by things that make no sense. Maybe it''s buzzwords or cliches, or simply lack of rapport. We become immune to nonsense. And even worse, without care, as we become more experienced, we become more fearful to say "I have no idea what you are talking about". We''re afraid to look incompetent by admitting our confusion. This fear is understandable, but is itself stupid. And I will trust you to deal with this on your own. Read it out loud So as you review a post, read it out loud to yourself. And if you find yourself saying "what on earth are you talking about", add that as a comment as gently as you feel you should. It is not offensive to say this (depending on how you say it). It is surely the case that the author did not know they were making no sense. It is worse to not mention your confusion and allow the author to look like an idiot or a bore. Once you can call out what does not make sense to you, then read the post again and consider what would not make sense to someone without the context you have. Someone outside your company. Of course you need to make assumptions about the audience to a degree. It is likely your customers or prospects you have in mind. Not your friends or family. With the audience you have in mind, would what you''re reading make any sense? Has the author given sufficient background or introduced relevant concepts before bringing up something new? Again this is a second step though. The first step is to make sure that the post makes sense to you. In almost every draft I read, at my company or not, there is something that does not make sense to me. Do two paragraphs need to be reordered because the first one accidentally depended on information mentioned in the second? Are you making ambiguous use of pronouns? And so on. In closing Clarity on its own will put you in the 99th percentile of writing. Beyond that it definitely still matters if you are compelling and original and whatnot. But too often it seems we focus on being exciting rather than being clear. But it doesn''t matter if you''ve got something exciting if it makes no sense to your reader. This sounds like mundane guidance, but I have reviewed many posts that were reviewed by other people and no one else called out nonsense. I feel compelled to mention how important it is. Wrote a new post on the most important, and perhaps least done, thing you can do while reviewing a blog post: edit for clarity. pic.twitter.com/ODblOUzB3g — Phil Eaton (@eatonphil) January 29, 2025'
+content: extracted
+html: 2025-01-29-edit-for-clarity.html
+---
+
+I have the fortune to review a [few](https://eatonphil.com/editor.html) important blog posts every year and the biggest value I add is to call out sentences or sections that make no sense. It is quite simple and you can do it too.
+
+Without clarity only those at your company in marketing and sales (whose job it is to work with what they get) will give you the courtesy of a cursory read and a like on LinkedIn. This is all that most corporate writing achieves. It is the norm and it is understandable.
+
+But if you want to reach an audience beyond those folks, you have to make sure you're not writing nonsense. And you, as reviewer and editor, have the chance to call out nonsense if you can get yourself to recognize it.
+
+### Immune to nonsense
+
+But especially when editing blog posts at work, it is easy to gloss over things that make no sense because we are so constantly bombarded by things that make no sense. Maybe it's buzzwords or cliches, or simply lack of rapport. We become immune to nonsense.
+
+And even worse, without care, as we become more experienced, we become more fearful to say "I have no idea what you are talking about". We're afraid to look incompetent by admitting our confusion. This fear is understandable, but is itself stupid. And I will trust you to deal with this on your own.
+
+### Read it out loud
+
+So as you review a post, read it out loud to yourself. And if you find yourself saying "what on earth are you talking about", add that as a comment as gently as you feel you should. It is not offensive to say this (depending on how you say it). It is surely the case that the author did not know they were making no sense. It is worse to not mention your confusion and allow the author to look like an idiot or a bore.
+
+Once you can call out what does not make sense to you, then read the post again and consider what would not make sense to someone without the context you have. Someone outside your company. Of course you need to make assumptions about the audience to a degree. It is likely your customers or prospects you have in mind. Not your friends or family.
+
+With the audience you have in mind, would what you're reading make any sense? Has the author given sufficient background or introduced relevant concepts before bringing up something new?
+
+Again this is a second step though. The first step is to make sure that the post makes sense to *you*. In almost every draft I read, at my company or not, there is something that does not make sense to me.
+
+Do two paragraphs need to be reordered because the first one accidentally depended on information mentioned in the second? Are you making ambiguous use of pronouns? And so on.
+
+### In closing
+
+Clarity on its own will put you in the 99th percentile of writing. Beyond that it definitely still matters if you are compelling and original and whatnot. But too often it seems we focus on being exciting rather than being clear. But it doesn't matter if you've got something exciting if it makes no sense to your reader.
+
+This sounds like mundane guidance, but I have reviewed many posts that were reviewed by other people and no one else called out nonsense. I feel compelled to mention how important it is.
+
+> Wrote a new post on the most important, and perhaps least done, thing you can do while reviewing a blog post: edit for clarity. [pic.twitter.com/ODblOUzB3g](https://t.co/ODblOUzB3g)
+>
+> — Phil Eaton (@eatonphil) [January 29, 2025](https://twitter.com/eatonphil/status/1884735729625952692?ref_src=twsrc%5Etfw)

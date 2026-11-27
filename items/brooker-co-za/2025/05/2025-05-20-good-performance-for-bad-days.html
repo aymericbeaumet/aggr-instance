@@ -1,0 +1,91 @@
+<div id="readability-page-1" class="page"><div id="post">
+
+
+
+
+
+
+<p>Good things are good, one finds.</p>
+
+<p>Two weeks ago, I flew to Toronto to give one of the keynotes at the International Conference on Performance Evaluation. It was fun. Smart people. Cool dark squirrels. Interesting conversations.</p>
+
+<p>The core of what I tried to communicate is that, in my view, a lot of the performance evaluation community is overly focused on <em>happy case</em> performance (throughput, latency, scalability), and not focusing as much as we need to on performance under saturation and overload.</p>
+
+<p><img src="https://brooker.co.za/blog/images/icpe_s1.png" alt=""></p>
+
+<p>In fact, the opposite is potentially more interesting. For builders and operators of large systems, a lack of performance predictability under overload is a big driver of unavailability.</p>
+
+<p><img src="https://brooker.co.za/blog/images/icpe_s2.png" alt=""></p>
+
+<p>This is a common theme in postmortems and outage reports across the industry. Overload drives systems into regimes they aren’t used to handling, which leads to downtime. Sometimes, in the case of <a href="https://brooker.co.za/blog/2021/05/24/metastable.html">metastable failures</a>, this leads to downtime that persists even after the overload has passed.</p>
+
+<p>How did we get into this situation?</p>
+
+<p><em>Not Measuring the Hard Stuff</em></p>
+
+<p>At least one reason is immediately obvious if you pay attention to the performance evaluation in the majority of systems papers. Most of them show throughput, latency, or some other measure of goodness at a load far from the saturation point of the system.</p>
+
+<p><img src="https://brooker.co.za/blog/images/icpe_s3.png" alt=""></p>
+
+<p>The first-order reason for this is unsurprising: folks want to show the system they built in a good light. But there are some second-order reasons too. One is that performance evaluation is easiest, and most repeatable, in this part of the performance curve, and it takes expertise that many don’t have to push beyond it.</p>
+
+<p>Some bolder authors will compare saturation points, showing that their systems are able to do more good stuff even when the load is excessive.</p>
+
+<p><img src="https://brooker.co.za/blog/images/icpe_s4.png" alt=""></p>
+
+<p>Only the boldest will go beyond this saturation point to show the performance of their system under truly excessive amounts of load, after the point where performance starts to drop.</p>
+
+<p><img src="https://brooker.co.za/blog/images/icpe_s5.png" alt=""></p>
+
+<p>This regime is important, because it’s very hard to compose reliable end-to-end systems without knowing where the saturation points of components are, and how they perform beyond that point. Even if you try do things like rate limiting and throttling at the front door, which you should, you still need to know how much you can send, and what the backend looks like when it starts saturating.</p>
+
+<p>As a concrete example, TCP uses latency and loss as a signal to slow down, and assumes that if everybody slows down congestion will go away. These nice, clean, properties don’t tend to be true of more complex systems.</p>
+
+<p><em>Open and Closed</em></p>
+
+<p>If you read only one performance-related systems paper in your life, make it <a href="https://www.usenix.org/legacy/event/nsdi06/tech/full_papers/schroeder/schroeder.pdf">Open Versus Closed: A Cautionary Tale</a>. This paper provides a crucial mental model for thinking about the performance of systems. Here’s the key image from that paper:</p>
+
+<p><img src="https://brooker.co.za/blog/images/open_closed.png" alt=""></p>
+
+<p>When we look at the performance space, we see two things:</p>
+
+<ol>
+  <li>Most cloud systems are <em>open</em> (APIs, web sites, web services, MCP servers, whatever)</li>
+  <li>Most benchmarks are <em>closed</em> (TPC-C, YCSB, etc)</li>
+</ol>
+
+<p>That doesn’t make sense. The most famous downside of this disconnect is <a href="https://www.scylladb.com/2021/04/22/on-coordinated-omission/">coordinated omission</a>, where we massively underestimate the performance impact of tail latency. But that’s far from the whole picture. Closed benchmarks are too kind to realistically reflect how performance changes with load, for the simple reason that they slow their load down when latency goes up.</p>
+
+<p><img src="https://brooker.co.za/blog/images/icpe_s6.png" alt=""></p>
+
+<p>The real world isn’t that kind to systems. In most cases, if you slow down, you just have more work to be done later.</p>
+
+<p><em>Metastability</em></p>
+
+<p>As I’ve <a href="https://brooker.co.za/blog/2021/05/24/metastable.html">written about before</a> (<a href="https://brooker.co.za/blog/2019/05/01/emergent.html">a few times</a>, <a href="https://brooker.co.za/blog/2022/06/02/formal.html">in different ways</a>), metastability is a problem that distributed systems engineers need to pay more attention to. Not paying attention to performance under overload means not paying attention to metastability, where the majority of real-world triggers are overload-related.</p>
+
+<p>Metastability isn’t some esoteric problem. It can be triggered by retries.</p>
+
+
+
+<p>or by <a href="https://brooker.co.za/blog/2021/08/27/caches.html">caches, as I’ve written about before</a>.</p>
+
+<p><img src="https://brooker.co.za/blog/images/icpe_s7.png" alt=""></p>
+
+<p><em>Disconnect between benchmark and real-world workloads</em></p>
+
+<p>The other issue, as it always has been, is a disconnect between benchmark workloads and real-world workloads. This is true in that benchmarks don’t reflect the size and scale of work done by real-world systems.</p>
+
+<p><img src="https://brooker.co.za/blog/images/icpe_s9.png" alt=""></p>
+
+<p>And in that they don’t reflect the coordination and contention patterns present in real-world workloads.</p>
+
+<p><img src="https://brooker.co.za/blog/images/icpe_s8.png" alt=""></p>
+
+<p>The example I used was TPC-C, which has coordination patterns that are much easier to scale than most real-world workloads. <a href="https://brooker.co.za/blog/2024/02/12/parameters.html">When visualized as a graph of rows that transact together</a>, that becomes clear - you can basically partition on <em>warehouse</em> and avoid all cross-partition write-write conflicts.</p>
+
+<p><em>Conclusion</em></p>
+
+<p>Performance evaluation is super important to system designers and operators. This is a community I care about a lot. But I think there’s a growing disconnect between practice and theory in this space, which we need to close to keep the field relevant and alive.</p>
+
+</div></div>

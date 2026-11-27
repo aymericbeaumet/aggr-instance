@@ -1,0 +1,135 @@
+<div id="readability-page-1" class="page"><article>
+         <dl>
+             <dt>Author</dt>
+             <dd>
+                 <img alt="Daniel Botha" src="https://fly.io/static/images/danielb.webp">
+               <dl>
+                 <dt>Name</dt>
+                 <dd>
+                   Daniel Botha
+                 </dd>
+               </dl>
+             </dd>
+         </dl>
+
+        <section>
+            <figure>
+                <img src="https://fly.io/blog/slack-bots-on-sprites/assets/slack_bots.webp" alt="build Slack bots on Sprites" fetchpriority="high" decoding="async">
+            </figure>
+          <p>Slack bots are handy, but they typically require OAuth, which means you need a server with a public URL to handle callbacks. This is annoying. But with <a href="https://fly.io/sprites/" title="">Sprites</a>, you get an instant internet-accessible environment with a persistent filesystem that makes it trivial.</p>
+<h2 id="oauth-pain"><a href="#oauth-pain" aria-label="Anchor"></a><span>OAuth Pain</span></h2>
+<p>Getting your Slack bot working involves jumping through these OAuth hurdles:</p>
+
+<ol>
+<li>Create an endpoint to receive Slack’s authorization callback
+</li><li>Get that endpoint online with a public URL
+</li><li>Securely store tokens after the callback
+</li><li>Maintain those tokens across restarts
+</li></ol>
+
+<p>This requires deploying something to a host, setting up Ngrok and implementing a storage solution for tokens.</p>
+<h2 id="slack-bot-sprites"><a href="#slack-bot-sprites" aria-label="Anchor"></a><span>Slack Bot Sprites</span></h2>
+<p>Create a Sprite for your bot:</p>
+<div>
+    <pre><code data-language="wrapper">sprite create slack-bot
+sprite console -s slack-bot
+</code></pre>
+  </div>
+<p>Install your dependencies:</p>
+<div>
+    <pre><code data-language="wrapper">npm init -y
+npm install @slack/bolt express
+</code></pre>
+  </div><h3 id="build-an-oauth-handler"><a href="#build-an-oauth-handler" aria-label="Anchor"></a><span>Build an OAuth Handler</span></h3>
+<p>Now we need a server that:</p>
+
+<ol>
+<li>Handles the OAuth callback from Slack
+</li><li>Stores access tokens to the filesystem
+</li><li>Loads those tokens when the server restarts
+</li><li>Implements your bot’s functionality
+</li></ol>
+
+<p><strong>Ask your code assistant to:</strong> <em>“Create a server.js file that handles Slack OAuth callbacks using the Bolt framework, stores tokens to the filesystem, and implements a simple slash command. The server should run on port 8080.”</em></p>
+<h3 id="register-your-slack-bot-as-a-sprite-service"><a href="#register-your-slack-bot-as-a-sprite-service" aria-label="Anchor"></a><span>Register Your Slack Bot as a Sprite Service</span></h3>
+<p>Sprites don’t use systemd or traditional init systems. Instead, they have their own <a href="https://docs.fly.io/sprites/concepts/services" title="">service manager</a> that enables the Sprite’s automatic sleep/wake behavior.</p>
+
+<p>So you’ll want to register your bot as a service with the HTTP port flag:</p>
+<div>
+    <pre><code data-language="wrapper">sprite-env services create slack-bot --cmd node --args server.js --http-port 8080
+</code></pre>
+  </div>
+<p>This does three critical things:</p>
+
+<ol>
+<li><strong>Auto-start on HTTP requests</strong>: When a request hits your Sprite URL, the Sprite wakes from hibernation
+</li><li><strong>Auto-route requests:</strong> The Sprite proxy routes incoming traffic to your specified port (8080)
+</li><li><strong>Persistent registration</strong>: Your service registration survives Sprite restarts and hibernation
+</li></ol>
+
+<p>When idle, your Sprite hibernates to save costs and wakes in under a second when Slack sends events or users visit the install URL.</p>
+<h3 id="get-your-public-url"><a href="#get-your-public-url" aria-label="Anchor"></a><span>Get Your Public URL</span></h3><div>
+    <pre><code data-language="wrapper">sprite url update --auth public -s slack-bot
+</code></pre>
+  </div><h3 id="configure-your-slack-app"><a href="#configure-your-slack-app" aria-label="Anchor"></a><span>Configure Your Slack App</span></h3>
+<p>The rest is standard Slack stuff:</p>
+
+<ol>
+<li>Visit <a href="https://api.slack.com/apps">https://api.slack.com/apps</a>
+</li><li>Create a new app
+</li><li>Under “OAuth &amp; Permissions”, add your Sprite’s URL
+</li><li>Copy your Client ID and Client Secret
+</li><li>Set them as environment variables in your Sprite:
+</li></ol>
+<div>
+    <pre><code data-language="wrapper">sprite-env env set SLACK_CLIENT_ID=your_client_id
+sprite-env env set SLACK_CLIENT_SECRET=your_client_secret
+sprite-env env set SLACK_SIGNING_SECRET=your_signing_secret
+</code></pre>
+  </div><h3 id="install-your-bot"><a href="#install-your-bot" aria-label="Anchor"></a><span>Install Your Bot</span></h3>
+<p>Visit: <a href="https://your-slack-bot.sprites.app/slack/install">https://your-slack-bot.sprites.app/slack/install</a></p>
+
+<p>This triggers the OAuth flow. Slack redirects back to your Sprite, which handles the callback and stores the token in its filesystem.</p>
+<h3 id="checkpoint-your-working-setup"><a href="#checkpoint-your-working-setup" aria-label="Anchor"></a><span>Checkpoint Your Working Setup</span></h3>
+<p>Once everything is working, create a checkpoint:</p>
+<div>
+    <pre><code data-language="wrapper">sprite checkpoint create
+</code></pre>
+  </div>
+<p>A <a href="https://docs.fly.io/sprites/concepts/checkpoints" title="">Sprite checkpoint</a> is a snapshot of the entire environment, not just your code. So if/when you break your bot, just:</p>
+<div>
+    <pre><code data-language="wrapper">sprite restore &lt;checkpoint-id&gt;
+</code></pre>
+  </div><h2 id="more-time-for-cheeky-slack-messages"><a href="#more-time-for-cheeky-slack-messages" aria-label="Anchor"></a><span>More Time for Cheeky Slack Messages</span></h2>
+<p>Building a Slack bot in a Sprite means no longer having to:</p>
+
+<ul>
+<li>Set up and maintain the server
+</li><li>Configure networking and SSL
+</li><li>Implement your own hibernation/wake logic (or pay for idle time)
+</li><li>Handle security updates and monitoring
+</li></ul>
+
+<p>Instead, write your bot, deploy it, forget about it. The Sprite wakes up when Slack calls, sleeps when it doesn’t, and you only pay for the moments it’s actually working.</p>
+
+          
+        </section>
+        <dl>
+            <dt>
+              Next post  ↑
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/make-computers-make-computers/">
+                Make Computers Make Computers
+              </a>
+            </dd>
+            <dt>
+              Previous post  ↓
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/openclaw-in-a-sprite/">
+                Run OpenClaw (Formerly Moltbot and Clawdbot) in a Sprite
+              </a>
+            </dd>
+        </dl>
+      </article></div>

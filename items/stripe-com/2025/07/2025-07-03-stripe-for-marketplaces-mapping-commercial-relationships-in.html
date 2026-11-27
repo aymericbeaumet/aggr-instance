@@ -1,0 +1,219 @@
+<div id="readability-page-1" class="page"><div><p>A marketplace is a digital platform that hosts multiple merchants. It offers them marketing, selling, and other services and creates a bespoke buying experience to consumers.</p>
+<p>Typically, marketplaces involve three types of users:</p>
+<ul>
+<li><strong>Buyers:</strong> entities that engage in a commercial relationship with the marketplace to obtain a product or service.</li>
+<li><strong>Sellers:</strong> entities that provide their goods to the buyers through the marketplace.</li>
+<li><strong>Marketplace platform:</strong> the company that provides the technology and services supporting the commercial exchanges between buyers and sellers. They do not own any stock; they simply make the commercial exchanges possible.</li>
+</ul>
+<p>One defining characteristic of an online marketplace is that buyers and sellers rarely engage in a direct commercial agreement. A marketplace offers terms and conditions of use of their platform to buyers and, equally, it offers other terms and conditions of use to sellers.</p>
+<p>This post covers how to set up unlicensed marketplaces to manage payments. These marketplaces do not require money or banking license in a given jurisdiction to process payments on behalf of their sellers following regulatory compliance using <a href="https://docs.stripe.com/connect">Stripe Connect</a>. It also shows how to use Stripe’s APIs to control monetary commercial exchanges.</p>
+<h2 id="meet-greens--dairy-mart">Meet Greens &amp; Dairy Mart</h2>
+<p>This example uses Greens &amp; Dairy Mart, a fictitious online marketplace that allows independent farmers to sell their produce directly to consumers.</p>
+<p>Greens &amp; Dairy Mart allows families to choose products from multiple farms and add them to a Greens &amp; Dairy Mart basket. Customers can use bank cards to pay for the products.</p>
+<h2 id="enabling-payments-for-marketplaces-with-stripe">Enabling payments for marketplaces with Stripe</h2>
+<p>Greens &amp; Dairy Mart manages payments using Stripe Connect. Connect does three important things for this marketplace:</p>
+<ol>
+<li>Enables payment interfaces and processing for the marketplace checkout.</li>
+<li>Provides the <a href="https://docs.stripe.com/connect/required-verification-information">Know Your Customer</a> (KYC) tech capabilities to onboard farmers.</li>
+<li>Helps it monetize and exchange money between parties programmatically.</li>
+</ol>
+<p>Thanks to the last two points, marketplaces can now automate complex commercial relationships and embed their terms and conditions in code. This allows them to grow fast without having to exponentially scale their operations.</p>
+<p>In this marketplace, each farm is responsible for preparing and delivering the products they sell through the website, proposing their own costs and terms of delivery.</p>
+<p>Greens &amp; Dairy Mart charges customers when each farmer has confirmed their products are on their way to the customer. They only pay out the order to the farmer once the customer has confirmed that the order has been delivered correctly. Greens &amp; Dairy Mart takes 15% of the final price to cover their running costs (for example, website management, customer facing support, Stripe payments, etc.)</p>
+<h2 id="steps-to-set-up-and-test-a-marketplace-in-stripe">Steps to set up and test a marketplace in Stripe</h2>
+<ol>
+<li>Create a Stripe account for free: <a href="https://dashboard.stripe.com/register">https://dashboard.stripe.com/register</a>.</li>
+<li>Use a <a href="https://docs.stripe.com/sandboxes">Sandbox</a> to test the implementation. Payments are simulated so you can test API functionality before onboarding and activating the marketplace in Stripe.</li>
+<li>Select Connect as product to start testing the onboarding of sellers (farmers):
+<ol>
+<li>Search for <strong>Connect &gt; Onboarding Interface</strong> and click <strong>Get Started</strong>.</li>
+<li>Follow the personalized setup and make sure that you select:
+<ol>
+<li><strong>Buyers will purchase from you</strong> - in a marketplace the marketplace is the merchant of record.</li>
+<li><strong>Sellers will be paid out individually</strong> - since each farmer has their own order and delivery terms, Greens &amp; Dairy Mart has opted to simplify the fund management.</li>
+</ol>
+</li>
+<li>Stripe Connect's product activation screens remind you that as a marketplace:
+<ol>
+<li>You are responsible for refunds, chargebacks and potential fines from the payment-rail networks (for example, Greens &amp; Dairy Mart is ultimately responsible for charge disputes).</li>
+<li>You are responsible for onboarding and making sure that your farmers are compliant with payment regulations.</li>
+<li>As the main point of contact to farmers, you have to inform them and educate them on the management of risks as well as  on your process for remediation for lack of compliance, when detecting fraud or if disputes are raised.</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+<h2 id="using-stripes-api-to-map-commercial-relationships">Using Stripe’s API to map commercial relationships</h2>
+<p>This section explains how Stripe Connect supports coding the key commercial relationships that govern a marketplace.</p>
+<h3 id="service-onboarding-and-kyc">Service onboarding and KYC</h3>
+<p>Using the Stripe Account API marketplaces create Stripe Connected Accounts for sellers. These accounts are linked to their own Stripe account. During this process, the marketplace configures a <em>controller</em>, stating roles and responsibilities of sellers, buyers, the marketplace and Stripe, and the <em>capabilities</em> of the connected account, stating what the sellers’ accounts can do. The use of Stripe and the operational control that the marketplace has over the pay-ins and payouts for each seller should be reflected on the legal terms and conditions agreed between the two parties.</p>
+<p>The Account API generates links to a Stripe hosted page that can be used to request KYC information. Marketplaces usually add information they already have gathered from their sellers to the API call so that the hosted flow is pre-filled. The generated links are shared with the sellers who complete the full onboarding. KYC onboarding with Stripe is fast, sellers with the right information available can start selling immediately.</p>
+<p>This is how Greens &amp; Dairy Mart uses the Account API:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/accounts" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "business_type"="company" \
+  -d "capabilities[transfers][requested]"="true" \
+  -d "controller[fees][payer]"="application" \
+  -d "controller[losses][payments]"="application" \
+  -d "controller[requirement_collection]"="application" \
+  -d "controller[stripe_dashboard][type]"="none" \
+  -d "email"="farmer1@example.com"</code></pre>
+<p>The only capability required for connected accounts belonging to a marketplace is Transfers. This notably reduces the <a href="https://docs.stripe.com/connect/required-verification-information">KYC requirements</a> for the farmers.</p>
+<p>Greens &amp; Dairy Mart sets <code>fees</code>, <code>losses</code>, and <code>requirements_collection</code> to “application” instead of “Stripe” to reflect the commercial relationship between the marketplace, the farmer and Stripe. Specifically, there is no commercial relationship between the farmers and Stripe and there are no direct interactions or commercial liabilities.</p>
+<p>Because Greens &amp; Dairy Mart wants farmers to control their sales and finance through their Greens &amp; Dairy Mart portal, they have set the <code>stripe_dashboard</code> type to <code>none</code>. Stripe provides a Stripe-hosted <a href="https://docs.stripe.com/connect/express-dashboard">Express dashboard</a> for those marketplaces that are okay with a separate payment experience.</p>
+<p>Greens &amp; Dairy Mart has the option to use <a href="https://docs.stripe.com/connect/embedded-onboarding">Stripe Embedded Onboarding</a> to have farms do the  KYC process inside their applications or use Stripe hosted onboarding links:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/account_links" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "account"="acct_1RHRSfRdprr9w4wp" \
+  -d "refresh_url"="URL on website once done" \
+  -d "return_url"="URL if farmer hits back button" \
+  -d "type"="account_onboarding" \
+  -d "collection_options[future_requirements]"="include" \
+  -d "collection_options[fields]"="eventually_due"</code></pre>
+<p>This call returns the onboarding link:</p>
+<pre><code>{
+  "object": "account_link",
+  "created": 1745508543,
+  "expires_at": 1745508843,
+  "url": "https://connect.stripe.com/setup/c/acct_1RHRhnRdSY5bmOIP/1hPK06miXaZK"
+}</code></pre>
+<p>By default, Stripe only asks for the minimum amount of data required for sellers to start transacting immediately. Stripe then informs the marketplace using webhooks when more requirements are due.</p>
+<p>However, Greens &amp; Dairy Mart has opted to use the <code>collection_options</code> field to ask farms all KYC details at once. This is the recommended approach for marketplaces that use their own business onboarding flows. There is no need to pull additional information in the future and no risk of pausing operations because of lack of KYC compliance.</p>
+<h3 id="payments-disbursements-and-basic-monetisation-strategy">Payments, disbursements and basic monetisation strategy</h3>
+<p>Stripe offers two mechanisms to charge customers and disburse to sellers:</p>
+<ul>
+<li><strong>Destination Charges:</strong> A one-API call option which embeds the disbursement transfer information as part of the PaymentIntent API call.</li>
+<li><strong>Separate Charges and Transfers:</strong> A two-API call process, where after charging the customer using the PaymentIntent API, the marketplace creates as many Transfers as sellers need to be paid.</li>
+</ul>
+<p>With regards to payment monetization, often marketplaces charge sellers for payment processing only when customers buy products. With Stripe Connect, marketplaces can deduct this fee directly by transferring adjusted amounts to sellers or can select to transfer the full amount and charge a fee.</p>
+<p>Finally, marketplaces deliver payments into the sellers’ bank account via <a href="https://docs.stripe.com/connect/payouts-connected-accounts">Payouts</a>. With Connect, payouts can be managed by Stripe automatically in a regular cadence (for example, daily or weekly) or it can be triggered by the marketplace manually.</p>
+<p>In the example marketplace, because sales and delivery conditions are different for each farm, Greens &amp; Dairy Mart has decided to charge the customer per farm order, Greens &amp; Dairy Mart has implemented Destination Charges. For each farmer, they create a <a href="https://docs.stripe.com/api/payment_intents">PaymentIntent</a> that specifies the amount to be transferred to each farmer, charging a 15% fee on each transaction that customers pay to cover Greens &amp; Dairy Mart's fees.</p>
+<p>Greens &amp; Dairy Mart uses Stripe's <a href="https://docs.stripe.com/payments/payment-element">web payment element</a> and <a href="https://docs.stripe.com/payments/elements/mobile-payment-element">mobile payment element</a> to store the card details of the customer during the first checkout inside Stripe. On each checkout page, they show the items each farmer will deliver, the amount for each farmer's order and the estimated delivery time for each order.</p>
+<p>When the customer receives the items from one of the farms, Greens &amp; Dairy Mart creates a manual Payout to the farm's bank account.</p>
+<p><span><span><img src="https://stripe.dev/images/stripe-marketplaces-mapping-commercial-relationships-code/image1.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>Greens &amp; Dairy Mart uses the PaymentIntents API. During the first purchase, they set <code>setup_future_usage=offline</code> in the PaymentIntent object, so that Stripe stores the card details as a payment method attached to a Customer object (learn more about this approach <a href="https://docs.stripe.com/payments/save-during-payment">here</a>). Greens &amp; Dairy Mart keeps track of the IDs as part of their Customer Record Management integration.</p>
+<p>In future purchases, they will charge that customer directly confirming automatically the PaymentIntent created, unless the card attached needs to be updated.</p>
+<p>To distribute money to the correct farm, the PaymentIntent contains two additional fields: <code>transfer_data</code> and <code>application_fee_amount</code>. <code>Transfer_data</code> indicates the Stripe account of the farm where the money will be settled. <code>Application_fee_amount</code> indicates the amount the farm will pay Greens &amp; Dairy Mart for their services.</p>
+<p>This is the API call for the payment transaction once the card details have been saved for future use:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/payment_intents" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "amount"=1000 \
+  -d "currency"="gbp" \
+  # farm account
+  -d "transfer_data[destination]"="acct_1OvhPzD123PLHk8z" \
+  -d "metadata[order]"="257" \
+  -d "payment_method"="pm_1O5ovIDIWNRw8AogmHeuq3Jq" \
+  -d "customer"="cus_OtbQdWuzAnLITm" \
+  -d "confirm"="true" \
+  # Greens &amp; Dairy Mart's fee: 15%
+  -d "application_fee_amount"=150  </code></pre>
+<p>Events triggered:</p>
+<ul>
+<li>At the platform level (the marketplace):
+<ul>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-payment_intent.created">payment_intent.created</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-charge.succeeded">charge.succeeded</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-payment_intent.succeeded">payment_intent.succeeded</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-transfer.created">transfer.created</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-charge.updated">charge.updated</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-application_fee.created">application_fee.created</a></li>
+</ul>
+</li>
+<li>At connected account level (the farm):
+<ul>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-payment.created">payment.created</a></li>
+</ul>
+</li>
+</ul>
+<p>It's worth noticing that transactions are represented by PaymentIntents (pi_xxxxx IDs) for the platform account and reflect the commercial relationships from Greens &amp; Dairy Mart's perspective. The farm's connected account generated a payment too (py_xxxx) which is linked to the platform Transfer transaction. This payment represents the transaction from the perspective of the farm.</p>
+<p>This is the API call for the payout:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/payouts" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -H "Stripe-Account: {{STRIPE_CONNECTED_ACCOUNT_ID}}" \
+  -d "amount"=850 \
+  -d "currency"="gbp" \
+  -d "metadata[order]"="257" \
+  -d "statement_descriptor"="Greens&amp;DairyMart257" \
+  -d "method"="instant"</code></pre>
+<p>Events triggered:</p>
+<ul>
+<li>At the connected account level (the farm):
+<ul>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-payout.created">payout.created</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-payout.update">payout.updated</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-payout.paid">payout.paid</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-balance.available">balance.available</a> (update on available balance)</li>
+</ul>
+</li>
+</ul>
+<p>The farms do not receive the money immediately. The funds reach their bank account on average 3 days after the payout has been created.</p>
+<p>Marketplaces can <a href="https://www.google.com/url?q=https://docs.stripe.com/connect/manage-payout-schedule&amp;sa=D&amp;source=docs&amp;ust=1749142406225916&amp;usg=AOvVaw0jffu182MprKln5hD6oB0W">finely tune payout schedules</a>.</p>
+<h3 id="reversing-payments-refunds-and-disputes">Reversing payments: refunds and disputes</h3>
+<p>At payment level, the liability for refunds and disputes lies with the marketplace. This adds operational flexibility which helps maintain cordial relationships with both customers and merchants (for example, the marketplace can issue a goodwill refund without impacting the merchant). However, marketplaces can explicitly state on their terms of service in which circumstances their merchants will be sharing liability.</p>
+<p>Connect separates the refund in two steps: a payment Refund; and a TransferReversal. Both can be partial or full amounts. If Destination Charges were used, the refund can be done in one single API call.</p>
+<p>Disputes raised by a customer's issuer bank automatically impact the marketplace's Stripe account balance. In this instance, the marketplace could also reverse the transfer should the dispute be lost.</p>
+<p>In our example, Greens &amp; Dairy Mart automatically refunds the full amount if a farm has not fulfilled the delivery of the goods:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/refunds" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "payment_intent"="pi_REPLACE_WITH_PAYMENT_INTENT_ID" \
+  -d "reason"="duplicate" \
+  -d "metadata[order]"="257" \
+  -d "reverse_transfer"="true" \ 
+  -d "refund_application_fee"="true" \</code></pre>
+<p>Events triggered at the platform level (the marketplace):</p>
+<ul>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-transfer.reversed">transfer.reversed</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-application_fee.refunded">application_fee.refunded</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-refund.created">refund.created</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-charge.refunded">charge.refunded</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-refund.updated">refund.updated</a> / charge.refund.updated</li>
+</ul>
+<p>Greens &amp; Dairy Mart recovers disputed transactions from the farms’ balance by using transfer reversals:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/transfers/{id}/reversals" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "amount"=850 \
+  -d "description"="dispute" \
+  -d "metadata[order]"="257"</code></pre>
+<p>This call obtains the transfer ID (for example,  {id}) of the payment transaction). Transfer groups are created and returned when Payment Intents are confirmed successfully.</p>
+<pre><code>curl -X GET "https://api.stripe.com/v1/transfers" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "transfer_group"="group_pi_3RVujPDIWNRw8Aog0SmAtcp0"</code></pre>
+<p>Events triggered at the platform level:</p>
+<ul>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-transfer.reversed">transfer.reversed</a></li>
+</ul>
+<h3 id="additional-fees-owed-by-the-sellers">Additional fees owed by the sellers</h3>
+<p>Sometimes marketplaces are required to move funds from their sellers' Stripe accounts back to their own. Some situations where this could happen include:</p>
+<ul>
+<li>To charge the connected account directly for products or services</li>
+<li>To recover funds for a previous refund</li>
+<li>To make other adjustments to connected <a href="https://docs.stripe.com/connect/account-balances">account balances</a> (for example, to correct an error)</li>
+</ul>
+<p>To get paid by the seller, the marketplace can use the <a href="https://docs.stripe.com/connect/account-debits">charges API</a>, which creates a transfer from the sellers’ connected account to the marketplace's platform account.</p>
+<p>Greens &amp; Dairy Mart has decided to pass a fee of 20 GBP to all sellers whose payments are disputed because of lack of quality or problems in the delivery of the products:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/charges" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "amount"=2000 \
+  -d "currency"="gbp" \
+  -d "metadata[dispute_fee_reason]"="delivery_problem" \
+  -d "metadata[order]"="257" \
+  -d "source"="acct_YOUR_ACCOUNT_ID"</code></pre>
+<p>Events triggered:</p>
+<ul>
+<li>At the platform level (the marketplace):
+<ul>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-payment.created">payment.created</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-charge.succeeded">charge.succeeded</a></li>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-balance.available">balance.available</a></li>
+</ul>
+</li>
+<li>At connected account level (the farm):
+<ul>
+<li><a href="https://docs.stripe.com/api/events/types#event_types-transfer.created">transfer.created</a></li>
+</ul>
+</li>
+</ul>
+<h2 id="conclusion">Conclusion</h2>
+<p>With Stripe, marketplaces can automate the money interactions between them, sellers and buyers. Stripe Connect provides a family of APIs to manage payments, fees, payouts, contractual and regulatory obligations. This helps marketplaces manage complex contracts programmatically.</p>
+<p>Stripe Connect can also be used by marketplaces to develop additional services. Once Stripe Connect is adopted, marketplaces can start embedding and monetizing financial products optimizing their sellers' <a href="https://docs.stripe.com/money-management">money management</a>.</p>
+<p>To learn more about developing applications with Stripe, visit our <a href="https://www.youtube.com/stripedevelopers">YouTube Channel</a>.</p></div></div>

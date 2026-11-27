@@ -1,0 +1,347 @@
+<div id="readability-page-1" class="page"><div>
+
+<p>TigerBeetle’s deterministic simulator is protocol-aware, which
+enables us to test safety and liveness invariants not just at the
+<em>database</em> level, but also at the level of <em>each individual
+replica</em>.</p>
+<div id="cb1"><pre><code>if (replica.status == .recovering_head) assert(fault);</code></pre></div>
+<p>In this post, we cover the mechanics, method, and merits of going
+<em>beyond</em> traditional, black-box methods of testing distributed
+systems – generative testing (for example, <a href="https://jepsen.io/">Jepsen</a>), and deterministic hypervisors
+(for example, <a href="https://antithesis.com/product/what_is_antithesis/">Antithesis</a>)
+– to deeply test safety and liveness invariants using protocol-aware
+DST. If you prefer, watch a
+<a href="https://www.youtube.com/watch?v=F78FeuSIX-A" target="_blank">talk</a>
+in which I cover this and more.</p>
+<h2 id="invariants"></h2>
+<p>To begin, some background on safety and liveness invariants,
+consensus protocols, and deterministic simulation testing. For those who
+don’t require a refresher, feel free to jump to <a href="#protocol-aware-dst">Protocol-Aware DST</a>!</p>
+<p>Distributed systems, i.e. systems with multiple interacting nodes,
+are notoriously hard to get right, as they require developers to reason
+about concurrent execution on multiple machines, and the state space of
+their interleavings is vast. Now, we can attack testing such a system
+from multiple angles, but today, let’s start with <em>invariants</em>.
+While testing your distributed system, it is crucial you identify two
+sets of invariants:</p>
+<ul>
+<li><em>Safety</em>: which means nothing bad ever happens. For example,
+two nodes never return different results for the same request.</li>
+<li><em>Liveness</em>: which means something good eventually happens.
+For example, a request will eventually be responded to provided enough
+nodes are online.</li>
+</ul>
+<p>Your testing must then attempt to ascertain whether your system
+upholds these safety and liveness invariants.</p>
+<p>Let us consider a specific distributed system: a consensus-based
+system. In this system, a consensus protocol is what turns durability
+into availability, safely. Put simply, a consensus protocol uses the
+redundancy in the system to provide fault tolerance, while maintaining
+the illusion of a single node. At a high level, a consensus protocol
+guarantees the following:</p>
+<p><strong>Fault Tolerance</strong></p>
+<p>This entails ensuring that faults like process crashes, network
+partitions, and storage corruptions are tolerated and masked. This is
+typically achieved via replication, i.e. maintaining multiple copies of
+the data for redundancy. Algorithms of the <a href="https://www.cs.princeton.edu/courses/archive/fall19/cos418/papers/vr-revisited.pdf">Viewstamped
+Replication</a> flavor guarantee responsiveness as long as a majority of
+replicas are online. For example, in a system with 3 replicas (where the
+majority is 2 replicas), they can tolerate up to 1 fault.</p>
+<p>This is the <em>liveness</em> invariant of a consensus protocol.</p>
+<p><strong>Agreement</strong></p>
+<p>This entails ensuring that the multiple copies of the data in the
+system are consistent with one another. One way to achieve this is by
+electing a primary replica. All requests flow through the primary, and
+the order in which the primary executes operations is the order all
+backups follow, ensuring data consistency.</p>
+<p>This is the <em>safety</em> invariant of a consensus protocol.</p>
+<p>TigerBeetle is a distributed database that uses VSR for fault
+tolerance and agreement. Routing all requests through the primary
+guarantees <a href="https://jepsen.io/consistency/models/strong-serializable">strict
+serializability</a>, which is the strongest level of isolation a
+database can guarantee. Simply put, strict serializability posits that
+if one operation completes before another begins, the database must
+reflect that order.</p>
+<p>Therefore, we can say that the safety invariant of our distributed
+database under test is strict serializability, and the liveness
+invariant is simply the liveness property of VSR, i.e. staying
+responsive as long as a majority of nodes are online.</p>
+<figure>
+<img src="https://tigerbeetle.com/blog/2026-08-20-protocol-aware-dst/strict_serializability-9a4067e4.png">
+<figcaption></figcaption>
+</figure>
+<h2 id="testing-from-the-outside-in"></h2>
+<p>Now, one way to test these invariants is using black-box generative
+testing, coupled with fault injection, Jepsen-style. Jepsen tests the
+system from the outside in, using user-visible APIs, embracing the
+inherent asynchrony and non-determinism in the system. This
+involves:</p>
+<ul>
+<li>Generating random inputs to probe the vast state space</li>
+<li>Subjecting the system to faults</li>
+<li>Asserting whether the safety and liveness invariants are upheld</li>
+</ul>
+<p>Last year, we did do that, and here is an excerpt from our <a href="https://jepsen.io/analyses/tigerbeetle-0.16.11">Jepsen</a>
+report:</p>
+<blockquote>
+<p>Integrating Viewstamped Replication with flexible quorums and
+protocol-aware recovery does not appear to have compromised the key
+invariant of Strong Serializability.</p>
+</blockquote>
+<p>That’s wonderful news! As per our Jepsen evaluation, we were still
+upholding our guarantees to our users, which is crucial because the
+financial applications that are typically developed on top of
+TigerBeetle are developed assuming these strong guarantees. These
+applications rely on the strict serializability we promise them.</p>
+<p>However, Jepsen-style generative testing and Antithesis-style
+deterministic hypervisors test the system from the outside in, via
+user-visible APIs. What about the invariants that aren’t visible at the
+API boundary? For foundational infrastructure, we must do better. We
+must test not only from the <em>outside in</em>… but also from the
+<em>inside out</em>.</p>
+<h2 id="testing-from-the-inside-out"></h2>
+<p>TigerBeetle is explicitly designed as a <em>deterministic</em>
+distributed database. The idea of deterministic execution in databases
+isn’t new: <a href="https://www.foundationdb.org/files/fdb-paper.pdf">FoundationDB</a>
+and <a href="https://dropbox.tech/infrastructure/-testing-our-new-sync-engine">Dropbox’s
+Sync Engine</a> are known to have taken advantage of determinism in
+their design, alongside deterministic simulation testing.</p>
+<p>So, like FoundationDB, TigerBeetle has <em>logical</em> determinism,
+where all database code is deterministic and multithreaded concurrency
+is avoided in the control plane.</p>
+<p>However, we go further and also ensure <em>physical</em> determinism,
+where replicas in a TigerBeetle cluster converge to a byte-by-byte
+identical state. In other words, across all the replicas in the cluster,
+the same physical location corresponds to the same content.</p>
+<figure>
+<img src="https://tigerbeetle.com/blog/2026-08-20-protocol-aware-dst/storage_determinism-6a982278.png">
+<figcaption></figcaption>
+</figure>
+<p>This logical <em>and</em> physical determinism makes TigerBeetle
+amenable to Deterministic Simulation Testing, which helps us run the
+<em>real</em> consensus and storage engine code in a simulator, which we
+call the <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.17.2/docs/internals/vopr.md">VOPR</a>.
+Inside the VOPR, non-deterministic, physical interactions like storage
+and network are replaced with controllable versions, and time is
+simulated. This allows us to run our distributed database on a single
+machine, in a single process, with time sped up by orders of
+magnitude.</p>
+<p>We generate random scenarios to explore the state space of the
+database: network partitions, disk corruptions, and replica crashes all
+in the presence of concurrent client operations, and test for various
+safety and liveness invariants throughout.</p>
+<p>Because time is simulated, exploring scenarios that would take months
+to encounter in production takes mere minutes. This means that you can
+quickly find subtle interleavings of events where bugs typically like to
+hide, and once a bug is found, it can be reproduced over and over again
+deterministically. Therefore, DST allows developers to test and debug
+faster, which in turn means that they can build faster.</p>
+<h2 id="protocol-aware-dst"></h2>
+<p>But today, I want to talk about a slightly different aspect of DST.
+We use DST to test TigerBeetle from the <em>inside out</em>, which means
+that it has complete visibility into each replica’s consensus and
+storage-level state. With this protocol-awareness, we can peek under the
+hood of the system and start asking it the hard questions.</p>
+<figure>
+<img src="https://tigerbeetle.com/blog/2026-08-20-protocol-aware-dst/protocol_aware_dst-693e6351.png">
+<figcaption></figcaption>
+</figure>
+<h2 id="checking-deep-safety-invariants"></h2>
+<p>We can deeply check safety invariants not just at the <em>database
+level</em>, but also across <em>consensus</em> and <em>storage</em>.
+Testing these safety invariants is crucial because safety is
+hierarchical. Violation of a safety invariant in consensus or storage
+can ultimately lead to the database violating its core safety invariant
+of strict serializability.</p>
+<p>Because of this, we enforce these safety invariants both in
+production <em>and</em> in testing. We run with assertions enabled in
+production that simply crash the replica if a violation is detected, <a href="https://www.youtube.com/watch?v=wLdDW3u8eww">downgrading a
+catastrophic safety violation to an availability violation</a>. However,
+gathering global, cluster-level context in production can be expensive,
+so we leave these expensive checks to our protocol-aware DST.</p>
+<figure>
+<img src="https://tigerbeetle.com/blog/2026-08-20-protocol-aware-dst/safety_hierarchy-89e4e3f9.png">
+<figcaption></figcaption>
+</figure>
+<p><strong>Consensus Safety</strong></p>
+<p>For the consensus protocol, the safety invariant is
+<em>agreement</em>, i.e. making sure that requests are committed through
+the write-ahead-log (WAL) in the same order across all replicas.</p>
+<p>In production, we validate the consistency of the WAL when a backup
+receives a <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.17.2/src/vsr/replica.zig#L2417-L2429">commit
+message</a> from the primary. If we observe that a backup’s WAL diverges
+from the primary’s, we crash the backup, as this means we’ve violated
+the protocol’s safety invariant. This is something that should never
+happen, so we downgrade a safety violation into unavailability.</p>
+<div id="cb2"><pre><code>fn on_commit(self: *Replica, message: *const Message.Commit) void {
+    assert(message.header.command == .commit);
+    if (self.journal.header_with_op(message.header.commit)) |commit_entry| {
+        if (commit_entry.checksum == message.header.commit_checksum) {
+            log.debug("{}: on_commit: checksum verified", .{self.log_prefix()});
+        } else if (self.valid_hash_chain_between(message.header.commit, self.op)) {
+            @panic("commit checksum verification failed");
+        }</code></pre></div>
+<p>However, since this is driven by a periodic commit message received
+from the primary, it does not give us the opportunity to check
+consistency for every single request.</p>
+<p>With protocol-aware DST, we validate this invariant even more deeply.
+Every time a new request is committed on a replica, our simulator <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.17.2/src/testing/cluster/state_checker.zig#L205-L213">asserts</a>
+that if that request was committed on another replica, their checksums
+must match. Effectively, we check that every committed request in the
+WAL is consistent across all replicas.</p>
+<div id="cb3"><pre><code>    assert((commit_a == commit_b) == (checksum_a == checksum_b));</code></pre></div>
+<p><strong>Storage Safety</strong></p>
+<p>For the storage engine, the safety invariant is storage determinism –
+replicas in the TigerBeetle cluster must converge to a byte-by-byte
+identical state. This means that the LSM trees on each replica run their
+subprotocols like compaction in exactly the same way, producing exactly
+the same data on disk. Physical storage determinism lends itself to a
+better operator experience in production – allowing faster distributed
+recovery and online verification of the replicas’ state.</p>
+<p>At runtime in production, we <em>logically</em> check whether our
+storage is deterministic or not, using the primary replica’s
+<code>checkpoint_id</code> (the checksum over the references to our
+index data structures). If we observe that the backup’s
+<code>checkpoint_id</code> <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.17.2/src/vsr/replica.zig#L2172-L2194">diverges</a>
+from the primary’s, we crash the backup, downgrading a safety violation
+to unavailability.</p>
+<div id="cb4"><pre><code>if (message.header.checkpoint_id != self.superblock.working.checkpoint_id() and
+    message.header.checkpoint_id !=
+        self.superblock.working.vsr_state.checkpoint.parent_checkpoint_id)
+{
+    @panic("checkpoint diverged");
+}</code></pre></div>
+<p>With protocol-aware DST, we take this logical check further by
+digging deeper into these indexes. For example, for the Manifest, which
+is an index over the on-disk LSM tree, we checksum the metadata of all
+tables, across all levels, and <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.17.2/src/testing/cluster/manifest_checker.zig#L40-L46">assert</a>
+that the structure of the tree is completely consistent across all
+replicas.</p>
+<div id="cb5"><pre><code>fn manifest_levels_checksum(forest: *const Forest) u128 {
+    var checksum_stream = vsr.ChecksumStream.init();
+    for (0..constants.lsm_levels) |level| {
+        checksum_stream.add(std.mem.asBytes(&amp;level));
+
+        inline for (Forest.tree_id_range.min..Forest.tree_id_range.max + 1) |tree_id_u16| {
+            const tree_id: Forest.TreeID = @enumFromInt(tree_id_u16);
+            const tree_level = forest.tree_for_id_const(tree_id).manifest.levels[level];
+            var tree_tables = tree_level.tables.iterator_from_index(0, .ascending);
+
+            checksum_stream.add(std.mem.asBytes(&amp;tree_id));
+            checksum_stream.add(std.mem.asBytes(&amp;tree_level.table_count_visible));
+            while (tree_tables.next()) |tree_table| {
+                checksum_stream.add(std.mem.asBytes(&amp;tree_table.encode(.{
+                    .tree_id = tree_id_u16,
+                    .event = .insert, // (Placeholder event).
+                    .level = @intCast(level),
+                })));
+            }
+        }
+    }
+    return checksum_stream.checksum();
+}</code></pre></div>
+<p>Finally, with protocol-aware DST, we also <em>physically</em> check
+whether our storage is deterministic. We walk through all of these
+indexes, checksum the actual data (the superblock, the grid, the client
+replies), and assert that replicas are byte-by-byte identical.</p>
+<div id="cb6"><pre><code>checkpoint.put(
+    .superblock_checkpoint,
+    vsr.checksum(std.mem.asBytes(&amp;superblock.working.vsr_state.checkpoint)),
+);
+checkpoint.put(.client_replies, checker.checksum_client_replies(superblock));
+checkpoint.put(.grid, checker.checksum_grid(Forest, forest, .free_set_from_disk));</code></pre></div>
+<h2 id="checking-deep-liveness-invariants"></h2>
+<p>Recall that our system’s liveness invariant was to stay responsive to
+user requests as long as a majority of replicas are online. However,
+simply testing this <em>system-level availability</em> is not enough… A
+majority of replicas could provide you with the illusion of
+availability: they’re enough to respond to requests, but the rest may be
+stuck!</p>
+<p>With protocol-aware DST, instead of defining liveness invariants for
+the system as a whole, you can start to define stricter liveness
+invariants and enforce them for each individual replica. In other words,
+you can check if replicas are converting durability into availability as
+<em>efficiently</em> as they can, while ensuring total order.</p>
+<p><strong>Local Durability To Availability</strong></p>
+<p>So, we check that replicas efficiently use their <em>local
+durability</em>. For example, when a replica crashes and restarts,
+sometimes it needs to coordinate with the cluster to recover.
+Specifically, it needs to coordinate if there is corruption at the head
+of its WAL. But if it has enough local durability to recover on its own,
+it <em>shouldn’t</em> coordinate.</p>
+<video autoplay="" loop="" muted="" playsinline="">
+  <source src="https://tigerbeetle.com/blog/2026-08-20-protocol-aware-dst/local_durability-a1873b47.mp4" type="video/mp4">
+</video>
+
+<p>So, we <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.17.2/src/vopr.zig#L1647-L1650">assert</a>
+that if there are no corruptions in the WAL, replicas should
+<em>never</em> wind up in a state where they need to coordinate. And
+this is crucial, because imagine a scenario where all replicas crash and
+restart together, and then unnecessarily coordinate. The cluster would
+then be stuck; that’s a serious liveness issue!</p>
+<div id="cb7"><pre><code>if (replica.status == .recovering_head) {
+    // Even with faults disabled, a replica may wind up in
+    // status=recovering_head, in case of a header-prepare view mismatch.
+    assert(fault or header_prepare_view_mismatch);
+}</code></pre></div>
+<p><strong>Global Durability To Availability</strong></p>
+<p>We also check that replicas efficiently use the cluster’s <em>global
+durability</em>. Take for instance a scenario where each replica is
+missing 6 out of 9 blocks, but collectively, all blocks exist somewhere
+in the cluster.</p>
+<p>This is a scenario where most consensus protocols, including the
+original VSR, <a href="https://etcd.io/docs/v3.5/op-guide/data_corruption/">typically</a>
+<a href="https://discuss.hashicorp.com/t/how-to-recover-from-raft-db-corrupt-except-deleting-it/47550">assume</a>
+that recovery happens by copying the full state over from an intact
+replica. But TigerBeetle’s protocol does things a bit differently. We’re
+able to recover all copies, even if there’s only 1 remaining copy of the
+block in the cluster. Each replica takes advantage of the
+<em>physical</em> storage determinism and fetches <em>only</em>
+individual, intact blocks from the other replicas, as opposed to copying
+over the entire state.</p>
+<video autoplay="" loop="" muted="" playsinline="">
+  <source src="https://tigerbeetle.com/blog/2026-08-20-protocol-aware-dst/global_durability-b106f490.mp4" type="video/mp4">
+</video>
+
+<p>And with protocol-aware DST we can test that replicas can recover in
+these scenarios! In other words, we can <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.17.2/src/vopr.zig#L1235-L1267">assert</a>
+that each replica repairs its missing blocks from the intact copies on
+other replicas. If any blocks do remain missing, they must be missing on
+<em>all</em> replicas.</p>
+<div id="cb8"><pre><code>while (blocks_missing.next()) | block_missing | {
+    for (simulator.cluster.replicas) |replica| {
+        const storage = &amp;simulator.cluster.storages[replica.replica];
+
+        if (storage.area_faulty(.{
+            .grid = .{ .address = block_missing.address },
+        })) continue;
+
+        const block = storage.grid_block(block_missing.address) orelse continue;
+        const block_header = schema.header_from_block(block);
+        if (block_header.checksum == block_missing.checksum) {
+            @panic("block found");
+        }
+    }
+}</code></pre></div>
+<p>Again, we’re only able to deeply test these safety and liveness
+invariants because of the protocol awareness of our DST. This is not
+just executing deterministically (like a hypervisor) and finding
+violations of system-level invariants (like Jepsen).</p>
+<p>Instead, our DST actually understands the protocol itself, with
+visibility into each replica’s storage and consensus-level state. Again,
+for foundational infrastructure, we must test not just from the outside
+in, but also from the inside out.</p>
+<p>With this visibility, you can do more than just deeply test safety
+and liveness invariants. For example:</p>
+<ul>
+<li>Testing and debugging precise, hand-crafted scenarios. You can ask
+‘what happens if…’ questions of your protocol in 30-40 lines of code and
+get a definitive answer within milliseconds.</li>
+<li>Benchmarking protocol-level optimizations reliably, without the
+variance or complexity associated with benchmarking on real
+hardware.</li>
+</ul>
+<p>These are covered in my
+<a href="https://www.youtube.com/watch?v=F78FeuSIX-A" target="_blank">talk</a>
+at BugBash ’26, should you wish to dig deeper!</p>
+  </div></div>

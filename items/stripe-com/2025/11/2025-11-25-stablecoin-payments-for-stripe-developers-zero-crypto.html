@@ -1,0 +1,266 @@
+<div id="readability-page-1" class="page"><div><p>Traditional crypto integrations require managing private keys, estimating gas fees, handling network selection, and building wallet connection flows. That's 50+ lines of complex code before you even process a payment.</p>
+<p>But what if accepting stablecoin payments was as simple as adding <code>crypto</code> to your existing <code>payment_method_types</code> array?</p>
+<p>With Stripe's stablecoin payments, you get all the benefits of crypto—instant global settlement, lower international fees, access to crypto-native users—using the exact same APIs, webhooks, and debugging tools you already know. No blockchain knowledge required.</p>
+<p>Stripe currently supports USDC payments on <a href="https://ethereum.org">Ethereum</a>, <a href="https://solana.com">Solana</a>, <a href="https://polygon.technology">Polygon</a>, and <a href="https://base.org">Base</a> networks, with transactions settling as fiat in your Stripe balance at a 1.5% fee. Your customers connect their crypto wallets, you get paid in USD. Everyone wins.</p>
+<p>Here's how to add crypto payments to your existing Stripe integration in under an hour.</p>
+<h2 id="compare-the-implementation">Compare the implementation</h2>
+<p><strong>Example: Traditional crypto integration complexity:</strong></p>
+<pre><code>// Complex wallet connection, network selection, gas estimation...
+const provider = new ethers.providers.Web3Provider(window.ethereum);
+const signer = provider.getSigner();
+const contract = new ethers.Contract(contractAddress, ABI, signer);
+const gasPrice = await provider.getGasPrice();
+const gasLimit = await contract.estimateGas.transfer(recipient, amount);
+const tx = await contract.transfer(recipient, amount, {
+  gasPrice: gasPrice,
+  gasLimit: gasLimit
+});
+await tx.wait();
+// Plus error handling, network switching, wallet detection, etc.</code></pre>
+<p><strong>Stripe crypto integration:</strong></p>
+<pre><code>// Same Payment Intent pattern you already use
+const paymentIntent = await stripe.paymentIntents.create({
+  amount: 2000,
+  currency: 'usd',
+  payment_method_types: ['card', 'crypto'], // Just add 'crypto'
+});</code></pre>
+<p>The webhook you receive uses identical formatting. Your existing error handling, confirmation logic, and webhook processing work unchanged.</p>
+<h2 id="implementation-steps">Implementation steps</h2>
+<h3 id="step-1-enable-crypto-payments">Step 1: Enable crypto payments</h3>
+<p>Navigate to your <a href="https://dashboard.stripe.com/settings/payment_methods">Payment methods settings</a> in the Stripe Dashboard and request the Crypto payment method. Stripe will review your business information and activate the feature once approved.</p>
+<p><strong>Note:</strong> Currently only US businesses can accept stablecoin payments.</p>
+<h3 id="step-2-update-your-payment-intent-creation">Step 2: Update your Payment Intent creation</h3>
+<p>Add <code>crypto</code> to your existing payment method types:</p>
+<pre><code>// Before: card payments only
+const paymentIntent = await stripe.paymentIntents.create({
+  amount: calculateOrderAmount(items),
+  currency: 'usd',
+  payment_method_types: ['card'],
+  metadata: { order_id: '12345' }
+});
+
+// After: card + crypto payments  
+const paymentIntent = await stripe.paymentIntents.create({
+  amount: calculateOrderAmount(items),
+  currency: 'usd',
+  payment_method_types: ['card', 'crypto'], // Add crypto here
+  metadata: { order_id: '12345' }
+});</code></pre>
+<h3 id="step-2a-recommended-approach-with-dynamic-payment-methods">Step 2a: Recommended approach with dynamic payment methods</h3>
+<p>For the most streamlined integration, Stripe recommends using dynamic payment methods instead of manually specifying payment method types. This approach lets you manage payment methods entirely through the Dashboard:</p>
+<pre><code>// Recommended: Use dynamic payment methods
+const paymentIntent = await stripe.paymentIntents.create({
+  amount: calculateOrderAmount(items),
+  currency: 'usd',
+  automatic_payment_methods: { enabled: true }, // Let Stripe handle payment methods
+  metadata: { order_id: '12345' }
+});</code></pre>
+<p>With dynamic payment methods enabled:</p>
+<ul>
+<li><strong>Manage payment methods in the Dashboard</strong> - No code changes needed to add new payment methods</li>
+<li><strong>AI-optimized ordering</strong> - Stripe's AI models automatically order payment methods for optimal conversion</li>
+<li><strong>Smart filtering</strong> - Payment methods are automatically filtered based on amount, currency, and customer location</li>
+<li><strong>A/B testing capabilities</strong> - Test new payment methods on a percentage of traffic</li>
+</ul>
+<p>To enable crypto payments with this approach:</p>
+<ol>
+<li>Navigate to your <a href="https://dashboard.stripe.com/settings/payment_methods">Payment methods settings</a></li>
+<li>Turn on the <strong>Crypto</strong> payment method</li>
+<li>Your integration automatically supports crypto payments—no code changes required</li>
+</ol>
+<p><strong>Excluding specific payment methods</strong></p>
+<p>If you need to exclude certain payment methods for specific transactions, you can still do so:</p>
+<pre><code>const paymentIntent = await stripe.paymentIntents.create({
+  amount: calculateOrderAmount(items),
+  currency: 'usd',
+  automatic_payment_methods: { enabled: true },
+  excluded_payment_method_types: ['affirm', 'klarna'], // Exclude specific methods
+  metadata: { order_id: '12345' }
+});</code></pre>
+<h3 id="step-3-frontend-integration-no-changes-required">Step 3: Frontend integration (no changes required)</h3>
+<p>If you're using <a href="https://stripe.com/payments/checkout">Stripe Checkout</a>, crypto payments appear automatically:</p>
+<pre><code>// Dynamic payment methods with Checkout (recommended)
+const session = await stripe.checkout.sessions.create({
+  // Remove payment_method_types to use dynamic payment methods
+  line_items: [{
+    price_data: {
+      currency: 'usd',
+      product_data: { name: 'Llama Lamp' },
+      unit_amount: 2000,
+    },
+    quantity: 1,
+  }],
+  mode: 'payment',
+  success_url: `${YOUR_DOMAIN}/success?session_id={CHECKOUT_SESSION_ID}`,
+  cancel_url: `${YOUR_DOMAIN}/cancel`,
+});
+
+// Or specify payment methods explicitly
+const session = await stripe.checkout.sessions.create({
+  payment_method_types: ['card', 'crypto'],
+  line_items: [{
+    price_data: {
+      currency: 'usd',
+      product_data: { name: 'Llama Lamp' },
+      unit_amount: 2000,
+    },
+    quantity: 1,
+  }],
+  mode: 'payment',
+  success_url: `${YOUR_DOMAIN}/success?session_id={CHECKOUT_SESSION_ID}`,
+  cancel_url: `${YOUR_DOMAIN}/cancel`,
+});</code></pre>
+<p>For <a href="https://stripe.com/payments/elements">Elements</a> implementations, the crypto option appears automatically in your payment method selection:</p>
+<pre><code>const elements = stripe.elements({
+  clientSecret: paymentIntent.client_secret,
+});
+const paymentElement = elements.create('payment');
+paymentElement.mount('#payment-element');
+// Crypto appears as an option automatically</code></pre>
+<h3 id="step-4-handle-the-payment-flow">Step 4: Handle the payment flow</h3>
+<p>When you choose crypto, you're redirected to complete your payment with your preferred wallet. The flow looks like this:</p>
+<ol>
+<li>You select "Pay with Crypto" on checkout</li>
+<li>Redirect to crypto.stripe.com where you connect your wallet (<a href="https://metamask.io/">MetaMask</a>, <a href="https://www.coinbase.com/wallet">Coinbase Wallet</a>, etc.)</li>
+<li>Payment confirmation happens on-chain</li>
+<li>Return to the success page with the same confirmation flow as card payments</li>
+</ol>
+<p>Your confirmation handling remains identical:</p>
+<pre><code>app.get('/success', async (req, res) =&gt; {
+  try {
+    const { payment_intent } = req.query;
+    
+    if (!payment_intent) {
+      return res.status(400).send('Missing payment_intent parameter');
+    }
+    
+    const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent);
+    
+    if (paymentIntent.status === 'succeeded') {
+      // Process successful payment (card OR crypto)
+      await fulfillOrder(paymentIntent.metadata.order_id);
+      res.render('success', { payment_intent: paymentIntent });
+    } else {
+      res.redirect('/payment-failed');
+    }
+  } catch (error) {
+    console.error('Error retrieving payment:', error);
+    res.status(500).send('Payment verification failed');
+  }
+});</code></pre>
+<h3 id="step-5-webhook-handling-zero-changes">Step 5: Webhook handling (zero changes)</h3>
+<p>Your existing webhook handlers work with crypto payments without modification:</p>
+<pre><code>app.post('/webhook', express.raw({type: 'application/json'}), (req, res) =&gt; {
+  const sig = req.headers['stripe-signature'];
+  let event;
+  
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.log(`Webhook signature verification failed:`, err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+  
+  switch (event.type) {
+    case 'payment_intent.succeeded':
+      const paymentIntent = event.data.object;
+      console.log(`Payment ${paymentIntent.id} succeeded!`);
+      // Your fulfillment logic here
+      break;
+    case 'payment_intent.payment_failed':
+      const failedPayment = event.data.object;
+      console.log(`Payment ${failedPayment.id} failed:`, failedPayment.last_payment_error?.message);
+      break;
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+  
+  res.status(200).end();
+});</code></pre>
+<h2 id="testing-and-debugging">Testing and debugging</h2>
+<h3 id="sandbox-integration">Sandbox integration</h3>
+<p>Stripe's crypto payments work in <a href="https://docs.stripe.com/test-mode">Sandbox environments</a> just like card payments—no testnets or fake cryptocurrency required. Sandbox is Stripe's isolated testing environment where you can simulate payments without real money changing hands. When you create a Payment Intent with crypto as a payment method in a Sandbox, you'll see the same crypto payment flow that customers experience, but using simulated transactions.</p>
+<p>Stripe's Sandbox environments give you multiple isolated testing spaces to experiment with different configurations, perfect for testing crypto payment flows alongside your existing card payment tests.</p>
+<pre><code>const testPaymentIntent = await stripe.paymentIntents.create({
+  amount: 1000,
+  currency: 'usd',
+  automatic_payment_methods: { enabled: true }, // Test with dynamic payment methods
+}, {
+  stripeVersion: '2025-06-30', // Use latest API version
+});</code></pre>
+<p>Use the same <a href="https://stripe.com/docs/testing#cards">test card numbers</a> and test scenarios you're already familiar with to simulate different payment outcomes.</p>
+<h3 id="debugging-with-stripe-workbench">Debugging with Stripe Workbench</h3>
+<p><a href="https://stripe.com/workbench">Stripe Workbench</a> works with crypto payments using the same interface you know. You can inspect payment flows end-to-end, debug webhook delivery, monitor success rates, and test error scenarios without blockchain complexity.</p>
+<ul>
+<li>Inspect payment flows end-to-end, including crypto payment redirects</li>
+<li>Debug webhook delivery with the same tools</li>
+<li>Monitor success rates for crypto vs. card payments</li>
+<li>Test error scenarios without dealing with blockchain complexity</li>
+</ul>
+<h3 id="local-development">Local development</h3>
+<p>Test webhooks locally using the <a href="https://stripe.com/docs/stripe-cli">Stripe CLI</a>:</p>
+<pre><code># Same CLI command, handles crypto webhooks automatically
+stripe listen --forward-to localhost:4242/webhook</code></pre>
+<h2 id="production-considerations">Production considerations</h2>
+<h3 id="performance-characteristics">Performance characteristics</h3>
+<p>Crypto payments have slightly different timing than card payments:</p>
+<ul>
+<li><strong>Initial authorization:</strong> Similar to cards (~2-3 seconds)</li>
+<li><strong>Blockchain confirmation:</strong> Additional 30 seconds to 5 minutes depending on network congestion</li>
+<li><strong>Settlement in your Stripe balance:</strong> Settles as USD after blockchain confirmation</li>
+</ul>
+<p>Handle this timing difference the same way you handle any payment method with variable processing times.</p>
+<h3 id="error-scenarios">Error scenarios</h3>
+<p>Crypto payments can fail for blockchain-specific reasons, but Stripe abstracts these into familiar payment failure patterns:</p>
+<pre><code>const paymentIntent = await stripe.paymentIntents.retrieve(pi_id);
+
+if (paymentIntent.status === 'requires_payment_method') {
+  // Handle crypto-specific and general payment failures
+  const errorCode = paymentIntent.last_payment_error?.code;
+  const errorType = paymentIntent.last_payment_error?.type;
+  
+  switch (errorCode) {
+    case 'card_declined':
+    case 'insufficient_funds':
+    case 'authentication_required':
+      // Standard error handling patterns apply
+      console.log('Payment failed:', paymentIntent.last_payment_error.message);
+      break;
+    default:
+      console.log('Payment requires new method:', errorCode);
+  }
+}</code></pre>
+<h3 id="monitoring-and-alerts">Monitoring and alerts</h3>
+<p>Your existing Stripe monitoring works with crypto payments:</p>
+<ul>
+<li>Dashboard metrics include crypto payment volume and success rates</li>
+<li>Webhook monitoring uses standard alerting for failed deliveries</li>
+<li>Revenue reporting combines crypto and card payments seamlessly</li>
+</ul>
+<p>The main operational difference: crypto payments charge 1.5% vs. typical 2.9% + $0.30 for cards, which may improve your unit economics.</p>
+<h2 id="what-you-get-with-crypto-payments">What you get with crypto payments</h2>
+<p>Instead of simply listing features, let's look at what this means for your business. When you add crypto payments to your Stripe integration, you're not just adding another checkbox to your payment form—you're opening your business to a global audience that values the speed and transparency of blockchain-based transactions.</p>
+<p>Your crypto-native customers, who might otherwise abandon their cart when they see only traditional payment options, can now complete purchases using the USDC they already hold. This is particularly valuable for businesses like Llama Lamps, where your customers might be distributed globally and prefer the instant settlement that crypto provides.</p>
+<p>The lower processing fees (1.5% compared to typical card rates) can meaningfully impact your margins, especially for higher-value transactions. For a $200 lamp purchase, you save approximately $2.80 compared to standard card processing—small per transaction, but significant at scale when you're selling hundreds of lamps monthly.</p>
+<p>Most importantly, this all happens without requiring you to learn blockchain development, manage private keys, or worry about gas fees. Your existing Stripe expertise transfers completely.</p>
+<p><strong>Implementation timeline:</strong></p>
+<ul>
+<li><strong>Dashboard setup:</strong> 5 minutes to request access</li>
+<li><strong>Code changes:</strong> 15 minutes to add <code>'crypto'</code> to existing integration (or 5 minutes with dynamic payment methods)</li>
+<li><strong>Testing:</strong> Same timeframe as testing any new payment method</li>
+<li><strong>Production deployment:</strong> No additional operational complexity</li>
+</ul>
+<h2 id="next-steps">Next steps</h2>
+<p>Ready to add crypto payments to your application? Start by enabling crypto in your <a href="https://dashboard.stripe.com/settings/payment_methods">Payment methods settings</a> and add <code>'crypto'</code> to your next Payment Intent—or better yet, switch to dynamic payment methods for the most flexible approach.</p>
+<p>Monitor adoption rates to track what percentage of users choose crypto payments, and consider geographic optimization by enabling crypto primarily in regions where it performs best.</p>
+<p>For advanced use cases requiring custom stablecoin workflows, explore <a href="https://docs.stripe.com/bridge">Bridge APIs</a> when you outgrow Stripe's standard crypto integration.</p>
+<p><strong>Resources:</strong></p>
+<ul>
+<li><a href="https://docs.stripe.com/crypto">Stripe Crypto Payments Documentation</a>: Complete API reference and setup guide</li>
+<li><a href="https://docs.stripe.com/payments/payment-methods/dynamic-payment-methods">Dynamic Payment Methods Guide</a>: Learn about Dashboard-based payment method management</li>
+<li><a href="https://buy.stripe.com/test_28o4ig0SY9Xq8co3cc">Crypto Payments Demo</a>: See the customer experience in action</li>
+<li><a href="https://discord.gg/stripe">Stripe Discord</a>: Get help from other developers implementing crypto payments</li>
+<li><a href="https://stripe.com/workbench">Workbench</a>: Debug crypto payment flows with familiar tools</li>
+</ul>
+<p>Stripe's crypto payments deliver all the benefits of blockchain-based payments—instant settlement, global reach, lower fees—using the APIs and developer tools you already know. No crypto expertise required, no operational complexity added.</p>
+<p>To learn more about developing applications with Stripe, visit our <a href="https://www.youtube.com/stripedevelopers">YouTube Channel</a>.</p></div></div>

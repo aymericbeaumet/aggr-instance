@@ -1,0 +1,97 @@
+<div id="readability-page-1" class="page"><div><p>For product-led businesses, conversion is paramount. Every pixel on a checkout page is carefully thought out to maximize conversion. It’s a modern game of friction vs motivation, rooted in the <a href="https://www.behaviormodel.org/">Fogg Behavior Model</a>: the buyer’s motivation must be greater than the friction they encounter when making a purchase for the transaction to complete.</p>
+<p>For PLG companies with business customers, the checkout experience is different, and often requires additional information such as a business name and address to ensure downstream invoices are issued correctly.</p>
+<p>Merchants selling to foreign customers will often collect a tax ID at checkout, in part to ensure they’re applying tax correctly on invoices to international customers.</p>
+<p>Whether your GTM strategy is product-led (PLG), sales-led (SLG), or both, one requisite step in your customer onboarding process is collecting the buyer’s tax ID. The tax ID serves two purposes:</p>
+<ol>
+<li>It represents a mandatory data point on <a href="https://stripe.com/resources/more/tax-invoices-101-a-quick-guide">compliant tax invoices</a></li>
+<li>It gives your business a key data point for <a href="https://docs.stripe.com/tax/calculating">tax determination</a></li>
+</ol>
+<h2 id="tax-invoices">Tax invoices</h2>
+<p>Countries with a VAT or GST regime are typically quite prescriptive about the contents and structure of invoices. As it relates to tax data, the tax invoice typically must have line-level tax rates and amounts with descriptions of each good or service, as well as a valid tax ID of each counterparty. A valid tax invoice allows your customer to properly deduct any tax paid on purchases on their own VAT return.</p>
+<p>Tax invoices have come under closer scrutiny with the advent of <a href="https://stripe.com/resources/more/electronic-invoicing-101-a-quick-guide-for-businesses">e-invoicing</a> mandates across the globe in recent years. Now in certain countries if you issue a tax invoice that does not adhere to the local data requirements, the automated checks of the e-invoicing system will flag the invoice and reject it.</p>
+<h2 id="tax-determination-applying-the-reverse-charge">Tax determination: applying the reverse charge</h2>
+<p>Despite the name, the reverse charge is not a payment reversal nor is it related to the process of refunding customers. In simple terms, the reverse charge is a classification of a specific type of transaction that occurs between two tax-registered businesses in two different countries (there is a domestic reverse charge in some countries, which is not addressed here).</p>
+<p>While this sounds straightforward, the OECD provides a <a href="https://www.oecd.org/content/dam/oecd/en/publications/reports/2017/10/mechanisms-for-the-effective-collection-of-vat-gst-where-the-supplier-is-not-located-in-the-jurisdiction-of-taxation_4ba05a97/5269dc5a-en.pdf">56-page document</a> describing the framework for the reverse charge mechanism and its relevance to modern businesses. While countries are free to implement their own versions of the OECD framework, generally this serves as the basis for many VAT and GST regimes.</p>
+<p>To bring the reverse charge to life, consider the following scenario:</p>
+<ul>
+<li>Company A is an Irish SaaS business</li>
+<li>Company B is a VAT-registered Dutch business</li>
+<li>Company A sells a one-year SaaS agreement for €10,000 to Company B</li>
+<li>Company B provides its Dutch VAT number to the Irish seller during onboarding</li>
+<li>Company A validates the Dutch business’ VAT number and issues an invoice without VAT, with an invoice message stating, <em>No VAT - tax to be paid on a reverse charge basis</em></li>
+</ul>
+<p>In this scenario the Dutch buyer must ‘self-account’ for the VAT, which results in a net-zero accounting entry with no payment due to the local tax authority.</p>
+<p>The reverse charge exists for two primary reasons:</p>
+<ul>
+<li><strong>Fraud</strong>: Imagine if the Irish software company collected the 21% Dutch VAT but never paid it to the Dutch tax authorities, or if the Dutch buyer fraudulently claimed they paid VAT on the foreign-issued invoice and tried to claim it back as a refund on their VAT return. It is simpler and less risky for the buyer to self-report the liability. For a more sophisticated example of tax fraud beyond the scope of this blog post, <a href="https://taxation-customs.ec.europa.eu/taxation/vat/fight-against-vat-fraud/vat-carousel-fraud_en">carousel fraud</a> is an interesting topic to explore.</li>
+<li><strong>Level Playing Field:</strong> To avoid giving foreign suppliers a pricing advantage over local suppliers who are required to charge VAT, the internal accounting of the reverse charge levels the playing field. The buyer self-reports the VAT (say 20%) they would’ve been charged, while simultaneously declaring that amount as deductible input VAT on their tax return.</li>
+</ul>
+<p>Note: we’ve been covering cross-border transactions and the reverse charge, but bear in mind tax IDs are also required for domestic transactions, where VAT is generally applied to the invoice.</p>
+<p>With the foundational concepts now understood, let’s dive into the mechanics of tax ID validation.</p>
+<h2 id="implementation-options">Implementation options</h2>
+<p>Collecting the customer’s tax ID is the first step; the next step is to validate the tax ID against an official government source, often a national business registry. Many tax authorities expose APIs for <a href="https://abr.business.gov.au/Tools/WebServices">direct integration</a> to their registries, offering a free, convenient way to validate tax IDs for a single jurisdiction. If your customers are based in many different countries, managing multiple integrations, API updates, and the IF-THEN routing logic for each country becomes difficult to scale.</p>
+<p>Alternatively, you can integrate with a reputable third party for global tax ID validation. Many privately-run tax ID validation services are available on the market, with different pricing models and varying degrees of quality. Functionally they’re similar, providing a single validation endpoint with routing and retries handled automatically.</p>
+<p>The downside to this path is many of these vendors are point-solutions: your business will also need a tax engine to properly apply the tax treatment to your invoices, and a tax reporting product to consolidate tax transactions and map this data to corresponding boxes on tax returns. In this context we recommend exploring vendors who offer other tax products beyond just tax ID validation.</p>
+<p>One important consideration for frontend developers and product managers is deciding whether to implement synchronous or asynchronous tax ID validation in their checkout flow.</p>
+<ul>
+<li><strong>Synchronous</strong> validation requires the buyer to wait until their tax ID has been validated against the government database before their transaction is finalized.</li>
+<li><strong>Asynchronous</strong> validation allows the purchase to complete regardless of the validation outcome.</li>
+</ul>
+<h2 id="synchronous-tax-id-validation">Synchronous tax ID validation</h2>
+<p>In a synchronous validation implementation, the risk of cart abandonment is higher as the buyer has to wait for the result, and they may not be willing to re-enter their tax information. The buyer and seller may also be at the mercy of how that <a href="https://viesapi.eu/vies-unavailability-of-vat-information-exchange-system/">validation service is performing</a> that day: some validation services have historically been highly available (Netherlands) while others have experienced regular service disruptions (Denmark). Most of these government web services will have scheduled downtime for maintenance.</p>
+<p>From a tax compliance perspective, synchronous validation can be positive, despite the risk of decreased conversion. This is twofold:</p>
+<ul>
+<li>Compliant tax invoices can be issued immediately, no corrections or customer contact necessary.</li>
+<li>Under audit, the local tax authority will expect all VAT numbers to have been validated against the official database at the point of sale. The tax ID validation databases are used as a real-time search engine, not a historical archive. Sellers cannot retroactively validate their customers’ tax IDs using these tools.</li>
+</ul>
+<p>Ensuring tax IDs are validated upfront before the <a href="https://stripe.com/resources/more/what-is-a-vat-invoice#what-information-should-be-included-on-a-vat-invoice">tax invoice</a> is issued reduces the downstream administrative burden of correcting tax IDs, and lowers audit risk.</p>
+<h2 id="asynchronous-tax-id-validation">Asynchronous tax ID validation</h2>
+<p>An asynchronous implementation of tax ID validation allows the customer to complete their purchase while the validation happens on the backend.</p>
+<p>While many tax IDs will be valid, the business will need to run a report (e.g. daily, weekly, monthly) of all of their failed customer validations and reach out to these customers to update their records. While communications can largely be automated (email copy, reminders, etc), some customers may not come back on-session to update their tax ID.</p>
+<p>As a merchant, the question becomes how to handle customers who do not reply <em>at all</em>. While the exposure may be less for smaller, one-time purchases, it can be problematic for subscription businesses, as each subsequent invoice is not technically compliant. Under audit, most governments will make you, the seller, liable for the VAT you didn’t charge, plus penalties and interest. If you’re a seller of physical goods and your customers are in other countries, goods may be held in customs until a valid tax ID is provided, creating a poor customer experience.</p>
+<p>When you’ve decided on an implementation approach, the next decision is selecting a validation service to integrate with. For Stripe users we recommend implementing Stripe’s tax ID validation service, as it seamlessly integrates with your Stripe <a href="https://docs.stripe.com/api/customers/object#customer_object-tax_ids"><code>customer</code></a> objects and <a href="https://stripe.com/tax">Stripe Tax</a> to apply the correct tax treatment on your invoices.</p>
+<h2 id="integrating-with-stripe-for-tax-id-validation">Integrating with Stripe for tax ID validation</h2>
+<p>Stripe offers both synchronous and asynchronous tax ID validation at checkout, depending on your business’ preferences and risk appetite. This is available for both <code>CheckoutSessions</code> and <code>PaymentIntents</code> integrations with Stripe Elements (private preview and public preview, respectively).</p>
+<p>For synchronous validation, when creating a <a href="https://docs.stripe.com/api/checkout/sessions">CheckoutSession</a> with the booleans <code>automatic_tax.enabled</code>  and <code>tax_id_collection.enabled</code> set to <code>true</code> , the buyer can input their tax ID into the Stripe-hosted Checkout page or into Stripe’s <a href="https://docs.stripe.com/elements/tax-id-element">Tax ID Element</a>.</p>
+<h5 id="synchronous-validation-with-checkoutsessions">Synchronous validation with <code>CheckoutSessions</code>:</h5>
+<pre><code>const taxIdElement = checkout.createTaxIdElement({
+  // ...other options
+  verification: {
+    taxId: {
+      mode: 'if_supported', 
+    },
+  },
+});</code></pre>
+<h5 id="asynchronous-validation-with-checkoutsessions">Asynchronous validation with <code>CheckoutSessions</code>:</h5>
+<pre><code>const taxIdElement = checkout.createTaxIdElement({
+  // ...other options
+  verification: {
+    taxId: {
+      mode: 'none',
+    },
+  },
+});</code></pre>
+<h5 id="synchronous-validation-with-paymentintents">Synchronous validation with <code>PaymentIntents</code>:</h5>
+<pre><code>const taxIdElement = elements.create('taxId', {
+  verification: {
+    taxId: {
+      mode: 'if_supported',
+    },
+  },
+});</code></pre>
+<h5 id="asynchronous-validation-with-paymentintents">Asynchronous validation with <code>PaymentIntents</code>:</h5>
+<pre><code>const taxIdElement = elements.create('taxId', {
+  verification: {
+    taxId: {
+      mode: 'none',
+    },
+  },
+});</code></pre>
+<p>When rendering the Tax ID Element, the <a href="https://docs.stripe.com/js/elements_object/create_tax_id_element#tax_id_element_create-options-verification">verification</a> object should be set to <code>if_supported</code> to trigger synchronous validation. If the field is populated with <code>none</code> then asynchronous validation will be triggered. Regardless of which method is chosen, when a buyer enters their tax ID, Stripe initially performs a regex check to ensure the tax ID is formatted correctly (e.g. contains the correct number of digits for that country and contains a leading country ISO code).</p>
+<p>After passing this check, Stripe automatically routes the tax ID request to the relevant government APIs. Validation is often complete in a second or two. In the event the government service takes more than four seconds to process the request, the transaction can proceed as if the tax ID was valid (asynchronous fallback).</p>
+<p>Post-purchase, you can retrieve a customer’s tax ID validation status by fetching the information from the <a href="https://docs.stripe.com/api/customers/object#customer_object-tax_ids-data-verification">customer</a> object; specifically look for the <code>tax_ids.data.verification.status</code> field. Stripe also emits an event called <code>customer.tax_id.updated</code>, so you can listen for a webhook which contains the verification status.</p>
+<p>Verification status is critical because it allows your business to take action and communicate to customers who provided invalid tax IDs, ensuring your invoices and tax calculations are compliant, both mitigating risk and providing a better customer experience by avoiding misbillings.</p>
+<p>As this engineering decision impacts cross-functional teams, we recommend it be made with input from stakeholders such as tax, finance and product. During initial deployment it is also worth considering running an A/B test to see how each version performs, and how prevalent the issue of invalid tax IDs is with your customer segment.</p>
+<p>Ready to get started? <a href="https://docs.stripe.com/tax/checkout/tax-ids">Enable tax ID collection and verification</a> today.</p>
+<h4 id="disclaimer">Disclaimer</h4>
+<p>The content in this article is for general information and education purposes only and should not be construed as legal or tax advice. Stripe does not warrant or guarantee the accuracy, completeness, adequacy, or currency of the information in the article. You should seek the advice of a competent attorney or accountant licensed to practice in your jurisdiction for advice on your particular situation.</p></div></div>

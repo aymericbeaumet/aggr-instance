@@ -1,0 +1,76 @@
+<div id="readability-page-1" class="page"><div>
+    <h2>About Me</h2><p>
+    My name is Marc Brooker. I like to build things that work, and do cool stuff. I like building big things. I also dabble in machining, welding, cooking, and skiing.</p><p>
+
+    I am an engineer at Amazon Web Services (AWS) in Seattle, where I work on agentic AI, especially safety and policy for agentic AI. Before that, I worked on EC2, EBS, databases, serverless, and serverless databases.<br>
+
+All opinions are my own.
+    </p><h2>Links</h2>
+    <p><a href="https://brooker.co.za/blog/publications.html">My Publications and Videos</a><br>
+    <a rel="me" href="https://fediscience.org/@marcbrooker">@marcbrooker on Mastodon</a>
+    <a href="https://twitter.com/MarcJBrooker">@MarcJBrooker on Twitter</a></p><p>
+    <a href="https://brooker.co.za/blog/2026/06/18/my-blog-and-ai.html">Is this blog written by AI?</a></p></div><div id="post">
+<h2 id="systems-fun-at-hotos">Systems Fun at HotOS</h2>
+
+
+
+
+
+<p>One day somebody will tell me what systems means.</p>
+
+<p>Last week I attended <a href="https://sigops.org/s/conferences/hotos/2025/index.html">HotOS</a><sup><a href="#foot1">1</a></sup> for the first time. It was super fun. Just the kind of conference I like: single-track, a mix of academic and industry, a mix of normal practical ideas and less-normal less-practical big thinking. I went partially because a colleague twisted my arm, and partially because of this line in the CFP:</p>
+
+<blockquote>
+  <p>The program committee will explicitly favor papers likely to stimulate reflection and discussion.</p>
+</blockquote>
+
+<p>That sounds like a good time.</p>
+
+<p><em>Some Papers or Talks I Enjoyed</em></p>
+
+<p>I thought I’d give a shout-out to some of the papers I enjoyed the most. These aren’t the best papers, just ones I particularly liked for my own arbitrary reasons<sup><a href="#foot2">2</a></sup>.</p>
+
+<ul>
+  <li>
+    <p><a href="https://sigops.org/s/conferences/hotos/2025/papers/hotos25-207.pdf">The NIC should be part of the OS</a> by Xu and Roscoe exposes a lot of what was traditionally the OS kernel’s state (like the run queue for each core) to the NIC, allowing the NIC to use that state to decide which packets to deliver and when. Their goal is to do better than existing kernel bypass methods. After all, many modern cloud applications are short bursts of compute between waiting for packets. They do this with CXL 3.0’s cache-coherent peripheral interconnect, but I don’t think peripheral cache coherence is actually critical to the big picture here. This approach of pushing scheduling work down to the NIC seems especially interesting for straight packet processing workloads, and for Serverless workloads, both of which tend to be very <em>run and wait</em> heavy with high concurrency. Just super fun deep systems work<sup><a href="#foot3">3</a></sup>.</p>
+  </li>
+  <li>
+    <p><a href="https://sigops.org/s/conferences/hotos/2025/papers/hotos25-60.pdf">Batching with End-to-End Performance Estimation</a> by Borisov et al. This paper starts by questioning the common wisdom that batching is good for throughput and bad for latency, by presenting a set of scenarios that show that it can be good or bad for both latency and throughput depending on small timing differences. I love questioning the common wisdom, so this is my jam. They then point out that this situation can be improved by making batching logic aware of <em>end-to-end</em> latency, and propose a smart way to estimate that latency using Little’s Law.</p>
+  </li>
+  <li>
+    <p><a href="https://sigops.org/s/conferences/hotos/2025/papers/hotos25-414.pdf">Spork: A posix_spawn you can use as a fork</a> by Vögele et al. One day, I decided to move to a new house. So a built a perfect replica of my old house in a new place, then tore it down, and built a new house<sup><a href="#foot4">4</a></sup>. That’s <em>fork</em>. <a href="https://dl.acm.org/doi/10.1145/3317550.3321435">Fork sucks</a>. <code>posix_spawn</code> is better, but nobody uses it. So what do we do? In this paper, the authors propose to trap <code>fork</code>, analyze the forking binary (!) to find the <code>exec</code> that corresponds to the <code>fork</code>, and then dynamically rewrite (!) the forking program to call <code>posix_spawn</code> instead. If you like deep OS level optimizations, with just the right amount of unhingedness, you’ll enjoy this paper<sup><a href="#foot5">5</a></sup>.</p>
+  </li>
+  <li>
+    <p><a href="https://sigops.org/s/conferences/hotos/2025/papers/hotos25-69.pdf">Real Life is Uncertain. Consensus Should Be Too!</a> by Frank et al<sup><a href="#foot7">7</a></sup>. You know how consensus papers talk about the <code>f</code>-threshold failure model, and safety and liveness, and every implementer of those papers realizes that <code>f</code>-threshold is kinda bunk because things don’t actually fail that way and the world is messy and probablistic and correlated? Yeah. This paper looks at better ways to talk about these things, building a bridge between theory and practice. It goes on to propose some ideas for building better consensus algorithms that deal with the messiness of the real world. Cool paper, important conversation.</p>
+  </li>
+  <li>
+    <p><a href="https://sigops.org/s/conferences/hotos/2025/papers/hotos25-364.pdf">From Ahead-of- to Just-in-Time and Back Again: Static Analysis for Unix Shell Programs</a> by Lazarek et al. Just read that title. <em>Static analysis</em> for shell programs. Static analysis for <em>shell programs</em>. Shell programs, like <code>fork</code>, are a little bit of technical debt from a prior era<sup><a href="#foot6">6</a></sup> that we just can’t make go away. But what if we can make them way safer with static analysis? If your initial thought it ‘wow, that sounds hard’, you’re on the right track.</p>
+  </li>
+  <li>
+    <p><a href="https://sigops.org/s/conferences/hotos/2025/papers/hotos25-106.pdf">Analyzing Metastable Failures</a> by Isaacs et al. This is the start of something I think is super important: making conceptual and practical progress on catching metastable failures at design time. Figure 1 and Figure 3 are worth the price of admission by themselves, a pair of important concepts that might turn out to be super important to the future of large-scale systems building.</p>
+  </li>
+</ul>
+
+<p>Overall, HotOS was a great time, with tons of new and interesting ideas.</p>
+
+<p><em>Interesting Trends</em></p>
+
+<ul>
+  <li>Students continue to be smart, motivated, thoughtful, and generally awesome. This has always been true, but maybe runs counter to the general narrative. Tons of great up-and-coming folks.</li>
+  <li>As I <a href="https://brooker.co.za/blog/2023/07/13/osdi.html">noted about OSDI’23</a>, the rise of Rust as a systems programming language continues. We’ve gone from folks justifying <em>why Rust?</em> to more <em>why not Rust?</em></li>
+  <li><em>AI for systems</em> and <em>Systems for AI</em> are everywhere, but in much more practical ways than in the past. We seem to be over the hump of hype here, and actually using AI as a tool to build some really cool stuff. With a few exceptions, the overall vibe matched what Narayanan and Kapoor talk about in <a href="https://knightcolumbia.org/content/ai-as-normal-technology">AI as Normal Technology</a>, which I think is a positive thing for the systems community.</li>
+</ul>
+
+<p><em>Footnotes</em></p>
+
+<ol>
+  <li> That’s <em>The ACM SIGOPS 20th Workshop on Hot Topics in Operating Systems</em> to you.</li>
+  <li> If your paper or talk is not on the list, you can assume I haven’t had a chance to read it yet, or happened to miss your talk.</li>
+  <li> Both ETH Zurich and EPFL do a ton of kick ass systems work. There’s something in the water in Switzerland.</li>
+  <li> I stole this analogy from somebody, but unfortunately can’t remember who.</li>
+  <li> In some ways it reminds me of the original <a href="https://www.cl.cam.ac.uk/research/srg/netos/papers/2003-xensosp.pdf">Xen paper</a>. Similar <a href="https://tvtropes.org/pmwiki/pmwiki.php/Main/CrazyEnoughToWork">crazy enough to work</a> energy.</li>
+  <li> A <em>prior error</em>, one might say.</li>
+  <li> There’s something in the water in Berkeley, too, but there always has been.</li>
+</ol>
+
+</div></div>

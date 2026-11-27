@@ -1,0 +1,60 @@
+---
+title: Screw your title
+link: http://notes.eatonphil.com/2025-04-22-burn-your-title.html
+source: notes-eatonphil-com
+published: 2025-04-22T00:00:00Z
+updated: 2025-04-22T00:00:00Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+labels:
+- career
+- humans
+summary: 'I''ve been a developer, a manager, a cofounder, and now I''m a developer again. I ran away from each position until being a founder because I felt like I was limited by what I was allowed to do. But I reached an enlightenment of sorts during my career progression: that everyone around me was dying for someone to pick things up, for employees to show engagement and agency. We think of our titles as our limits. We''re quick to say and believe, "that isn''t my job". While in reality titles reflect the minimum expected of us, not the maximum that is open to us. Moving your career forward Trying to figure out what (new minimum) you must do to get promoted seems kind of backwards to me, reinforcing our sense of our own limits. Instead, at every stage in your career, focus on doing the intersection of: what you see needs to be done (that isn''t being done) what you are capable of doing what you have the desire/energy (or would find fulfillment) doing And this is the path to promotion and a successful and interesting career. Screw your title. screw your job description. I mean, keep your boss happy for sure. Keep your teammates happy by supporting them and building them up and communicating well. But don''t wait to be officially made a lead or given a new title to do what otherwise fits into that intersection above. And if after doing this for some time, demonstrating this level of agency, you are not promoted, it just means you''re not at the right company or right organization within your company and you should look elsewhere. What''s more, this work you did (at a company that doesn''t appreciate your agency, if that happens to be the case) merely makes the case stronger for your successful interview at the next company. There''s no downside. The cynical, and perhaps realistic, alternative to this is to do politics to get promoted. Or to not do politics but to do things that don''t align with your long-term goals. I''m not personally interested in either path so I''m not covering them here. I''m interested in the intersection of things that move me in the direction I want, things that are useful to the company, and things that I am capable of doing (in addition to whatever minimum work I must actually do). Examples Here''s a peek at what this looks like for me as an individual contributor, a programmer, at EnterpriseDB. I started the EDB Engineering Newsletter because it seemed like we needed to do a better job telling the world the awesome things our engineering team is doing. (You know we''re one of the biggest contributors to Postgres? Bruce Momjian, Robert Haas, Peter Eisentraut, etc. work here? The guy who implemented the WAL and MVCC in Postgres is my teammate?) Nobody asked me to do that. I started publishing blog views for the entire company once a month internally. Nobody asked me to do that. I wrote a number of internal docs and tutorials on the product because we were just obviously missing them. Nobody asked me to do that. I started a fortnightly incident review meeting for my team because it seemed like we were missing chances to update docs and teach each other. Nobody asked me to do that. I write a odd posts for the company blog on what I''ve learned. Nobody asked me to do that. These are just a few of the random things that seemed like a good idea for me to do on top of my Actual Work as a developer, which I think I do a decent job of on its own. In closing Don''t burn out. Don''t do things you aren''t asked for and don''t find rewarding. Or that won''t pave the way toward the career you want. I''m trying to be very careful not to advocate anything along those lines. But also don''t wait to be asked to do something. Do what is interesting and obvious and rewarding to you. Interesting opportunities seem to come most reliably when you make them for yourself.'
+content: extracted
+html: 2025-04-22-screw-your-title.html
+---
+
+I've been a developer, a manager, a cofounder, and now I'm a developer again. I ran away from each position until being a founder because I felt like I was limited by what I was allowed to do.
+
+But I reached an enlightenment of sorts during my career progression: that everyone around me was dying for someone to pick things up, for employees to show engagement and agency.
+
+We think of our titles as our limits. We're quick to say and believe, "that isn't my job". While in reality titles reflect the minimum expected of us, not the maximum that is open to us.
+
+### Moving your career forward
+
+Trying to figure out what (new minimum) you must do to get promoted seems kind of backwards to me, reinforcing our sense of our own limits. Instead, at every stage in your career, focus on doing the intersection of:
+
+- what you see needs to be done (that isn't being done)
+- what you are capable of doing
+- what you have the desire/energy (or would find fulfillment) doing
+
+And this is the path to promotion and a successful and interesting career.
+
+Screw your title. screw your job description. I mean, keep your boss happy for sure. Keep your teammates happy by supporting them and building them up and communicating well. But don't wait to be officially made a lead or given a new title to do what otherwise fits into that intersection above.
+
+And if after doing this for some time, demonstrating this level of agency, you are not promoted, it just means you're not at the right company or right organization within your company and you should look elsewhere.
+
+What's more, this work you did (at a company that doesn't appreciate your agency, if that happens to be the case) merely makes the case stronger for your successful interview at the next company. There's no downside.
+
+The cynical, and perhaps realistic, alternative to this is to do politics to get promoted. Or to not do politics but to do things that don't align with your long-term goals. I'm not personally interested in either path so I'm not covering them here. I'm interested in the intersection of things that move me in the direction I want, things that are useful to the company, and things that I am capable of doing (in addition to whatever minimum work I must actually do).
+
+### Examples
+
+Here's a peek at what this looks like for me as an individual contributor, a programmer, at EnterpriseDB.
+
+I started the EDB Engineering Newsletter because it seemed like we needed to do a better job telling the world the awesome things our engineering team is doing. (You know we're one of the biggest contributors to Postgres? Bruce Momjian, Robert Haas, Peter Eisentraut, etc. work here? The guy who implemented the WAL and MVCC in Postgres is my teammate?) Nobody asked me to do that.
+
+I started publishing blog views for the entire company once a month internally. Nobody asked me to do that.
+
+I wrote a number of internal docs and tutorials on the product because we were just obviously missing them. Nobody asked me to do that.
+
+I started a fortnightly incident review meeting for my team because it seemed like we were missing chances to update docs and teach each other. Nobody asked me to do that.
+
+I write a odd posts for the company blog on what I've learned. Nobody asked me to do that.
+
+These are just a few of the random things that seemed like a good idea for me to do on top of my Actual Work as a developer, which I think I do a decent job of on its own.
+
+### In closing
+
+Don't burn out. Don't do things you aren't asked for and don't find rewarding. Or that won't pave the way toward the career you want. I'm trying to be very careful not to advocate anything along those lines.
+
+But also don't wait to be asked to do something. Do what is interesting and obvious and rewarding to you. Interesting opportunities seem to come most reliably when you make them for yourself.

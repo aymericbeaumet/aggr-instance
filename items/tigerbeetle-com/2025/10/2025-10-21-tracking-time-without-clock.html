@@ -1,0 +1,105 @@
+<div id="readability-page-1" class="page"><div><p>A short note on a couple of code patterns for handling time!</p>
+<p>The problem with time is that it is deceptively simple (just a
+syscall away), but is actually tricky to handle correctly in a reliable
+system! We had to write <a href="https://tigerbeetle.com/blog/2021-08-30-three-clocks-are-better-than-one/">a
+blog post</a>, give <a href="https://youtu.be/7R-Iz6sJG6Q">a talk</a>,
+and document <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.16.58/src/vsr/clock.zig#L1-L81">the
+implementation</a> to explain all the details. As a result of this
+complexity, you generally don’t want to use the time directly as
+provided by your language standard library.</p>
+<h2 id="one-time-for-all-time"></h2>
+<p>The brute-force pattern here is to introduce a <code>Clock</code>
+interface, and to require the code to pass around an <em>instance</em>
+of a clock:</p>
+<div id="cb1"><pre><code>pub const Clock = struct {
+    context: *anyopaque,
+    vtable: *const VTable,
+
+    const VTable = struct {
+        monotonic: *const fn (*anyopaque) u64,
+        realtime: *const fn (*anyopaque) i64,
+    };
+
+    pub fn monotonic(self: Clock) Instant {
+        return .{
+            .ns = self.vtable.monotonic(self.context)
+        };
+    }
+
+    pub fn realtime(self: Clock) i64 {
+        return self.vtable.realtime(self.context);
+    }
+};</code></pre></div>
+<p>Full interface works, but it is somewhat complicated, as you need to
+arrange storage for the clock. But there are two tricks that allow
+bypassing the complexity for smaller components.</p>
+<h2 id="the-time-is-now"></h2>
+<p>Often, you need only a single instant of time, the here and now. In
+this case, instead of parametrizing the component over
+<code>Clock</code>, you can pass a <code>now: Instant</code> to methods
+that need time (<a href="https://matklad.github.io/2020/12/28/csdi.html">Call Site
+Dependency Injection</a>). We use this pattern for our <a href="https://github.com/tigerbeetle/tigerbeetle/blob/90f05d26dff66234a68f6cd5c79495c605172816/src/vsr/routing.zig#L461-L489">adaptive
+replication routing</a>:</p>
+<div id="cb2"><pre><code>pub fn op_prepare(
+    routing: *Routing,
+    now: Instant,
+    op: u64,
+) void {
+   // ...
+}
+
+pub fn op_prepare_ok(
+    routing: *Routing,
+    now: Instant,
+    op: u64,
+    replica: u8,
+) void {
+    // ...
+}</code></pre></div>
+<p>The replica passes the <code>now</code> of when an op was prepared,
+and when it was acknowledged by a backup:</p>
+<div id="cb3"><pre><code>self.routing.op_prepare(
+    self.clock.monotonic(),
+    prepare.header.op,
+);
+
+// Later
+
+self.routing.op_prepare_ok(
+    self.clock.monotonic(),
+    prepare_ok.header.op,
+    prepare_ok.header.replica,
+);</code></pre></div>
+<p>The ARR component uses the two instances to learn how long it took to
+replicate a prepare, without needing an explicit clock. This makes
+testing edge-case behaviors, such as time overflows, easy as you don’t
+even have to come up with a fake overflowing clock, you can construct a
+bad <code>Instant</code> directly!</p>
+<h2 id="ticking-away-the-moments-that-make-up-a-dull-day"></h2>
+<p>The second pattern has to do with the future. One thing you might
+want to do with time is to schedule some work to happen later. This
+sounds easy enough, but usually turns into a minor nightmare in testing,
+as the “future” control flow can easily outlive the system in
+question.</p>
+<p>The trick here is to push time into the system at a fixed cadence.
+Instead of passing around a <code>clock</code> instance, define <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.16.58/src/vsr/replica.zig#L1506">a
+<code>tick</code> method</a> on the component:</p>
+<div id="cb4"><pre><code>pub fn tick(self: *Replica) void {
+    ...
+}</code></pre></div>
+<p>The caller is required to <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.16.58/src/tigerbeetle/main.zig#L491-L494">invoke
+it regularly</a></p>
+<div id="cb5"><pre><code>while (true) {
+    replica.tick();
+    try io.run_for_ns(constants.tick_ms * std.time.ns_per_ms);
+}</code></pre></div>
+<p>Of course, this only gives you a very coarse-grained resolution of
+time, but, for the use-case of scheduling the work in the future, you
+often don’t need precise time! And the control flow simplification here
+is massive!</p>
+<h2 id="our-time-is-running-out"></h2>
+<p>That’s it for today! Remember, time is at the heart of essential
+complexity, and you want to treat it seriously! While virtualizing the
+entire clock is a universal approach, often times a <code>now</code> or
+<code>tick</code> pattern is all you need!</p>
+  </div></div>

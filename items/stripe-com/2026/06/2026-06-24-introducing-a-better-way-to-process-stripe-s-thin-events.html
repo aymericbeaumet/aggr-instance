@@ -1,0 +1,165 @@
+<div id="readability-page-1" class="page"><div><p>Handling events is a cornerstone of a successful Stripe integration. But, correctly setting up and maintaining an <a href="https://docs.stripe.com/event-destinations">event destination</a> is an error-prone process. While authoring, there are a lot of event shapes and keys to manage; static typing doesn't give you much guidance in our non-TypeScript SDKs.</p>
+<p>Once your event destination is set up, upgrades can be tricky. Because the shape of events are tied to a specific API version, upgrading either your event destination or SDK (especially in strongly typed languages) can lead to unexpected runtime errors.</p>
+<p>Stripe's solution to the maintenance problem is <a href="https://docs.stripe.com/event-destinations#thin-events">thin events</a>, which are unversioned JSON payloads. Because they're identical across API versions, you can use them with <em>any</em> SDK version, making upgrades much safer. But the authoring problem remains: how can the SDKs present as much information about the shape of events as early as possible?</p>
+<p>Enter <a href="https://docs.stripe.com/webhooks/event-notification-handlers">event notification handlers</a>. They encapsulate everything your event handler needs to run and let you focus on your business logic. They surface errors when you're writing code instead of later, in production.</p>
+<blockquote>
+<p>If you'd like early access to thin events for v1 resources, please <a href="https://forms.gle/tgPakyrUakYoDm6L7">fill out this form</a>.</p>
+</blockquote>
+<h2 id="how-it-works-today">How it works today</h2>
+<p>When handling thin events today, you need to write a lot of code to validate and route the event correctly. You're also responsible for managing the Stripe-Context header when handling events for connected accounts.</p>
+<p>Here's what a TypeScript handler might look like today:</p>
+<pre><code>const app = express();
+const stripe = new Stripe("sk_test_YOUR_KEY_HERE");
+
+app.post(
+  '/webhook',
+  express.raw({type: 'application/json'}),
+  async (req, res) =&gt; {
+    const sig = req.headers['stripe-signature']?.[0] ?? '';
+
+    try {
+      const eventNotification = stripe.parseEventNotification(
+        req.body,
+        sig,
+        webhookSecret
+      );
+
+      if (eventNotification.type == 'v1.billing.meter.error_report_triggered') {
+        console.log(
+          `Meter w/ id ${eventNotification.related_object.id} had a problem`
+        );
+
+        const event = await eventNotification.fetchEvent();
+        console.log(`More info: ${event.data.developer_message_summary}`);
+      } else if (eventNotification.type === 'v1.billing.meter.no_meter_found') {
+        const meters = await stripe.billing.meters.list(undefined, {
+          // important!
+          stripeContext: eventNotification.context,
+        });
+
+        console.log(
+          `Meter not found. Available meters for this account are: ${meters.data
+            .map((m) =&gt; m.id)
+            .join(', ')}`
+        );
+        // ...
+      } else {
+        console.log(`Received unhandled event type: ${eventNotification.type}`);
+      }
+
+      res.sendStatus(200);
+    } catch (err) {
+      console.log(`Webhook Error: ${(err as any).stack}`);
+      res.status(400).send(`Webhook Error: ${(err as any).message}`);
+    }
+  }
+);</code></pre>
+<p>Notice how all of your business logic is interwoven in webhook-related hardware? Even if you split your logic into small functions, it's still up to you to wire everything up correctly. Plus you have to hope (and verify) that you haven't made any typos in those webhook type strings.</p>
+<h2 id="a-better-way">A better way</h2>
+<p>Event notification handlers abstract away as much of this grunt work as possible, keeping you focused on the unique parts of your implementation. The Stripe SDK takes care of all the casting, routing, validating, and conversions behind the scenes. Let's walk through some examples.</p>
+<h3 id="create-a-handler">Create a handler</h3>
+<p>The first step is initializing the handler itself. If you're not using <code>StripeClient</code> yet, you can use it for just this bit of your integration without changing anything else. There's more info <a href="https://docs.stripe.com/sdks/server-side#stripeclient">in our docs</a>.</p>
+<p>Once you have an authenticated client, create your handler. Make sure to provide a "fallback callback", the function that gets called when the event isn't otherwise handled:</p>
+<pre><code>const stripe = new Stripe("sk_test_YOUR_KEY_HERE");
+
+const handler = stripe.notificationHandler(
+  webhookSecret,
+  async (unhandledEvent, client, details) =&gt; {
+    console.log(
+      `Received unhandled event type: ${unhandledEvent.type}; the SDK does${
+        details.isKnownEventType ? '' : ' not'
+      } have types for it`
+    );
+  }
+);</code></pre>
+<h3 id="handle-a-thin-event">Handle a thin event</h3>
+<p>You can declare callback functions anywhere in your codebase:</p>
+<pre><code>// webhookCallbacks.ts
+const handleNoMeterFound = async (
+  notification: Stripe.V2.Core.Events.V1BillingMeterNoMeterFoundEventNotification,
+  client: Stripe
+) =&gt; {
+  // don't need to specify stripeContext! it just works
+  const meters = await client.billing.meters.list();
+
+  console.log(
+    `Meter not found. Available meters are: ${meters.data
+      .map((m) =&gt; m.id)
+      .join(', ')}`
+  );
+};
+
+// eventDestination.ts
+import {handleNoMeterFound} from './webhookCallbacks.ts'
+
+const handler = stripe.notificationHandler(...) // same as above
+
+handler.on('v1.billing.meter.no_meter_found', handleNoMeterFound);</code></pre>
+<p>That <code>handler.on(...)</code> call validates (at compile time) that the argument types for your callback match those expected for the <code>v1.billing.meter.no_meter_found</code> event, so you don't have any surprises at runtime.</p>
+<p>The SDK will supply the parsed event notification and a special instance of <code>StripeClient</code> that's pre-bound to the context of the event. It also retains all the settings from the <code>client</code> instance that created the handler, so no need to re-configure anything. You can make any additional API calls you want.</p>
+<p>Best of all, because <code>handleNoMeterFound</code> is just a function, you can test it as part of your normal development flow.</p>
+<p>In some languages (like TypeScript), you can even declare callbacks inline, meaning they have the exact correct types without having to specify anything:</p>
+<pre><code>handler.on(
+  'v1.billing.meter.error_report_triggered',
+  async (eventNotification, client) =&gt; { // these are automatically typed correctly
+    console.log(
+      `Meter w/ id ${eventNotification.related_object.id} had a problem`
+    );
+
+    const event = await eventNotification.fetchEvent();
+    console.log(`More info: ${event.data.developer_message_summary}`);
+  }
+);</code></pre>
+<h3 id="the-final-result">The final result</h3>
+<p>Put it all together and you've got a much more maintainable event destination:</p>
+<pre><code>const app = express();
+const stripe = new Stripe("sk_test_YOUR_KEY_HERE");
+
+const apiKey = process.env.STRIPE_API_KEY ?? '';
+const webhookSecret = process.env.WEBHOOK_SECRET ?? '';
+
+const handler = stripe.notificationHandler(
+  webhookSecret,
+  async (unhandledEvent, client, details) =&gt; {
+    console.log(
+      `Received unhandled event type: ${unhandledEvent.type}; the SDK does${
+        details.isKnownEventType ? '' : ' not'
+      } have types for it`
+    );
+  }
+);
+
+handler.on("v1.billing.meter.no_meter_found", handleNoMeterFound);
+handler.on(
+  "v1.billing.meter.error_report_triggered",
+  handleErrorReportTriggered
+);
+
+app.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) =&gt; {
+    try {
+      const sig = req.headers["stripe-signature"]?.[0] ?? "";
+      handler.handle(req.body, sig);
+      res.sendStatus(200);
+    } catch (err) {
+      console.log(`Webhook Error: ${(err as any).stack}`);
+      res.status(400).send(`Webhook Error: ${(err as any).message}`);
+    }
+  }
+);</code></pre>
+<p>This pattern is supported in all seven of our <a href="https://docs.stripe.com/sdks/server-side">server-side SDKs</a>, though the exact implementation details will differ between them. In each case, we designed a clean and idiomatic experience for the language.</p>
+<h2 id="what-comes-next">What comes next</h2>
+<p>While event notification handlers represent an exciting leap forward, we're not done yet. This more structured approach to event handling sets the stage for even better experiences going forward. While we don't have concrete plans yet, we're working on better validations (like ensuring your handler is listening for all the events your webhook endpoint is sending) and better integrations with popular web frameworks so we can make the integration experience even more seamless.</p>
+<h2 id="how-you-can-help">How you can help</h2>
+<p>Ahead of their GA launch later this summer, <strong>we're looking for developer feedback</strong> on the handlers to ensure they're ready for prime time. Though we're confident in their overall design, there's no replacing adoption in a real production codebase. If you have a chance to try them, <strong>please report any feedback</strong> (good or bad) in your SDK's corresponding GitHub issue:</p>
+<ul>
+<li><a href="https://github.com/stripe/stripe-node/issues/2763">Node</a></li>
+<li><a href="https://github.com/stripe/stripe-python/issues/1835">Python</a></li>
+<li><a href="https://github.com/stripe/stripe-java/issues/2239">Java</a></li>
+<li><a href="https://github.com/stripe/stripe-go/issues/2379">Go</a></li>
+<li><a href="https://github.com/stripe/stripe-ruby/issues/1895">Ruby</a></li>
+<li><a href="https://github.com/stripe/stripe-php/issues/2087">PHP</a></li>
+<li><a href="https://github.com/stripe/stripe-dotnet/issues/3404">.NET</a></li>
+</ul></div></div>

@@ -1,0 +1,426 @@
+<div id="readability-page-1" class="page"><div><p>I tested the top 100 Rust crates on crates.io for backwards
+compatibility. Then I removed every dependency from the TigerBeetle Rust
+client and backported it to Rust 1.39, from 2019.</p>
+<p>Here’s why: last year I created the Rust client for <a href="https://github.com/tigerbeetle/tigerbeetle">TigerBeetle</a>, the
+financial transactions database. One morning, after weeks of work
+reducing the client’s minimum supported Rust version, I found CI broken
+— a point release of a dependency of a dependency had bumped its <a href="https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field"><code>rust-version</code></a>
+from 1.61 to 1.68.</p>
+<p>This annoyed me a lot, so I ran an experiment.</p>
+<h2 id="tigerbeetle-clients"></h2>
+<p>TigerBeetle has a client-server architecture, and provides client
+libraries for most popular languages: Python, Java, Go, Node, .NET, and
+Rust. Each of these is a bindings/FFI project that binds to the single
+<code>tb_client</code> library, written in Zig, exposing a C ABI,
+wrapped in the idioms of the embedding language. We share one core
+across every language client so that as much of the client-side code
+path as possible is covered by our deterministic simulation testing (the
+<a href="https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/internals/vopr.md">VOPR</a>).</p>
+<figure>
+<img src="https://tigerbeetle.com/blog/2026-04-24-toolchain-horizons/tb-client-arch-733e2e43.svg" alt="TigerBeetle client architecture: language clients (Python, Java, Go, Node, .NET, Rust) all connect to the central tb_client library written in Zig">
+<figcaption>TigerBeetle client architecture: language
+clients (Python, Java, Go, Node, .NET, Rust) all connect to the central
+tb_client library written in Zig</figcaption>
+</figure>
+<p>The Rust client is less than two thousand lines of production Rust
+code, some of it generated, some of it written by hand. It provides a
+simple asynchronous API for use with <code>async</code> /
+<code>await</code>; and it is runtime-agnostic, requiring no
+dependencies on specific Rust async runtimes.</p>
+<p>In use it looks like this:</p>
+<div id="cb1"><pre><code>use tigerbeetle as tb;
+
+// Connect to TigerBeetle.
+let client = tb::Client::new(0, "127.0.0.1:3000")?;
+
+// Create two accounts on the same ledger.
+let accounts = [
+    tb::Account {
+        id: tb::id(),
+        ledger: 1,
+        code: 1,
+        ..Default::default()
+    },
+    tb::Account {
+        id: tb::id(),
+        ledger: 1,
+        code: 1,
+        ..Default::default()
+    },
+];
+client.create_accounts(&amp;accounts).await?;
+
+// Transfer 100 units from the first account to the second.
+let transfers = [tb::Transfer {
+    id: tb::id(),
+    debit_account_id: accounts[0].id,
+    credit_account_id: accounts[1].id,
+    amount: 100,
+    ledger: 1,
+    code: 1,
+    ..Default::default()
+}];
+client.create_transfers(&amp;transfers).await?;</code></pre></div>
+<p>It’s a small codebase with basic requirements but it does need some
+common dependencies.</p>
+<h2 id="minimum-supported-rust-versions"></h2>
+<p>The Rust ecosystem has a concept of the “Minimum Supported Rust
+Version” (MSRV) for its crates. It relates crates to the Rust compiler
+version, and it is separate from SemVer, Rust’s primary versioning
+scheme.</p>
+<p>Some crates encode this information in their <code>Cargo.toml</code>
+manifest’s optional <a href="https://doc.rust-lang.org/cargo/reference/rust-version.html"><code>rust-version</code></a>
+field. It is a best practice for crate maintainers to know and document
+their minimum supported Rust version and test against that version in
+their CI.</p>
+<p>When I do the initial development of a new Rust crate, I don’t worry
+about the minimum Rust version; I save that work for just before
+publication, a process like:</p>
+<ol type="1">
+<li><p>Start with the oldest version I know I support.</p></li>
+<li><p>Test against the previous version.</p></li>
+<li><p>Fix the build.</p>
+<p>This usually involves removing or replacing dependencies, and
+replacing newer language features with older ones or dependencies that
+fill that role. Open-coded polyfills are often involved.</p></li>
+<li><p>Update CI to verify that as the minimum supported Rust
+version.</p></li>
+<li><p>Do it again.</p></li>
+</ol>
+<p>When I posted the <a href="https://github.com/tigerbeetle/tigerbeetle/pull/2617">initial pull
+request</a> for the Rust TigerBeetle client in June 2025, I had not done
+this yet, and expected our minimum supported Rust version to be a recent
+one. Without any effort to support older releases, the client’s initial
+MSRV was Rust 1.81, published September 5, 2024.</p>
+<p>About 9 months of supported toolchains. Not satisfactory, but not
+surprising.</p>
+<h2 id="tigerstyle-and-dependencies"></h2>
+<p>TigerBeetle has a set of strict and opinionated coding guidelines, <a href="https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md">TigerStyle</a>.
+They are focused on three pillars: safety, performance, and developer
+UX.</p>
+<p>TigerStyle emphasizes fully understanding and owning your code and
+radically reducing dependencies. It has this to say about them:</p>
+<blockquote>
+<p>TigerBeetle has a “zero dependencies” policy, apart from the Zig
+toolchain. Dependencies, in general, inevitably lead to supply chain
+attacks, safety and performance risk, and slow install times. For
+foundational infrastructure in particular, the cost of any dependency is
+further amplified throughout the rest of the stack.</p>
+</blockquote>
+<p>In order to support older Rust toolchains — and as a matter of
+TigerStyle — one of my first tasks to land the Rust client was to
+judiciously remove crate dependencies.</p>
+<p>At the start of the process the client’s dependencies were thus:</p>
+<div id="cb2"><pre><code>name = "tigerbeetle"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bitflags = "2.6.0"
+futures = "0.3.31"
+thiserror = "2.0.3"
+
+[build-dependencies]
+anyhow = "1.0.93"
+ignore = "0.4.23"
+
+[dev-dependencies]
+anyhow = "1.0.93"
+tempfile = "3.15.0"</code></pre></div>
+<p>To Rust programmers this is common stuff, dependencies most of us
+use. Most of these are easy enough to remove.</p>
+<h2 id="the-rust-futures-dependency"></h2>
+<p>The <code>futures</code> crate is not easy to remove.</p>
+<p>The <code>futures</code> crate is critical to the Rust ecosystem. It
+was where the original futures implementation was prototyped, and
+continues to maintain code that is so important that it remains all but
+required for using async Rust. Most sizable Rust projects depend on the
+<code>futures</code> crate. It is an official crate maintained by the
+Rust project.</p>
+<p>It’s a big dependency, as shown in this dependency graph from
+<code>cargo tree</code>:</p>
+<pre><code>futures v0.3.31
+├── futures-channel v0.3.31
+│   ├── futures-core v0.3.31
+│   └── futures-sink v0.3.31
+├── futures-core v0.3.31
+├── futures-executor v0.3.31
+│   ├── futures-core v0.3.31
+│   ├── futures-task v0.3.31
+│   └── futures-util v0.3.31
+│       ├── futures-channel v0.3.31 (*)
+│       ├── futures-core v0.3.31
+│       ├── futures-io v0.3.31
+│       ├── futures-macro v0.3.31 (proc-macro)
+│       │   ├── proc-macro2 v1.0.90
+│       │   │   └── unicode-ident v1.0.14
+│       │   ├── quote v1.0.37
+│       │   │   └── proc-macro2 v1.0.90 (*)
+│       │   └── syn v2.0.88
+│       │       ├── proc-macro2 v1.0.90 (*)
+│       │       ├── quote v1.0.37 (*)
+│       │       └── unicode-ident v1.0.14
+│       ├── futures-sink v0.3.31
+│       ├── futures-task v0.3.31
+│       ├── memchr v2.7.4
+│       ├── pin-project-lite v0.2.15
+│       ├── pin-utils v0.1.0
+│       └── slab v0.4.9
+├── futures-io v0.3.31
+├── futures-sink v0.3.31
+├── futures-task v0.3.31
+└── futures-util v0.3.31 (*)</code></pre>
+<p>Notice that <code>futures</code> transitively depends on <a href="https://crates.io/crates/syn"><code>syn</code></a> and <a href="https://crates.io/crates/proc-macro2"><code>proc-macro2</code></a>.
+These two are fundamental ecosystem crates in their own right, used when
+implementing macros. They are not official crates but they are critical
+and tightly related to the Rust compiler, tracking its lexical
+structure, syntax and macro interfaces.</p>
+<p>This is a sticky dependency, tough to eliminate from large Rust
+programs.</p>
+<h2 id="the-setback"></h2>
+<p>So I did my rework on the Rust client pull request, removing one
+dependency at a time, reducing the MSRV.</p>
+<p>I had succeeding in reducing the MSRV to 1.63 after removing
+dependencies on those crates which were simplest to remove:
+<code>ignore</code>, <code>anyhow</code>, <code>thiserror</code>,
+<code>tempfile</code>. Most everything but <code>futures</code>.</p>
+<p>Then one day I resumed my work and found the Rust client no longer
+built on our CI: the <code>syn</code> crate had published a point
+release that broke our build. It wasn’t an accidental breaking change.
+It was <a href="https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field"><code>rust-version</code></a>.
+In <code>syn</code> version <code>2.0.107</code> its
+<code>rust-version</code> changed from 1.61 to 1.68.</p>
+<p>My work undone.</p>
+<p>This is common in the Rust ecosystem — it is considered a reasonable
+maintenance strategy to bump <code>rust-version</code> in a point
+release. The reasons are nuanced. Since the original incident the same
+CI-breaking scenario of a transitive dependency bumping
+<code>rust-version</code> has affected TigerBeetle twice more, and not
+both due to <code>syn</code>.</p>
+<p>That was the moment of maximum annoyance, and when I decided to do an
+experiment to learn more about the state of crate-toolchain
+compatibility.</p>
+<h2 id="the-experiment-and-its-results"></h2>
+<p>I tested the top 100 crates from crates.io by download count, the
+most recent major releases of each, to find the oldest Rust version each
+could compile with. For each crate I created a minimal project depending
+on it, then binary-searched through Rust releases from 1.0 to 1.94 to
+find the oldest toolchain for which <code>cargo check</code>
+succeeds.</p>
+<p>The test run for this blog post was conducted on April 8, 2026.</p>
+<blockquote>
+<p>Caution: while I have iterated on this experiment and run it many
+times there are surely mistakes. Further, while there exist techniques
+to munge lockfiles etc. to achieve compatibility, this experiment is
+just letting cargo resolve how it wants and seeing what happens.</p>
+</blockquote>
+<p>The chart below shows the results. Each bar represents a crate’s
+compatibility window — the span of Rust versions from its oldest
+compatible release to the present.</p>
+<figure>
+<img src="https://tigerbeetle.com/blog/2026-04-24-toolchain-horizons/compatibility-timeline-rust-3c724f4c.svg" alt="Rust Toolchain Horizons - April 2026">
+<figcaption>Rust Toolchain Horizons - April
+2026</figcaption>
+</figure>
+<p>Good news first: I was surprised that old toolchains still install
+and work, and that some crates actually do remain compatible with them:
+super-kudos to <a href="https://crates.io/crates/autocfg"><code>autocfg</code></a>, <a href="https://crates.io/crates/fnv"><code>fnv</code></a>, <a href="https://crates.io/crates/mime"><code>mime</code></a>, <a href="https://crates.io/crates/version_check"><code>version_check</code></a>,
+<a href="https://crates.io/crates/memoffset"><code>memoffset</code></a>,
+and <a href="https://crates.io/crates/scopeguard"><code>scopeguard</code></a>.</p>
+<p>Big kudos to <a href="https://crates.io/crates/serde"><code>serde</code></a> as well. A
+lynchpin of the ecosystem, it is compatible back to <a href="https://blog.rust-lang.org/2018/12/06/Rust-1.31-and-rust-2018.html">Rust
+1.31</a>, from 2018. That is the toolchain that introduced edition 2018.
+As a practical matter supporting Rust prior to edition 2018 is
+unnecessary for any but the super-kudos crates mentioned above. Rust
+2015 edition is very old Rust.</p>
+<p>There are a large handful of crates hanging out with
+<code>serde</code> in the “yellow” zone in the chart. That zone is the
+epoch prior to the introduction of <code>async</code> /
+<code>await</code>, in <a href="https://blog.rust-lang.org/2019/11/07/Rust-1.39.0.html">Rust
+1.39</a>, 2019. Curiously no crates landed directly on 1.39 for their
+MSRV. As another practical matter this release is probably the hard MSRV
+cutoff for any async Rust crates. <code>futures-core</code> is in this
+zone, providing ongoing support for the entire <code>async</code> /
+<code>await</code> epoch.</p>
+<p>Through the remaining gradient of decreasing support we see other
+scattered futures crates, and many other familiar crates, including
+<code>syn</code> and <code>proc-macro2</code>. You can see for yourself
+the crates at the puny end of the spectrum.</p>
+<h2 id="supporting-old-toolchains-removing-the-futures-dependency"></h2>
+<p>I’ll conclude with some examples of what it looks like to
+aggressively reduce dependencies and language features to increase
+toolchain compatibility.</p>
+<p>The <code>futures</code> crate presents an interesting support
+situation: it reexports other crates in the same family of futures
+crates, and each of those subcrates seems to have their own support
+levels, with <code>futures-core</code>, where the key traits are, having
+great support; <code>futures-executor</code>, with its dependency on
+<code>syn</code>, having poor support.</p>
+<p>I said before it is “sticky” — used ubiquitously in the ecosystem,
+providing features that are unsafe, with tricky semantics, that should
+be implemented once with close scrutiny and reused.</p>
+<p>That’s what dependencies are for!</p>
+<p>But how can we get rid of it? Here are the 4 steps I needed to
+take.</p>
+<h2 id="step-1-break-out-sub-crates"></h2>
+<p>The first step was to depend only on the specific subcrates I
+actually used. For the TigerBeetle client I needed:</p>
+<ul>
+<li><code>futures-channel</code> for <a href="https://docs.rs/futures-channel/latest/futures_channel/oneshot/index.html">oneshot
+channels</a></li>
+<li><code>futures-executor</code> for <a href="https://docs.rs/futures-executor/latest/futures_executor/fn.block_on.html"><code>block_on</code></a>
+in tests</li>
+<li><code>futures-util</code> for the <a href="https://docs.rs/futures-util/latest/futures_util/stream/fn.unfold.html"><code>unfold</code></a>
+function on <a href="https://docs.rs/futures-util/latest/futures_util/stream/trait.StreamExt.html"><code>StreamExt</code></a></li>
+</ul>
+<h2 id="step-2-polyfill-block_on"></h2>
+<p>The <a href="https://docs.rs/futures-executor/latest/futures_executor/fn.block_on.html"><code>block_on</code></a>
+function from <code>futures-executor</code> is used to run a future to
+completion on the current thread. It’s commonly used in tests, examples,
+and for scheduling non-I/O asynchronous work.</p>
+<div id="cb4"><pre><code>pub fn block_on&lt;F: Future&gt;(mut future: F) -&gt; F::Output {
+    let mut future = unsafe { Pin::new_unchecked(&amp;mut future) };
+    let waker = /* ... */;
+    let mut cx = Context::from_waker(&amp;waker);
+    loop {
+        match future.as_mut().poll(&amp;mut cx) {
+            Poll::Ready(result) =&gt; return result,
+            Poll::Pending =&gt; std::thread::park(),
+        }
+    }
+}</code></pre></div>
+<p>The tricky part is constructing the “waker”. I won’t go into detail
+here but it requires some unsafe code.</p>
+<h2 id="step-3-polyfill-unfold"></h2>
+<p>We use the <a href="https://docs.rs/futures-util/latest/futures_util/stream/fn.unfold.html"><code>unfold</code></a>
+function from <code>futures-util</code> to write one test case and one
+doc-comment example, both demonstrating how to use the TigerBeetle
+client API.</p>
+<p><code>unfold</code>’s function signature looks like this:</p>
+<div id="cb5"><pre><code>pub fn unfold&lt;T, F, Fut, Item&gt;(init: T, f: F) -&gt; Unfold&lt;T, F, Fut&gt;where
+    F: FnMut(T) -&gt; Fut,
+    Fut: Future&lt;Output = Option&lt;(Item, T)&gt;&gt;,</code></pre></div>
+<p>It’s like a closure-to-iterator adapter but for streams. It converts
+repeated calls to a future-returning closure into a stream of
+futures.</p>
+<h2 id="step-4-polyfill-oneshot-channels"></h2>
+<p><a href="https://docs.rs/futures-channel/latest/futures_channel/oneshot/index.html">Oneshot
+channels</a> send a single value between tasks. The TigerBeetle client
+uses them internally to communicate with an internal I/O thread.</p>
+<p>A oneshot channel is just a shared <code>Option&lt;T&gt;</code> to
+transfer a value plus a signal to wake up the reciever. Plus it needs to
+conform to the <a href="https://doc.rust-lang.org/std/future/trait.Future.html"><code>Future</code></a>
+trait.</p>
+<p>Easy to implement naively.</p>
+<h2 id="removing-rust-language-features-for-further-compatibility"></h2>
+<p>After removing every crate dependency, I started removing language
+and standard library features to achieve even greater compatibility.
+Below is a summary of the features I had to remove.</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>Rust</th>
+<th>Date</th>
+<th>Features</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.56</td>
+<td>Oct 2021</td>
+<td><a href="https://blog.rust-lang.org/2021/10/21/Rust-1.56.0.html#captured-identifiers-in-format-strings">format
+string captures</a>, <a href="https://doc.rust-lang.org/std/path/struct.Path.html#method.try_exists"><code>Path::try_exists</code></a>,
+<a href="https://doc.rust-lang.org/std/sync/struct.Mutex.html#method.new"><code>const Mutex::new</code></a></td>
+</tr>
+<tr>
+<td>1.55</td>
+<td>Sep 2021</td>
+<td><a href="https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field"><code>rust-version</code></a>
+(stabilized <a href="https://blog.rust-lang.org/2021/10/21/Rust-1.56.0.html">1.56</a>)</td>
+</tr>
+<tr>
+<td>1.55</td>
+<td>Sep 2021</td>
+<td><a href="https://doc.rust-lang.org/edition-guide/rust-2021/index.html">Edition
+2021</a>→2018, <a href="https://doc.rust-lang.org/std/convert/trait.TryFrom.html"><code>TryFrom</code></a></td>
+</tr>
+<tr>
+<td>1.53</td>
+<td>Jun 2021</td>
+<td><a href="https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates"><code>CARGO_TARGET_TMPDIR</code></a>
+(stabilized <a href="https://blog.rust-lang.org/2021/07/29/Rust-1.54.0.html">1.54</a>)</td>
+</tr>
+<tr>
+<td>1.51</td>
+<td>Mar 2021</td>
+<td><a href="https://blog.rust-lang.org/2021/06/17/Rust-1.53.0.html#intoiterator-for-arrays"><code>IntoIterator</code>
+for arrays</a> (stabilized <a href="https://blog.rust-lang.org/2021/06/17/Rust-1.53.0.html">1.53</a>)</td>
+</tr>
+<tr>
+<td>1.50</td>
+<td>Feb 2021</td>
+<td><a href="https://blog.rust-lang.org/2021/03/25/Rust-1.51.0.html#const-generics-mvp">const
+generics</a> (stabilized <a href="https://blog.rust-lang.org/2021/03/25/Rust-1.51.0.html">1.51</a>)</td>
+</tr>
+<tr>
+<td>1.45</td>
+<td>Jul 2020</td>
+<td><a href="https://blog.rust-lang.org/2020/10/08/Rust-1.47.html#traits-on-larger-arrays">array
+impls</a> for lengths &gt; 32 (stabilized <a href="https://blog.rust-lang.org/2020/10/08/Rust-1.47.html">1.47</a>)</td>
+</tr>
+<tr>
+<td>1.42</td>
+<td>Mar 2020</td>
+<td><a href="https://blog.rust-lang.org/2020/04/23/Rust-1.43.0.html#associated-constants-for-floats-and-integers">associated
+constants</a> (<a href="https://doc.rust-lang.org/std/primitive.u64.html#associatedconstant.MAX"><code>u64::MAX</code></a>)
+(stabilized <a href="https://blog.rust-lang.org/2020/04/23/Rust-1.43.0.html">1.43</a>)</td>
+</tr>
+<tr>
+<td>1.41</td>
+<td>Jan 2020</td>
+<td><a href="https://doc.rust-lang.org/std/macro.matches.html"><code>matches!</code></a>
+(stabilized <a href="https://blog.rust-lang.org/2020/03/12/Rust-1.42.html">1.42</a>)</td>
+</tr>
+<tr>
+<td>1.39</td>
+<td>Nov 2019</td>
+<td><a href="https://doc.rust-lang.org/std/macro.todo.html"><code>todo!</code></a>,
+<a href="https://doc.rust-lang.org/std/mem/fn.take.html"><code>mem::take</code></a>,
+<a href="https://doc.rust-lang.org/reference/attributes/type_system.html#the-non_exhaustive-attribute"><code>non_exhaustive</code></a>
+(stabilized <a href="https://blog.rust-lang.org/2019/12/19/Rust-1.40.0.html">1.40</a>)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>No details today, but I’ll do a followup post with more about every
+crate and every language feature I removed from the TigerBeetle Rust
+client as well as how I did it. I think it might be interesting to Rust
+historians.</p>
+<h2 id="why-support-older-rust-versions"></h2>
+<p>I achieved compatibility with Rust 1.39, from November 2019. I’m not
+landing that code. It has too many tradeoffs I’m still uncomfortable
+with. The in-tree Rust client targets Rust 1.63, from August 2022. About
+3.5 years of support.</p>
+<p>People have asked me why we should support older toolchains. Some
+easy answers:</p>
+<ol type="1">
+<li><strong>Professional responsibility.</strong> Library authors should
+know and publish their supported toolchain range. The range itself
+matters less than having one.</li>
+<li><strong>Trust.</strong> When users see effort to support older
+compilers, they know the maintainer is present and cares.</li>
+<li><strong>Reality.</strong> Enterprise deployments, embedded systems,
+and distro packages often lag the latest toolchain by years.</li>
+</ol>
+<p>But there’s a harder answer.</p>
+<p>The Rust compiler is stable. The Rust crate ecosystem is not. Crate
+authors have strong incentives to adopt new features and break from the
+past. Based on this experiment, I estimate a roughly 2-year window in
+which any particular Rust compiler remains viable for a project that
+takes dependencies. After that, we’re all forced to upgrade — not by
+language changes, but by our crate neighbors.</p>
+<p>We can widen that window slowly, but it requires individual crate
+authors to expand their toolchain horizons. TigerBeetle’s horizons?
+They’re wide.</p>
+  </div></div>

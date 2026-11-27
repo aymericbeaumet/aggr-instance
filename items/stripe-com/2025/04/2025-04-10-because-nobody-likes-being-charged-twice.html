@@ -1,0 +1,56 @@
+<div id="readability-page-1" class="page"><div><p>Imagine a customer checks out on your eCommerce site, enters their payment details, and chooses the "Pay" button. Just as the request is processed, their internet connection drops. They refresh the page and try again. Meanwhile, your backend is retrying the original request due to a timeout. The result? The customer gets charged twice.</p>
+<p>Duplicate charges lead to refund requests, customer support headaches, and loss of trust. These issues not only hurt your revenue but also damage the customer experience. Customers expect smooth, seamless transactions, and even the smallest hiccup can lead to frustration.</p>
+<p>This post explores how to design resilient payment systems that prevent duplicate charges, ensuring your system can handle interruptions, retries, and failures without compromising user trust. By implementing strategies like <a href="https://en.wikipedia.org/wiki/Message_queue"><strong>queues</strong></a> and <a href="https://en.wikipedia.org/wiki/Idempotence"><strong>idempotency</strong></a>, you can protect your business from these issues, improve reliability, and ultimately deliver a better experience for your customers.</p>
+<p><span><span><img src="https://stripe.dev/images/because-nobody-likes-being-charged-twice/image1b.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p><em>Retrying failed payments without using idempotency keys</em></p>
+<h3 id="everything-fails-all-the-time"><strong>Everything fails all the time</strong></h3>
+<p>In distributed systems, failure is not an edge case, it’s the norm. Network timeouts, server crashes, database locks, downstream API errors, and even user interruptions (like closing a browser tab mid-transaction) are all part of the operational landscape.</p>
+<p>When building a payment system, each of these failure modes has the potential to leave transactions in an uncertain state, leading to lost revenue, duplicate charges, or degraded user trust. Designing for resilience means anticipating these failures and building systems that can tolerate them gracefully. This is where techniques like message queues and idempotency keys become essential. They allow your architecture to retry operations safely, without unwanted side effects or inconsistencies.</p>
+<p>The good news is that you can increase reliability by using <strong>idempotency</strong> and <strong>message queues</strong>.</p>
+<h2 id="using-idempotency-keys"><strong>Using idempotency keys</strong></h2>
+<p>Idempotency is a concept from mathematics and computer science that refers to the property of an operation where performing it multiple times with the same input results in the same outcome, without causing any side effects. In other words, no matter how many times you repeat the operation, the result will be the same as the first execution, and no additional changes or effects will occur after the initial action. In Stripe, an <a href="https://docs.stripe.com/error-low-level#sending-idempotency-keys">idempotency key</a> is a unique identifier that ensures repeated requests result in the same action being performed only once.</p>
+<h3 id="how-it-works"><strong>How it works</strong></h3>
+<ol>
+<li>Before making a payment request, generate a unique idempotency key (e.g., a UUID).</li>
+<li>Include this key in your payment request to Stripe.</li>
+<li>Stripe stores the key and ensures that any subsequent request with the same key returns the same response instead of creating a new charge.</li>
+</ol>
+<p><span><span><img src="https://stripe.dev/images/because-nobody-likes-being-charged-twice/image1a.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p><em>Retrying failed payments with Idempotency keys</em></p>
+<h3 id="why-it-works"><strong>Why It works</strong></h3>
+<p>Idempotency ensures that if a request is retried (either by the client or your backend), it won't result in multiple charges. Stripe recognizes the idempotency key for 24 hours and returns the original response instead of processing a new transaction.</p>
+<h2 id="using-message-queues"><strong>Using message queues</strong></h2>
+<p>While idempotency prevents duplicate charges at the payment provider level, message queues ensure your system handles payments reliably even during failures.</p>
+<h3 id="how-it-works-1"><strong>How it works</strong></h3>
+<ol>
+<li>When a customer submits a payment request, instead of processing it immediately, enqueue it in a message queue (e.g., <a href="https://www.rabbitmq.com/">RabbitMQ</a>, <a href="https://aws.amazon.com/sqs/">Amazon SQS</a>, <a href="https://kafka.apache.org/">Kafka</a>).</li>
+<li>A background worker (or pool of workers) consumes messages from the queue, ensuring payments are processed reliably and independently of user traffic.</li>
+<li>If payment processing fails (e.g., due to a network error or Stripe outage), the message remains in the queue and is retried automatically after a delay.</li>
+<li>If a message repeatedly fails after the maximum retry attempts, it can be sent to a <a href="https://aws.amazon.com/what-is/dead-letter-queue/">dead-letter queue (DLQ)</a> for inspection and manual recovery.</li>
+</ol>
+<h3 id="example-workflow"><strong>Example workflow:</strong></h3>
+<ol>
+<li>The user chooses “Pay” and the request is added to the queue.</li>
+<li>The worker processes payment using the idempotency key.</li>
+<li>If the payment is successful, the message is removed from the queue.</li>
+<li>If the payment processing fails the message is placed back onto the queue and retried later.</li>
+</ol>
+<p>If the <a href="https://aws.amazon.com/lambda/">AWS Lambda</a> function times out while processing the message or encounters an error, Amazon SQS automatically returns the message to the queue after a <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html">visibility timeout,</a> allowing for a retry attempt. The message will be retried up to the configured maximum retries before being sent to a <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html">dead-letter queue (DLQ)</a> for further inspection.</p>
+<p><span><span><img src="https://stripe.dev/images/because-nobody-likes-being-charged-twice/image3.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p><em>Adding resilience to payment workflows with Amazon SQS queues.</em></p>
+<h3 id="why-it-works-1"><strong>Why it works</strong></h3>
+<p>Queues decouple the payment request from real-time processing, ensuring that even if the payment gateway is temporarily down, the request isn’t lost. When combined with idempotency keys, it prevents duplicate charges when retries happen.</p>
+<p><strong>Common pitfalls</strong></p>
+<p>While idempotency keys are a powerful safeguard against duplicate charges, they’re not foolproof unless used correctly. One common mistake is reusing the same key across different operations or users. An idempotency key should uniquely identify one specific action, such as “create a payment for Order #123”, not a general session or API call. Using the same key for different users or operations can lead to unexpected behavior, like retrieving someone else’s payment response.</p>
+<p>Another pitfall is generating the idempotency key too early in the flow. For example, at application startup or when the user loads the page. If the user later modifies their order before checking out, that stale key could bind the new request to an old, now-incorrect response. It’s best to generate the key as close as possible to the point of execution, ideally just before placing the payment request into a queue or sending it to Stripe.</p>
+<p>Some developers also forget to include the idempotency key on retries—especially when retry logic is handled at the infrastructure layer (like a queue worker or a load balancer). In those cases, retries without the original key are treated as entirely new requests, negating the benefits of idempotency and potentially duplicating charges.</p>
+<p>Lastly, relying solely on idempotency without queues can leave your system vulnerable. If Stripe is temporarily unavailable and your frontend doesn’t retry, or your backend drops the request, there’s no second chance. Queues ensure that the operation gets retried, and idempotency ensures that retry is safe.</p>
+<p><strong>Real-world use case</strong></p>
+<p>At Stripe, we often see high-growth platforms and marketplaces implement resilient payment architectures using a combination of queues and idempotency. Take the fictional example of a developer tooling company that runs an eCommerce store for conference merchandise. During peak traffic, like during a keynote announcement or swag drop, the team must ensure payments are processed reliably, even if mobile connections are flaky or frontend requests time out.</p>
+<p>To handle this, they introduce an SQS message queue. Each time a customer clicks “Pay,” the frontend sends a request to their backend, which generates a <a href="https://en.wikipedia.org/wiki/Universally_unique_identifier">UUID</a> as the idempotency key and enqueues the payment job. A worker service (a Lambda function) then picks up that job, calls the Stripe API using the key in the <code>Idempotency-Key</code> header, and confirms the PaymentIntent.</p>
+<p>If the worker crashes mid-request or Stripe returns a transient error, the message is returned to the queue. When retried, it reuses the same idempotency key, ensuring that only one PaymentIntent is ever created, no matter how many times the worker retries.</p>
+<p>This pattern gives durability, safety, and observability. And most importantly, it avoided the scenario of double-charging a conference attendee while they were still standing at the checkout booth.</p>
+<p><strong>Conclusion</strong></p>
+<p>Building a resilient payment system is crucial for both operational reliability and customer trust. By incorporating idempotency keys and message queues into your payment flow, you can ensure that even in the event of temporary failures, payments are processed correctly without duplication. These techniques provide a safety net that not only prevents costly mistakes but also enhances the user experience by making transactions more reliable.</p>
+<p>As your business scales, having a resilient system in place will reduce support overhead, prevent chargebacks, and provide confidence that your payment infrastructure can handle both expected and unexpected disruptions. Implementing these practices is an investment in the long-term health of your platform, ensuring that customers can trust your payment system to handle their transactions safely.</p>
+<p>For more Stripe developer learning resources, subscribe to our <a href="https://www.youtube.com/@StripeDev">YouTube Channel</a>.</p></div></div>

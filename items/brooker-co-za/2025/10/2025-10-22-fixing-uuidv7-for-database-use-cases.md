@@ -1,0 +1,80 @@
+---
+title: Fixing UUIDv7 (for database use-cases)
+link: http://brooker.co.za/blog/2025/10/22/uuidv7.html
+source: brooker-co-za
+published: 2025-10-22T00:00:00Z
+updated: 2025-10-22T00:00:00Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+authors:
+- Marc Brooker
+summary: 'Fixing UUIDv7 (for database use-cases) How do I even balance a V7? RFC9562 defines UUID Version 7. This has made a lot of people very angry and been widely regarded as a bad move1. More seriously, UUIDv7 has received a lot of criticism, despite seemingly achieving what it set out to do. The legitimate criticism seems to be on a few points. V7 UUIDs: Leak information (namely the server timestamp). Are a bad choice for cases where security or operational requirements require UUIDs that are hard to guess, because they have less entropy. Introduce correlated behavior between datacenters, regions, and installations of applications, increasing the probability of triggering bugs across failure boundaries. Are hard to present in UIs, because the E6EE7F40... format doesn’t work, because of deterministic first digits. Before thinking about how we might fix these issues, let’s understand why folks are drawn to UUIDv7. Most of the use-cases I see are related to increasing database insert performance. To quote the RFC: Time-ordered monotonic UUIDs benefit from greater database-index locality because the new values are near each other in the index. As a result, objects are more easily clustered together for better performance. The real-world differences in this approach of index locality versus random data inserts can be one order of magnitude or more. This effect is very real. Random DB keys like UUIDv4 destroy spatial locality (as I’ve written about before), making database caches less effective, almost always reducing insert performance, and reducing query performance where queries have substantial temporal locality. The slight upside to this is that they also avoid hot spotting in distributed or sharded architectures. Can we both have good insert performance and avoid the downsides of UUIDv7? Yes, I believe we can. Let’s keep the overall format from the RFC: 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | unix_ts_ms ^ H(id, unix_ts_ms >> N) | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | .......... | ver | rand_a | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |var| rand_b | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | rand_b | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Instead of the unix_ts_ms field being the unmodified unix_ts_ms, let’s replace it with: unix_ts_ms ^ H(id, unix_ts_ms >> N), where H is a keyed hash function (more on that below), N is a parameter that trades off locality and leading entropy, and id is an arbitrary identifier for some unit of infrastructure (e.g. a database cluster id, customer id, region ID). The choice of N is a trade off between ID spread and database cache locality. For most installations and query patterns, I’d expect N >= 12 to restore full insert performance. The H function is a special keyed hash (such as an HMAC) of id, keyed with unix_ts_ms >> N, which is the XORed with the unix_ts_ms. That means that IDs are stable (and UUIDv7-like) for $2^N$ milliseconds. This means that all the pages they pull into the DB cache stay stable for $2^N$ milliseconds, where they can be hit over and over. After $2^N$ milliseconds, we need a new set of pages (unless they can all fit in cache). The use of an arbitrary id along with a cryptographic hash function allows providers to choose the radius that they issue UUIDs over. An empty id would produce a single global stream of UUIDs. A fine-grained per-client UUID would produce a per-client stream of UUIDs, at the cost of some locality. Per-server, per-cluster, per-AZ, and other scopes for ids add flexibility to trade off between the locality advantages and disadvantages of UUIDs. Depending on how you read the RFC, this may be allowed in the letter of the law. It does say: Implementations MAY alter the actual timestamp. But it does seem to clearly violate the spirit. Still, I think this is a UUID format that avoids a lot of the downsides of UUIDv7, while keeping most of the database performance benefits. As for whether you should use UUID entropy for security, that’s a different topic. Footnotes Not really, but I couldn’t resist the Guide reference. You should re-read the Guide.'
+content: extracted
+html: 2025-10-22-fixing-uuidv7-for-database-use-cases.html
+remote_preview:
+  url: https://brooker.co.za/blog/images/feed-icon-14x14.png
+---
+
+## About Me
+
+My name is Marc Brooker. I like to build things that work, and do cool stuff. I like building big things. I also dabble in machining, welding, cooking, and skiing.
+
+I am an engineer at Amazon Web Services (AWS) in Seattle, where I work on agentic AI, especially safety and policy for agentic AI. Before that, I worked on EC2, EBS, databases, serverless, and serverless databases.\
+ All opinions are my own.
+
+## Links
+
+[My Publications and Videos](https://brooker.co.za/blog/publications.html)\
+ [@marcbrooker on Mastodon](https://fediscience.org/@marcbrooker) [@MarcJBrooker on Twitter](https://twitter.com/MarcJBrooker)
+
+[Is this blog written by AI?](https://brooker.co.za/blog/2026/06/18/my-blog-and-ai.html)
+
+How do I even balance a V7?
+
+[RFC9562](https://datatracker.ietf.org/doc/rfc9562/) defines UUID Version 7. This has made a lot of people very angry and been widely regarded as a bad move [1](http://brooker.co.za/blog/2025/10/22/uuidv7.html#foot1). More seriously, UUIDv7 has received a lot of criticism, despite seemingly achieving what it set out to do.
+
+The legitimate criticism seems to be on a few points. V7 UUIDs:
+
+1. Leak information (namely the server timestamp).
+2. Are a bad choice for cases where security or operational requirements require UUIDs that are hard to guess, because they have less entropy.
+3. Introduce correlated behavior between datacenters, regions, and installations of applications, increasing the probability of triggering bugs across failure boundaries.
+4. Are hard to present in UIs, because the `E6EE7F40...` format doesn’t work, because of deterministic first digits.
+
+Before thinking about how we might fix these issues, let’s understand why folks are drawn to UUIDv7. Most of the use-cases I see are related to increasing database insert performance. To quote the RFC:
+
+> Time-ordered monotonic UUIDs benefit from greater database-index locality because the new values are near each other in the index. As a result, objects are more easily clustered together for better performance. The real-world differences in this approach of index locality versus random data inserts can be one order of magnitude or more.
+
+This effect is very real. Random DB keys like UUIDv4 destroy spatial locality ([as I’ve written about before](https://brooker.co.za/blog/2025/10/05/locality.html)), making database caches less effective, almost always reducing insert performance, and reducing query performance where queries have substantial temporal locality. The slight upside to this is that they also avoid hot spotting in distributed or sharded architectures.
+
+Can we both have good insert performance and avoid the downsides of UUIDv7? Yes, I believe we can.
+
+Let’s keep the overall format from the RFC:
+
+```plaintext
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|              unix_ts_ms ^ H(id, unix_ts_ms >> N)              |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|          ..........           |  ver  |       rand_a          |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|var|                        rand_b                             |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                            rand_b                             |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+Instead of the `unix_ts_ms` field being the unmodified `unix_ts_ms`, let’s replace it with: `unix_ts_ms ^ H(id, unix_ts_ms >> N)`, where `H` is a keyed hash function (more on that below), `N` is a parameter that trades off locality and leading entropy, and `id` is an arbitrary identifier for some unit of infrastructure (e.g. a database cluster id, customer id, region ID). The choice of `N` is a trade off between ID spread and database cache locality. For most installations and query patterns, I’d expect `N >= 12` to restore full insert performance.
+
+The `H` function is a special keyed hash (such as an HMAC) of `id`, keyed with `unix_ts_ms >> N`, which is the XORed with the `unix_ts_ms`. That means that IDs are stable (and UUIDv7-like) for $2^N$ milliseconds. This means that all the pages they pull into the DB cache stay stable for $2^N$ milliseconds, where they can be hit over and over. After $2^N$ milliseconds, we need a new set of pages (unless they can all fit in cache).
+
+The use of an arbitrary `id` along with a cryptographic hash function allows providers to choose the radius that they issue UUIDs over. An empty `id` would produce a single global stream of UUIDs. A fine-grained per-client UUID would produce a per-client stream of UUIDs, at the cost of some locality. Per-server, per-cluster, per-AZ, and other scopes for `id`s add flexibility to trade off between the locality advantages and disadvantages of UUIDs.
+
+Depending on how you read the RFC, this may be allowed in the letter of the law. It does say:
+
+> Implementations MAY alter the actual timestamp.
+
+But it does seem to clearly violate the spirit. Still, I think this is a UUID format that avoids a lot of the downsides of UUIDv7, while keeping most of the database performance benefits. As for whether you should use UUID entropy for security, that’s a different topic.
+
+*Footnotes*
+
+1. Not really, but I couldn’t resist the Guide reference. You should re-read the Guide.

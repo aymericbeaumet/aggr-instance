@@ -1,0 +1,210 @@
+<div id="readability-page-1" class="page"><div><p>Over 1 million businesses on Stripe manage multiple accounts to represent different business lines or to acquire locally in a new country. Having multiple accounts allows you to isolate finances and reporting, or accept money in multiple currencies, but it makes it challenging to maintain a unified payment experience for your customers, because you can only charge cards in the same account in which you collected them.</p>
+<p>With <a href="https://docs.stripe.com/get-started/account/orgs">Organizations</a>, you can now automatically <a href="https://docs.stripe.com/get-started/account/orgs/sharing/customers-payment-methods">share customers and payment methods across accounts</a> to create a seamless checkout experience across parts of your business without recollecting cards or billing details from your customers. This blog post explains how sharing works to allow you to charge customers across multiple accounts.</p>
+<p>This capability is currently in preview and you can <a href="https://docs.stripe.com/get-started/account/orgs/sharing/customers-payment-methods">request access</a> now. If you have any questions or feedback, we’d love to hear from you at <a href="mailto:organizations-feedback@stripe.com">organizations-feedback@stripe.com</a>.</p>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image5.png" alt="image 1" loading="lazy" decoding="async"></span></span></p>
+<h3 id="why-sharing-matters">Why sharing matters</h3>
+<p>Sharing customers and payment methods across accounts makes both your payment integration simpler and the checkout experience smoother for your customers.</p>
+<ul>
+<li>
+<p><strong>One-click checkout</strong>: Reduce friction by enabling customers to make a purchase on a new business line using a card previously saved from another business line.</p>
+</li>
+<li>
+<p><strong>Consistent and personalized experience:</strong> Maintain a canonical customer profile across various accounts, so you and your customers don't need to update payment methods, billing, or contact information in multiple places.</p>
+</li>
+<li>
+<p><strong>Holistic reporting:</strong> View a customer’s complete transaction history and lifetime spend across your entire business. Shared customers and payment methods have the same ID across accounts, so you only need to store one ID in your database.</p>
+</li>
+<li>
+<p><strong>Easy expansion:</strong> Launch a new business line or geography without conducting a lengthy data migration, maintaining ID mappings, or manually syncing information across accounts.</p>
+</li>
+</ul>
+<h3 id="how-sharing-works">How sharing works</h3>
+<p>You can turn on customer and payment method sharing between two or more accounts belonging to the same organization. When enabled, all new and existing customers and their saved cards are automatically shared between accounts.</p>
+<h3 id="important-developer-considerations">Important developer considerations</h3>
+<ul>
+<li>You can’t remove or disable an account from sharing after enabling the feature.</li>
+<li>All new and existing customers are shared. You can’t selectively share individual customers.</li>
+<li>You can only share payment methods if the type is a card. You can still save other reusable payment method types to an account, but you won’t be able to charge the customer with them from another account.</li>
+<li>You can’t enable sharing between connected accounts under a platform.</li>
+<li>You must ensure that you collect consent from all customers to share their payment information between accounts in your organization prior to enabling sharing. Stripe gathers this consent for you if you are using a hosted checkout surface like Elements or Checkout. If your checkout experience uses a custom frontend, make sure to update your consumer terms and conditions.</li>
+</ul>
+<h3 id="shared-customers">Shared customers</h3>
+<p>Shared customers have the same customer ID across accounts. When you create or update a shared customer, only certain fields of the customer object are automatically shared between accounts, including:</p>
+<ul>
+<li><a href="https://docs.stripe.com/api/customers/object#customer_object-name">name</a></li>
+<li><a href="https://docs.stripe.com/api/customers/object#customer_object-email">email</a></li>
+<li><a href="https://docs.stripe.com/api/customers/object#customer_object-address">address</a></li>
+<li><a href="https://docs.stripe.com/api/customers/object#customer_object-phone">phone</a></li>
+<li><a href="https://docs.stripe.com/api/customers/object#customer_object-tax_ids">tax_ids</a></li>
+<li><a href="https://docs.stripe.com/api/customers/object#customer_object-description">description</a></li>
+<li><a href="https://docs.stripe.com/api/customers/object#customer_object-preferred_locales">preferred_locales</a></li>
+</ul>
+<p>The remaining fields (for example, <a href="https://docs.stripe.com/api/customers/object#customer_object-metadata">metadata</a>, <a href="https://docs.stripe.com/api/customers/object#customer_object-shipping">shipping</a>) are not shared between accounts, since that information may frequently diverge between business lines. For example, suppose a customer Jenny Rosen is shared between two accounts, Rocket Rides and Rocket Deliveries. Here, we’ll add metadata to Jenny that is specific to Rocket Rides.</p>
+<pre><code>// Jenny Rosen in Rocket Rides
+{
+  "id": "cus_9DrHraV8v0dsx0",
+  "object": "customer",
+  "address": {
+    "city": "San Francisco",
+    "country": "US",
+    "line1": "123 Market Street",
+    "postal_code": "94103",
+    "state": "CA"
+  },
+  "created": 1745976923,
+  "email": "jenny@example.com",
+  "name": "Jenny Rosen",
+  "phone": "4142079823",
+  "metadata": {                     // Metadata is not shared across accounts
+    "RocketRidesId": "rr_4165059"
+  },
+  // ... other Stripe customer fields
+}</code></pre>
+<p>When Jenny is shared to Rocket Deliveries, she can be retrieved in that account using the same customer ID, and certain fields including her name, email, and phone number are shared from Rocket Deliveries. However, any metadata added in Rocket Rides is not accessible from Rocket Deliveries.</p>
+<pre><code>// Jenny Rosen in Rocket Rides
+{
+  "id": "cus_9DrHraV8v0dsx0",       // Same customer ID as Rocket Rides
+  "object": "customer",
+  "address": {
+    "city": "San Francisco",
+    "country": "US",
+    "line1": "123 Market Street",
+    "postal_code": "94103",
+    "state": "CA"
+  },
+  "created": 1745976923,
+  "email": "jenny@example.com",
+  "name": "Jenny Rosen",
+  "phone": "4142079823",
+  "metadata": {}, 			  // Metadata from Rocket Rides is not accessible
+  // ... other Stripe customer fields
+}</code></pre>
+<p>If you update any of the shared fields for a customer, Stripe generates separate <code>customer.updated</code> events for each account where sharing is enabled. If you update an unshared field for the customer, Stripe sends an update event to only that account.</p>
+<h4 id="shared-payment-methods">Shared payment methods</h4>
+<p>Sharing customers across accounts enables you to charge their saved payment methods from any account as well (as long as the payment method is of type card, for now). Shared payment methods have the same ID across all accounts, and updating or deleting a shared payment method affects all accounts.</p>
+<p>If you update or attach a payment method to a shared customer in one account, Stripe generates a single <code>payment_method.attached</code> or <code>payment_method.updated</code> event to only that account. We recommend using <a href="https://docs.stripe.com/webhooks#webhook-endpoint-def">organization-level webhooks</a> to listen to all events related to shared customers and payment methods.</p>
+<h2 id="getting-started-with-your-integration">Getting started with your integration</h2>
+<p>The following guide will walk through how to test charging a customer across multiple accounts in your organization’s sandbox and help you understand how sharing works without charging real money.</p>
+<h3 id="request-access-to-customer-and-payment-method-sharing">Request access to customer and payment method sharing</h3>
+<p>Before you can begin, <a href="https://docs.stripe.com/get-started/account/orgs/sharing/customers-payment-methods">request access</a> for your organization. We’ll let you know once your account has been enabled.</p>
+<h3 id="create-a-sandbox-for-your-organization">Create a sandbox for your organization</h3>
+<p>To get started, you’ll create an organization inside of a sandbox to test out customer and payment method sharing without charging real money. Before you begin, you’ll need to have already <a href="https://docs.stripe.com/get-started/account/orgs/build">created your live mode organization</a>.</p>
+<ol>
+<li>Navigate to your organization in the Dashboard, and from the account picker, click on <strong>Switch to sandbox</strong> and <strong>Create sandbox</strong>.</li>
+</ol>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image7.png" alt="image 7" loading="lazy" decoding="async"></span></span></p>
+<ol start="2">
+<li>Select the <strong>Organization</strong> sandbox type and <strong>Name</strong> your organization. Choose <strong>Copy my organization structure</strong> to clone your live mode organization in a sandbox.</li>
+</ol>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image12.png" alt="image 12" loading="lazy" decoding="async"></span></span></p>
+<h3 id="enable-customer-and-payment-method-sharing">Enable customer and payment method sharing</h3>
+<ol>
+<li>Once you’ve created your organization, navigate to <strong>Settings.</strong> Click on <strong>Customer and payment method sharing</strong>.</li>
+</ol>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image4.png" alt="image 4" loading="lazy" decoding="async"></span></span></p>
+<ol start="2">
+<li>Click <strong>Get started</strong> to start enabling sharing between your accounts.</li>
+</ol>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image9.png" alt="image 9" loading="lazy" decoding="async"></span></span></p>
+<ol start="3">
+<li>Select the accounts for which you want to share customers and payment methods. Remember that only some customer information, such as name, email, address, and phone number are shared between accounts. Other customer information, such as metadata and default payment method remain separate.</li>
+</ol>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image2.png" alt="image 2" loading="lazy" decoding="async"></span></span></p>
+<ol start="4">
+<li>Select <strong>Share</strong>. You will be required to confirm that you have already collected customer consent to share your customers’ payment information between accounts.</li>
+</ol>
+
+<p>Once you’ve enabled sharing, customers and payment methods you create or update in one account will be reflected across accounts in your organization. This makes it easy to charge customers using payment methods you’ve previously collected across any of your accounts. In this example, you’ll create and charge a customer using one saved card on two different accounts, using Stripe Checkout.</p>
+<h3 id="create-a-checkout-session-in-the-first-account">Create a checkout session in the first account</h3>
+<p>In your server-side integration, create a new customer in the first account, Rocket Rides, as part of a checkout session.</p>
+<pre><code>const stripe = require('stripe')('{{ROCKET_RIDES_SECRET_KEY}}');
+const session = await stripe.checkout.sessions.create({
+  customer_creation: 'always',
+  line_items: [
+    {
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: 'Ride service',
+        },
+        unit_amount: 7500,
+      },
+      quantity: 1,
+    },
+  ],
+  mode: 'payment',
+  ui_mode: 'embedded',
+  return_url: 'https://checkout.rocket-rides.com/success',
+  saved_payment_method_options: {
+    payment_method_save: 'enabled',
+  },
+}, {stripeAccount: '{{ACCT_ROCKET_RIDES}}'});   // Account context for customer creation</code></pre>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image3.png" alt="image 3" loading="lazy" decoding="async"></span></span></p>
+<p>Once the customer completes the checkout process, if the customer elects to save their payment method, Stripe will create a customer object and attach the payment method. Both the customer and payment method will be automatically shared to the other account in the organization without requiring any additional API calls.</p>
+<h3 id="create-a-checkout-session-in-the-second-account">Create a checkout session in the second account</h3>
+<p>When you create a checkout session for the customer in the second account, you can pass in the same customer ID from the first account, and Stripe will automatically populate the customer’s saved card.</p>
+<pre><code>const stripe = require('stripe')('{{ROCKET_DELIVERIES_SECRET_KEY}}');
+const session = await stripe.checkout.sessions.create({
+  customer: '{{CUSTOMER ID}}',		 // Shared customer ID
+  line_items: [
+    {
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: 'Delivery service',
+        },
+        unit_amount: 5000,
+      },
+      quantity: 1,
+    },
+  ],
+  mode: 'payment',
+  ui_mode: 'embedded',
+  return_url: 'https://checkout.rocket-deliveries.com/success',
+  saved_payment_method_options: {
+    payment_method_save: 'enabled',
+  },
+}, {stripeAccount: '{{ACCT_ROCKET_DELIVERIES}}'});   // Account context for checkout session</code></pre>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image8.png" alt="image 8" loading="lazy" decoding="async"></span></span></p>
+
+<p>With Organizations, you now see a unified view of your shared customers, including their payment methods and transactions across all accounts. In this example, you can see the customer’s saved card which was used to process transactions in both accounts.</p>
+<p>This new view enables you to easily understand a customer’s holistic relationship with your business. From the organization, you can manage refunds, update customer details, and add or remove payment methods for shared customers.</p>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image10.png" alt="image 10" loading="lazy" decoding="async"></span></span></p>
+<h2 id="centralize-event-management-with-an-organization-webhook">Centralize event management with an organization webhook</h2>
+<p>If you use webhooks to subscribe to API events across multiple accounts, you can create a single organization webhook to centrally subscribe to all API events across your organization. This replaces the need for you to create and maintain separate webhooks for each of your accounts, and also ensures that you will only receive one de-duplicated event for updates to customers and payment methods shared between multiple accounts. To create an organization webhook:</p>
+<ol>
+<li>Open Workbench by clicking on the <strong>Developers</strong> menu in the lower left corner of the dashboard and selecting <strong>Webhooks.</strong> Click <strong>Add destination</strong>.</li>
+</ol>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image6.png" alt="image 6" loading="lazy" decoding="async"></span></span></p>
+<ol start="2">
+<li>Select <strong>Accounts in your organization</strong> and select the events you want to subscribe to.</li>
+</ol>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image1.png" alt="image 1" loading="lazy" decoding="async"></span></span></p>
+<ol start="3">
+<li>Choose the destination type and <a href="https://docs.stripe.com/event-destinations#supported-destination-types">configure your event destination</a>.</li>
+</ol>
+<p><span><span><img src="https://stripe.dev/images/how-to-charge-customers-across-accounts/image11.png" alt="image 11" loading="lazy" decoding="async"></span></span></p>
+<ol start="4">
+<li>Create an event handler in your server side code. In the following example, parse the session, account context, and customer ID from the event. The <a href="http://docs.stripe.com/context">account context</a> contains the account ID where the event was emitted, which may be required if your event handler takes different action depending on the account. Adding the account context to webhook events makes it possible for you to create a single event handler for events received across your organization.</li>
+</ol>
+<pre><code>app.post('/webhook', express.json({ type: 'application/json' }), async (request, response) =&gt; {
+  const event = request.body;
+
+  // Handle the checkout.session.completed event
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object; 		// Get the session object
+    const accountContext = event.context;	// Get the account context
+    const customerId = session.customer; 	// Get the customer ID
+
+    try {
+    // Define event handler behavior
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  } 
+  response.json({ received: true });      // Acknowledge receipt of the event
+});</code></pre>
+<h2 id="conclusion">Conclusion</h2>
+<p>With customer and payment method sharing, it is now easier than ever to create a unified payment experience for your customers across multiple business lines. Sharing replaces the need to recollect customers’ payment methods, migrate customers and payment methods between accounts, or set up Connect to clone customers across your accounts.</p>
+<p>This capability is currently in preview and you can <a href="https://docs.stripe.com/get-started/account/orgs/sharing/customers-payment-methods">request access</a> now. If you have any questions or feedback, we’d love to hear from you at <a href="mailto:organizations-feedback@stripe.com">organizations-feedback@stripe.com</a>.</p>
+<p>For more Stripe learning resources, subscribe to our <a href="https://www.youtube.com/stripedevelopers">YouTube channel</a>.</p></div></div>

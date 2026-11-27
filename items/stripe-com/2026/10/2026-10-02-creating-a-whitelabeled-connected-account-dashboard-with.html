@@ -1,0 +1,229 @@
+<div id="readability-page-1" class="page"><div><p>In a <a href="https://stripe.dev/blog/connect-embedded-components-streamline-onboarding">past blog post</a>, we explored how to move from hosted onboarding onto a whitelabeled embedded onboarding flow&nbsp;by using the <a href="https://docs.stripe.com/connect/supported-embedded-components/account-onboarding">account onboarding embedded component</a>. In this blog post, we’ll go over how to build a whitelabeled dashboard for connected accounts with just a few lines of code&nbsp;by using Connect embedded components.</p>
+<p>In this example, we’ll be building out the connected account dashboard for FurEver, a pet grooming SaaS platform.</p>
+<h2 id="rendering-payments-allowing-refunds-and-dispute-management">Rendering payments, allowing refunds and dispute management</h2>
+<p>To achieve this in the FurEver dashboard, you could build these workflows directly with Stripe’s APIs, but doing so requires substantially more than listing <a href="https://docs.stripe.com/api/payment_intents/list">PaymentIntents</a>. You would need to implement pagination, payment-method and status presentation, permissions, payment details, refunds, disputes, capture flows, and ongoing support for new states and capabilities. The <a href="https://docs.stripe.com/connect/supported-embedded-components/payments">Payments embedded component</a>&nbsp;provides these workflows as a Stripe-maintained UI that you can place directly inside your dashboard.</p>
+<h3 id="one-time-setup">One-time setup</h3>
+<p>First, we need to make sure we’re initializing embedded components correctly for the connected account. We do this by exposing an endpoint on the FurEver dashboard server-side code that creates an account session for the current account. FurEver is a NextJS application that uses App Router, so we add a new <code>/api/create_account_session</code>&nbsp;POST endpoint:</p>
+<pre><code>export async function POST() {
+&nbsp; const session = await getServerSession(authOptions); // Get FurEver session state
+&nbsp;&nbsp;const stripeAccountId = session.user.stripeAccount.id;
+&nbsp; const accountSession = await stripe.accountSessions.create({
+&nbsp; &nbsp; account: stripeAccountId,
+&nbsp; &nbsp; components: {
+&nbsp; &nbsp; &nbsp; payments: {
+&nbsp; &nbsp; &nbsp; &nbsp; enabled: true,
+&nbsp; &nbsp; &nbsp; },
+&nbsp; &nbsp; &nbsp; // Other components go here...
+&nbsp;&nbsp; &nbsp;},
+&nbsp; });
+
+&nbsp; return new Response(JSON.stringify(accountSession), {
+&nbsp; &nbsp; status: 200,
+&nbsp; &nbsp; headers: {'Content-Type': 'application/json'},
+&nbsp; });
+}</code></pre>
+<p>We'll use this API to initialize embedded components on the frontend. I’ll need to add a dependency to the <code>@stripe/connect-js</code>&nbsp;and <code>@stripe/react-connect-js</code>&nbsp;packages.</p>
+<pre><code>yarn add @stripe/connect-js @stripe/react-connect-js</code></pre>
+<p>Now that we have the packages, I’m going to edit the top-level wrapper of my frontend to include the initialization context for embedded components. This makes it so that I can render components in any part of the React tree below this wrapper.</p>
+<pre><code>import {loadConnectAndInitialize} from '@stripe/connect-js';
+import {
+&nbsp; ConnectComponentsProvider,
+} from '@stripe/react-connect-js';
+
+export default function AppWrapper({children}) {
+&nbsp; const [stripeConnectInstance] = React.useState(() =&gt; {
+&nbsp; &nbsp; const fetchClientSecret = async () =&gt; {
+&nbsp; &nbsp; &nbsp; const response = await fetch('/api/create_account_session', {
+&nbsp; &nbsp; &nbsp; &nbsp; method: 'POST',
+&nbsp; &nbsp; &nbsp; });
+&nbsp; &nbsp; &nbsp; if (!response.ok) {
+&nbsp; &nbsp; &nbsp; &nbsp; throw new Error('Failed to fetch account session');
+&nbsp; &nbsp; &nbsp; } else {
+&nbsp; &nbsp; &nbsp; &nbsp; const {client_secret} = await response.json();
+&nbsp; &nbsp; &nbsp; &nbsp; return client_secret;
+&nbsp; &nbsp; &nbsp; }
+&nbsp; &nbsp; };
+
+&nbsp; &nbsp; return loadConnectAndInitialize({
+&nbsp; &nbsp; &nbsp; publishableKey:
+&nbsp; &nbsp; &nbsp; &nbsp; 'pk_test_123', // Your publishable key goes here!
+&nbsp; &nbsp; &nbsp; fetchClientSecret: fetchClientSecret,
+&nbsp; &nbsp; });
+&nbsp; });
+
+&nbsp; return (
+&nbsp; &nbsp; &lt;ConnectComponentsProvider connectInstance={stripeConnectInstance}&gt;
+&nbsp; &nbsp; &nbsp; {children}
+&nbsp; &nbsp; &lt;/ConnectComponentsProvider&gt;
+&nbsp; );
+}</code></pre>
+<p>Next, we can render the ConnectPayments&nbsp;embedded component in the payments page:</p>
+<pre><code>import {
+&nbsp; ConnectPayments,
+} from '@stripe/react-connect-js';
+
+export const PaymentsPage = () =&gt; {
+&nbsp; return (
+&nbsp; &nbsp; &lt;div&gt;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;div&gt;...Header...&lt;/div&gt;
+&nbsp; &nbsp; &nbsp; &nbsp;&lt;div&gt;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;div&gt;Recent payments&lt;/div&gt;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;ConnectPayments /&gt;
+&nbsp; &nbsp; &nbsp; &nbsp;&lt;/div&gt;
+&nbsp; &nbsp; &lt;/div&gt;
+&nbsp; );
+}</code></pre>
+<p><span><span><img src="https://stripe.dev/images/creating-a-whitelabeled-connected-account-dashboard-with-embedded-components/image5.png" alt="The ConnectPayments&nbsp;embedded component in the payments page" loading="lazy" decoding="async"></span></span></p>
+<p>The payments component is now rendering under the “Recent payments” label. Connected accounts can now refund payments, respond to disputes, and capture payments.</p>
+<h3 id="rendering-balance-and-payouts">Rendering balance and payouts</h3>
+<p>Let’s give connected accounts&nbsp;an overview of their balance and payouts by using the payouts component. On the server, we should enable the payouts&nbsp;component:</p>
+<pre><code>const accountSession = await stripe.accountSessions.create({
+&nbsp; account: stripeAccountId,
+&nbsp; components: {
+&nbsp; &nbsp; payments: {
+&nbsp; &nbsp; &nbsp; enabled: true,
+&nbsp; &nbsp; },
+&nbsp; &nbsp; payouts: {
+&nbsp; &nbsp; &nbsp; enabled: true,
+&nbsp; &nbsp; },
+&nbsp; &nbsp; // Other components go here...
+&nbsp; },
+});
+
+// PayoutsPage.tsx
+import {
+&nbsp; ConnectPayouts,
+} from '@stripe/react-connect-js';
+
+export const PayoutsPage = () =&gt; {
+&nbsp; return (
+&nbsp; &nbsp; &lt;div&gt;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;div&gt;...Header...&lt;/div&gt;
+&nbsp; &nbsp; &nbsp; &nbsp;&lt;div&gt;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;div&gt;Payouts&lt;/div&gt;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &lt;ConnectPayouts /&gt;
+&nbsp; &nbsp; &nbsp; &nbsp;&lt;/div&gt;
+&nbsp; &nbsp; &lt;/div&gt;
+&nbsp; );
+}</code></pre>
+<p><span><span><img src="https://stripe.dev/images/creating-a-whitelabeled-connected-account-dashboard-with-embedded-components/image2.png" alt="ConnectPayments&nbsp;embedded component in the payments page" loading="lazy" decoding="async"></span></span></p>
+<p>Connected accounts can now view balance, payouts, change payout schedule, and change their bank destination.</p>
+<h3 id="keeping-connected-accounts-enabled-for-payments">Keeping connected accounts enabled for payments</h3>
+<p>Connected accounts&nbsp;may become unable to process payments or obtain payouts for a wide variety of reasons - exceeding processing thresholds, balance overdrafts, or changing regulations, which require additional information from accounts to process payments. To keep accounts enabled, we can automate the information collection flows by enabling the <code>notification_banner</code>&nbsp;component, and render it in our app header.</p>
+<p>The <code>notification_banner</code>&nbsp;is conditionally rendered - meaning it will only render when the account is disabled and needs additional information.</p>
+<pre><code>const accountSession = await stripe.accountSessions.create({
+&nbsp; account: stripeAccountId,
+&nbsp; components: {
+&nbsp; &nbsp; payments: {
+&nbsp; &nbsp; &nbsp; enabled: true,
+&nbsp; &nbsp; },
+&nbsp; &nbsp; payouts: {
+&nbsp; &nbsp; &nbsp; enabled: true,
+&nbsp; &nbsp; },
+&nbsp; &nbsp; notification_banner: {
+&nbsp; &nbsp; &nbsp; enabled: true,
+&nbsp; &nbsp; },
+&nbsp; &nbsp; // Other components go here...
+&nbsp; },
+});
+
+// AppHeader.tsx
+import {
+&nbsp; ConnectNotificationBanner,
+} from '@stripe/react-connect-js';
+
+export const AppHeader = ({ children } ) =&gt; {
+&nbsp; return (
+&nbsp; &nbsp; &lt;div&gt;
+&nbsp; &nbsp; &nbsp; &nbsp;&lt;ConnectNotificationBanner /&gt;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;&gt;{children}&lt;/&gt;
+&nbsp; &nbsp; &lt;/div&gt;
+&nbsp; );
+}</code></pre>
+<p><span><span><img src="https://stripe.dev/images/creating-a-whitelabeled-connected-account-dashboard-with-embedded-components/image1.png" alt="The notification_banner component" loading="lazy" decoding="async"></span></span></p>
+<p>The notification banner (shown within the outline for clarity) now renders when a requirement is present on the connected account, to keep payments and payouts enabled.</p>
+<h3 id="mapping-platform-user-roles-to-account-session-features">Mapping platform user roles to account session features</h3>
+<p>So far we’ve used components configured with default <a href="https://docs.stripe.com/api/account_sessions/create">account session</a>&nbsp;features. In the case of FurEver, we have admin users and regular users, and we want to toggle features depending on the user role. For example, only admin&nbsp;users should be able to perform refunds on the payments component:</p>
+<pre><code>export async function POST() {
+&nbsp; const session = await getServerSession(authOptions); // Get FurEver session state
+&nbsp; const isAdmin = session.user.isAdmin;
+&nbsp; const stripeAccountId = session.user.stripeAccount.id;
+&nbsp; const accountSession = await stripe.accountSessions.create({
+&nbsp; &nbsp; account: stripeAccountId,
+&nbsp; &nbsp; components: {
+&nbsp; &nbsp; &nbsp; payments: {
+&nbsp; &nbsp; &nbsp; &nbsp; enabled: true,
+&nbsp; &nbsp; &nbsp; &nbsp; features: {
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; refund_management: isAdmin,
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; dispute_management: isAdmin,
+&nbsp; &nbsp; &nbsp; &nbsp; },
+&nbsp; &nbsp; &nbsp; },
+&nbsp; &nbsp; &nbsp; payouts: {
+&nbsp; &nbsp; &nbsp; &nbsp; enabled: true,
+&nbsp; &nbsp; &nbsp; &nbsp; features: {
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; edit_payout_schedule: isAdmin,
+&nbsp; &nbsp; &nbsp; &nbsp; },
+&nbsp; &nbsp; &nbsp; },
+&nbsp; &nbsp; &nbsp; notification_banner: {
+&nbsp; &nbsp; &nbsp; &nbsp; enabled: true,
+&nbsp; &nbsp; &nbsp; },
+&nbsp; &nbsp; &nbsp; // Other components go here...
+&nbsp; &nbsp; },
+&nbsp; });
+
+&nbsp; return new Response(JSON.stringify(accountSession), {
+&nbsp; &nbsp; status: 200,
+&nbsp; &nbsp; headers: {'Content-Type': 'application/json'},
+&nbsp; });
+}</code></pre>
+<p>The account session is now configured correctly to respect admin user roles, and components automatically adjust their behavior depending on this configuration.</p>
+<p><span><span><img src="https://stripe.dev/images/creating-a-whitelabeled-connected-account-dashboard-with-embedded-components/image9.png" alt="The refund flow is only enabled for FurEver admins" loading="lazy" decoding="async"></span></span>
+<span><span><img src="https://stripe.dev/images/creating-a-whitelabeled-connected-account-dashboard-with-embedded-components/image7.png" alt="The refund flow is only enabled for FurEver admins" loading="lazy" decoding="async"></span></span></p>
+<p>The refund flow is only enabled for FurEver admins.</p>
+<h3 id="matching-the-look-and-feel-of-the-platform-site">Matching the look and feel of the platform site</h3>
+<p>By using the <a href="https://docs.stripe.com/connect/customize-connect-embedded-components">appearance API</a>, we can get the components to look exactly like the rest of the UI. We recommend using the “upload” functionality of our <a href="https://docs.stripe.com/connect/customize-connect-embedded-components">theming doc site</a>&nbsp;which can take an image of your site, and output theming values you can fine tune.</p>
+<p><span><span><img src="https://stripe.dev/images/creating-a-whitelabeled-connected-account-dashboard-with-embedded-components/image3.png" alt="Using the appearance API" loading="lazy" decoding="async"></span></span></p>
+<p>FurEver uses the following theme, and toggles it depending on whether the app is in dark or light mode - it also passes in the current locale, to ensure this matches the rest of the dashboard.</p>
+<pre><code>export const defaultPrimaryColor = '#27AE60';
+
+export const LightTheme = {
+&nbsp; fontFamily: 'Sohne, inherit',
+&nbsp; colorPrimary: defaultPrimaryColor,
+&nbsp; colorBackground: '#ffffff',
+&nbsp; colorBorder: '#D8DEE4',
+&nbsp; ...
+&nbsp; // See full light theme [here](https://github.com/stripe/stripe-connect-furever-demo/blob/6c99740f14bf9d76d127aa0495cf38b9ab72ff3b/app/contexts/themes/ThemeConstants.ts#L3)
+};
+
+export const DarkTheme = {
+&nbsp; fontFamily: 'Sohne, inherit',
+&nbsp; colorPrimary: defaultPrimaryColor,
+&nbsp; colorBackground: '#1e222a',
+&nbsp; ...
+&nbsp; // See full dark theme [here](https://github.com/stripe/stripe-connect-furever-demo/blob/6c99740f14bf9d76d127aa0495cf38b9ab72ff3b/app/contexts/themes/ThemeConstants.ts#L23)
+};
+...
+
+const appearanceVariables = theme === 'dark' ? DarkTheme : LightTheme; // Toggle depending on current FurEver theme
+const instance = loadConnectAndInitialize({
+&nbsp; ...
+&nbsp; appearance: {
+&nbsp; &nbsp; overlays: 'dialog',
+&nbsp; &nbsp; variables: appearanceVariables || LightTheme,
+&nbsp; },
+&nbsp; locale,
+&nbsp; ...
+});</code></pre>
+<h3 id="conclusion">Conclusion</h3>
+<p>By using embedded components and writing only a few lines of code, we’ve built a full payments dashboard for FurEver connected accounts that:</p>
+<ol>
+<li>Provides connected accounts with full functionality for payments, payouts&nbsp;and keeping accounts enabled via notification banner</li>
+<li>Snaps to FurEver user role permissions by using account session features</li>
+<li>Matches the FurEver look and feel by using appearance&nbsp;and&nbsp;locale</li>
+<li>Updates automatically, so FurEver won’t miss any new payment methods or compliance updates</li>
+</ol>
+<p><span><span><img src="https://stripe.dev/images/creating-a-whitelabeled-connected-account-dashboard-with-embedded-components/image4.png" alt="Payments dashboard for FurEver connected accounts" loading="lazy" decoding="async"></span></span>
+<span><span><img src="https://stripe.dev/images/creating-a-whitelabeled-connected-account-dashboard-with-embedded-components/image6.png" alt="Payments dashboard for FurEver connected accounts" loading="lazy" decoding="async"></span></span>
+<span><span><img src="https://stripe.dev/images/creating-a-whitelabeled-connected-account-dashboard-with-embedded-components/image8.png" alt="Payments dashboard for FurEver connected accounts" loading="lazy" decoding="async"></span></span></p>
+<p>You can try this demo live at <a href="https://furever.dev">https://furever.dev</a>. This sample is open source: <a href="https://github.com/stripe/stripe-connect-furever-demo">https://github.com/stripe/stripe-connect-furever-demo</a>.</p>
+<p>In this blog post we’ve used only three components. Stripe offers a growing catalog of embedded components, including components for areas such as Instant payouts, Capital, Tax, and Issuing.&nbsp;To see the full component list and read more about how to integrate with them please visit our <a href="https://docs.stripe.com/connect/supported-embedded-components">supported components page</a>.</p></div></div>

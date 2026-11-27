@@ -1,0 +1,113 @@
+<div id="readability-page-1" class="page"><div><p>Many marketplaces or platforms operate on <a href="https://stripe.com/connect">Stripe Connect</a>, using the <a href="https://docs.stripe.com/connect/separate-charges-and-transfers">separate charges and transfers</a> charge type. This allows marketplaces to offer different purchase combinations for their customers, such as items from different marketplace sellers, in a single transaction, and then perform separate transfers.</p>
+<p>If you operate in this model, when your platform collects a payment, those funds land into the Stripe balance on your platform account, pooled together with your own revenue. Stripe handles the accounting and reporting, but the funds themselves aren’t ring-fenced until you explicitly transfer them to a seller's connected account.</p>
+<p>PSD2 is the 2nd revision of the Payment Services Directive, a European Union law that regulates electronic payments. The latest version of this, PSD3, is due to take effect from late 2027. Under PSD2, most marketplaces and platforms operate in this way using the Commercial Agent Exemption (CAE), allowing you to process payments without a formal payment institution license. Due to upcoming changes to PSD3 and the likely tightening of Commercial Agent Exemptions, Stripe has created a new charge type for Stripe Connect called "<a href="https://docs.stripe.com/connect/funds-segregation">Segregated Separate Charges and Transfers</a>".</p>
+<h3 id="the-problem-with-pooled-balances">The problem with pooled balances</h3>
+<p>If we take a marketplace that is processing payments for thousands of different sellers, without fund segregation, a single platform balance on Stripe holds funds for many different connected accounts (sellers), meaning that:</p>
+<ul>
+<li><strong>Automatic payouts</strong> scheduled on your platform account could inadvertently consume funds meant for a seller.</li>
+<li><strong>Unrelated chargebacks</strong> or disputes on one transaction can draw from the shared pool, affecting funds earmarked for a completely different seller.</li>
+<li><strong>Stripe fees</strong> are debited from your platform balance - the same pool that holds seller money.</li>
+<li><strong>Operational errors</strong> such as an accidental refund, or misconfigured payout schedule, can leave sellers short with no clear audit trail.</li>
+</ul>
+<p>In isolation, each scenario may seem unlikely, but at scale they can compound into systemic risk.</p>
+<h3 id="why-this-matters-now">Why this matters now</h3>
+<p>Under PSD2 and EMD2 regulations in the EU, regulators are increasingly requiring platforms and marketplaces to demonstrate that customers’ funds are safeguarded, that they are held separately from operational funds and protected from the platform’s own creditors. Within the UK, the FCA enforces similar client money rules.</p>
+<p>Even in geographies outside of this regulation, fund segregation is often treated as a trust signal. Sellers want to know their money is protected, investors or auditors want to see clear separation, and engineering teams want deterministic fund flows, rather than a shared pool of funds where edge cases can compound.</p>
+<h3 id="how-fund-segregation-works">How fund segregation works</h3>
+<p>Fund segregation in Stripe Connect introduces a new holding state for funds. Funds from payments are allocated; they exist on your platform account, but don’t appear in your available balance, can’t be used for payouts, and can only be transferred to a connected account. The diagram below shows a high level overview of the fund flow:</p>
+<p><span><span><img src="https://stripe.dev/images/fund-segregation-stripe-connect/diagram.png" alt="High level overview of the fund flow" loading="lazy" decoding="async"></span></span></p>
+<p>The full end-to-end flow can be described as follows:</p>
+<h4 id="create-a-payment-with-allocated-funds">Create a payment with allocated funds</h4>
+<p>When creating a <a href="https://docs.stripe.com/payments/payment-intents">PaymentIntent</a>, set <code>allocated_funds</code> to <code>enabled: true</code>. At capture time, Stripe automatically places the funds into the allocated balance within your Stripe Platform account.</p>
+<p>You should also specify the <code>transfer_group</code> with your value; this value lets you track the flow of funds from payment through to transfer, and helps with reconciliation and audit flows.</p>
+<pre><code>{
+  "amount": 10000,
+  "currency": "eur",
+  "allocated_funds": {
+    "enabled": true
+  },
+  "transfer_group": "ORDER-1234"
+}</code></pre>
+<p>After successful capture of funds, the full amount becomes available in your allocated balance, subject to normal payment method settlement timing.</p>
+<h4 id="check-the-allocated-balance">Check the allocated balance</h4>
+<p>You can inspect the allocated funds balance for a specific payment intent by expanding the <code>latest_charge</code> property within the PaymentIntent object. This gives you per-payment visibility, so you know exactly how much is in your allocated balance, and how much has been transferred into a connected account.</p>
+<p>In this example, we can see that <code>allocated_funds</code> is enabled, so we know the charge amount is using your allocated balance, and €98.00 is available to be transferred (€100 minus €2 example Stripe fees).</p>
+<pre><code>{
+  "id": "pi_xxx",
+  "latest_charge": {
+    "id": "ch_xxx",
+    "allocated_funds": {
+      "enabled": true,
+      "balance": {
+        "available": 9800,
+        "pending": 0,
+        "currency": "eur"
+      }
+    }
+  }
+}</code></pre>
+<h4 id="transfer-to-connected-accounts-and-collect-your-platform-fee">Transfer to connected accounts and collect your platform fee</h4>
+<p>When creating the transfer object to transfer allocated funds to a connected account, set the <code>source_transaction</code> parameter to the charge ID from the original payment intent. This tells Stripe to draw from that specific payment’s allocated balance. You can also collect your platform fee in the same call by specifying the <code>application_fee_amount</code> parameter. This debits the fee from the allocated funds and credits it to your platform’s payment balance.</p>
+<p>It’s important to note that the <code>application_fee_amount</code> is additive to the transfer amount. For example, if you want to collect a €5.00 application fee for a €100.00 charge, and then transfer the remaining €93.00 to a connected account, you’d need to specify this as follows:</p>
+<pre><code>{
+  "amount": 9300,
+  "currency": "eur",
+  "destination": "acct_seller_123",
+  "source_transaction": "ch_xxx",
+  "transfer_group": "ORDER-1234",
+  "application_fee_amount": 500
+}</code></pre>
+<p>You don’t need to transfer everything at once, you can split allocated funds across multiple transfers to connected accounts; this is useful if you have mixed first-party and third-party purchases, or purchases from multiple sellers in a single transaction. One rule to remember is that the total transferred cannot exceed the original charge amount.</p>
+<p>As the <code>application_fee_amount</code> is taken directly from the allocated funds on your platform account, it avoids unnecessary FX conversions when the platform and connected account operate in different currencies.</p>
+<h4 id="handling-the-hard-parts">Handling the hard parts</h4>
+<p>In the real world, we know our users don’t just process happy path payments. Refunds, disputes, and reversals are also common, so it’s key to understand how these work using allocated balances.</p>
+<h4 id="refunds">Refunds</h4>
+<p>When you process a refund, Stripe will first draw from the remaining allocated balance before touching the balance of your platform account. As an example, if you had a €100.00 charge in your allocated balance, you transferred €60.00 to a connected account (leaving €40.00 in the allocated balance), and then did a €100.00 refund:</p>
+<ol>
+<li>€40.00 would come from the remaining allocated funds</li>
+<li>€60.00 would come from your platform’s account balance</li>
+</ol>
+<p>This predictable ordering means allocated funds are always used first, reducing the frequency of debits from your platform’s account balance.</p>
+<h4 id="transfer-reversals">Transfer reversals</h4>
+<p>If you need to claw back funds from a connected account balance, for example before processing a refund or while awaiting a dispute outcome, you can use a transfer reversal. Reversed funds will return to the allocated balance, not your platform’s account balance.<br>
+When creating a reversal, if you set the <code>refund_application_fee</code> to <code>true</code>, the application fee is also returned to the allocated balance. This is an important decision for your business; some marketplaces choose to refund the application fee, while others choose to retain it.</p>
+<h4 id="disputes">Disputes</h4>
+<p>When a dispute is raised on an allocated payment, you can reverse the transfer to pull funds back from the connected account into your allocated balance whilst awaiting the outcome.</p>
+<p>If the dispute is won, you can then transfer the allocated funds back to the connected account. If the dispute is lost, you can use a Balance Transfer to move these funds into your platform balance, providing the currency matches the original charge settlement currency.</p>
+<p>Dispute fees are always debited from your platform balance, they never affect the allocated funds balance.</p>
+<h4 id="hanging-balances">Hanging balances</h4>
+<p>You may find that you end up with allocated funds that no longer need to be in your allocated balance, for example after a dispute is refunded from your platform balance and you later reverse the transfer from the connected account.</p>
+<p>In this scenario, you can use a Balance Transfer to move these funds from the allocated balance to your platform balance, providing the currency matches the original charge settlement currency.</p>
+<h3 id="getting-ready">Getting ready</h3>
+<p>Before starting, there are some pre-requisite steps worth being aware of:</p>
+<ol>
+<li>Your platform account must be responsible for negative balances on connected accounts</li>
+<li>Include the <code>allocated_funds_preview=v1</code> parameter as part of the header on all API requests. For example, with Node you include this as a parameter when defining the Stripe const variable:</li>
+</ol>
+<pre><code>const stripe = require('stripe')(
+  'sk_test_',
+    {
+      'allocated_funds_preview=v1',
+    }
+  );</code></pre>
+<ol start="3">
+<li>Allocated funds currently only work with card payment methods, so you should avoid using <code>automatic_payment_methods</code> and specify payment methods explicitly</li>
+<li>Allocated balances cannot be combined with overcapture, multi capture, or incremental authorisations</li>
+<li>For testing, allocated balances can only be used with sandbox accounts, they do not work in legacy test mode</li>
+<li>The Stripe dashboard doesn’t distinguish between allocated balances and other account balances, you must use the API for visibility</li>
+</ol>
+<h3 id="benefits">Benefits</h3>
+<p>With segregated separate charges and transfers and allocated balances, your platform can achieve:</p>
+<ul>
+<li><strong>Deterministic fund flows</strong> — every payment's funds are traceable from capture to transfer, with no possibility of leakage into unrelated operations.</li>
+<li><strong>Regulatory alignment</strong> — demonstrable safeguarding of customer funds, separated from platform operational balances.</li>
+<li><strong>Operational safety</strong> — auto-payouts, unrelated chargebacks, and fee debits can't touch allocated funds.</li>
+<li><strong>Clear audit trail</strong> — per-payment balance visibility via the API at every stage of the lifecycle.</li>
+</ul>
+<p>For platforms or marketplaces that operate in regulated markets, or those handling significant seller volumes, this allows you to move to a world in which fund safety becomes enforced by the infrastructure, rather than being purely on a trust basis.</p>
+<h3 id="next-steps">Next steps</h3>
+<ul>
+<li>Review the full <a href="https://docs.stripe.com/connect/funds-segregation">fund segregation documentation</a></li>
+<li>Set up a <a href="https://docs.stripe.com/sandboxes">Sandbox environment</a> to test your integration</li>
+<li>If you're evaluating whether fund segregation fits your regulatory requirements, reach out to your Stripe account team for guidance on your specific jurisdiction</li>
+</ul></div></div>

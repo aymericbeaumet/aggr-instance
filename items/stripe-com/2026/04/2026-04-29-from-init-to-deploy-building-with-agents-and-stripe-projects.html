@@ -1,0 +1,235 @@
+<div id="readability-page-1" class="page"><div><p>I built an internal tool that cut our transcript editing time by 4x. Here’s how I did it with the newly-launched <a href="https://projects.dev">Stripe Projects CLI</a>, OpenRouter, and Vercel (along with my handy Claude).</p>
+<h3 id="the-problem-too-many-transcripts">The problem: too many transcripts!</h3>
+<p>I'm on the Developer Relations team at Stripe, and one of the things we do - a lot - is make videos for our <a href="https://www.youtube.com/stripedevelopers">Stripe Developers YouTube channel</a>. To be accessible to a wide audience, all of these videos need subtitles - <em>accurate</em> subtitles, because the original English captions are then used by Google to build 22 language translations and 16 voice dubs. While some decent auto-captioning tools exist, they inevitably make mistakes, like failing to recognize proper nouns or the full context of a technical term, so a human needs to review them before they can be released.</p>
+<p>We recently calculated that it takes between 1.5 and 2 times as many minutes to edit auto-generated subtitles as the length of the video, meaning that one of my teammates will spend 30-40 minutes editing just the subtitles of a 20-minute video. That's a lot of dev hours used on a task that is fairly straightforward and repetitive; in other words, the perfect task for an agent.</p>
+<h3 id="the-solution-an-agentic-transcription-app">The solution: an agentic transcription app</h3>
+<p>My solution was to build a custom agentic transcription fixing app for my team. To make the process as straightforward as possible, I had a few requirements. Luckily, when using an agentic workflow in a tool like Claude, <a href="https://stripe.dev/blog/building-production-ready-stripe-subscriptions-kiro-powers">Kiro</a> or Cursor, planning mode works best when you list requirements clearly, so thinking these through initially set me up to make a solid plan my agents could follow.</p>
+<h4 id="planning">Planning</h4>
+<p>My transcription app needed:</p>
+<ul>
+<li>to be hosted in a place accessible to my teammates, but with built-in auth so the entire internet couldn't burn through our tokens</li>
+<li>an API that provided access to different LLM models, as shorter or more straightforward transcripts could be handled by free or cheaper models, but I wanted the option of more advanced models in case the output from less capable models was insufficient</li>
+<li>to use the Stripe Projects CLI to link all of the providers (and necessary environment variables) in one place</li>
+<li>a clean and simple UI that had all needed functionality in a single page (with a dark mode option, because I'm a developer after all)</li>
+</ul>
+<p>This was my initial prompt:</p>
+<pre><code>I would like to create a new web application that can take a rough output from video transcription software, add instructions from the user in a separate chat window (such as "Capitalize all proper nouns, replace stripe with Stripe"), and run the transcript and instructions through an agent that then outputs the fixed transcript in another panel. If needed, the user can keep chatting to apply additional changes. The UI should have a split layout, with the original transcript input on the top left half of the screen, the chat instructions on the bottom left, and the fixed transcript on the right half of the screen. Please use the Stripe Projects CLI to provision any services needed. Visually, the app should have a simple feel and default to light or dark mode based on the user's browser settings. Please see `./example.json` for an example of an original and fixed transcript.</code></pre>
+<p>This prompt resulted in a plan from the agent with several TODOs that I was able to go through and edit before we started building. These included:</p>
+<ul>
+<li>Implementing a split-pane transcription/chat/output UI with session-only state</li>
+<li>Creating routes to wire the request/response contract for iterative transcript fixing</li>
+<li>Adding a <code>transcriptAgent</code> with a system prompt and helpers</li>
+<li>Wiring the frontend up to new API routes</li>
+<li>Comprehensive testing (can’t forget that!)</li>
+</ul>
+<p>But before I could implement the plan, I needed to get all of the required services in place.</p>
+<h4 id="setup">Setup</h4>
+<p>The first thing I want to do is create the scaffolding for my project. This will look different depending on your framework, but at the very least you'll want to create a directory with the name of your project and initialize a git repository in it. In my case, I ran <code>npx create-next-app@latest transcription-fixer</code>, which created my project directory and set up a basic full-stack app.</p>
+<p>Then, I initialized Projects by running this command in the root of my new project directory:</p>
+<pre><code>stripe projects init</code></pre>
+<p>That scaffolds files such as <code>AGENTS.md</code> and directories with useful skills and rules for different agents, as well as a <code>.projects/state.json</code> file that is the source of truth for your integrations.</p>
+<p>Because I always review the agent's code, I'm biased towards using frameworks and services I'm familiar with, so I chose to start this project as a NextJS app hosted in my existing Vercel account. Luckily, Stripe Projects lets me link an existing account with the same command I would use to set up a new one:</p>
+<pre><code>stripe projects add vercel/projects</code></pre>
+<p>This links my Vercel account to my Stripe account, and my<code>.projects/state.json</code> now looks like this:</p>
+<pre><code>{
+  "version": 1,
+  "providers": {
+    "vercel": {
+      "name": "Vercel"
+    }
+  },
+  "resources": {
+    "vercel-project": {
+      "name": "vercel-project",
+      "providerName": "Vercel",
+      "serviceId": "project"
+    }
+  }
+}</code></pre>
+<p>With my framework and hosting in place, I had the agent build the initial plan of a transcription UI and put the necessary routing in place so we could then wire it up in the next stage.</p>
+<h4 id="adding-the-app-logic">Adding the app logic</h4>
+<p>Once I had built the scaffolding of my app, it was time to consider what other services I might need. The most obvious one would be an agentic API provider - luckily, as of last week, <a href="https://openrouter.ai/">OpenRouter</a> is available as an AI provider within Projects, and I was excited to try it for the first time.</p>
+<p>To link OpenRouter, I had to do two things:</p>
+<ol>
+<li>
+<p>Add a payment method. As I was using the Vercel free tier and a new Stripe account, I didn't already have a payment method attached to it, and OpenRouter is a paid service (though it does provide free models). I went to the Stripe Dashboard, chose my account, and added a credit card.</p>
+</li>
+<li>
+<p>Run <code>stripe projects add openrouter/api</code></p>
+</li>
+</ol>
+<p>Once linked, I could run <code>stripe projects open openrouter</code> to see their dashboard and make updates to my account, but I wanted to keep going on my app, so I ran <code>stripe projects status</code> to confirm everything was linked as expected, and it was:</p>
+<pre><code> ~/s/transcription-fixer stripe projects status
+                       
+ │  transcription-fixer
+ │  Project    project_1234
+ │  Account    Stripe DevRel (acct_1234)
+ │  Email      &lt;me&gt;@stripe.com ✓ Verified
+ │  Created    Mar 25, 2026
+
+Providers (2)
+Name        Status    Linked        
+──────────  ────────  ──────────────
+OpenRouter  ✓ Linked  11 minutes ago
+Vercel      ✓ Linked  23 days ago   
+
+Services (2)
+Name            Provider    Service  Pricing
+──────────────  ──────────  ───────  ───────
+openrouter-api  OpenRouter  api      Free   
+vercel-project  Vercel      project  Free  </code></pre>
+<p>Excellent! Additionally, I checked my local <code>.env</code> file, and it had been auto-populated with <code>OPENROUTER_API_KEY</code> and <code>OPENROUTER_TYPE</code>, with the correct values already filled in.</p>
+<h4 id="let-the-agent-cook-with-recipes">Let the agent cook (with recipes)</h4>
+<p>With all of the services my app needed set up, I went back into plan mode with my agent. Now we would need to add an LLM client that used the <a href="https://openrouter.ai/docs/sdks/typescript/overview">OpenRouter SDK</a> to call various endpoints and an ability for the user to select which model they wanted to use.</p>
+<p>In the end, I would spend the bulk of my time thinking through how to compose the system prompt for the transcription agent so that the app's user would need minimal instructions to get good results (yes, we were getting meta). I wanted to give the transcription agent the ability to call tools such as <code>search_stripe_documentation</code> using <a href="https://mcp.stripe.com">Stripe's MCP server</a> so it would get service names right without explicit prompting. I also provided a before and after example of the transcript I had fixed by hand from my <a href="https://youtu.be/1kBFmOufiNE?si=k29VGEiO_4FuC-PT">Dublin Meetup talk</a>, which my agent shortened and used as a <a href="https://www.promptingguide.ai/techniques/fewshot">few-shot example</a>.</p>
+<p>This was the final system prompt we ended up with:</p>
+<pre><code>const SYSTEM_PROMPT = `You are an expert transcription cleanup agent.
+
+Primary objective:
+- Apply user instructions to improve the transcript while preserving meaning, text structure exactly except for changes in the instructions, and exact formatting, including line breaks and timestamps.
+
+Critical formatting requirements:
+- Preserve line structure exactly unless the instruction explicitly asks for format edits.
+- Preserve whitespace intent, paragraph breaks, timestamps, speaker labels, and ordering.
+- Do not collapse lines, reflow blocks, or normalize spacing unless asked.
+
+Quality requirements:
+- Do not hallucinate facts or insert content not implied by transcript text.
+- Make the minimum set of edits needed to satisfy user instructions.
+- Keep language and tone consistent with source transcript.
+
+Default cleanups (always apply, even when not explicitly requested):
+- Remove leading filler utterances at the start of sentences and cues — specifically "uh", "um", "uhm", "umm", "er", "eh", "ah", "hmm", and similar disfluencies — along with any comma, ellipsis, or extra space that immediately follows the filler. Then capitalize the first letter of the next word so the sentence starts cleanly (e.g. "Um, so we shipped" → "So we shipped"; "Uh hello there" → "Hello there").
+- "Start of a sentence" means the start of a cue/line, the start of a paragraph, and any position immediately after a sentence-ending "." / "!" / "?".
+- Do NOT remove filler words that appear mid-sentence (e.g. "I think, uh, we should ship") — only leading ones — since mid-sentence fillers can carry pacing/meaning. Defer to explicit user instructions to strip those.
+- When removing a leading filler, change nothing else on the line: keep timestamps, line breaks, speaker labels, and the rest of the sentence text intact.
+
+Output requirements:
+- Return only the final fixed transcript text.
+- Do not include markdown fences, explanations, labels, or commentary.`;</code></pre>
+<p>Just as with the initial plan with my agent, the more detailed the system prompt, the better my results.</p>
+<h4 id="results">Results</h4>
+<p>The final app looks like this, using my unedited Meetup talk as the input:</p>
+<p><span><span><img src="https://stripe.dev/images/building-with-agents-stripe-projects/transcript.png" alt="The application with a fixed transcript" loading="lazy" decoding="async"></span></span></p>
+<p>The system prompt already took care of removing the "Um"s I uttered, capitalizing Stripe, and preserving formatting. Additionally, the agent was able to infer from the talk's context that I was talking about React the framework, and properly capitalized that. For proper nouns or names that the agent likely wouldn't be able to infer, I ended up adding a form for the user to fill out so they wouldn't have to spell out additional instructions for common fields, and I iterated on the system prompt to include these strings.</p>
+<p>And the best part - here are the results from my benchmark test, which used the 771-line script of my meetup talk and instructions to correct my name and the mentioned Stripe services (as seen in the screenshot above):</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="region" aria-label="Scrollable table" tabindex="0"><table><thead><tr><th>Model</th><th>Time</th><th>Accuracy</th><th>Tokens</th></tr></thead><tbody><tr><td>Auto (google/gemini-3-flash-preview)</td><td>40.22s</td><td>85% (all instructions followed, some context-aware capitalization and grammar missed, including Stripe services)</td><td>31,724 tokens</td></tr><tr><td>Google Gemini 2.5 Pro</td><td>90.54s</td><td>99% (all instructions followed, correctly capitalized Stripe services not explicitly instructed on, best on inferring technical terms)</td><td>36,486 tokens, 4,814 reasoning</td></tr><tr><td>Claude Sonnet 4.5</td><td>137.67s</td><td>90% (all instructions followed, some context-aware capitalization and grammar missed, including Stripe services)</td><td>25,781 tokens</td></tr><tr><td>Claude Opus 4.5 - thinking</td><td>298.57s</td><td>95% (all instructions followed, correctly capitalized Stripe services not explicitly instructed on)</td><td>35,348 tokens, 4,452 reasoning</td></tr></tbody></table></div>
+<p>For this 20-minute talk, we went from 30+ minutes of editing to a little over two minutes of generated edits as the average of all the models, and perhaps 2-3 minutes for a human to double-check the fixed transcript for accuracy. That's a 4x reduction in time!</p>
+<p>And how much has this cost my team? All of the testing over a few days of building the app resulted in a massive bill of… $2.54. You certainly can’t get a cup of coffee that cheap in Oyster Point!</p>
+<h4 id="going-live">Going live</h4>
+<p>Once I was satisfied with my app's results, I was ready to deploy to Vercel. But first, I had to get the environment variables Projects added to my <code>.env</code> file into the Vercel production environment so that my OpenRouter calls would work when deployed. There are two ways to do this:</p>
+<ol>
+<li>via the Vercel CLI with <code>vercel env add [NAME] [ENVIRONMENT]</code>, though I would have to add my variables one by one</li>
+<li>via the Vercel Dashboard at My Project -&gt; Settings -&gt; Environment Variables -&gt; Add Environment Variable -&gt; Import <code>.env</code> (at the bottom of the form)</li>
+</ol>
+<p>I chose the former as I only needed <code>OPENROUTER_API_KEY</code> added for my app to be fully functional.</p>
+<p>Finally, I ran <code>vercel --prod</code> to deploy straight to my live production environment on a Friday afternoon, because YOLO (and because I had Claude add an extended testing suite and review my changes as a PR reviewer persona).</p>
+<h3 id="next-steps">Next steps</h3>
+<p>At some point in the near future, I'll want to give my agents a memory - likely a way to store previously accepted transcriptions to use as a reference. That means I'll need a database. Luckily, Stripe Projects makes adding one just as easy as adding hosting or AI.</p>
+<p>Right now, running <code>stripe projects catalog</code> lists the following for just database providers:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="region" aria-label="Scrollable table" tabindex="0"><table><thead><tr><th>Provider</th><th>Pricing</th></tr></thead><tbody><tr><td><code>chroma/database</code></td><td>Paid</td></tr><tr><td><code>cloudflare/d1</code></td><td>Free &amp; Paid</td></tr><tr><td><code>cloudflare/hyperdrive</code></td><td>Free &amp; Paid</td></tr><tr><td><code>flyio/mpg</code></td><td>Paid</td></tr><tr><td><code>neon/postgres</code></td><td>Free &amp; Paid</td></tr><tr><td><code>planetscale/mysql</code></td><td>Paid</td></tr><tr><td><code>planetscale/postgresql</code></td><td>Paid</td></tr><tr><td><code>railway/mongo</code></td><td>Free &amp; Paid</td></tr><tr><td><code>railway/postgres</code></td><td>Free &amp; Paid</td></tr><tr><td><code>railway/redis</code></td><td>Free &amp; Paid</td></tr><tr><td><code>supabase/project</code></td><td>Free &amp; Paid</td></tr><tr><td><code>turso/database</code></td><td>Free &amp; Paid</td></tr><tr><td><code>upstash/redis</code></td><td>Free &amp; Paid</td></tr><tr><td><code>upstash/vector</code></td><td>Free &amp; Paid</td></tr></tbody></table></div>
+<p>And more are being added weekly! That means as my project grows, I can keep using one CLI tool to keep all of my providers organized and my environments up to date. Best of all, when my teammates check out my repo, all they have to run is the following to get the correct API keys into their environment:</p>
+<pre><code>stripe projects env --pull</code></pre>
+<p>Speaking of working on a team, I’m sure we’ve all felt the panic of hearing about a security incident at 2am and being asked to rotate credentials while barely awake. With Projects, that now becomes as easy as:</p>
+<pre><code>stripe projects rotate &lt;provider&gt;/&lt;service&gt;</code></pre>
+<p>If you want to try Stripe Projects yourself, head to <a href="https://projects.dev/">projects.dev</a> to get started!</p></div></div>

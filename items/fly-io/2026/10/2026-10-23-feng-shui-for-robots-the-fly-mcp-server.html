@@ -1,0 +1,79 @@
+<div id="readability-page-1" class="page"><article>
+         <dl>
+             <dt>Author</dt>
+             <dd>
+                 <img alt="Daniel Botha" src="https://fly.io/static/images/danielb.webp">
+               <dl>
+                 <dt>Name</dt>
+                 <dd>
+                   Daniel Botha
+                 </dd>
+               </dl>
+             </dd>
+         </dl>
+
+        <section>
+            <figure>
+                <img src="https://fly.io/blog/feng-shui-for-robots/assets/mcp-server-4f95.webp" alt="A cool server in shutter shades pouring syrup on a stack of pancakes while a bird waits with a fork" fetchpriority="high" decoding="async">
+                <figcaption>
+                  <span>Image by</span>
+                  
+
+
+                    <a href="https://annieruygtillustration.com/" target="_blank">
+                      Annie Ruygt
+                    </a>
+                </figcaption>
+            </figure>
+          <p>In Databricks’ <a href="https://www.databricks.com/sites/default/files/2026-01/State-of-AI-Agents-2026-Final.pdf">State of AI Agents 2026</a> report, there’s a chart from Neon’s telemetry that’s somehow both mind-blowing and unsurprising. In October 2023, AI agents created 0.1% of the databases on Neon. By October 2025 they created 80% of them.</p>
+<p>We’re seeing this play out all across the infra landscape, including here at Fly.io, where agents have overtaken humans as our most common customer species. Thing is, we think it’s important to remember that there’s a human with aspirations behind those agents. Often one trying to build something that actually makes it to prod.</p>
+
+<p>If we want to make that easy, “computers for agents” can’t just be a sandbox where an agent can vibe. Agents need a whole cloud now. Somewhere safe to try dumb stuff, sure, but also a dead simple migration path to, and all the requisite parts of, a scalable production environment.</p>
+
+<p>This is kinda our whole thing right now. So we built <code>mcp.fly.io</code>: one MCP server that connects your agent to Sprites and to your Fly.io apps.</p>
+<h2 id="start-with-a-sprite"><a href="#start-with-a-sprite" aria-label="Anchor"></a><span>Start with a Sprite</span></h2>
+<p>Building something real with an agent should start in a sandbox. The speed and scale at which you can test different approaches and solutions is easily one of the most significant benefits of building with agents. So you want them to be able to kick all the tires to find out which of them explode.</p>
+
+<p>This is why the sandbox you choose in this step is so important. There are plenty of places to safely execute agent code. But what you want is to actually install packages, write files, start a server on a port, hit the server, and see what restarting the server does in real life. This is how you get from vibes to a robust product. It’s why you should tell your agent to build in a Sprite.</p>
+<h2 id="just-linux-all-the-way-down"><a href="#just-linux-all-the-way-down" aria-label="Anchor"></a><span>Just Linux, all the way down</span></h2>
+<p>When your agent builds something on a Sprite, it builds it the way it would on any Linux box. Packages go where packages go. Files sit on a disk that survives sleeps and restarts. The server runs as a <strong>service</strong>, a long-running process that survives the Sprite rebooting. It gets an HTTPS URL, so the webhook the agent wired up can actually receive webhooks. And before the agent tries something that might break everything, it can <strong>checkpoint</strong> the whole filesystem and roll back when it does, in fact, break everything.</p>
+<h2 id="the-not-so-great-migration"><a href="#the-not-so-great-migration" aria-label="Anchor"></a><span>The not-so-great migration</span></h2>
+<p>In what feels like a raised middle finger to their skeptics, agents are actually building things that deserve to graduate to production infra now. Like, actual products that people rely on.</p>
+
+<p>The most common reason we’re seeing for migrating something out of a Sprite is the need for it to be always on. Sprites are really good at sleeping when nobody’s using them and waking on the next request. And with scheduled jobs landing soon with Sprites 2.0, serving your product from a Sprite is totally viable. But when you start to care more about availability to users than you do about the environment being perfect for your dev agent, it’s often a sign to migrate it to good ol’ Fly Machines.</p>
+
+<p>Did the word “migrate” spike your blood pressure right there? Let’s reframe what migrate means now, because it really doesn’t have to be that stressful anymore. A Sprite isn’t a sandbox pretending to be a computer. It’s a real Linux machine with its own kernel, a disk that stays put and services that keep running, and so is a Fly Machine. So when it’s time to re-home your project, there’s no foreign runtime to translate out of and no function-shaped thing to reassemble into a server. Your agent built a Linux service on a Linux box, and all it’s doing is moving it to another Linux box.</p>
+
+<p>The Fly MCP server talks to both Sprites and Machines. Once the app you’re moving into exists and you’ve granted the agent access to it, the agent can create the Machine, its volume and its secrets from the same conversation it built the thing in.</p>
+
+<p>It’s impossible to build a catchall “promote this Sprite” flow, because who knows what you’ll build in your Sprites. But giving your agent (which built the project, and can read everything it installed and configured on the Sprite) an MCP server that connects it to everything it needs for the migration is about as close as you can get to one. Reverse-engineering a disposable environment into an always-on production one is a tough ask for any agent, but moving a Linux service between two Linux boxes is a robot cakewalk.</p>
+<h2 id="eyes-on-mpg"><a href="#eyes-on-mpg" aria-label="Anchor"></a><span>Eyes on MPG</span></h2>
+<p>Before you ask, we are deep into investigating how to bring MPG skills to the Fly MCP server. It will be real fun to watch the agent that built your app on a Sprite and moved it to a Machine create the Postgres cluster behind it, with automatic backups and failover, and attach it to the app in the same conversation. Watch this space.</p>
+<h2 id="you-beta-try-it"><a href="#you-beta-try-it" aria-label="Anchor"></a><span>You beta try it</span></h2>
+<p>Obviously you want to be able to tell people you’ve been using this since it was in beta, so <a href="https://mcp.fly.io/" title="">get on it</a>. When you install the Fly MCP server, you’ll authorize it in a browser. You’ll be able to select the organization, the apps your agent can work on and what it can do with Sprites. There is no API token to paste. <code>mcp.fly.io</code> only works on the apps you select: their Machines, volumes and secrets, with IP addresses and certificates readable but not writable. Discovery only returns the permissions and apps you approved, so your agent won’t even know the apps you didn’t select exist.</p>
+<h2 id="computers-for-agents-from-prototype-to-production"><a href="#computers-for-agents-from-prototype-to-production" aria-label="Anchor"></a><span>Computers for agents, from prototype to production</span></h2>
+<p>We feel a little like overbearing parents with big expectations of the Fly MCP server. We expect it to develop into something that helps your agent do everything from building a quick, shareable demo to a stable, robust production application. And it takes a village to raise an MCP server, so we appreciate you co-parenting with us.</p>
+
+<p><a href="https://mcp.fly.io/" title="">Connect your agent</a> and take it for a spin.</p>
+
+          
+        </section>
+        <dl>
+            <dt>
+              Next post  ↑
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/well-that-wasnt-fun/">
+                Well, That Wasn't Fun: October 16 '26
+              </a>
+            </dd>
+            <dt>
+              Previous post  ↓
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/sprites-block-device/">
+                SBD: We Have a Filesystem at Home
+              </a>
+            </dd>
+        </dl>
+      </article></div>

@@ -1,0 +1,144 @@
+<div id="readability-page-1" class="page"><div><p>Setting up a Stripe configuration with AI agents can feel like a superpower. You describe what you want, the agent makes the necessary API calls, and your account is ready in minutes.</p>
+<p>The problem is that those successful one-off changes rarely become a durable source of truth. A week later, it is hard to answer questions such as what products and prices exist, how your sandbox and livemode accounts differ, and what exactly changed over time without digging through old threads or reverse engineering the Stripe Dashboard.</p>
+<p>This post shows a safer pattern: use AI agents to author Terraform, not to operate your Stripe account directly. With the <a href="https://docs.stripe.com/terraform">Stripe Terraform provider</a>, you can define products, prices, and webhook endpoints as code, review changes in pull requests, and apply them consistently across Stripe sandboxes and live mode. The end result is repeatable Stripe configuration you can audit, reproduce in new environments, and evolve over time without accumulating mystery state from ad hoc agent runs.</p>
+<p>If you already use Terraform (or want to), the goal is straightforward. Describe the Stripe objects you want in .tf files, let the agent generate the initial configuration, and rely on the <code>terraform plan</code> and <code>terraform apply</code> CLI commands to make changes safely.</p>
+<h2 id="the-challenge-of-using-ai-agents-for-infrastructure">The challenge of using AI agents for infrastructure</h2>
+<p>There are three major challenges to setting up infrastructure using AI agents.</p>
+<p><strong>Transparency:</strong> Monitoring one-off API calls within an agent run is difficult. Agents often perform multiple tasks initiated by a single user prompt, burying API calls somewhere in the middle of long threads. Furthermore, AI agent runs are often ephemeral, used for a specific task and then discarded. Locating details of an API call from an AI agent days or even hours after the fact often requires developers to sift through many dozens of old threads often to no avail.</p>
+<p><strong>Consistency:</strong> AI agents are notoriously stochastic. Giving the exact same prompt twice to the same agent often does not produce the same output, leading to inconsistent configuration between development and production environments. This drift between environments can cause subtle bugs downstream as everything seems to work in your test environment but then fails when moving to production.</p>
+<p><strong>Auditability:</strong> API calls are not descriptive of an object’s current state, only the intended destination of how you are changing the object. This means even if you have a full record of all the API calls you have made, it can be difficult to see the exact state at a single moment in time, especially when you have made many edits over time.</p>
+<h2 id="terraform-a-better-way-to-configure-your-stripe-resources">Terraform: A better way to configure your Stripe resources</h2>
+<p>Terraform elegantly solves the problems of transparency, consistency, and auditability. With Terraform, your Stripe configuration lives in code (.tf files) that you can review, version, test, and deploy using the same workflows you already use for application code.</p>
+<p>Terraform solves the core problems listed above:</p>
+<p><strong>Transparency (you can see what exists):</strong> Terraform makes the desired state explicit. Instead of guessing what an agent may have created through scattered API calls, you can open your repository and see the full set of Stripe resources as code.</p>
+<p><strong>Consistency (you can reproduce it):</strong> Terraform is declarative: you describe what you want, and Terraform converges on that state deterministically. That means you can:</p>
+<ul>
+<li>Reuse the same modules across dev/staging/prod</li>
+<li>Parameterize environment differences (for example, webhook URLs) via variables</li>
+<li>Get repeatable, predictable results even if the AI agent is stochastic</li>
+</ul>
+<p><strong>Auditability (you can track change over time):</strong> Once Stripe infrastructure is expressed in Terraform, you automatically inherit standard software auditing:</p>
+<ul>
+<li>Git history shows who changed what and when</li>
+<li>Pull request reviews capture why a change was made</li>
+</ul>
+<p>In other words, you move from “an agent did something at some point” to “here is the exact diff that was reviewed and applied.”</p>
+<h2 id="example-define-a-pricing-plan-in-terraform">Example: Define a pricing plan in Terraform</h2>
+<p>If you ask an AI agent to “set up a $20/month plan and a $200/year plan in Stripe using Terraform,” this is the kind of concrete, reviewable configuration it should produce: a product, two prices, and a webhook endpoint captured as code.</p>
+<p>Create a <a href="http://main.tf"><code>main.tf</code></a> file:</p>
+<pre><code>terraform {
+  required_providers {
+    stripe = {
+      source  = "stripe/stripe"
+      version = "~&gt; 0.1"
+    }
+  }
+}
+
+provider "stripe" {
+  # API key is read from STRIPE_API_KEY environment variable
+}
+
+variable "webhook_url" {
+  type        = string
+  description = "Public URL Stripe should send webhook events to"
+}
+
+# One product...
+resource "stripe_product" "standard_plan" {
+  name        = "Standard Plan"
+  description = "Simple subscription with monthly and annual billing"
+}
+
+# ...with a $20/month price
+resource "stripe_price" "standard_monthly" {
+  product     = stripe_product.standard_plan.id
+  currency    = "usd"
+  unit_amount = 2000 # $20.00
+
+  recurring {
+    interval = "month"
+  }
+}
+
+# ...and a $200/year price
+resource "stripe_price" "standard_yearly" {
+  product     = stripe_product.standard_plan.id
+  currency    = "usd"
+  unit_amount = 20000 # $200.00
+
+  recurring {
+    interval = "year"
+  }
+}
+
+resource "stripe_webhook_endpoint" "billing" {
+  url = var.webhook_url
+
+  enabled_events = [
+    "checkout.session.completed",
+    "invoice.paid",
+    "invoice.payment_failed",
+    "customer.subscription.created",
+    "customer.subscription.updated",
+    "customer.subscription.deleted",
+  ]
+}
+
+output "monthly_price_id" {
+  value = stripe_price.standard_monthly.id
+}
+
+output "yearly_price_id" {
+  value = stripe_price.standard_yearly.id
+}</code></pre>
+<p>Run it in your Stripe sandbox:</p>
+<pre><code>export STRIPE_API_KEY="sk_test_..."
+terraform init
+terraform plan  -var='webhook_url=https://api.example.com/webhooks/stripe'
+terraform apply -var='webhook_url=https://api.example.com/webhooks/stripe'</code></pre>
+<h2 id="best-practices">Best practices</h2>
+<p>The safest way to combine AI agents with infrastructure is to make the agent a code author, not an operator.</p>
+<p>Instead of prompting an agent to “create a Stripe product and price,” prompt it to “set up my pricing structure XYZ using Terraform”. The agent then updates the Terraform files that you can review like any other code change.</p>
+<p>This is the workflow:</p>
+<ol>
+<li>You describe the Stripe setup (for example, $20/month subscription or $200/year)</li>
+<li>The AI agent translates that into the necessary Stripe objects (products, prices, webhook endpoints, etc.)</li>
+<li>The AI agent creates or edits Terraform files</li>
+<li>In development, you run <code>terraform plan</code> to validate the changes, then <code>terraform apply</code></li>
+<li>In production, your CI/CD pipeline runs <code>terraform apply</code> once the changes have been approved and merged</li>
+</ol>
+<p><strong>Using multiple environments:</strong> When you’re managing both Stripe sandbox mode and livemode, it’s important to keep them isolated so you don’t accidentally apply sandbox changes to production (or vice versa).</p>
+<p>Terraform workspaces help by giving each environment its own separate state, while you keep the same Terraform configuration.</p>
+<p>Instead of maintaining two different copies of your Terraform code, you keep one set of <code>.tf</code> files and use:</p>
+<ul>
+<li>A sandbox workspace for Stripe sandbox mode</li>
+<li>A livemode workspace for Stripe production</li>
+</ul>
+<p>This is the workflow:</p>
+<ul>
+<li>You create two Terraform workspaces: one for sandbox and one for livemode</li>
+<li>You select the workspace you want to work in</li>
+<li>You set the matching Stripe API key for that environment</li>
+<li>You run <code>terraform plan</code> to confirm what will change, then <code>terraform apply</code> to apply it</li>
+<li>You repeat the same process for the other environment when you’re ready</li>
+</ul>
+<p>Create workspaces for sandbox and livemode:</p>
+<pre><code>terraform workspace new sandbox
+terraform workspace new livemode</code></pre>
+<p>List and verify available workspaces:</p>
+<pre><code>terraform workspace list</code></pre>
+<p>Work in sandbox (Stripe sandbox mode):</p>
+<pre><code>terraform workspace select sandbox
+export STRIPE_API_KEY="sk_test_..."
+terraform plan
+terraform apply</code></pre>
+<p>Work in livemode (Stripe production):</p>
+<pre><code>terraform workspace select livemode
+export STRIPE_API_KEY="sk_live_..."
+terraform plan
+terraform apply</code></pre>
+<p>The key idea is that the selected workspace determines which state file Terraform is using, and the STRIPE_API_KEY you export determines which Stripe environment you’re actually modifying. Keeping those two aligned makes this approach safe.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>AI agents are powerful tools for building software, but they shouldn’t be your source of truth for your Stripe infrastructure. Terraform provides an elegant solution to the difficulties of setting up your Stripe account in a world of AI development. With Terraform, your resources are easy to review, diff, and audit over time, leading to faster development, safer deploys, and much more stable resources.</p>
+<p>To learn more about developing applications with Stripe, visit our <a href="https://www.youtube.com/stripedevelopers">YouTube Channel</a> and take a look at the additional resources linked below.</p></div></div>

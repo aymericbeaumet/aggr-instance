@@ -1,0 +1,161 @@
+<div id="readability-page-1" class="page"><div>
+
+
+<p>When we looked at <a href="https://danluu.com/agentic-testing/">how well agents used test/verification techniques in August</a><sup id="fnref:A"><a rel="footnote" href="#fn:A">1</a></sup>, we saw that GPT-5.6 Sol generally did what you might call a caricature of various techniques when asked to use a technique or library such as TDD, QuickCheck, Lean 4, etc.; not specifying any particular test method (which we'll call Default) resulted in many worthless unit tests, which was one of the best performing conditions because asking agents to test in specific ways mostly made them worse. In that eval, we gave agents the Zstd RFC and asked them to implement Zstd (with an addendum for how they should test for all conditions other than Default).</p>
+
+<p>On re-running the same eval with GPT-6 Astra, we see two big differences:</p>
+
+<ol>
+<li>Astra's capability has increased by enough that we need a more difficult eval (on the Zstd implementation eval, almost every condition gets 100% correctness almost every time on medium regardless of technique)</li>
+<li>Agents seemed to use test and verification techniques more effectively</li>
+</ol>
+
+<p>On (1), we previously saw that, when implementing Zstd from the RFC with 5.6 Sol, on average, agents spent $3.50 on medium effort and $5.50 on xhigh effort to get full (holdout) test correctness about 63% and 77% of the time, respectively. With Astra, agents cost $1 to get full test correctness over 99% of the time at medium effort.</p>
+
+<p>On (2), an example would be that when we asked 5.6 Sol to do fuzzing, it would generate many worthless random inputs, which would mostly hit the same code paths and not test anything interesting. With 6 Astra, we see agents that are asked to do fuzzing in a structured way that actually exercises code paths and finds non-trivial bugs, but we can't tell if this improved correctness or not because the Zstd implementation benchmark is saturated.</p>
+
+<p>We also tried giving 5.6 Sol the IMAP RFC, but it was too hard for 5.6 Sol. When trying again with 6 Astra, we get the following distribution of results (the y-axis is the percent of runs where all tests pass; agents are not given the tests and the points are the results across 80 runs of each condition).</p>
+
+
+
+
+
+
+<p>Default once again looks pretty good. Some conditions result in somewhat better correctness, but also with higher cost. Although the IMAP RFC isn't saturated, it would be nice to also see results on a harder task since most of my time goes to tasks that agents can't one-shot most of the time. To test this, we'll try the <a href="https://danluu.com/pl-tokens/">pandoc eval we looked at when comparing programming languages</a>. A reason I want to see results on larger evals is that, as we observed <a href="https://danluu.com/ai-coding/#caveman-mode">when looking at caveman mode</a> and as we saw with languages, models often perform fairly differently on larger tasks. With caveman mode, the large wins that people reported became smaller or disappeared and with languages, we saw this in multiple ways, such as C and C++ implementations of Zstd being at least somewhat ok on memory safety, whereas C and C++ implementations of Pandoc were plagued by memory safety issues.</p>
+
+<p>Pandoc is significantly harder, and even after running multiple turns (roughly 14 on average), no condition reached 100% correctness, so we'll look at the fraction of tests passed instead of fraction of runs that got to 100%.</p>
+
+
+
+
+
+
+<p>For this, we only ran each condition 25 times due to the cost involved. At MSRP, this cost about $90k.</p>
+
+<p>Recall that, in past evals we ran on languages and test/verification techniques, the failures were often idiosyncratic results of how agents operate, such as agents using Clojure writing incorrect byte conversion code by default or agents using Verus writing vacuous proofs. This kind of thing is quite different from the reasons I've seen people say that agents should use some particular language or test/verification technique, which are generally nice-sounding explanations for why something ought to be better that sound appealing in a very human way but appear to be unrelated to reality when we look at what agents actually did<sup id="fnref:R"><a rel="footnote" href="#fn:R">2</a></sup>.</p>
+
+<p>Because we "only" ran $90k worth of evals here, we don't really have enough information to say why almost anything happened. We can observe that some conditions performed better than others, but it's difficult to say what it means. As a result, we shouldn't read too much into this, but we do see some things that seem consistent with what one might expect, in that we might expect most of the test techniques and libraries suggested to give better generalization, which would then give better holdout vs. test scores (result is up and to the left of the Default line when viewing visible vs. holdout test scores), with TDD giving worse generalization (down and to the right of the Default line).</p>
+
+<p>But, if it's true that testing properties gives us better generalization and conditions like TDD that result in a lot of small tests give less general results, we'd expect the built-in condition to also have a low holdout:visible relative to Default and that's not what we saw. Why this is is unclear and I don't think we can really determine this without a lot more runs.</p>
+
+<p>For the actual results, the line shown for cost vs. holdout and cost vs. visible show curves fitted to the shape of all graph trajectories across multiple turns, fit to Default. Things that are below / right of the line can be thought of as worse and above / left can be considered better. With 5.6 Sol, it was clear that the test conditions generally weren't doing useful work for a combination of reasons:</p>
+
+<ol>
+<li>Almost no condition outperformed Default</li>
+<li>On other evals (not discussed in detail), similar prompts also did not outperform Default</li>
+<li>The tests produced by non-Default conditions were mostly ridiculous and didn't capture the value of the technique</li>
+</ol>
+
+<p>Here, we have a situation where many different techniques have a better result than Default. The conceptual error bars on each condition are quite wide (more so than indicated by the bootstrap intervals shown on the plots), but the number of conditions that outperform Default makes it <abbr title="it's also plausible that the 25 Default runs got unlucky and Default would once again do well with a larger sample">plausible that one or more conditions truly outperforms Default</abbr> even if we don't know which ones exactly. Furthermore, some conditions likely truly outperform other conditions, but we don't really have sufficient data to tell which conditions are generally better. It's much simpler when almost everything looks bad across a wide variety of techniques.</p>
+
+<p>Here are some questions I have about the results:</p>
+
+<ol>
+<li>To what extent can these results be extrapolated to running more turns to get to <abbr title="on our holdout tests, which are not, themselves, complete">near-complete correctness for Pandoc</abbr>? In general, conditions do maintain something like their rank order with additional turns, so it's plausible the ranking will continue as-is, but this is untested</li>
+<li>How much of the results are due to a small sample size (with respect to each condition)? For the Pandoc eval, we "only" ran each condition 25 times. Many different turns were run, but we know from previous experiments as well as just using agents that there's a high degree of path dependence when looping over generated code</li>
+<li>How much of the results are due to a small sample size (with respect to minute / trivial variations)? From having run a few silly evals, I know that it's possible to get very different results when asking for the same thing due to trivial changes (such as changing sentence structure, changing capitalization, etc.); how much of the current results are due to something arbitrary like this?</li>
+<li>How much of the results are due to a small sample size (with respect to the problem being solved)? We looked at one "Pandoc-sized" problem. If we looked at 100, how representative would Pandoc be?</li>
+</ol>
+
+<p>If I really wanted to answer these questions, I'd want to run at least 100x what was run here to run the full matrix. Steve Yegge has mentioned using ~20 Claude subscriptions to spend ~$120k/mo of MSRP token spend. Getting to 100x isn't plausible with a setup like that, but 2x to 3x could be done with testing expanded in a limited fashion and some guesswork and extrapolation. I don't know that it really makes sense for me to do that given how much time it would take and how little spare time I have, but considering <a href="https://danluu.com/empirical-pl/">what kinds of things academics have looked at when studying programming productivity</a>, maybe it makes sense for a grad student to do this, since it would be more informative than a number of widely cited studies. But, in industry, I'm not sure who would do this outside of an AI lab.</p>
+
+<p>That being said, if you keep in mind that we don't know how well any of these results generalize, I'll note a few things that I thought were interesting.</p>
+
+<ol>
+<li>Differential testing caused agents to examine tests and invariants in a way that engendered better "understanding" than other conditions</li>
+<li>TDD once again underperformed, but not all conditions that caused agents to write a lot of small tests underperformed</li>
+<li>ACL2 (a theorem prover) performed well (<a href="https://danluu.com/agentic-testing/">it also performed well in the 5.6 Sol Zstd eval</a>)</li>
+<li>Property-based testing (not the named condition, but a number of libraries that force the use of the technique) finally resulted in tests that do what one might hope from PBT</li>
+</ol>
+
+<p>(1): I tried to get agents to do this with the hastily written skill I wrote for the 5.6 Sol Zstd eval; although the skill performed decently, agents basically didn't do this. However, for the Pandoc eval, differential testing did cause agents to closely examine boundary conditions and figure out how to write tests (and therefore how to write code) that correctly implements both sides of the boundary. I'm not confident that this generalize, but it would be interesting to see if it does generalize and what else can get agents to do this kind of thing systematically.</p>
+
+<p>(2): Although TDD underperforming is exactly what I'd expect (recall that I added TDD to the 5.6 Sol eval because I thought it would underperform), the lack of underperformance of other conditions that cause many small tests to get generated should reduce confidence in the plausible sounding reason that writing many small tests underperforms.</p>
+
+<p>(3): I've felt for a long time that ACL2 is underrated relative to other verification tools (it was heavily used to good effect in industry in some areas relative to the amount of academic work on it). I had low confidence in this opinion and continue to have low confidence, but it has performed well in evals I've done so far. Given how much effort is being poured into getting agents to use Lean effectively, I'd expect that Lean will eventually outperform ACL2 even if ACL2 outperforms today, but ACL2 doesn't seem like a bad choice today. For people doing verification or proofs with Lean 4, I'd be curious how the results compare to using ACL2.</p>
+
+<p>(4): Yay (perhaps). For all the reasons I noted above, I have low confidence that this generalizes, but Proptest once again performed well. And, this time, the testing was a lot better than we saw in the 5.6 Sol Zstd eval. I have no inside information on this, but I would guess that there wasn't a major effort on improving PBT / fuzzing / etc. between 5.6 Sol and 6 Astra and that this comes out of better generalization and higher capability. If that's true (and this isn't just some artifact of my only spending $90k MSRP and not $9M MSRP), this bodes well for better testing in the future in that we should expect models to get better at testing without any particular effort to improve testing capabilities.</p>
+
+<p>Between my running these tests and publishing this post, a claim that you should tell agents not to write tests (based on running DeepSWE) went viral. The specific claim was</p>
+
+<blockquote>
+<p>ok it's official...[ellipses from original quote] AI-written unit tests and integration tests are empirically proven to be unhelpful. you should tell your agents to stop writing tests by themselves</p>
+</blockquote>
+
+<p><a href="https://danluu.com/exercise-7/#30-deepswe-senior-swe-bench">As we previously noted</a>, I find DeepSWE unrepresentative of work that I do and therefore meaningless to me personally. Additionally, that was done with Sonnet 5.5 High, so it generally only passed on problems that are much easier than the problems discussed here, and as observed here and in other recent evals, which techniques are effective often doesn't generalize across problem size or problem difficulty. I find it plausible that for problems coding agents find very easy, telling them not to test reduces cost (which is what was actually shown conditional on someone caring about DeepSWE). Generalizing this to "AI-written unit tests and integration tests are empirically proven to be unhelpful" based on the test that was run seems wrong regardless of whether or not this holds for other problems, and it seems unlikely that the claim holds. The claim was based on asking for no tests, which resulted in similar correctness and a small cost savings (9%, on average). In our tests here as well as before, we find differences in correctness as well as a larger than 9% difference in cost, so it seems unlikely that a claim like "AI-written unit tests and integration tests are empirically proven to be unhelpful" based on a 9% difference in cost on a benchmark of small problems is correct. Another thing to note is that DeepSWE's grader is broken with respect to testing because (among other issues), <a href="https://epoch.ai/benchmarks/deepswe/review">an agent can add a test name that conflicts with a grader's secret test name, which will then cause a failure</a>. Given issues like that, adding tests is inherently penalized in a way that isn't representative of real-world usage.</p>
+
+<p>You can argue the claim was highly effective, in that making overstated claims that something is empirically proven is a good way to go viral<sup id="fnref:V"><a rel="footnote" href="#fn:V">3</a></sup> or <a href="https://danluu.com/empirical-pl/">get a lot of citations</a>, but it's not a good way to figure out how to use coding agents effectively.</p>
+
+<p><a href="https://nolanlawson.com/2026/10/28/the-ai-cost-of-javascript-frameworks/">In Nolan Lawson's recent post on how JavaScript framework choice impacts agents</a>, he noted:</p>
+
+<blockquote>
+<p>My goal here is not to write the end-all-be-all benchmark for “I’m a vibe-coder, which framework should I choose?” The point of this post is to demonstrate that it’s possible in the era of AI coding to still make decisions based on evidence rather than vibes.</p>
+</blockquote>
+
+<p>I feel the same way here, in that I think it's valuable to run some toy evals and see what the results are. Even if someone had the resources of an AI lab available to them, I don't think they could say that X or Y are "empirically proven to be unhelpful [or helpful]", but we can still get some kind of information.</p>
+
+<p>From what we've seen in our testing evals, I'd be inclined to try proptest if I wanted a property-based testing library in Rust, and for any problem that I'd use Lean on, I'd be inclined to try ACL2 as well to see how results vary and if I get better results, and there's also a fair amount of information that fits into some kind of vibes-based feel for things.</p>
+
+<p>As I've noted in my N most recent posts, I've been trying to write up each of these in 30 minutes because there are too many results to write up and not enough time, so I'm not going to provide <a href="https://danluu.com/agentic-testing/">an accounting of what happened for each condition like I did for the 5.6 Sol Zstd eval</a>. I'm already over 30 minutes on this post, so I'll stop here and perhaps we'll look more into testing and verification in a future post.</p>
+
+<p><i>Thanks to Laurence Tratt, Edward Z. Yang, Sophia Wisdom, and Marco Primi for comments/corrections/discussion.</i></p>
+
+<h3 id="appendix-why-don-t-ai-labs-publish-more-comparisons-on-what-techniques-are-effective">Appendix: why don't AI labs publish more comparisons on what techniques are effective?</h3>
+
+<p>Unlike us randos, they actually have the resources to run relatively comprehensive evals and there's a general lack of information about what's effective. If people understood how to use AI better, it seems like that would result in more AI usage. Also, my experience has been that different techniques are effective with OpenAI's models vs. Anthropic's models. If one of these companies published good information about what works with their models, that could move people towards interacting with agents in a way that's advantageous for them.</p>
+
+<p>I guess the case against this is something like, revenue growth is so rapid that more money can be made by doing other work and/or differences in how people prompt don't really matter anyway. As someone on the outside of these labs, the former seems plausible to me, whereas the latter doesn't seem like it can be true (because I've repeatedly observed reasonable people who aren't doing obviously silly things get very different results, to the point where one person might fail to get a working solution to a problem where another person easily makes things work). To the extent the results are "real" and not an artifact of testing a broad enough set of things, the impact is larger than it might seem from just skimming the graph because, as we put more effort/turns/dollars into implementing Pandoc, we get dimishing returns with respect to correctness. This can be observed by looking at the Default fit line, which has a slope far below what we'd get if we fit a straight line from (0,0) to the Default point, as well as by looking at the curve of the fit line. Despite that, the differences I've observed w.r.t. the impact of how people prompt in practice are much larger than what we see from variying test techinque by adding a few words about how to test. I think this is fairly unsurprising (we dont really expect there to be some magic testing/verification words that give us a 10x improvement), but this kind of thing makes it difficult/expensive to run an eval that gets at differences in how people prompt.</p>
+
+
+
+<p>David R. MacIver noted:</p>
+
+<blockquote>
+<p>Btw one thing I'm noticing in my evaluations on the skill is that ChatGPT is way less into PBT than Claude is. Claude will pretty eagerly write property-based tests and seems to benefit from them during development in my current benchmarks, but ChatGPT sol doesn't do that unless you're really insistent. So there might be some prompt sensitivity going on here, or it might be model specific. I've not yet optimised the skill for ChatGPT at all so it's possible I've inadvertently fucked something up for it. BTW I don't actually know that Claude is <i>better</i> at PBT than ChatGPT (I should really check this). It's just more proactive about doing it, but it's plausible that when they actually write properties they're about the same level of quality.</p>
+</blockquote>
+
+<p>I haven't done the same breadth of testing with Claude. Given what MacIver said, it's plausible that Claude is better at property-based testing or that it's not. Also, given that he develops Hegel and is generally using Claude, it's also plausible that Hegel works better with Claude than with Codex and we'd see better results from Hegel if we tried with Claude. So there might be some prompt sensitivity going on here, or it might be model specific.</p>
+
+<p>Although it's not shown on the graph, the original Hegel skilled used for the 5.6 Sol Zstd eval and the updated one that was created as a result of MacIver doing more testing on the skill after that eval both fared worse than Hegel with no skill. Correctness was pretty similar, and both cost a lot more, with the updated skill being the more expensive of the two. I think it's pretty interesting that this skill, which was improved for some cases got worse for other cases. As we discussed in the last post, it seems very difficult to write certain kinds of skills (such as test technique skills) that are effective across models and effort levels. A related thing we can observe here is that the Skill condition, which was a skill I quickly whipped up based on my experience driving agentic testing with GPT-5.5 and GPT-5.6 Sol outperformed in our 5.6 Sol eval, but underperformed here with 6 Astra on Pandoc. Someone who has more experience driving testing with 6 Astra on larger problems could probably write a skill that outperforms in those circumstances, at least on problems that are similar in nature to what that person has worked on, but I haven't seriously looked at Astra test effectiveness enough to write that skill myself.</p>
+
+<p>On a related note, for various arbitrary reasons, I've gotten used to using Codex. I seem to do ok with it. This gives me little idea how effective I would be with Claude.</p>
+
+<p>Roman Leventov commented:</p>
+
+<blockquote>
+<p>Hi Dan, I was encouraged by your post about ai-coding to try fuzz/generated testing.</p>
+
+<p>A part of a system I develop has a statechart-like architecture. Think of it as a support chat where automation could suggest actions or messages for support agent (human) to send to the user. LLM is not used to author messages, but just to classify some of the support intents, but state transitions are deterministic. There could also external events about the subject of the ticket that materially affect possible next actions or decisions. All of this gives rise to a rich statechart system. It is written in TypeScript.</p>
+
+<p>So I had to rewrite a significant chunk of that system so to derisk rewrite but also to try fuzzing I decided to go with it during the rewrite. I used sol xhigh for the first 5 days of the rewrite, then mostly astra medium or high for 4-5 days more (it was around astra release). I instructed agent to develop generate traces of all the possible kinds of events and effects that affect the logic.</p>
+
+<p>For the first 4 days it couldn't make the generated testing system find a single de novo defect that agent reviewers themselves didn't find first. I always use my approach where I define many angles/scopes/areas of review (for this rewrite there were about 15), make agents generate quite detailed prompt for these areas based on my templates, then start subagents in these areas with verbatim prompts in the areas as long as they find any defects or things to fix.</p>
+
+<p>In total throughout the whole rewrite, agent reviewers found about 210 bugs/defects, generated tests took off the ground a bit towards the end and produced about 20 de novo defects that agents themselves didn't notice. In total about 230.</p>
+
+<p>Production code change was about 30k lines, the generated testing harness and everything that was written specifically to support this generated testing approach was about 300k lines at the end. Probably it was very ineffective, but I didn't look into it.</p>
+
+<p>After the deploy, there were a few (4-5) very "stupid" bugs that you would think a process that run well over 100 agent reviewers and found 230 bugs couldn't have missed. Still, I consider this a good result for a rewrite of such a complex statechart system.</p>
+
+<p>Overall I consider this a negative result because generated tests helped find just 10% of the defects, and required gargantuan amount of code (300k lines) and agent tokens to develop and support.</p>
+</blockquote>
+
+<p>I think this is interesting and I would love to see more people writing up case studies of what they observe.</p>
+<div>
+
+<hr>
+
+<ol>
+<li id="fn:A">That post was published in September, but the tests were run in August. The bulk of the work for this post was done in September, but I didn't get around to publishing until November. Despite trying to spend near-zero effort on writing in order to write up experiments I've done, I'm getting further behind while simply not writing up some results that I would've published before agents.
+ <a href="#fnref:A"><sup>[return]</sup></a></li>
+
+<li id="fn:R"><p>One I heard recently is that Rust is particularly good for agents because it has nice errors that guide agents toward the correct solution. I've seen this mentioned a few times and, while I'm not going to say this absolutely can't be true as, perhaps, a large scale set of evals that I can't really afford to run might be able to find some kind of effect, I've looked a lot harder at this than anyone who I've seen make this statement and it doesn't seem to be true for any problem that I've looked at, at least at a sample size that I can afford to run. If the statement is true, its effect seems dominated by other factors in most circumstances, so it shouldn't be a reason to choose a language; it seems like the wrong thing to mention if you're going to give a single reason Rust is a good agentic language (which is what happened when I last saw this come up).</p>
+
+<p>Another thing to note here is that the plausible "human sounding" reasons for effectiveness are probably just as untrue when evaluating humans; it's just that we can't afford to run the human eval, so people pass around these irrefutable but also unsupported reasons. Recall that <a href="https://danluu.com/empirical-pl/">we looked at the literature on the effectiveness of static vs. dynamic types</a> because people frequently said that studies show that static types are more effective than dynamic types, but the evidence for this claim was nearly non-existent when we looked at the major studies that had been published at the time.</p>
+ <a href="#fnref:R"><sup>[return]</sup></a></li>
+<li id="fn:V">Some variant of the saying "a lie can run round the world before the truth has got its boots on" seems to hold for this kind of thing. The viral tweet making the overstated claim has 2.8k likes, 2.8k saves, and 395 retweets as of this writing, a bit less than a month after it was tweeted out. What's your best guess for how much traction <a href="https://x.com/danluu/status/2117489752647831610">the tweet about this post</a> will get? I don't think I can make a real money bet that the more accurate tweet will get less traction because someone could take the bet and use some service to give the tweet fake engagement, but for any topic I see being discussed on social media, the most viral claims are almost always overstated and wrong, and more nuanced claims that are less wrong can't really keep up. People seem to really like confidence even (or perhaps especially) in cases where the level of confidence indicates that the claim is almost certainly incorrect.
+ <a href="#fnref:V"><sup>[return]</sup></a></li>
+</ol>
+</div>
+
+</div></div>

@@ -1,0 +1,69 @@
+<div id="readability-page-1" class="page"><div id="post">
+
+
+
+
+
+
+<p>Laws of physics are real.</p>
+
+<p>In today’s post, I’m going to look at how Aurora DSQL is designed for availability, and how we work within the constraints of the laws of physics. If you’d like to learn more about the product first, check out the <a href="https://docs.aws.amazon.com/aurora-dsql/latest/userguide/getting-started.html">official documentation</a>, which is always a great place to go for the latest information on Aurora DSQL, and how to fit it into your architecture.</p>
+
+<p>In yesterday’s post, I mentioned that Aurora DSQL is designed to remain available, durable, and strongly consistent even in the face of infrastructure failures and network partitions. In this post, we’re going to dive a little deeper into DSQL’s architecture, focussing on multi-region active-active. Aurora DSQL is designed both for single-region applications (looking for a fast, serverless, scalable, relational database), and multi-region active-active applications (looking for all those things, plus multi-region, synchronous replication, and the ability to support active-active applications).</p>
+
+<p><em>Aurora DSQL’s Multi-Region Architecture</em></p>
+
+<p>Let’s start by dipping into Aurora DSQL’s multi-region architecture. We’ll focus on multi-region clusters here, because they highlight the trade-offs best, but the same rules apply to single region clusters if we substitute <em>AZ</em> for <em>region</em>. In a multi-region DSQL cluster<sup><a href="#foot1">1</a></sup> each of two regions runs a nearly complete copy of the cluster’s infrastructure: a full copy of storage, enough Query Processors (QPs) to handle the load, and so on. The exception is the <em>adjudicator</em>: the leader adjudicator for each shard exists in only one region at a time. We’ll come back to that, because it’s a key part of the story.</p>
+
+<p><img src="https://brooker.co.za/blog/images/1206_mr_arch.jpg" alt=""></p>
+
+<p>What benefits does this architecture offer?</p>
+
+<ul>
+  <li>Symmetric latency for active-active multi-region architectures. The read, write, and commit latency you’ll see will be very similar from both regions (this is unlike databases that do write forwarding, or have a primary region, where there’ll be one “fast” region and one or more “slow” regions).</li>
+  <li>Strongly consistent reads in both regions, at in-region latency, even for reads in read-write transactions (and remember that those <code>UPDATE</code>s and even some <code>INSERT</code>s are read-modify-writes, so this matter even if you aren’t doing any <code>SELECT</code>s).</li>
+  <li>Strong isolation for transactions in both regions.</li>
+  <li>Cross-region durability for committed transactions: the Journal ensures data is persisted in multiple regions when transactions commit.</li>
+</ul>
+
+<p>You’ll notice there are three regions here: two regions with DSQL endpoints and full copies of the data, and one <em>witness</em> region with only a copy of the Journal. That’s going to become important as we turn to discussing failures.</p>
+
+<p><em>What happens during a partition?</em></p>
+
+<p>Next, we’ll turn our attention to what happens during the time when one of the three regions is disconnected and not available. In the case it’s the witness region that’s disconnected, nothing customer-observable happens (except a small increase in <code>COMMIT</code> latency for some configurations<sup><a href="#foot3">3</a></sup>). However, if one of the two full regions because uncontactable, then DSQL makes an important decision.</p>
+
+<p><img src="https://brooker.co.za/blog/images/1206_mr_arch_failure.jpg" alt=""></p>
+
+<p>When one of the two full regions becomes unavailable (<em>partitioned off</em> if you like the CAP terminology), the DSQL endpoint in that region becomes unavailable for both reads and writes. The endpoint in the other region (the one on the <em>majority side</em>) remains available, and continues to offer strong consistency, isolation, and multi-region durability. Applications can send their customers to the healthy region, and end customers can observe no unavailability.</p>
+
+<p>Some statements of the CAP theorem make it sound like this is an impossible option, but that’s not true: there’s no theoretical or practical constraint on continuing to provide availability and strong consistency on the majority side of a network partition, as long as we don’t accept writes on the smaller side. I wrote a blog post about this a couple months back: <a href="https://brooker.co.za/blog/2024/07/25/cap-again.html">Lets Consign CAP to the Cabinet of Curiosities</a>.</p>
+
+<p>Going back to the diagram, you’ll notice that one thing did need to move: the adjudicators that were in the disconnected region. Moving the adjudicator leader to the majority partition allows that partition to start making adjudication decisions. In the Aurora DSQL design, the adjudicator contains no durable or persistent state, so this move requires only recreating its small amount of transient state on the majority side. This side knows all committed transactions, and so knows everything it need to know to recreate the adjudicator state. Storage was already fully replicated, and so there was no need to move it.</p>
+
+<p>This is another benefit of the choice of OCC. In a pessimistic locking design, if lock state is lost there’s no choice but to abort all ongoing transactions. In our OCC-based design, the adjudicators state doesn’t depend on ongoing transactions at all, and can be reconstructed only from the set of committed transactions. The adjudicators don’t even know about the running transactions, and will never come to learn about read-only transactions at all.</p>
+
+<p><em>Taking advantage of these properties</em></p>
+
+<p>We’ve covered what happens inside DSQL’s architecture. Next, let’s consider what that means for patterns of building multi-region applications on DSQL. First, I think that <em>active-active</em> architectures are the best choice for many multi-region application architectures. This simply means that both sides are actively taking customer traffic at all times (except during failures, when you move everybody over to one side). I think this for a few reasons:</p>
+
+<ul>
+  <li>Having both sides taking traffic helps you know that both sides are actually working, correctly provisioned, and able to take traffic. This avoids surprises<sup><a href="#foot2">2</a></sup>.</li>
+  <li>You can take advantage of DSQL’s fast local writes and reads, and equal-from-all-endpoints <code>COMMIT</code> performance, to offer lower latency to customers by pointing them at the application close to where they are (<a href="https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy-latency.html">Route53 can be a great way to do this</a>).</li>
+  <li>It keeps caches full and JITs warm inside your application, avoiding latency spikes when traffic needs to be rerouted.</li>
+</ul>
+
+<p>Here’s what that looks like:</p>
+
+<p><img src="https://brooker.co.za/blog/images/1206_mr_cust.jpg" alt=""></p>
+
+<p>Here, we’ve built out an application architecture here across multiple AZs in each region, used the local DSQL endpoint in each region, and routed customers to the right region using latency-based DNS routing. Taking advantage of an active-active distributed database means that many applications don’t even need to know they’re running across multiple regions - and don’t need to be modified to handle failover, switchover, and other tasks. Re-routing traffic at the front door, and handing hard problems like replication and consistency over to Aurora DSQL, greatly simplifies this architecture.</p>
+
+<p><em>Footnotes</em></p>
+
+<ol>
+  <li> For now. Keep an eye out for more configuration and features in this space.</li>
+  <li> Check out Jacob’s AWS Builder’s Library article on <a href="https://aws.amazon.com/builders-library/avoiding-fallback-in-distributed-systems/">Avoiding fallback in distributed systems</a> for why fallbacks and fail-over are good to avoid in high-reliability systems.</li>
+  <li> Because replication in the happy case is a 2-of-3 quorum protocol across 3 regions, but if one fails it becomes a 2-of-2 protocol. <a href="https://brooker.co.za/blog/2021/10/20/simulation.html">Quorum protocols are great for latency</a>, and going to 2-of-2 means that we can’t avoid waiting for the longest link in the system.</li>
+</ol>
+
+</div></div>

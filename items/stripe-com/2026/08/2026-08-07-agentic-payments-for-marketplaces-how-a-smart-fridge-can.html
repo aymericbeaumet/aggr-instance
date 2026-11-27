@@ -1,0 +1,221 @@
+<div id="readability-page-1" class="page"><div><p>How does the fridge turn a sensor signal into a trusted grocery order? How does it find an available product, choose a delivery window, and pay on the household’s behalf, without receiving unrestricted access to the household’s card or wallet?</p>
+<p>For the fictional grocery marketplace GreenMart, the first architecture choice is not about payment. It is about how GreenMart becomes discoverable to agents. GreenMart could build and operate its own ACP product feed, discovery document, and checkout implementation. Instead, it uses the <a href="https://stripe.com/blog/agentic-commerce-suite">Stripe Agentic Commerce Suite</a> to upload or connect its catalog and expose a dedicated, hosted ACP endpoint.</p>
+<p>That choice lets GreenMart share current product, price, and availability data with AI agents without building and maintaining a protocol-specific public surface itself.</p>
+<p>The solution includes:</p>
+<ul>
+<li>Stripe <a href="https://docs.stripe.com/agentic-commerce/for-sellers">Agentic Commerce Suite</a>&nbsp;to turn GreenMart’s existing catalog and commerce data into a hosted ACP storefront. Stripe can also expose UDP storefront and eventually manage any changes to protocols.</li>
+<li><a href="https://docs.stripe.com/agentic-commerce/acp">Agentic Commerce Protocol</a>&nbsp;(ACP) for&nbsp;the fridge buying agent and the companion mobile app to interact with that storefront.</li>
+<li>Household authorization policies to define what the shopping agent may buy.</li>
+<li>A household payment authorization experience—for example, a fridge companion app—that decides when the agent may use household payment authority.</li>
+<li><a href="https://link.com">Link for AI wallet</a>&nbsp;&nbsp;for agents as an optional way to give the shopping agent bounded payment capability without exposing a card to the fridge or marketplace.</li>
+<li><a href="https://docs.stripe.com/agentic-commerce/concepts/shared-payment-tokens">Shared Payment Tokens</a>&nbsp;(SPTs)&nbsp;as the underlying Stripe payment primitive for direct Stripe integrations; Link can handle those mechanics for the agent.</li>
+</ul>
+<p>We follow this core principle: an agent should be able to make approved decisions autonomously, but it should not receive more authority than the buyer intended.</p>
+<p>We assume the fridge’s sensors and inventory-detection model already exist. This post focuses on the commerce flow after the fridge detects that something needs to be bought.</p>
+<h2 id="why-greenmart-uses-the-suite-instead-of-building-acp-itself">Why GreenMart uses the Suite instead of building ACP itself</h2>
+<p>A marketplace’s product information is usually scattered across catalog, inventory, pricing, delivery, and order-management systems. Implementing ACP directly means turning those systems into a protocol-facing product feed and checkout API, keeping that interface available, and maintaining compatibility as the protocol evolves.</p>
+<p>GreenMart already needs to own the source data and business decisions: what is in stock, what substitutions are acceptable, which delivery windows are possible, and whether an order can be fulfilled. It does not need to own the agent-facing protocol surface as well.</p>
+<p>With the Stripe Agentic Commerce Suite, GreenMart provides its catalog and relevant commerce information to Stripe. The Suite exposes the hosted ACP endpoint that agents call. GreenMart retains its role as the merchant and source of truth for inventory, pricing, fulfillment, and order operations.</p>
+<p>The benefit is practical:</p>
+<ul>
+<li>GreenMart can make its catalog available to agentic surfaces without separately implementing discovery, feed hosting, and protocol routing.</li>
+<li>The fridge agent can use a standard ACP interaction rather than a GreenMart-specific integration.</li>
+<li>The companion mobile app can display the same authoritative checkout state that the agent received.</li>
+<li>GreenMart can concentrate engineering effort on catalog quality, inventory freshness, and fulfillment—not protocol infrastructure.</li>
+</ul>
+<p>The hosted endpoint is an abstraction boundary, not a replacement for GreenMart’s commerce system. GreenMart must still keep the underlying information accurate and re-check price and availability before an order is accepted.</p>
+
+<p>Every Friday, the fridge checks the household’s inventory and prepares a grocery order for Saturday-morning delivery. The household has configured preferred brands, dietary requirements, acceptable substitutions, delivery windows, and a weekly spending limit.</p>
+<p>The fridge also supports an urgent mode. If milk or eggs run out, the agent can request same-day delivery—but only for approved items, within a lower budget, and without automatically accepting substitutions.</p>
+<p>The roles stay deliberately separate:</p>
+<ul>
+<li>The fridge identifies what is missing.</li>
+<li>The shopping agent builds a basket and communicates with GreenMart through ACP.</li>
+<li>Stripe Agentic Commerce Suite hosts GreenMart’s ACP-facing catalog and checkout surface.</li>
+<li>GreenMart provides the source information and performs its normal inventory, fulfillment, and order operations.</li>
+<li>Household policy decides whether the agent may request payment.</li>
+<li>The household payment authorization experience decides whether payment authority is issued.</li>
+</ul>
+<h2 id="one-hosted-marketplace-surface-two-acp-clients">One hosted marketplace surface, two ACP clients</h2>
+<p>GreenMart sends catalog, price, inventory, and delivery information from its commerce systems to Stripe Agentic Commerce Suite. The Suite exposes that information through a hosted ACP endpoint.</p>
+<p>The fridge buying agent is one ACP client. It uses the endpoint to discover products and create a checkout. The companion mobile app is the household-facing ACP client: it uses the final checkout state to show what the agent wants to buy, apply household policy, and initiate the supported payment-authorization flow.</p>
+<h2 id=""><span><span><img src="https://stripe.dev/images/agentic-payments-for-marketplaces/image2.png" alt="A diagram of ACP data flow" loading="lazy" decoding="async"></span></span></h2>
+<p>This is why the hosted endpoint is useful: GreenMart avoids a bespoke protocol implementation, while the agent and app still have a consistent way to exchange discovery and checkout information.</p>
+<h2 id="the-end-to-end-flow">The end-to-end flow</h2>
+<p>Here is how the scheduled or urgent grocery order moves through the system.</p>
+<p><span><span><img src="https://stripe.dev/images/agentic-payments-for-marketplaces/image1.png" alt="A diagram of the entire flow" loading="lazy" decoding="async"></span></span></p>
+<p>The agent never needs to understand GreenMart’s internal catalog schema. It sees the information through ACP. GreenMart never needs to build a custom API for this agent. It supplies information to the Suite and receives the resulting order in its normal fulfillment flow.</p>
+<h2 id="the-household-policy-is-core-to-the-companion-app">The household policy is core to the companion app</h2>
+<p>Household policy is a concrete configuration owned by the people who control the bridge between the household’s agent and payment authority. The companion app should give them a way to define who may buy, what they may buy, and when the agent must stop and ask.</p>
+<p>A policy setup flow can combine:</p>
+<ul>
+<li>Guided controls: approved agents, merchants or categories, item exclusions, per-order and weekly limits, delivery locations and time windows, substitution rules, and approval thresholds.</li>
+<li>Policy templates: starting points for common arrangements, such as routine household replenishment, emergency purchases, or a child’s limited spending allowance.</li>
+<li>Natural-language authoring: as an optional convenience, an LLM can turn a request such as “restock essentials up to €80 per week, but always ask before changing brands” into proposed structured rules. The household should review and confirm the resulting rules before they are enabled.</li>
+<li>Lifecycle controls: named policy owners, policy versions, an audit trail, expiration dates, and a quick way to pause or revoke the agent’s authority.</li>
+</ul>
+<p>Evaluate the final checkout, not an estimate</p>
+<p>The household policy is not a payment credential. It determines whether the agent may request payment for this specific final checkout. If the amount, item, seller, or delivery terms violate policy, the agent can choose another option or ask the household to approve an exception.</p>
+<p>That evaluation uses a deterministic policy engine against the merchant, items, quantities, total, currency, selected fulfillment option, delivery address or window, substitutions, and any applicable budget already spent.</p>
+<p>The result should be explicit: approved, requires household approval, or denied.</p>
+<p>An approved result allows the app to request bounded payment authority through Link or another supported payment path. A checkout that exceeds a limit or introduces an unapproved substitution can be revised by the agent, escalated to a household member, or canceled. This keeps the policy understandable and auditable: an LLM may help people write it, but it should not be the component that decides whether a particular payment is allowed.</p>
+<p>Below is an example of authoritative results after the shopping agent creates or updates the checkout through GreenMart’s Stripe-hosted ACP endpoint.</p>
+<pre><code>{
+  "id": "chk_greenmart_123",
+  "status": "ready_for_payment",
+  "currency": "usd",
+  "line_items": [
+    {
+      "id": "li_milk_organic_2l",
+      "item": {
+        "id": "gm_milk_organic_2l",
+        "name": "Organic 2% milk",
+        "unit_amount": 449
+      },
+      "name": "Organic 2% milk",
+      "unit_amount": 449,
+      "quantity": 2,
+      "availability_status": "in_stock",
+      "totals": [
+        {
+          "type": "subtotal",
+          "display_text": "Organic 2% milk",
+          "amount": 898
+        }
+      ]
+    },
+    {
+      "id": "li_eggs_free_range_12",
+      "item": {
+        "id": "gm_eggs_free_range_12",
+        "name": "Free-range eggs, 12 pack",
+        "unit_amount": 487
+      },
+      "name": "Free-range eggs, 12 pack",
+      "unit_amount": 487,
+      "quantity": 2,
+      "availability_status": "in_stock",
+      "totals": [
+        {
+          "type": "subtotal",
+          "display_text": "Free-range eggs, 12 pack",
+          "amount": 974
+        }
+      ]
+    }
+  ],
+  "fulfillment_options": [
+    {
+      "id": "delivery_sat_0900_1100",
+      "type": "shipping",
+      "title": "Saturday delivery, 09:00–11:00",
+      "selected": true,
+      "totals": [
+        {
+          "type": "shipping",
+          "display_text": "Delivery fee",
+          "amount": 499
+        }
+      ]
+    },
+    {
+      "id": "delivery_sat_1100_1300",
+      "type": "shipping",
+      "title": "Saturday delivery, 11:00–13:00",
+      "selected": false,
+      "totals": [
+        {
+          "type": "shipping",
+          "display_text": "Delivery fee",
+          "amount": 299
+        }
+      ]
+    }
+  ],
+  "totals": [
+    {
+      "type": "subtotal",
+      "display_text": "Subtotal",
+      "amount": 1872
+    },
+    {
+      "type": "shipping",
+      "display_text": "Delivery fee",
+      "amount": 499
+    },
+    {
+      "type": "tax",
+      "display_text": "Tax",
+      "amount": 13
+    },
+    {
+      "type": "total",
+      "display_text": "Total",
+      "amount": 2384
+    }
+  ],
+  "messages": []
+}</code></pre>
+<p>Which becomes the following policy-evaluation view derived by the fridge:</p>
+<pre><code>{
+  "checkout_id": "chk_greenmart_123",
+  "seller": "GreenMart",
+  "total": 2384,
+  "currency": "usd",
+  "selected_delivery": "Saturday delivery, 09:00–11:00",
+  "items": [
+    {
+      "product_id": "gm_milk_organic_2l",
+      "quantity": 2,
+      "amount": 898
+    },
+    {
+      "product_id": "gm_eggs_free_range_12",
+      "quantity": 2,
+      "amount": 974
+    }
+  ]
+}</code></pre>
+<p><code>id</code>, <code>status</code>, <code>line_items</code>,&nbsp;<code>fulfillment_options</code>, and <code>totals</code>&nbsp;are ACP checkout concepts. The actual names and optional fields should follow the current <a href="https://github.com/agentic-commerce-protocol/agentic-commerce-protocol/blob/main/spec/2026-04-17/json-schema/schema.agentic_checkout.json">ACP checkout schema</a>.</p>
+<h2 id="where-payment-authority-lives">Where payment authority lives</h2>
+<p>The app does not store card details. It uses the final ACP checkout as the purchase context, applies the household’s policy, and can either ask for an explicit approval or let the household grant the shopping agent bounded access to its Link wallet for agents.</p>
+<p>That gives the full system two controls:</p>
+<ol>
+<li>Household policy decides whether the agent may request payment for this particular checkout.</li>
+<li>The household chooses how payment authority is issued: explicit approval for a purchase, or a pre-authorized Link capability with guardrails.</li>
+</ol>
+<p>Link is an optional payment-authority layer, not a prerequisite for ACP or the Agentic Commerce Suite. An implementation can still use a different supported wallet or a direct SPT integration when that is the right product choice.</p>
+<h2 id="optional-let-link-handle-the-payment-credential">Optional: let Link handle the payment credential</h2>
+<p>If the household gives the shopping agent access to its Link wallet for agents, the agent does not need to handle card data—or, for a Stripe-processing marketplace, the details of an SPT—at all. It still needs the final checkout and household policy decision before it asks Link to pay.</p>
+<h3 id="greenmart-processes-payments-on-stripe">GreenMart processes payments on Stripe</h3>
+<p>For a marketplace like GreenMart that processes payments on Stripe, Link can provide the agent’s payment capability and handle the Stripe-specific credential handoff. Under the hood, the Stripe payment flow uses a Shared Payment Token and a <code>PaymentIntent</code>&nbsp;to process the transaction. GreenMart receives the payment result, not the household’s card details.</p>
+<p>That means the buyer-facing flow can stay simple:</p>
+<ol>
+<li>The agent creates an ACP checkout through GreenMart’s Stripe-hosted endpoint.</li>
+<li>The companion app evaluates the final checkout against household policy.</li>
+<li>Link authorizes the agent to pay GreenMart within the household’s limits.</li>
+<li>The hosted checkout completes and GreenMart receives the confirmed order.</li>
+</ol>
+<p>The agent and companion app do not need to create, transport, or interpret an spt_…&nbsp;identifier in this path. SPTs remain the Stripe plumbing behind the authorization. For the lower-level model, a merchant creates a <code>PaymentIntent</code>&nbsp;using the granted SPT; see <a href="https://docs.stripe.com/agentic-commerce/concepts/shared-payment-tokens">Shared Payment Tokens</a>.</p>
+<h3 id="greenmart-does-not-process-payments-on-stripe">GreenMart does not process payments on Stripe</h3>
+<p>Link can also support an agent purchasing from a merchant that is not processing payments on Stripe by issuing a virtual card for the transaction. The virtual card can carry the same kind of bounded authority the household intended—for example, a capped amount and a short expiry window of a few hours—rather than exposing the household’s reusable card credentials.</p>
+<p>This gives the agent a payment credential that a non-Stripe merchant can accept through its existing card-processing stack. Availability and the exact guardrails depend on the Link and Issuing-for-agents capabilities enabled for the household and merchant, so production teams should validate the current product and integration requirements before relying on this path.</p>
+<h2 id="use-direct-spts-only-when-you-need-the-lower-level-integration">Use direct SPTs only when you need the lower-level integration</h2>
+<p>A direct SPT flow remains useful when the agent, wallet, or marketplace needs to control the token exchange explicitly. In that model, after policy approval a supported wallet returns a GreenMart-specific SPT; the marketplace then uses it to create a <code>PaymentIntent</code>&nbsp;on Stripe.</p>
+<p>Whether Link abstracts the token or the integration passes an SPT directly, the security boundary is the same:</p>
+<ul>
+<li>The agent receives bounded payment authority, not a card number.</li>
+<li>GreenMart receives a confirmed order through its commerce integration.</li>
+<li>Retries must be idempotent, and payment/order events must be reconciled through verified webhooks.</li>
+<li>Revoked or expired payment authority must prevent order completion.</li>
+</ul>
+<h2 id="design-for-the-moments-when-the-agent-should-stop">Design for the moments when the agent should stop</h2>
+<p>Suppose GreenMart’s preferred milk is unavailable. The marketplace offers a larger replacement, but the replacement raises an urgent order from $23.84 to $26.10.</p>
+<p>The agent should not silently accept the change if it exceeds the household’s policy. It can find another eligible product, remove the unavailable item, select a lower-cost delivery window, or ask the household to approve the higher total.</p>
+<p>That is what bounded autonomy looks like: the agent can take routine action quickly, and it can recognize when the decision belongs to a person.</p>
+<h2 id="where-the-model-context-protocolfits">Where the Model Context Protocol&nbsp;fits</h2>
+<p>This architecture does not require the Model Context Protocol (<a href="https://modelcontextprotocol.io/docs/getting-started/intro">MCP</a>) &nbsp;on the purchase path. Stripe Agentic Commerce Suite gives GreenMart a hosted ACP endpoint, and the fridge agent and companion app use ACP to work with the marketplace.</p>
+<p>MCP can still be useful for optional capabilities in MCP-enabled hosts: meal planning, loyalty lookup, recipe-based baskets, delivery recommendations, customer support, or fridge-side tools that interpret sensor data. Those extensions remain separate from GreenMart’s hosted commerce surface.</p>
+<h2 id="reference-implementation">Reference implementation</h2>
+<p>The companion sample implements mocked fridge inventory signals, household policy evaluation, both an ACP- and ACS- based&nbsp;checkout, a household payment-authorization step, SPT-based payment, and webhook-safe order confirmation. Its developer console shows the full flow, including the distinction between a policy decision and payment authorization.</p>
+<p><a href="https://github.com/aandresdelvalle-stripe/smart-fridge-agentic-commerce">Explore the Smart Fridge Agentic Commerce reference implementation</a> on GitHub.</p></div></div>

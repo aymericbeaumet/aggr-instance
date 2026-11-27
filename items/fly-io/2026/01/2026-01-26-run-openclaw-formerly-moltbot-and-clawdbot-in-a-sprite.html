@@ -1,0 +1,107 @@
+<div id="readability-page-1" class="page"><section>
+            <figure>
+                <img src="https://fly.io/blog/openclaw-in-a-sprite/assets/moltbot.webp" alt="How to Run OpenClaw in a Sprite" fetchpriority="high" decoding="async">
+            </figure>
+          <h2 id="running-openclaw-on-a-sprite"><a href="#running-openclaw-on-a-sprite" aria-label="Anchor"></a><span>Running OpenClaw on a Sprite</span></h2>
+<p>There’s zero chance this will be the first time you’re hearing about OpenClaw, the project previously known as Clawdbot and then Moltbot. It’s an open-source AI assistant that connects to messaging platforms you probably already use: WhatsApp, Telegram, Slack, Discord, Signal, etc. It comes with a fast-growing list of connectors and Skills and self-iterating capabilities, right out of the box.</p>
+
+<p>If you really want to see what a project like OpenClaw can do, you need to run it with generous permissions and give it access to its environment. That is inherently scary, which is why so many people have been snapping up Mac Minis to run their OpenClaw in an isolated environment.</p>
+
+<p>You don’t need a Mac Mini. Instead, let’s learn how to run OpenClaw in a Sprite. (Prefer one click? <a href="https://fly.io/sprites/openclaw/" title="">Deploy OpenClaw on a Sprite</a> and skip the rest of this post.) A stateful sandbox with automatic sleep/wake behaviour that keeps running costs low. <a href="https://fly.io/sprites/" title="">Sprites</a> are fully hardware isolated Linux computers, so you can give OpenClaw total agency and not even have to think about building your own guardrails.</p>
+<h2 id="create-a-sprite"><a href="#create-a-sprite" aria-label="Anchor"></a><span>Create a Sprite</span></h2>
+<p>Install the Sprites CLI and create a Sprite:</p>
+<div>
+    <pre><code data-language="wrapper">curl -fsSL https://sprites.dev/install.sh | bash
+sprite create openclaw
+</code></pre>
+  </div>
+<p>Connect to the Sprite console:</p>
+<div>
+    <pre><code data-language="wrapper">sprite console -s openclaw
+</code></pre>
+  </div><h2 id="install-and-configure-openclaw"><a href="#install-and-configure-openclaw" aria-label="Anchor"></a><span>Install and Configure OpenClaw</span></h2>
+<p>Run the OpenClaw install script:</p>
+<div>
+    <pre><code data-language="wrapper">curl -fsSL https://openclaw.ai/install.sh | bash
+</code></pre>
+  </div>
+<p>The wizard will configure your credentials, hooks, and messaging platforms. You’ll see two expected errors at the end:</p>
+
+<p><strong>Systemd unavailable</strong> — Sprites don’t use systemd</p>
+
+<p><strong>Health check failed</strong> — The Gateway isn’t running yet</p>
+
+<p>This is normal. The onboarding creates your config. We’ll start the Gateway next.</p>
+
+<p><strong>Important:</strong> Copy the token shown in OpenClaw’s output. It looks like:</p>
+
+<p><code>9054a0cfca3f5be5325f988fb57ddf1f38e530d2883bbed7</code></p>
+
+<p>Add openclaw to your PATH so it’s available in future sessions:</p>
+<div>
+    <pre><code data-language="wrapper">echo 'export PATH="$PATH:/.sprite/languages/node/nvm/versions/node/v22.20.0/bin"' &gt;&gt; ~/.zshrc
+source ~/.zshrc
+</code></pre>
+  </div><h2 id="register-openclaw-as-a-sprite-service"><a href="#register-openclaw-as-a-sprite-service" aria-label="Anchor"></a><span>Register OpenClaw as a Sprite Service</span></h2>
+<p>Sprites have their own <a href="https://docs.fly.io/sprites/concepts/services" title="">service manager</a> that auto-starts services when HTTP requests arrive. Register the Gateway:</p>
+<div>
+    <pre><code data-language="wrapper"> sprite-env services create openclaw-gateway \
+    --cmd "$(which openclaw)" \
+    --args "gateway" \
+    --http-port 18789
+</code></pre>
+  </div>
+<p>This registers the Gateway and routes your Sprite URL to port 18789. When requests hit your Sprite URL, the Sprite wakes and the Gateway starts automatically.</p>
+<h2 id="make-the-url-public-optional"><a href="#make-the-url-public-optional" aria-label="Anchor"></a><span>Make the URL Public (Optional)</span></h2>
+<p>By default, Sprite URLs require authentication. To make yours public and get the url:</p>
+<div>
+    <pre><code data-language="wrapper">sprite url update --auth public -s openclaw
+</code></pre>
+  </div><h2 id="access-the-dashboard"><a href="#access-the-dashboard" aria-label="Anchor"></a><span>Access the Dashboard</span></h2>
+<p>For initial setup, access your Sprite URL + the token from onboarding:</p>
+
+<p><code>https://yoursprite.sprites.app/?token=YOUR_TOKEN_HERE</code></p>
+
+<p>You’ll see a “pairing required” message. This is OpenClaw’s security. It requires you to approve new devices before they can connect.</p>
+<h2 id="approve-your-device"><a href="#approve-your-device" aria-label="Anchor"></a><span>Approve Your Device</span></h2>
+<p>Back in the Sprite console, list pending pairing requests:</p>
+<div>
+    <pre><code data-language="wrapper">openclaw devices list
+</code></pre>
+  </div>
+<p>Approve the pending request:</p>
+<div>
+    <pre><code data-language="wrapper">openclaw devices approve REQUEST_ID
+</code></pre>
+  </div>
+<p>Refresh your browser. You’re in.</p>
+<h2 id="checkpoint-your-setup"><a href="#checkpoint-your-setup" aria-label="Anchor"></a><span>Checkpoint Your Setup</span></h2>
+<p>Checkpoint your working configuration:</p>
+<div>
+    <pre><code data-language="wrapper">sprite checkpoint create
+</code></pre>
+  </div>
+<p>If you ever need to return to this state:</p>
+<div>
+    <pre><code data-language="wrapper">sprite restore &lt;id&gt;
+</code></pre>
+  </div><h2 id="what-youve-built"><a href="#what-youve-built" aria-label="Anchor"></a><span>What You’ve Built</span></h2>
+<p>Your OpenClaw Gateway now lives on a Sprite that:</p>
+
+<ul>
+<li>Sleeps when idle
+</li><li>Wakes automatically when you hit the URL
+</li><li>Restarts the Gateway service on wake
+</li><li>Persists your config and pairing across restarts
+</li></ul>
+
+<p>Once paired, you can access the dashboard and start chatting with OpenClaw. It’s not bad at understanding its own capabilities, so just ask for the integrations and channels you want to set up.</p>
+<h2 id="bonus-level"><a href="#bonus-level" aria-label="Anchor"></a><span>Bonus Level:</span></h2><hr>
+<p>Tell OpenClaw to build a Sprites Skill for itself, so it knows how to manage its own environment:</p>
+
+<blockquote>
+<p>Create a Sprite skill by reading the documentation at /.sprite/llm.txt and /.sprite/docs/agent-context.md. The skill should teach you how to manage Sprite services (since there’s no systemd), create checkpoints, restart the openclaw-gateway, and check network policy. Save it to ~/.openclaw/skills/sprite/SKILL.md.</p>
+</blockquote>
+
+          
+        </section></div>

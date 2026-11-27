@@ -1,0 +1,60 @@
+<div id="readability-page-1" class="page"><div><p>At Stripe, we’re continually refining the way we release new features, empowering you to innovate faster. Today, we’re excited to announce our new and improved public preview release channel. We’re launching a new category of API versions, which give early access to upcoming features ahead of their General Availability (GA) launches.</p>
+<p>Starting today, you can use the public preview release channel to access new Stripe features such as the <a href="https://docs.stripe.com/connect/accounts-v2/api">Accounts v2 API</a> to represent your connected accounts and <a href="https://docs.stripe.com/global-payouts">Global Payouts</a> to send payouts to customers, affiliates, contractors, or other third parties.</p>
+<p>Check out all the new public preview features by visiting the <a href="https://docs.stripe.com/changelog?category=all&amp;channel=preview">public preview changelog</a>.</p>
+<h2 id="about-public-preview">About public preview</h2>
+<p>The public preview release channel is designed to let you access brand new API features before they become generally available. Although these features are operationally stable and production-ready, they may receive breaking changes more often than GA features, and may be subject to some restrictions.</p>
+<p>Here’s what you can expect:</p>
+<ul>
+<li><strong>Early access</strong>: Public preview lets you work with new features ahead of their GA release, so you can build, test, and launch your integrations earlier.</li>
+<li><strong>Distinct API versions</strong>: Public preview features will utilize preview API versions, which are distinct from GA versions. For example, <code>2025-04-30.preview</code> rather than <code>2025-04-30.basil</code>.</li>
+<li><strong>More frequent changes</strong>: Unlike our GA API releases (which introduce breaking changes approximately twice a year), each new public preview API version may contain breaking changes. This cadence allows us to iterate quickly based on your feedback.</li>
+<li><strong>Some other restrictions may apply</strong>: There may be additional restrictions on certain public preview features. For example, some features may not yet be available in certain geographic regions. Others may require one-time onboarding or approval from Stripe before use. Each feature’s documentation describes any restrictions.</li>
+</ul>
+<h2 id="get-started-with-public-preview">Get started with public preview</h2>
+
+<p>To make public preview API calls, you’ll send a <strong>preview API version</strong> via the <code>Stripe-Version</code> header. These versions end in <code>preview</code>, for example: <code>2025-04-30.preview</code>. You can view information for all preview versions in the <a href="https://docs.stripe.com/changelog?category=all&amp;channel=preview">preview section of the changelog</a>.</p>
+<p>Note that when upgrading from one preview version to another, there may be breaking changes. Any changes will be described in the changelog.</p>
+<h3 id="sdks">SDKs</h3>
+<p>Going forward, Stripe’s beta <a href="https://docs.stripe.com/sdks">SDKs</a> will use these new preview versions. The beta SDK releases are differentiated from their GA counterparts by special suffixes in their versions, such as  <code>5.2.0-beta.1</code>. Beta SDKs will include preview features in addition to everything that is already in GA.</p>
+<h3 id="api-reference">API reference</h3>
+<p>Preview versions now appear in Stripe’s <a href="https://docs.stripe.com/api?api-version=preview">API reference documentation</a>; use the dropdown at the top-right to select a preview version. Code snippets will be populated with the preview version and corresponding types.</p>
+<p><span><span><img src="https://stripe.dev/images/introducing-stripes-new-public-preview-release-channel/image1.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<h2 id="illustrating-the-benefits-of-public-preview">Illustrating the benefits of public preview</h2>
+<p>Now we’ll walk through a scenario that demonstrates the mechanics of the new preview API versions.</p>
+<p>Let’s imagine Stripe is launching a new parameter <code>automatic_vacuum_vat</code> that can be set when creating an extraterrestrial payment. If set, the payment’s Vacuum VAT (the UN tax on payments that transit the vacuum of space) line items will be automatically calculated using the merchant and customer’s location, and then added to the checkout session.</p>
+<p>The automatic Vacuum VAT feature already has high availability and low latency, and certain Stripe users want to start using it right away. However, for the time being, automatic Vacuum VAT only works when both the merchant and customer locations are planetary. In other words, the feature doesn’t yet support the merchant or customer being located in the asteroid belt or other non-planetary orbits. There are many users who are okay with that; they still want to use the feature, and would build around the planetary orbit-only restriction.</p>
+<h3 id="in-a-ga-only-world">In a GA-only world</h3>
+<p>Suppose <code>automatic_vacuum_vat</code> were immediately launched in a GA version—say, <code>2300-04-30.ziziphus</code>.</p>
+<p>Some time later, an unsuspecting Stripe user working at a space freight platform noticed an AI coding agent attempting to use the <code>automatic_vacuum_vat</code> parameter. Upon conversing with the agent to learn the parameter’s purpose, the user is struck by the feature’s usefulness and applicability to their business. Without noticing the location restrictions in the official documentation, they instruct the coding agent to add it to their integration:</p>
+<pre><code>curl https://api.stripe.com/v1/extraterrestrial_payments \
+  -H "Stripe-Version: 2300-04-30.ziziphus" \
+  ...
+  -d "automatic_vacuum_vat"=true</code></pre>
+<p>It works as expected in testing, and they even write a comprehensive automated test suite, and all the tests pass (the test merchants and customers all have Mars addresses). So the user rolls out the change to production.</p>
+<p>Soon enough, the platform’s customer support channels are awash with space freighter SMBs who enabled the feature—confused why some payments have Vacuum VAT line items and others don’t.</p>
+<h3 id="with-public-preview"><strong>With public preview</strong></h3>
+<p>Say instead that Stripe released <code>automatic_vacuum_vat</code> only in <code>2300-04-30.preview</code>, a public preview version, and not in GA.</p>
+<p>In this world, our protagonist user tries to test out <code>automatic_vacuum_vat</code> in their integration:</p>
+<pre><code>curl https://api.stripe.com/v1/extraterrestrial_payments \
+  -H "Stripe-Version: 2300-04-30.ziziphus" \
+  ...
+  -d "automatic_vacuum_vat"=true</code></pre>
+<p>But this time, Stripe returns a <a href="https://docs.stripe.com/error-codes#parameter-unknown"><code>parameter_unknown</code> 400 error</a>, because <code>automatic_vacuum_vat</code> doesn’t exist in <code>2300-04-30.ziziphus</code>, which is a GA version.</p>
+<p>If the user had been using SDKs, they would have gotten this feedback even earlier:</p>
+<pre><code>ExtraterrestrialPaymentCreateParams.builder()
+    ...
+    .addAutomaticVacuumVat(true)  // compile error! method doesn't exist in the GA SDK
+    .build();</code></pre>
+<p>Upon receiving this error, the user checks the documentation and sees that <code>automatic_vacuum_vat</code> is a public preview feature with certain caveats. To use it, they would have to make a conscious decision to change the API version to the appropriate preview version.</p>
+<p>If they end up deciding to accept the restriction and integrate with public preview to use this feature, the <code>curl</code> would look like:</p>
+<pre><code>curl https://api.stripe.com/v1/extraterrestrial_payments \
+  -H "Stripe-Version: 2300-04-30.preview"  \ # changed!
+  ...
+  -d "automatic_vacuum_vat"=true</code></pre>
+<p>But this is only for creating extraterrestrial payment API requests—the rest of the company’s API calls continue to use the GA version <code>2300-04-30.ziziphus</code>.</p>
+<p>Although contrived, this story illustrates how the public preview release channel can provide additional guardrails for new features, while still giving you the option to use those new features as early as possible.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Stripe’s new public preview release channel offers an opportunity for you to access and experiment with upcoming API features before they become generally available. Public preview versions use new versions that are distinct from GA versions. This approach enables you to integrate new functionality earlier while reducing risk, and lets you give more feedback to Stripe at an early stage.</p>
+<p>We look forward to hearing what you think about the public preview release channel, and we’re excited to see what you build with it. As always, we welcome your thoughts and feedback on <a href="https://insiders.stripe.dev/">Stripe Insiders</a>.</p>
+<p>For an overview of all of Stripe’s release channels, see <a href="https://docs.stripe.com/release-phases">Product release phases</a>.</p>
+<p>To learn more about developing applications with Stripe, visit our <a href="https://www.youtube.com/stripedevelopers">YouTube Channel</a>.</p></div></div>

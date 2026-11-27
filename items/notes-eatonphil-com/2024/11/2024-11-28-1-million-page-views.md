@@ -1,0 +1,82 @@
+---
+title: 1 million page views
+link: http://notes.eatonphil.com/2024-11-28-1-million-views.html
+source: notes-eatonphil-com
+published: 2024-11-28T00:00:00Z
+updated: 2024-11-28T00:00:00Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+labels:
+- writing
+summary: 'I was delighted to notice this morning that this site has recently passed 1M page views. And since Murat wrote about his 1M page view accomplishment at the time, I felt compelled to now too. I started regularly blogging in 2018. For some reason I decided to write a blog post every month. And while I have definitely skipped a month or two here or there, on average I''ve written 2 posts per month. Tooling Since at least 2018 this site has been built with a static site generator. I might have used a 3rd-party generator at one point, but for as long as I can remember most of this site has been built with a little Python script I wrote. I used to get so pissed when static site generators would pointlessly change their APIs and I''d have to make pointless changes. I have not had to make any significant changes to my build code in many years. I hosted the site itself on GitHub Pages for many years. But I wanted more flexibility with subdomains (ultimately not something I liked) and the ability to view server-side logs (ultimately not something I ever do). I think this site is hosted on an OVH machine now. But at this point it is inertia keeping me there. If you have no strong feelings otherwise, GitHub Pages is perfect. I used to use Google Analytics but then they shut down the old version. The new version was incredibly confusing to use. I could not find some very basic information. So I moved to Fathom which has been great. I used to track all subscribers in a Google Form and bcc them but this became untenable eventually after 1000 subscribers due to GMail rate limits. I currently use MailerLite for subscriptions and sending email about new posts. But this is an absolutely terrible service. They proxy all links behind a domain that adblockers hate and they also visually shorten the URL so you can''t copy the text of the URL. I just want a service that has a hosted form for collecting subscribers and a <textarea> that lets me dump raw HTML and send that as an email to my subscribers. No branding, no watermarks, no link proxying. This apparently doesn''t exist. I am too lazy to figure out Amazon SES so I stick with MailerLite for now. Evolution In the beginning I talked about little interpreters in JavaScript, about programming languages, about Scheme. I was into functional programming. Over time I moved into little emulators and bytecode VMs. And for the last four years I became obsessed with databases and distributed systems. I have almost always written about little projects to teach myself a concept. Writing a bytecode VM in Rust, emulating a subset of x86 in Go, implementing Raft in Go, implementing MVCC isolation levels in Go, and so on. So many times when I tried to learn a concept I would find blog posts with only partial code. The post would link to a GitHub repo that, by the time I got to the post, had evolved significantly beyond what was described in the post. The repo code had by then become too complex for me to follow. So I was motivated to write minimal implementations and walk through the code in its entirety. Even today there is not a single post on implementing TCP/IP from scratch that walks through entirely working code. (Please, someone write this.) I have also had a blast writing survey posts such as how various databases execute expressions, analyzing non-V8 JavaScript implementations, how various programming language implementations parse code, and how various database systems build on top of key-value databases. The last two posts have even each been cited in a research paper (here and here). Editing In terms of quality, my single greatest trick is to read the post out loud. Multiple times. Notice parts that are awkward or unclear and rewrite them. My second greatest trick is to ask friends for review. Some posts like an intuition for distributed consensus and a write-ahead log is not a universal part of durability would simply not have been correct or credible without my fantastic reviewers. And I''m proud to have played that part a few times in turn. We also have a fantastic #writing-and-drafts channel on the Software Internals Discord where folks (myself occasionally included) come for post review. Context I''ve lost count of the total number of times that these posts have been on the front page of Hacker News or that a tweet announcing a post has reached triple digits likes. I think I''ve had 9 posts on the front of HN this year. I do know that my single best year for HN was 12 months between 2022-2023 where 20 of my posts or projects were on the front page. Every time a post does well there''s a part of me that worries that I''ve peaked. But the way to deal with this has been to ignore that little voice and to just keep learning new things. I haven''t stopped finding things confusing yet, and confusion is a phenomenal muse. And also to, like, go out and meet friends for dinner, run meetups, run book clubs, chat with you fascinating internet strangers, play volleyball, and so on. It''s always been about cultivating healthy obsessions. Benediction In parting, I''ll remind you: It is definitely worth writing about, whatever "it" is You''re not writing enough And some ideas for posts I want to hear about if you write about them I wrote a little reflection on writing after noticing I passed 1M page views this morning.https://t.co/eIlMDVHNht pic.twitter.com/EKSiiDUz5G — Phil Eaton (@eatonphil) November 28, 2024'
+content: extracted
+html: 2024-11-28-1-million-page-views.html
+remote_preview:
+  url: https://notes.eatonphil.com/assets/1m-page-views.png
+  alt: /assets/1m-page-views.png
+---
+
+I was delighted to notice this morning that this site has recently passed 1M page views. And since Murat [wrote](https://muratbuffalo.blogspot.com/2017/02/1-million-pageviews.html) about his 1M page view accomplishment at the time, I felt compelled to now too.
+
+![/assets/1m-page-views.png](https://notes.eatonphil.com/assets/1m-page-views.png)
+
+I started regularly blogging in 2018. For some reason I decided to write a blog post every month. And while I have definitely skipped a month or two here or there, on average I've written 2 posts per month.
+
+### Tooling
+
+Since at least 2018 this site has been built with a static site generator. I might have used a 3rd-party generator at one point, but for as long as I can remember most of this site has been built with a [little Python script](https://github.com/eatonphil/eatonphil.com/blob/main/notes/scripts/build.py) I wrote.
+
+I used to get so pissed when static site generators would pointlessly change their APIs and I'd have to make pointless changes. I have not had to make any significant changes to my build code in many years.
+
+I hosted the site itself on GitHub Pages for many years. But I wanted more flexibility with subdomains (ultimately not something I liked) and the ability to view server-side logs (ultimately not something I ever do).
+
+I think this site is hosted on an OVH machine now. But at this point it is inertia keeping me there. If you have no strong feelings otherwise, GitHub Pages is perfect.
+
+I used to use Google Analytics but then they shut down the old version. The new version was incredibly confusing to use. I could not find some very basic information. So I moved to Fathom which has been great.
+
+I used to track all subscribers in a Google Form and bcc them but this became untenable eventually after 1000 subscribers due to GMail rate limits. I currently use MailerLite for subscriptions and sending email about new posts. But this is an absolutely terrible service. They proxy all links behind a domain that adblockers hate and they also visually shorten the URL so you can't copy the text of the URL.
+
+I just want a service that has a hosted form for collecting subscribers and a `<textarea>` that lets me dump raw HTML and send that as an email to my subscribers. No branding, no watermarks, no link proxying. This apparently doesn't exist. I am too lazy to figure out Amazon SES so I stick with MailerLite for now.
+
+### Evolution
+
+In the beginning I talked about little interpreters in JavaScript, about programming languages, about Scheme. I was into functional programming. Over time I moved into little emulators and bytecode VMs. And for the last four years I became obsessed with databases and distributed systems.
+
+I have almost always written about little projects to teach myself a concept. Writing a [bytecode VM in Rust](https://notes.eatonphil.com/lua-in-rust.html), [emulating a subset of x86 in Go](https://notes.eatonphil.com/emulating-amd64-starting-with-elf.html), [implementing Raft in Go](https://notes.eatonphil.com/2023-05-25-raft.html), [implementing MVCC isolation levels in Go](https://notes.eatonphil.com/2024-05-16-mvcc.html), and so on.
+
+So many times when I tried to learn a concept I would find blog posts with only partial code. The post would link to a GitHub repo that, by the time I got to the post, had evolved significantly beyond what was described in the post. The repo code had by then become too complex for me to follow. So I was motivated to write minimal implementations and walk through the code in its entirety.
+
+Even today there is not a single post on implementing TCP/IP from scratch that walks through entirely working code. (Please, someone write this.)
+
+I have also had a blast writing survey posts such as [how various databases execute expressions](https://notes.eatonphil.com/2023-09-21-how-do-databases-execute-expressions.html), [analyzing non-V8 JavaScript implementations](https://notes.eatonphil.com/javascript-implementations.html), [how various programming language implementations parse code](https://notes.eatonphil.com/parser-generators-vs-handwritten-parsers-survey-2021.html), and [how various database systems build on top of key-value databases](https://notes.eatonphil.com/whats-the-big-deal-about-key-value-databases.html).
+
+The last two posts have even each been cited in a research paper ([here](https://arxiv.org/pdf/2208.08235) and [here](https://www.usenix.org/system/files/atc23-kaufman.pdf)).
+
+### Editing
+
+In terms of quality, my single greatest trick is to read the post out loud. Multiple times. Notice parts that are awkward or unclear and rewrite them.
+
+My second greatest trick is to ask friends for review. Some posts like [an intuition for distributed consensus](https://notes.eatonphil.com/2024-02-08-an-intuition-for-distributed-consensus-in-oltp-systems.html) and [a write-ahead log is not a universal part of durability](https://notes.eatonphil.com/2024-07-01-a-write-ahead-log-is-not-a-universal-part-of-durability.html) would simply not have been correct or credible without my fantastic reviewers. And I'm proud to have [played that part](https://eatonphil.com/editor.html) a few times in turn.
+
+We also have a fantastic #writing-and-drafts channel on the [Software Internals Discord](https://eatonphil.com/discord.html) where folks (myself occasionally included) come for post review.
+
+### Context
+
+I've lost count of the total number of times that these posts have been on the front page of Hacker News or that a tweet announcing a post has reached triple digits likes. I think I've had 9 posts on the front of HN this year. I do know that my single best year for HN was 12 months between 2022-2023 where 20 of my posts or projects were on the front page.
+
+Every time a post does well there's a part of me that worries that I've peaked. But the way to deal with this has been to ignore that little voice and to just keep learning new things. I haven't stopped finding things confusing yet, and [confusion is a phenomenal muse](https://notes.eatonphil.com/2024-06-14-confusion-is-a-muse.html).
+
+And also to, like, go out and meet friends for dinner, [run](https://nycsystems.xyz/) [meetups](https://eatonphil.com/nyc-systems-coffee-club.html), run [book clubs](https://eatonphil.com/bookclub.html), [chat](https://eatonphil.com/chat.html) with you fascinating internet strangers, play volleyball, and so on.
+
+It's always been about [cultivating healthy obsessions](https://notes.eatonphil.com/2024-08-24-obsession.html).
+
+### Benediction
+
+In parting, I'll remind you:
+
+- [It is definitely worth writing about](https://notes.eatonphil.com/is-it-worth-writing-about.html), whatever "it" is
+- [You're not writing enough](https://twitter.com/eatonphil/status/1854965419745972394)
+- And [some ideas for posts I want to hear about if you write about them](https://eatonphil.com/call-for-posts.html)
+
+> I wrote a little reflection on writing after noticing I passed 1M page views this morning.[https://t.co/eIlMDVHNht](https://t.co/eIlMDVHNht) [pic.twitter.com/EKSiiDUz5G](https://t.co/EKSiiDUz5G)
+>
+> — Phil Eaton (@eatonphil) [November 28, 2024](https://twitter.com/eatonphil/status/1862174926104318407?ref_src=twsrc%5Etfw)

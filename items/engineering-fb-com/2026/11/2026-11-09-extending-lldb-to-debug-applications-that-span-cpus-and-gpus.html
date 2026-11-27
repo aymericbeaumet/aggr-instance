@@ -1,0 +1,83 @@
+<div id="readability-page-1" class="page"><div>
+
+		<ul>
+<li aria-level="1"><span>We built a vendor-neutral accelerator plugin architecture in </span><span>lldb-server</span><span> for debugging applications that span CPUs and GPUs. It separates shared debugger infrastructure from hardware-specific device control.</span></li>
+<li aria-level="1"><span>The design represents the CPU and GPU as separate debugger processes while presenting them in one debugging session.</span></li>
+</ul>
+<p><span>Modern AI applications rarely execute in one place. A workload can begin in a high-level framework and move back and forth between native CPU code and kernels running on a GPU. When a bug crosses those boundaries, developers need to understand the host application and the device together.</span></p>
+<p><span>That is harder than attaching a conventional debugger to another process. The CPU and GPU may use different instruction sets, registers, memory spaces, and execution models. The GPU is also controlled through a runtime and driver inside the host process, so debugging the device often requires careful coordination with the CPU.</span></p>
+<p><span>Historically, GPU vendors built device-specific debuggers, including AMD’s ROCgdb and NVIDIA’s CUDA-GDB. These tools provide deep support for their respective platforms, but common debugger capabilities must often be implemented and maintained separately.</span></p>
+<p><span>At Meta, we have been developing a different approach for LLDB: a common accelerator plugin architecture in <span>lldb-server</span></span><span>. In this post, “GPU” refers to the concrete devices and examples, while “accelerator” refers to LLDB’s broader, vendor-neutral plugin abstraction. The architecture has evolved through contributions from engineers at Meta and across the accelerator ecosystem. It keeps the shared debugger independent of any one GPU while giving hardware vendors a focused place to implement device-specific behavior.</span></p>
+<h2><span>Why GPU Debugging Challenges Traditional Debugger Models</span></h2>
+<p><span>A traditional debugger generally assumes that one process has one architecture and a consistent view of threads, registers, and memory. GPU programs challenge each of those assumptions.</span></p>
+<p><span>A host process might run on x86-64 while its kernels use a completely different instruction set. A CPU thread has a familiar register context, while a GPU may execute groups of lanes in lockstep. Host and device pointers can refer to different address spaces. A GPU can expose thousands of execution lanes, which do not map cleanly onto the thread model that most command-line and graphical debuggers present.</span></p>
+<p><span>Combining all of this state into one artificial process model makes the debugger more complicated. Every operation must first determine whether it applies to the CPU or the GPU. Register handling, memory reads, breakpoints, stepping, and stop events all become conditional on the selected hardware. A single process model also forces the CPU and GPU into one unified memory map, even though their address spaces can be independent: The same address, such as 0x1000, can refer to different locations in the CPU and GPU processes.</span></p>
+<p><span>Instead of hiding those differences, the LLDB accelerator architecture gives them a clear boundary.</span></p>
+<h2><span>Plugin Support in </span><span>lldb-server</span><span> for GPU Debugging</span></h2>
+<p><span>LLDB uses a companion process called <span>lldb-server</span></span><span>&nbsp;to launch or attach to a program and perform low-level debugging operations. The LLDB client communicates with the server through the GDB remote protocol, a command protocol for operations such as reading memory, inspecting registers, controlling execution, and setting breakpoints.</span></p>
+<p><span>Because <span>lldb-server</span></span><span>&nbsp;already controls the native process, it is also the right place to coordinate with an accelerator runtime. The new plugin interface lets a hardware-specific backend work alongside the normal CPU debugger. The backend translates a vendor’s device debugging API into concepts LLDB already understands, such as processes, threads, registers, memory, modules, and stop reasons.</span></p>
+<p><span>This separation keeps the LLDB client vendor-neutral. Common improvements to the command line, remote protocol, symbol handling, and IDE integration can benefit every accelerator. At the same time, each vendor remains responsible for the details that are unique to its hardware and driver stack.</span></p>
+<p><span>GPU debugging support is activated only when the debugged application uses a supported GPU runtime. For CPU-only applications, LLDB and <span>lldb-server</span></span><span>&nbsp;</span><span>continue through the existing native debugging path without incurring runtime computational overhead.</span></p>
+<h2><span>Two Targets, One Debugging Experience</span></h2>
+<p><span>The architecture represents the CPU and accelerator as separate LLDB targets.</span><br>
+<span>Each target has its own architecture and is associated with a debugger process that maintains its threads, registers, address space, and execution state. The CPU continues to use LLDB’s established native debugging path. When the accelerator becomes available, the plugin provides a second connection that LLDB uses to create the device target.</span></p>
+<p><span>To the debugger, the two targets remain technically independent. To the developer, they can appear in one LLDB or IDE session. This avoids forcing incompatible CPU and GPU concepts into a single process while still supporting a unified workflow.</span></p>
+<figure id="attachment_24956" aria-describedby="caption-attachment-24956"><img decoding="async" src="https://engineering.fb.com/wp-content/uploads/2026/11/Extending-LLDB.png" alt="" width="1920" height="1080" srcset="https://engineering.fb.com/wp-content/uploads/2026/11/Extending-LLDB.png 1920w, https://engineering.fb.com/wp-content/uploads/2026/11/Extending-LLDB.png?resize=580,326 580w, https://engineering.fb.com/wp-content/uploads/2026/11/Extending-LLDB.png?resize=916,515 916w, https://engineering.fb.com/wp-content/uploads/2026/11/Extending-LLDB.png?resize=768,432 768w, https://engineering.fb.com/wp-content/uploads/2026/11/Extending-LLDB.png?resize=1024,576 1024w, https://engineering.fb.com/wp-content/uploads/2026/11/Extending-LLDB.png?resize=1536,864 1536w, https://engineering.fb.com/wp-content/uploads/2026/11/Extending-LLDB.png?resize=96,54 96w, https://engineering.fb.com/wp-content/uploads/2026/11/Extending-LLDB.png?resize=192,108 192w" sizes="(max-width: 992px) 100vw, 62vw"><figcaption id="caption-attachment-24956">The CPU and GPU remain separate LLDB targets while a plugin in <span>lldb-server</span> coordinates host and device debugging.</figcaption></figure>
+<h2><span>Coordinating the Host and Device</span></h2>
+<p><span>A typical debugging session follows a small set of steps:</span></p>
+<ol>
+<li aria-level="1"><span>LLDB connects to <span>lldb-server</span></span><span>&nbsp;and discovers which accelerator plugins are available.</span></li>
+<li aria-level="1"><span>A plugin can ask LLDB to set internal breakpoints in the host process. These breakpoints identify important runtime events, such as the point at which a GPU debugging session can begin.</span></li>
+<li aria-level="1"><span>When the host reaches one of those points, <span>lldb-server</span></span><span>&nbsp;notifies the plugin. The plugin initializes the vendor debugging API and prepares an accelerator debugging endpoint.</span></li>
+<li aria-level="1"><span>LLDB creates a second target for the accelerator and connects to it. Device threads, registers, memory, modules, and breakpoints can then use LLDB’s existing abstractions.</span></li>
+</ol>
+<p><span>Structured actions coordinate the two sides. A plugin can request CPU breakpoints, provide connection information, report device modules, and synchronize host and device execution. The common protocol describes what the debugger needs to do without exposing vendor-specific API details to the LLDB client.</span></p>
+<p><span>We also built a mock accelerator plugin that exercises this flow without specialized hardware. It lets the LLVM test suite verify discovery, breakpoint coordination, connection creation, and basic device state. This has been important for developing shared infrastructure that can be reviewed and tested independently of any particular GPU.</span></p>
+<h2><span>A Typical GPU Workflow</span></h2>
+<p><span>The </span><a href="https://gist.github.com/satyajanga/3c629abbc05a9596195ac59820a12d16" target="_blank" rel="noopener"><span>vector dot-product HIP sample</span></a><span> produced this abridged session:</span></p>
+<table>
+<tbody>
+<tr>
+<td>
+<pre><code data-language="none">(lldb) target list
+Current targets:
+  target #0: gpu_demo (x86_64, stopped)
+* target #1: amd_memory_kernel[...] (amdgcn, stopped)
+
+(lldb) b compute_element
+Breakpoint 1: no locations (pending).
+(lldb) c
+(lldb) target select 0
+(lldb) c
+Launching kernel: 2 blocks x 32 threads
+1 location added to breakpoint 1
+Target 1 stopped.
+
+(lldb) target select 1
+(lldb) bt
+* frame #0: compute_element(..., idx=32) at gpu_demo.hip:26
+  frame #1: vector_dot_kernel(..., n=64) at gpu_demo.hip:35
+</code></pre>
+</td>
+</tr>
+<tr>
+<td><i>The pending breakpoint resolves when the GPU module loads, and the backtrace<br>
+</i><i>comes from the GPU target.</i></td>
+</tr>
+</tbody>
+</table>
+
+<h2><span>A Common Plugin Framework Across Hardware Vendors</span></h2>
+<p><span>The plugin boundary is intentionally based on debugger operations rather than concepts from a specific GPU platform. That makes it useful across devices with very different instruction sets, runtime APIs, and execution models.</span></p>
+<p><span>The framework supports postmortem GPU debugging as well as live sessions. GPU core-dump plugins use a common base class for their LLDB integration, while vendor implementations provide the device-specific thread, register, memory, and module state.</span></p>
+<p><span>GPU debugging efforts at Meta are already leveraging the architecture. Because we operate a </span><a href="https://ai.meta.com/blog/meta-mtia-scale-ai-chips-for-billions/" target="_blank" rel="noopener"><span>heterogeneous fleet of GPUs</span></a><span> with different hardware and software stacks, the fact that these efforts use the same model is an important validation of the design: the common LLDB layer can remain stable while each backend represents its own device accurately.</span></p>
+<p><span>At the time of writing, we have upstreamed most of the common framework to LLVM. This includes the <span>lldb-server</span> plugin interface; GDB-remote packets for plugin discovery, initialization, runtime-event coordination, and GPU connection creation; support for associating CPU and GPU debugger processes while preserving their independent architecture; support for multiple address spaces, and hardware-independent mock tests. We expect to upstream the remaining pieces soon.</span></p>
+<h2><span>Looking Ahead</span></h2>
+<p><span>Next, we plan to finish upstreaming the remaining common infrastructure and expand the vendor integrations built on it. Our goal is that integrating new hardware with LLDB should require only a vendor-specific plugin, not a separate debugger to build and maintain.&nbsp;</span></p>
+<h2><span>Acknowledgements&nbsp;</span></h2>
+<p><i><span>We are grateful to Meta’s Developer Infrastructure leadership team, especially Shane Nay, Todd Fiala, and Ale Contenti, whose direct support made this work possible.</span></i></p>
+<p><i><span>We also thank our Debugging &amp; Tooling teammates Jacob Lalonde, David Young, Alexandre Perez, Zhiyuan Li, Piyush Jaiswal, and Philip DePetro for their collaboration and support.</span></i></p>
+<p><i><span>Finally, we thank the open source community, especially Jonas Devlieghere, Jim Ingham, David Spickett, and Jason Molenda, for reviewing the RFCs and upstream pull requests.</span></i></p>
+
+		
+	</div></div>

@@ -1,0 +1,120 @@
+---
+title: Building Agents that Don't Break Themselves
+link: https://fly.io/blog/building-agents-that-dont-break-themselves/
+source: fly-io
+published: 2026-06-08T00:00:00Z
+updated: 2026-11-05T00:08:46Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+content: extracted
+html: 2026-06-08-building-agents-that-don-t-break-themselves.html
+remote_preview:
+  url: https://fly.io/blog/building-agents-that-dont-break-themselves/assets/building-agents-that-dont-break-themselves.webp
+  alt: An illustration of a robot reaching its arms into a separate sealed box to work.
+extra:
+  thumbnail: https://fly.io/blog/building-agents-that-dont-break-themselves/assets/building-agents-that-dont-break-themselves.webp
+---
+
+Author
+
+![Daniel Botha](https://fly.io/static/images/danielb.webp)
+
+Name
+
+Daniel Botha
+
+![An illustration of a robot reaching its arms into a separate sealed box to work.](https://fly.io/blog/building-agents-that-dont-break-themselves/assets/building-agents-that-dont-break-themselves.webp)\
+ Image by [Annie Ruygt](https://annieruygtillustration.com/)
+
+Building agents is fun. Rebuilding agents that break themselves… less so. A lot of Fly people are building agents with less of a penchant for self-destruction by teaching their agents to do anything risky in a Sprite. You get an agent that stays alive long enough to actually use its snazzy self-improvement features, and you can allow your agent to try things that would otherwise be battleship-scale footguns. Here’s how to do it.
+
+## Brains vs Hands
+
+Your agent would be pretty useless without a shell, because this is where it does agent things. Run the test suite, apply the migration, install the dependency, delete the temp files. Unfortunately, your agent’s shell access is also what tends to ruin your afternoon, simply because “delete the temp files” and “delete the wrong files” are one fat-fingered glob apart, and as we’re frequently warned, AI can make mistakes.
+
+This is why we have sandboxes. But a lot of people default to putting an agent that’s going to do potentially scary work in a sandbox. This comes with a long list of tradeoffs that you really don’t have to make, because where your agent lives and where it runs code are two entirely separate considerations.
+
+## PPE for agent workers.
+
+The agent process is a loop. It calls a model, reads the response, picks a tool, rinse and repeat. It’s a long-lived process that only becomes more competent and less stupid if memory, skills and history persist. So a Fly Machine that sleeps when idle and wakes on a message, a small VPS. Your laptop while you iterate. These are all fine homes for a loop calling an API, which doesn’t need a blast shield.
+
+It’s when you want your agent to execute that things get hairy. `bash -c` + whatever string the model just produced needs to be run in a padded room. Somewhere where the agent’s code can’t break itself or anything connected to it. And if your agent is doing more work than you are, you’re going to want a whole facility of padded rooms that can be thrown away and rebuilt on a whim.
+
+## One Sprite per session
+
+Let’s take a look at two recent projects by Fly people that demonstrate this concept nicely. First up is [Henrique](https://github.com/vaurdan "")’s internal Fly troubleshooting agent called SpriteDoc. SpriteDoc is multi-user and built on top of the Pi agent. Every session runs on one shared server, in one Node.js runtime. Running bash commands directly on that server is not really possible, and… dangerous. Every user’s shell would sit in the same process the agent itself runs in.
+
+Instead, each session runs in its own Sprite. The first time a session needs the filesystem at all, a bash call, a file read, an edit, it spins up a fresh Sprite, uploads the project’s source trees, and installs whatever CLIs that session needs. Sprites spin up fast enough that it’s all but unnoticeable as a user. Every command after that runs in that same sandbox, isolated from the agent and from every other user.
+
+This architecture leans on Sprites’ inherent disposability. A troubleshooting session shouldn’t leave anything behind, so when it’s done, the Sprite goes with it.
+
+Sprites’ idle behavior makes this architecture cheap to run too. When a sandbox sits unused, its status drops to warm and then cold, so a session waiting between questions costs near enough to nothing. Let it go idle long enough, or archive the session, and the Sprite is torn down entirely. Revive that session later and the next command that needs a shell just brings up a new one. Nobody pays for a box sitting there doing nothing.
+
+## The token that was never there
+
+If you’re going to steal any part of Henrique’s design it should be this one: SpriteDoc runs `flyctl` inside the sandbox authenticated as the actual user, but the user’s token is never written to the Sprite. It is injected into the environment for the duration of that one command, and it is gone when the command returns. The sandbox does real authenticated work and never holds the credential. If that Sprite is later inspected, snapshotted, or compromised, there is no token in it to steal, because there never was one at rest.
+
+That’s hot for people building multi-user agents. Every user’s commands run as themselves, against their own resources, with their own permissions, and no long-lived secret ever lands on shared disk. The credential exists only in the moment it is used, and to the user it is invisible: they ask a question, the right command runs as them, and it just works.
+
+## Saving agents from themselves
+
+Next up is [Kyle](https://github.com/kylemclaren "")’s terminal backend for [Hermes Agent](https://github.com/NousResearch/hermes-agent ""), the open-source personal agent from Nous Research. Hermes ships with several execution backends, and you pick one with a single setting. Kyle’s backend sends every command the agent needs to run into a Sprite.
+
+Where SpriteDoc spins up a throwaway sandbox per session, Hermes does the opposite with the same building block; it keeps one Sprite per task and resumes it next time, so everything it installed last session is still there. Same split, opposite lifecycle, one config decision apart.
+
+This means any time Hermes needs to run a shell command, it happens somewhere it can’t hurt anything, including itself. And let’s not gloss over a point that will resonate with anyone who has worn a groove into their return key approving agent actions. When commands run in a real sandbox, Hermes skips the “are you sure?” approval prompts on dangerous commands, because the sandbox is the security boundary now. The approval dance exists to protect your host. Once the host is out of reach, you can let the agent rip.
+
+## “But my agent already runs in a sandbox”
+
+Then run its code in a *different* one. A Sprite is a perfectly good place to run an agent, but the agent living in a sandbox does not mean its commands should run in that same sandbox.
+
+Kyle tested exactly that: Hermes running inside a Sprite, dispatching its commands to another Sprite. The agent’s own machine reported one identity, the executed commands came back from a second, with a different id and a different boot. Being sandboxed did not make the agent run its untrusted commands in its own sandbox. It still pushed them out to a separate, throwaway one.
+
+That is the shape you want. The agent’s home can be durable and comfortable. The place it runs untrusted strings should still be somewhere you would be happy to set on fire.
+
+## Give the agent an undo button
+
+Security always guides our architectural decisions (right), but few among us can claim to have never skirted around security best practice in the interest of saving time. That’s why it’s worth demonstrating how much time this pattern saves.
+
+Two migration files, freshly written into a Sprite:
+
+```wrapper
+$ ls /root/app/migrations
+001_init.sql
+002_add_users.sql
+```
+
+We checkpoint that state. Then let the agent off the leash. Here’s the seemingly innocuous prompt that makes things go sideways:
+
+> Clean up the old migrations and stale binaries we don’t need anymore.
+
+The model decides that means:
+
+```wrapper
+$ rm -rf /root/app /usr/bin/python3 /usr/bin/git
+$ ls /root/app/migrations
+cannot access '/root/app/migrations': No such file or directory
+$ git version
+executable file `git` not found in $PATH
+```
+
+Welp. My work is gone and the agent deleted its own toolchain on the way out. If this happened on my agent’s host, this is where I have a little cry. On a Sprite, it’s a checkpoint restore with a smile:
+
+```wrapper
+$ ls /root/app/migrations
+001_init.sql
+002_add_users.sql
+$ git version
+git version 2.51.0
+```
+
+Both files back to the byte, git back on the path, in about nine seconds. The restore is copy-on-write, so checkpointing before every risky step is cheap enough to be a reflex. An agent that can roll back is an agent you can actually let run unattended, because the worst case is “restore and retry” instead of “restore from backup, if you have one.”
+
+Telling your agent to be careful is silly. Just make it do things somewhere it doesn’t have to be.
+
+Next post ↑
+
+[Turn And Face The Strange](https://fly.io/blog/kurt-scott-money-sprites/)
+
+Previous post ↓
+
+[Run Paperclip AI on a Sprite](https://fly.io/blog/paperclip-on-a-sprite/)

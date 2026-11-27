@@ -1,0 +1,129 @@
+<div id="readability-page-1" class="page"><article>
+         <dl>
+             <dt>Author</dt>
+             <dd>
+                 <img alt="Sam Ruby" src="https://fly.io/static/images/sam.webp">
+               <dl>
+                 <dt>Name</dt>
+                 <dd>
+                   Sam Ruby
+                 </dd>
+                  <dt>bsky:intertwingly.net</dt>
+                  <dd>
+                    <a href="https://bsky.app/profile/intertwingly.net" target="_blank">
+                      bsky:intertwingly.net
+                    </a>
+                  </dd>
+               </dl>
+             </dd>
+         </dl>
+
+        <section>
+            <figure>
+                <img src="https://fly.io/blog/mcp-launch/assets/fly-mcp-launch.png" alt="" fetchpriority="high" decoding="async">
+                <figcaption>
+                  <span>Image by</span>
+                  
+
+
+                    <a href="https://annieruygtillustration.com/" target="_blank">
+                      Annie Ruygt
+                    </a>
+                </figcaption>
+            </figure>
+          <p>This is a blog post. Part showing off. Part opinion. Plan accordingly.</p>
+<p>The <a href="https://www.anthropic.com/news/model-context-protocol" title="">Model Context Protocol</a> is days away from turning six months old. You read that right, six <em>months</em> old. MCP Servers have both taken the world by storm, and still trying to figure out what they want to be when they grow up.</p>
+
+<p>There is no doubt that MCP servers are useful. But their appeal goes beyond that. They are also simple and universal. What’s not to like?</p>
+
+<p>Well, for starters, there’s basically two types of MCP servers. One small and nimble that runs as a process on your machine. And one that is a HTTP server that runs presumably elsewhere and is <a href="https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization" title="">standardizing</a> on OAuth 2.1. And there is a third type, but it is deprecated.</p>
+
+<p>Next there is the configuration. Asking users to manually edit JSON seems so early 21th century. With Claude, this goes into <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>, and is found under a <code>MCPServer</code> key. With Zed, this file is in <code>~/.config/zed/settings.json</code> and is found under a <code>context_servers</code> key. And some tools put these files in a different place depending on whether you are running on MacOS, Linux, or Windows.</p>
+
+<p>Finally, there is security. An MCP server running on your machine literally has access to everything you do. Running remote solves this problem, but did I mention <a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12" title="">OAuth 2.1</a>? Not exactly something one sets up for casual use.</p>
+
+<p>None of these issues are fatal - something that is obvious by the fact that MCP servers are quite popular. But can we do better? I think so.</p>
+
+<hr>
+
+<p>Demo time.</p>
+
+<p>Let’s try out the <a href="https://github.com/modelcontextprotocol/servers/blob/main/src/slack/README.md" title="">Slack MCP Server</a>:</p>
+
+<blockquote>
+<p>MCP Server for the Slack API, enabling Claude to interact with Slack workspaces.</p>
+</blockquote>
+
+<p>That certainly sounds like a good test case. There is a small amount of <a href="https://github.com/modelcontextprotocol/servers/blob/main/src/slack/README.md#setup" title="">setup</a> you need to do, and when you are done you end up with a <em>Bot User OAuth Token</em> staring with <code>xoxb-</code> and a <em>Team ID</em> starting with a <code>T</code>.</p>
+
+<p>You <em>would</em> run it using the following:</p>
+<div>
+    <pre><code data-language="wrapper">npx -y @modelcontextprotocol/server-slack
+</code></pre>
+  </div>
+<p>But instead, you convert that command to JSON and find the right configuration file and put this information in there. And either run the slack MCP server locally or set up a server with or without authentication.</p>
+
+<p>Wouldn’t it be nice to have the simplicity of a local process, the security of a remote server, and to eliminate the hassle of manually editing JSON?</p>
+
+<p>Here’s our current thinking:</p>
+<div>
+    <pre><code data-language="wrapper">fly mcp launch \
+  "npx -y @modelcontextprotocol/server-slack" \
+  --claude --server slack \
+  --secret SLACK_BOT_TOKEN=xoxb-your-bot-token \
+  --secret SLACK_TEAM_ID=T01234567
+</code></pre>
+  </div>
+<p>You can put this all on one line if you like, I just split this up so it fits on small screens and so we can talk about the various parts.</p>
+
+<p>The first three words seem reasonable. The quoted string is just the command that we want to run. So lets talk about the four flags. The first tells us which tool’s configuration file we want to update. The second specifies the name to use for the server in that configuration file. The last two set secrets.</p>
+
+<p>Oh, did I say current thinking? Perhaps I should mention that it is something you can run right now, as long as you have flyctl <code>v0.3.125</code> or later. Complete with the options you would expect from Fly.io, like the ability to configure auto-stop, file contents, flycast, secrets, region, volumes, and VM sizes.</p>
+
+<p>And, hey, lookie there:</p>
+
+<p><img loading="lazy" decoding="async" alt="testing, testing, 1, 2, 3" width="734" height="290" src="https://fly.io/blog/mcp-launch/assets/mcp-slack.png"></p>
+
+<p>Support for Claude, Cursor, Neovim, VS Code, Windsurf, and Zed are built in. You can select multiple clients and configuration files.</p>
+
+<p>By default, bearer token authentication will be set up on both the server and client.</p>
+
+<p>You can find the complete set of options on our <a href="https://docs.fly.io/flyctl/cmd/fly_mcp_launch" title=""><code>fly mcp launch</code></a> docs page.</p>
+
+<hr>
+
+<p>But this post isn’t just about experimental demoware that is subject to change.
+It is about the depth of support that we are rapidly bringing online, including:</p>
+
+<ul>
+<li>Support for all transports, not just the ones we recommend.
+</li><li>Ability to deploy using the command line or the Machines API, with a number of different options that allow you to chose between elegant simplicity and excruciating precise control.
+</li><li>Ability to deploy each MCP server to a separate Machine, container, or even inside your application.
+</li><li>Access via HTTP Authorization, wireguard tunnels and flycast, or reverse proxies.
+</li></ul>
+
+<p>You can see all this spelled out in our <a href="https://docs.fly.io/model-context-protocol" title="">docs</a>. Be forewarned, most pages are marked as <em>beta</em>. But the examples provided all work. Well, there may be a bug here or there, but the examples <em>as shown</em> are thought to work. Maybe.</p>
+
+<p>Let’s figure out the ideal ergonomics of deploying MCP servers remotely together!</p>
+
+          
+        </section>
+        <dl>
+            <dt>
+              Next post  ↑
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/litestream-revamped/">
+                Litestream Revamped: SQLite Replication
+              </a>
+            </dd>
+            <dt>
+              Previous post  ↓
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/mcp-provisioning/">
+                Provisioning Machines using MCPs
+              </a>
+            </dd>
+        </dl>
+      </article></div>

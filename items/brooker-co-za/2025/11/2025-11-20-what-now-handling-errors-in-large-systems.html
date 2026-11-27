@@ -1,0 +1,69 @@
+<div id="readability-page-1" class="page"><div>
+    <h2>About Me</h2><p>
+    My name is Marc Brooker. I like to build things that work, and do cool stuff. I like building big things. I also dabble in machining, welding, cooking, and skiing.</p><p>
+
+    I am an engineer at Amazon Web Services (AWS) in Seattle, where I work on agentic AI, especially safety and policy for agentic AI. Before that, I worked on EC2, EBS, databases, serverless, and serverless databases.<br>
+
+All opinions are my own.
+    </p><h2>Links</h2>
+    <p><a href="https://brooker.co.za/blog/publications.html">My Publications and Videos</a><br>
+    <a rel="me" href="https://fediscience.org/@marcbrooker">@marcbrooker on Mastodon</a>
+    <a href="https://twitter.com/MarcJBrooker">@MarcJBrooker on Twitter</a></p><p>
+    <a href="https://brooker.co.za/blog/2026/06/18/my-blog-and-ai.html">Is this blog written by AI?</a></p></div><div id="post">
+
+
+
+
+
+
+
+
+
+
+<p>More options means more choices.</p>
+
+<p>Cloudflare’s deep <a href="https://blog.cloudflare.com/18-november-2025-outage/">postmortem for their November 18 outage</a> triggered a ton of online chatter about error handling, caused by a single line in the postmortem:</p>
+
+<figure><pre><code data-language="rust">.unwrap()</code></pre></figure>
+
+<p>If you’re not familiar with Rust, you need to know about <a href="https://doc.rust-lang.org/std/result/enum.Result.html#method.unwrap">Result</a>, a kind of struct that can contain either a successful result, or an error. <code>unwrap</code> says basically “return the successful results if there is one, otherwise crash the program”<sup><a href="#foot1">1</a></sup>. You can think of it like an <code>assert</code>.</p>
+
+<p>There’s a ton of debate about whether <code>assert</code>s are good in production<sup><a href="#foot2">2</a></sup>, but most are missing the point. Quite simply, this isn’t a question about a single program. It’s not a local property. Whether <code>assert</code>s are appropriate for a given component is a global property of the system, and the way it handles data.</p>
+
+<p>Let’s play a little error handling game. Click the ✅ if you think crashing the process or server is appropriate, and the ❌ if you don’t. Then you’ll see my vote and justification.</p>
+
+<ul>
+<li> One of ten web servers behind a load balancer encounters uncorrectable memory errors, and takes itself out of service. 
+</li>
+<li> One of ten multi-threaded application servers behind a load balancer encounters a null pointer in business logic while processing a customer request. 
+</li>
+<li> One database replica receives a logical replication record from the primary that it doesn't know how to process 
+</li>
+<li> One web server receives a global configuration file from the control plane that appears malformed. 
+</li>
+<li> One web server fails to write its log file because of a full disk. 
+</li>
+</ul>
+
+<p>If you don’t want to play, and just see my answers, click here: .</p>
+
+<p>There are three unifying principles behind my answers here.</p>
+
+<p><strong>Are failures correlated?</strong> If the decision is a local one that’s highly likely to be uncorrelated between machines, then crashing is the cleanest thing to do. Crashing has the advantage of reducing the complexity of the system, by removing the <em>working in degraded mode</em> state. On the other hand, if failures can be correlated (including by adversarial user behavior), its best to design the system to reject the cause of the errors and continue.</p>
+
+<p><strong>Can they be handled at a higher layer?</strong> This is where you need to understand your architecture. Traditional web service architectures can handle low rates of errors at a higher layer (e.g. by replacing instances or containers as they fail load balancer health checks using <a href="https://aws.amazon.com/autoscaling/">AWS Autoscaling</a>), but can’t handle high rates of crashes (because they are limited in how quickly instances or containers can be replaced). Fine-grained architectures, starting with Lambda-style serverless all the way to Erlang’s approach, are designed to handle higher rates of errors, and crashing rather the continuing is appropriate in more cases.</p>
+
+<p><strong>Is it possible to meaningfully continue?</strong> This is where you need to understand your business logic. In most cases with configuration, and some cases with data, its possible to continue with the last-known good version. This adds complexity, by introducing the behavior mode of running with that version, but that complexity may be worth the additional resilience. On the other hand, in a database that handles updates via operations (e.g. <code>x = x + 1</code>) or conditional operations (<code>if x == 1 then y = y + x</code>) then continuing after skipping some records could cause arbitrary state corruption. In the latter case, the system must be designed (including its operational practices) to ensure the invariant that replicas only get records they understand. These kinds of invariants make the system less resilient, but are needed to avoid state divergence.</p>
+
+<p>The bottom line is that error handling in systems isn’t a local property. The right way to handle errors is a global property of the system, and error handling needs to be built into the system from the beginning.</p>
+
+<p>Getting this right is hard, and that’s where blast radius reduction techniques like cell-based architectures, independent regions, and <a href="https://aws.amazon.com/blogs/architecture/shuffle-sharding-massive-and-magical-fault-isolation/">shuffle sharding</a> come in. Blast radius reduction means that if you do the wrong thing you affect less than all your traffic - ideally a small percentage of traffic. Blast radius reduction is humility in the face of complexity.</p>
+
+<p><em>Footnotes</em></p>
+
+<ol>
+  <li> Yes, I know a <code>panic</code> <a href="https://doc.rust-lang.org/book/ch09-01-unrecoverable-errors-with-panic.html">isn’t necessarily a crash</a>, but it’s close enough for our purposes here. If you’d like to explain the difference to me, feel free.</li>
+  <li> And a ton of debate about whether Rust helped here. I think Rust does two things very well in this case: it makes the <code>unwrap</code> case explicit in the code (the programmer can see that this line has “succeed or die behavior”, entirely locally on this one line of code), and prevents action-at-a-distance behavior (which silently continuing with a <code>NULL</code> pointer could cause). What Rust doesn’t do perfectly here is make this explicit enough. Some suggested that <code>unwrap</code> should be called <code>or_panic</code>, which I like. Others suggested lints like <code>clippy</code> should be more explicit about requiring <code>unwrap</code> to come with some justification, which may be helpful in some code bases. Overall, I’d rather be writing Rust than C here.</li>
+</ol>
+
+</div></div>

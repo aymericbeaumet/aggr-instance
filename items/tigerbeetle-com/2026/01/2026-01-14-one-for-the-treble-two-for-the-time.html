@@ -1,0 +1,189 @@
+<div id="readability-page-1" class="page"><div><blockquote>
+<p>Time is like a river made up of events which happen, and a violent
+stream; for as soon as a thing has been seen, it is carried away, and
+another comes in its place.</p>
+<p>— <a href="https://classics.mit.edu/Antoninus/meditations.4.four.html"><em>Meditations,
+Book IV</em></a></p>
+</blockquote>
+<p>There’s a question that sometimes comes up when building on
+TigerBeetle: <em>“It’s great that TigerBeetle is immutable and leaves an
+audit trail, but what happens when we need to fix the past?”.</em></p>
+<p>When we record information, mistakes happen. We thought we knew a
+fact about the world, but were wrong, or there was something we didn’t
+know then but know now.</p>
+<p>The art of modelling information across two timelines at once like
+this is known as bitemporality, and can be confusing enough to make
+Christopher Nolan tear his hair out.</p>
+<h2 id="always-be-ingesting"></h2>
+<p>When it comes to bitemporality, at least in transaction processing,
+the trick is this:</p>
+<blockquote>
+<p>Record facts as soon as you learn them.</p>
+</blockquote>
+<p>Those facts could apply to right here and now (e.g. the price of AAPL
+is $208.62) or could apply to the past (Rafael worked 10 hours overtime
+last month when we thought it was 5).</p>
+<p>TigerBeetle is a fact-ingesting machine. You set up your entities as
+accounts in TigerBeetle, send in the transfers you want to record
+between them, and if anything violates your business rules, TigerBeetle
+will tell you. Transfers are facts that happened in the real world, as
+interpreted by your business, for example <em>“Lewis paid for Alex’s
+lunch on Tuesday to the tune of $14.50”</em>, or <em>“Oasis sold 1.4
+million tickets across 17 UK and Ireland dates in minutes”</em>.</p>
+<p>Beyond the business rules you encode when recording transfers,
+TigerBeetle takes no part in interpreting those facts. TigerBeetle is
+the <em>recording layer</em>, and the application interprets those facts
+in the <em>reporting layer</em>. In other words, TigerBeetle takes
+responsibility for the debit/credit <em>primitives</em>, and expects
+(and respects) the application to take responsibility for the
+<em>policy</em> (since this varies from country to country, business to
+business, or product to product).</p>
+<p>We’re always recording new facts to bring ourselves up to date with
+reality. But sometimes the ship has sailed. Perhaps Rafael was already
+paid for last month’s overtime, or we learned on Wednesday that on
+Monday, a 4-for-1 stock split of AAPL shares took effect, shares we were
+holding on behalf of a customer. Now, we’ve got to retroactively adjust
+their position from 25 shares to 100 and correct the downstream
+calculations which depended on the old quantity and price.</p>
+<p>This is where adjustments come in. When we learn new facts about the
+world we need to:</p>
+<ol type="1">
+<li>Understand what we <em>thought</em> the reality was at a given point
+in time,</li>
+<li>Understand what we <em>think</em> we know about reality now,
+and</li>
+<li>Apply an adjustment to bridge the delta between these two
+realities.</li>
+</ol>
+<p>In other words, as soon as we learn a fact, we record it! But we
+record it along with the timestamp to which that fact relates. So in the
+end, we record two timestamps:</p>
+<ol type="1">
+<li><strong>Recorded</strong>: when the fact was learned, and</li>
+<li><strong>Effective</strong>: when the fact took place.</li>
+</ol>
+<h2 id="making-it-real"></h2>
+<p>Let’s return to the Lewis and Alex example. Say we want to model the
+money that Alex and Lewis owe each other. After Lewis paid for Alex’s
+lunch, Alex bought movie tickets for <a href="https://www.youtube.com/watch?v=EDKC77QS8WM">Becoming Led
+Zeppelin</a> for $10 each. Our sequence of facts that we want to record
+is now:</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>Recorded</th>
+<th>Effective</th>
+<th>Fact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>12 May</td>
+<td>12 May</td>
+<td>Lewis paid for Alex’s lunch: $14.5</td>
+</tr>
+<tr>
+<td>13 May</td>
+<td>13 May</td>
+<td>Alex paid for Lewis’ movie: $10</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Given these facts, on 13 May, we can produce a set of accounts and a
+net balance that tracks the liability between the parties:</p>
+<figure>
+    
+    <figcaption>Balances @ 13 May</figcaption>
+</figure>
+
+<p><em>*wrt = With Respect To</em></p>
+<p>So far so good, right? Now, let’s say that we find out on May 14th
+that the lunch calculations were wrong, and Alex’s lunch actually cost
+$19? Our series of facts now looks like:</p>
+<div>
+<table>
+<thead>
+<tr>
+<th>Recorded</th>
+<th>Effective</th>
+<th>Fact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>12 May</td>
+<td>12 May</td>
+<td>Lewis paid for Alex’s lunch: $14.5</td>
+</tr>
+<tr>
+<td>13 May</td>
+<td>13 May</td>
+<td>Alex paid for Lewis’ Movie Ticket: $10</td>
+</tr>
+<tr>
+<td>14 May</td>
+<td>12 May</td>
+<td>Lewis paid for Alex’s lunch: $19</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Notice how the <code>Effective</code> date is backdated to 12 May?
+We’re adding information about the lunch that supersedes the first
+recording, while preserving both.</p>
+<p>We’ve implicitly answered the question: <em>“What was our
+understanding of the world on 13 May?”</em>, and now, given these new
+facts, we can answer the question: <em>“How did our understanding of the
+world change on 14 May?”</em></p>
+<figure>
+    
+    <figcaption>Balances @ 14 May</figcaption>
+</figure>
+
+<p>Did you notice? This is a projection! We’ve not removed information
+from the <em>recording layer</em>, but in the <em>reporting layer</em>
+we’ve surfaced a new report based on the new information recorded. We’ll
+see how to use this information in a moment.</p>
+<p>But you could also imagine a situation where we learn new facts about
+the world that don’t supersede old facts, for example, an earlier
+transaction between Alex and Lewis that we didn’t originally know
+about.</p>
+<p>So far, we’ve answered the first 2 questions: (1) understand what we
+<em>thought</em> reality was at a point in time, and (2) understand what
+we <em>think</em> we know about reality from now. It’s time to tackle
+step (3) to apply an adjustment to bridge the delta between the two
+realities.</p>
+<p>On 14 May, we see that Alex owes $9, but on 13 May, it was $4.5. So,
+let’s apply an <em>adjustment</em> of $4.5 to both accounts, to bring
+the Recording layer in line with reality. For this we can use a new
+account: <code>Adjustments</code>:</p>
+<figure>
+    
+    <figcaption>Adjusted Balances @ 14 May</figcaption>
+</figure>
+
+<p>We’ve now applied the adjustments to both accounts (which net to 0),
+and our correction is brought into line with our understanding of
+reality on 14 May!</p>
+<p>And thus ends our brief foray into the world of bitemporality.
+Hopefully you can see that when we <em>logically</em> separate out
+recording and reporting into two different layers, we no longer have to
+choose between the immutability of append-only and the ability to fix
+mistakes or add information.</p>
+<h2 id="further-reading"></h2>
+<ol type="1">
+<li><a href="https://martinfowler.com/eaaDev/timeNarrative.html">Temporal
+Patterns</a> by Martin Fowler is a great overview on general modelling
+approaches to preserving the historical state of a database.</li>
+<li><a href="https://github.com/tigerbeetle/tigerbeetle/issues/157">github/tigerbeetle#157</a>
+is the basis of our thinking on how to model Bitemporality in
+TigerBeetle, going into more detail around accounting policy and
+separating out the read and write paths.</li>
+<li>Snodgrass’ <a href="https://www2.cs.arizona.edu/~rts/tdbbook.pdf">Developing
+Time-Oriented Applications in SQL</a> (especially chapter 1 and 2) has
+some great examples of modelling and reasoning about bitemporal problems
+in SQL.</li>
+</ol>
+  </div></div>

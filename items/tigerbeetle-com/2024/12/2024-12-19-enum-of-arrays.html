@@ -1,0 +1,114 @@
+<div id="readability-page-1" class="page"><div><p>A popular data-oriented design pattern is a Struct of Arrays. Is an
+Array of Enums also useful? Yes! But let’s do a refresher on struct of
+arrays (<code>SoA</code>) first:</p>
+<p>If you have a <code>Thing</code>,</p>
+<div id="cb1"><pre><code>const Thing = struct {
+   checksum: u128,
+   number: u32,
+   flag: u8,
+};</code></pre></div>
+<p>and an array of <code>Thing</code>s,</p>
+<div id="cb2"><pre><code>// Array of Structs.
+const AoS = []Thing;</code></pre></div>
+<p>it’s possible to wrap the data inside out and use</p>
+<div id="cb3"><pre><code>// Struct of Arrays.
+const SoA = struct {
+   checksum: []u128
+   number: []u32,
+   flag: []u8,
+};</code></pre></div>
+<p>instead. The benefits are:</p>
+<ul>
+<li>Reduced memory usage due to amortized padding. As <code>flag</code>
+is a byte, it requires some padding to align with larger fields like
+<code>checksum</code>. In <code>AoS</code>, each individual struct has
+this padding. In <code>SoA</code>, there’s still padding for
+<code>flag</code>, but it’s just one instance of padding for all the
+<code>Thing</code>s.</li>
+<li>Better memory bandwidth utilization for batched code. If a loop
+needs to process all things, but the processing doesn’t require all
+fields (at least for the majority of objects), then an array-based
+representation reduces the amount of data that needs to be loaded.</li>
+</ul>
+<p>You can use the same trick also for a more SIMD-friendly data layout.
+A bad way to use SIMD is to try to vectorize the processing of an
+individual item. A good way to use SIMD is to process several items at
+once.</p>
+<p>For example, if a <code>Thing</code> in question is a 3D vector, it’s
+usually not a good idea to implement the dot product of two vectors by
+loading <code>xyz</code> of one vector into a SIMD register
+<code>a</code>, <code>xyz</code> of another vector into a SIMD register
+<code>b</code>, and then performing a SIMD multiplication of
+<code>a * b</code>. The reason is that your “SIMD width” is still only
+three numbers:</p>
+<figure>
+<img src="https://tigerbeetle.com/blog/2024-12-19-enum-of-arrays/wasteful-simd-afe446d4.webp">
+<figcaption></figcaption>
+</figure>
+<p>Much better to simultaneously compute the dot products of multiple
+pairs of vectors. Then, you can load a SIMD vector with
+<code>xxxxxxx</code>, which is the <code>x</code> coordinate for the
+first vector of multiple pairs. And so, the full width of SIMD registers
+is used:</p>
+<figure>
+<img src="https://tigerbeetle.com/blog/2024-12-19-enum-of-arrays/efficient-simd-2bb5244d.webp">
+<figcaption></figcaption>
+</figure>
+<p>This post is to raise awareness that the same trick works with
+enums:</p>
+<div id="cb4"><pre><code>const Thing = union(enum) {
+   spam: Spam,
+   eggs: Eggs
+}
+
+// With a level of abstraction peeled:
+const Thing = struct {
+   tag: u8,
+   payload: union {
+       spam: Spam,
+       eggs: Eggs,
+   }
+};</code></pre></div>
+<p>Here’s an array of enums:</p>
+<div id="cb5"><pre><code>const AoE = []Thing;</code></pre></div>
+<p>And here’s the dual, an enum of arrays:</p>
+<div id="cb6"><pre><code>const EoA = struct {
+   tag: u8, // Sic!
+   payload: union {
+       spam: []Spam,
+       eggs: []Eggs,
+   }
+}</code></pre></div>
+<p>The <em>key</em> idea is that there’s only a single <code>tag</code>
+per an entire batch of things. If a batch size is 1024, you can have
+1024 spams or 1024 eggs, but not a mix of the two.</p>
+<p>The benefits of this representation:</p>
+<ul>
+<li><p>Tags occupy less bytes in total, because a single tag can be
+amortized across many objects at once.</p></li>
+<li><p>If individual enum variants are of different sizes, then no
+memory is wasted when storing the gap between a small variant and a
+large one.</p></li>
+<li><p>Finally, the purpose of the tag is for the CPU to branch on it.
+By having only one tag per batch of objects, the amount of branching the
+CPU has to do is dramatically reduced, which is a very good thing in
+itself—unpredictable branching slows down the CPU a lot. But what’s
+more, with branching out of the way, the processing is opened up for
+SIMD optimizations!</p></li>
+</ul>
+<p>TigerBeetle is built around this idea of <code>AoE =&gt; EoA</code>
+optimizations. TigerBeetle can do two things: create new accounts, and
+then create transfers between accounts. This <em>could</em> have been
+represented as a heterogeneous enum of the two kinds of operation.
+Instead, TigerBeetle uses homogeneous batches. TigerBeetle does eight
+thousands operations at a time, and there’s one tag for an entire batch.
+So, it’s always 8k transfers followed by 8k accounts, not a mixture of
+the two.</p>
+<p>This optimization is related to the concept of data plane and control
+plane separation. The <code>tag</code> is control plane, a small,
+infrequent piece of information which informs decisions. The data plane
+then is more voluminous, but processing it doesn’t require many
+individual decisions. Just. One. Branch!</p>
+<p>That’s all for today. Support your local branch predictor, convert
+your AoE to EoA!</p>
+  </div></div>

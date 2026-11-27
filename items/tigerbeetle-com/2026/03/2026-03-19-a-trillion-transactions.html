@@ -1,0 +1,261 @@
+<div id="readability-page-1" class="page"><div><p id="trillion-paragraph">
+  <span>We <a href="https://youtu.be/y2_BqkKTbD8">processed <span>a trillion</span> transactions</a> to test TigerBeetle’s scale.</span>
+</p>
+
+
+
+<p>But what is scale? And what does it mean to be scalable?</p>
+<p>We often talk about throughput and latency, or adding more machines.
+But scale isn’t just performance and distribution. Scale is
+survivability.</p>
+<p>Because the hardest part of scale isn’t how much work you can do,
+when everything works. It’s staying alive, when everything that can
+break, does. You can’t scale when you’re dead.</p>
+<h2 id="transaction-processing-from-first-principles"></h2>
+<p>So, how do we stay alive? With this definition of scale as
+survivability, how can we design an architecture from first
+principles—not for analytics (OLAP), nor general purpose (OLGP)—but for
+the hardest workload of them all: transaction processing (OLTP)?</p>
+<p>Low latency. Write-heavy, Black Friday throughput. Power law
+contention. Shared hot keys. And coordination through strict
+serializability. Because you’re in the money making hot path.</p>
+<h2 id="give-me-strict-serializability-or-give-me-death"></h2>
+<p>Of course, some would relax isolation for performance.</p>
+<p>But give me strict serializability or give me death. As the saying
+goes, “those who would trade a little safety for performance, deserve
+neither safety nor performance”.</p>
+<p><img src="https://tigerbeetle.com/blog/2026-03-19-a-trillion-transactions/serializability-dacc0fa3.png" alt="Graffiti: Give Me Strict Serializability or Give Me Death"></p><p>This is the challenge of transaction processing:</p>
+<p>There’s nowhere to hide. It’s live. You have to be correct and
+fast.</p>
+<h2 id="debitcredit-the-measure-of-transaction-processing-power"></h2>
+<p>Jim Gray, the Turing Award winner who coined <a href="https://www.youtube.com/watch?v=lGyMiW6PnKI">ACID</a> and wrote <a href="https://dl.acm.org/doi/10.5555/573304">the book on transaction
+processing</a>, defined the “<a href="https://arxiv.org/pdf/cs/0701162">measure of transaction
+processing power</a>” as debit/credit.</p>
+<p>Simple, yet powerful.</p>
+<p>Simple: debit one account, and credit another. Powerful because you
+can express the exchange of anything from one entity to another. The
+essence of a transaction.</p>
+<h2 id="transactions-are-all-around-us"></h2>
+<p>If we trace the family tree of databases, they go back to the
+banking, brokerage, airline, manufacturing, inventory, ordering and
+shipping systems that do the equivalent of debit/credit.</p>
+<p>And this is what makes OLTP hard, because it’s not just people’s
+money. It’s all the goods and services. If your OLTP breaks, you don’t
+just lose your money, but your customer loses their delivery, their
+flight.</p>
+<h2 id="a-trillion-transactions-1"></h2>
+<p>So we’re going to design an architecture for OLTP, and then see how
+it survives. Even to a trillion transactions.</p>
+<p>Why a trillion? Let’s start with the physics.</p>
+<h2 id="the-breaking-point"></h2>
+<p>If each transaction inserts on the order of 128 bytes of primary
+information (the essential who/what/when/where/why and how much of
+transaction processing) then a trillion transactions is around 128 TiB,
+just in storage, before indexing, before replication.</p>
+<p>But 128 TiB is the breaking point for many architectures. And this is
+true whether that data lives on one machine, or a thousand.</p>
+<h2 id="unlimited-infinite-scale"></h2>
+<p>For example, most cloud databases promise “unlimited” “infinite”
+scale. But when we look at the fine print, most of them set hard limits
+of either 64, 128 or 256 TiB in the docs:</p>
+<pre><code>“Up to 64 TB”
+“grow from 10 GB up to 128 TB”
+“256 TiB maximum”</code></pre>
+<p>It’s rare that any cloud database can scale beyond a few hundred TiB.
+To be fair, these limits are public, and I want to be clear that knowing
+the limits and documenting them upfront is a hallmark of great
+design.</p>
+<p>But still, few architectures operate comfortably at petabyte scale.
+Why is that?</p>
+<h2 id="mean-time-to-recovery-mttr"></h2>
+<p>Disks are easy to fill, but recovery from disk and machine failure
+takes a bit more thought.</p>
+<p>For example, to rebuild a failed 128 TiB machine might take 2.9 hours
+across the network, assuming a 100 gigabit NIC and perfect packet
+transmission.</p>
+<p>Add index reconstruction, and you’re near 6 hours, as your Mean Time
+To Recovery, or MTTR.</p>
+<h2 id="mttr--mtbf-death-spiral"></h2>
+<p>But if your MTTR exceeds your Mean Time Between Failure, you’re in a
+death spiral. While you’re recovering, another machine fails. The system
+scales (and fails) faster than it recovers.</p>
+<p>Of course, this is a naive example, you can multiplex recovery across
+machines, but the point is that scalability is hard, because
+survivability is hard.</p>
+<h2 id="too-big-to-recover"></h2>
+<p>Yet without survivability, the system becomes too big to fail,
+because it’s really too big to recover. And when you can’t recover a
+system, you no longer own the system. The system owns you.</p>
+<h2 id="a-paradox-of-composition"></h2>
+<p>In other words, the maximum size of a database is dictated not by
+disk, but by architecture, and whether every algorithm is designed with
+explicit limits for scale, and, crucially, to recover that scale.</p>
+<p>In a paradox of composition, to have unbounded scale, every component
+must be bounded. You start to move from dynamic allocation to static
+allocation.</p>
+<p>Yet this focus on worst-case behavior is rare where systems use
+off-the-shelf dependencies. And systems tend to fail to scale in a far
+simpler way: time.</p>
+<h2 id="general-purpose-cant-keep-up"></h2>
+<p>Let’s estimate that an average general-purpose (OLGP) database can
+sustain between: 10,000 and 100,000 transactions per second. With strict
+serializability.</p>
+<p>Depending on the rate, a trillion transactions would take us between
+115 and 1,157 days.</p>
+<p>That’s 3 months to 3 years. If we’re going to design and demo an
+architecture through a trillion transactions, we don’t want to finish in
+2029.</p>
+<h2 id="the-world-is-becoming-more-transactional"></h2>
+<p>In the last decade, <a href="https://www.npci.org.in/product/upi/product-statistics">India’s
+national payments system</a> grew 10,000x, processing tens of billions
+of transactions per month. There’s almost no transaction database on
+Earth that can survive this kind of increase in scale.</p>
+<p>But this is what happens when economies move to real-time. Everything
+becomes instant. Smaller. Volumes explode. And not just payments, all
+sectors.</p>
+<h2 id="jevons-paradox-efficiency-increases-consumption"></h2>
+<p>This is Jevons’ Paradox: efficiency increases consumption. The faster
+your OLTP, the more transactions you’ll want to process, the faster
+you’ll need to recover. The need for more scalable transaction
+processing is not going away.</p>
+<p>Of course, none of this is impressive if we look at where the world
+is going. But the systems we design today will decide whether this
+future is scalable, survivable, or impossible.</p>
+<h2 id="the-seven-stages-of-survivability"></h2>
+<p>To survive a trillion transactions then, before we build something
+better, we first need to understand where existing architectures
+break.</p>
+<p>And here, OLTP tends to evolve through seven predictable stages, each
+stage solving one problem while creating another.</p>
+<h2 id="stage-1-the-log"></h2>
+<p>In the beginning was the log. The database is the log and the
+rest—just an in-memory cache. The log gives order, durability, and
+recovery from power loss. But the longer the log, the longer the
+replay.</p>
+<h2 id="stage-2-snapshots"></h2>
+<p>And so, in stage two, we snapshot the log to accelerate restarts.
+This works for small state. But a 1 TiB snapshot at 10 GB/s takes 100
+seconds, and you can’t scale beyond memory.</p>
+<h2 id="stage-3-lsm-tree-storage-engine"></h2>
+<p>Stage three adds an LSM tree storage engine for incremental
+snapshotting across L1, L2, L3, main memory, and NVMe.</p>
+<p><img src="https://tigerbeetle.com/blog/2026-03-19-a-trillion-transactions/lsm-03524b9c.png" alt="LSM-Tree Storage Engine"></p><p>LSMs are beautiful from a systems perspective. They match the memory
+hierarchy. You get a natural separation of hot and cold data.</p>
+<p>But everything is on one machine. If you lose the machine, you need
+to recover from backup, and as you approach 128 TiB, the time this takes
+limits the scale you can address.</p>
+<p>So what do we do? We add redundancy to mask machine failure.</p>
+<h2 id="stage-4-replicated-state-machine-rsm"></h2>
+<p>The fourth stage replicates the log and state across machines, with a
+replicated state machine architecture. Which I think makes sense if you
+say it backwards: a machine, with state, that you replicate.</p>
+<p><img src="https://tigerbeetle.com/blog/2026-03-19-a-trillion-transactions/rsm-7c4f748d.png" alt="Replicated State Machine"></p><h2 id="viewstamped-replication-vsr"></h2>
+<p>The <a href="https://dspace.mit.edu/handle/1721.1/71763">Viewstamped
+Replication</a> consensus protocol from MIT, pioneered this approach in
+1988 (a year before Paxos, and inspiring Raft years later).</p>
+<p>VSR provides split-second recovery to a new primary if the old
+primary fails, with no durability loss during failover, and no
+consistency loss, not even temporarily. This is an improvement for
+availability. You can’t scale when you’re down.</p>
+<p>At this stage, with an RSM and VSR, we’re surviving most recovery
+problems, but if you lose one of the replica machines, you need to
+recover across the network, and as you scale to 128 TiB, so too MTTR
+approaches several hours.</p>
+<p>If another machine fails while you’re recovering, you start to lose
+quorum and risk losing the cluster. Again, survivability limits
+scalability.</p>
+<h2 id="stage-5-horizontal-scaling"></h2>
+<p>Therefore, around at least 10 years ago, we saw a fifth stage emerge,
+which was to shard across multiple replicated state machines. Now, each
+machine isn’t storing all the state, but a shard of the state.</p>
+<p><img src="https://tigerbeetle.com/blog/2026-03-19-a-trillion-transactions/horizontalscaling-d2c2865f.png" alt="Horizontal Scaling"></p><p>This seems like an obvious step. And for a while, it was.</p>
+<p>Horizontal scaling! Infinite scalability! But there’s a problem. And
+it’s fundamental.</p>
+<h2 id="the-four-primary-colors-of-computer-science"></h2>
+<p>Sharding takes what we call the four primary colors of computer
+science: network, storage, memory and compute, couples them, and scales
+them all the same way, with the same horizontal brush stroke.</p>
+<p>This works for storage. But for compute you need to transact across
+keys. And so sharding destroys what OLTP needs most: cache locality.</p>
+<h2 id="amdahls-law"></h2>
+<p>Imagine taking your CPU’s L1 cache, splitting your L1 cache across
+machines, and then making your CPU wait on the network.</p>
+<p>Forget cache misses.</p>
+<p>Contention kills throughput because you hit <a href="https://en.wikipedia.org/wiki/Amdahl%27s_law">Amdahl’s Law</a> on
+every transaction: throughput is always limited by the serialized
+portion of the workload.</p>
+<p>Even if you subdivide your keys on the write path, to split your
+counters or balances, it’s a hack, because you have to join them on the
+read path if you want to be able to execute any meaningful business
+logic. You can’t shard your way around strict serializability.</p>
+<p>Of course, there will be people who think they can outspend Gene
+Amdahl.</p>
+<p>And so we spun up a horizontally scaled cluster last year, that would
+have cost a million dollars a year to run, as much as a McLaren, and we
+found that for OLTP, <a href="https://www.youtube.com/watch?v=yKgfk8lTQuE">with as little as 10%
+contention, even 1% or 0% contention</a>, you would be better off
+running single node open source Postgres, which also costs less.</p>
+<p>So how do we scale compute and storage? Clearly, we can’t couple
+them. The industry’s latest answer? Go the other extreme.</p>
+<h2 id="stage-6-separation-of-storage-and-compute"></h2>
+<p>Decouple everything. Separate storage from compute and push
+everything to object storage, to run queries directly against object
+storage.</p>
+<p><img src="https://tigerbeetle.com/blog/2026-03-19-a-trillion-transactions/storagecompute-890dd2cf.png" alt="Separation of Storage and Compute"></p><p>This solves storage scaling. Object storage has no practical
+limits.</p>
+<p>However, object storage has high latency. Remember our workload? You
+can’t serve transactions from object storage. It’s one thing to
+partition your L1 cache across the network, and another to replace your
+memory hierarchy with cold storage.</p>
+<p>We need horizontal storage but vertical compute, so we can keep hot
+data close to the CPU, cold data cheap, and recovery time bounded. In
+other words, an LSM tree, or an iceberg, that doesn’t submerge all the
+way.</p>
+<h2 id="stage-7-diagonal-scaling"></h2>
+<p>This is diagonal scaling. To put a new name on a classic
+architecture, the memory hierarchy.</p>
+<p>Keep your hot transactions, your working set, in a non-sharded
+replicated state machine. This scales compute vertically, where you need
+microsecond performance: bigger machines, faster chips, more memory,
+faster NVMe.</p>
+<p>Then tier 90% of your historical transactions, the lower levels of
+your LSM tree—to object storage. This scales storage horizontally, where
+you need cost capacity.</p>
+<p><img src="https://tigerbeetle.com/blog/2026-03-19-a-trillion-transactions/diagonalscaling-310dddd5.png" alt="Diagonal Scaling"></p><p>But the insight is that with diagonal scaling, now, in terms of
+survivability, you don’t need to rebuild 128 TiB across the network,
+because your replicated state machine is no longer that big. You can cap
+it at say 16 TiB, to bound recovery time, while scaling out indefinitely
+against object storage.</p>
+<p>You know, someone will object that you can prune historical data into
+a separate system. But if we think for a second, what’s the
+difference?</p>
+<h2 id="rsm--lsm--object-storage"></h2>
+<p>Diagonal scaling is simple: RSM + LSM + object storage. And again,
+it’s nothing new. But most implementations tier for cost, not
+recovery.</p>
+<p>We’ve decoupled recovery time from total storage size, without
+sacrificing strict serializability or the memory hierarchy. The
+replicated state machine stays small and fast. The object storage scales
+infinitely.</p>
+<h2 id="a-trillion-transactions-in-practice"></h2>
+<p>This is how you survive a trillion transactions. In theory.</p>
+<p>Now, let’s see it in practice. And to do this, we took TigerBeetle,
+the financial transactions database we designed for OLTP (and only
+OLTP).</p>
+<h2 id="oltp-and-only-oltp"></h2>
+<p>Where general-purpose and analytics databases design for strings,
+TigerBeetle designs instead for integers and counting. It’s obvious in
+hindsight, but the reason that TigerBeetle is not a string database, is
+because transaction processing in the Jim Gray tradition is
+debit/credit.</p>
+<p>TigerBeetle has a replicated state machine architecture, and we
+extended TigerBeetle’s LSM engine with a connector to object storage for
+the lower levels, for petabyte scale, quick recovery, and strict
+serializability.</p>
+<p>Then we spun up a TigerBeetle cluster with local NVMe plus object
+storage with half a petabyte of flash.</p>
+<p>And we started sending transactions in…</p>
+<p>(But now, you will need to
+<a href="https://youtu.be/y2_BqkKTbD8?t=999" target="_blank">watch the
+last five minutes of the talk.</a>)</p>
+  </div></div>

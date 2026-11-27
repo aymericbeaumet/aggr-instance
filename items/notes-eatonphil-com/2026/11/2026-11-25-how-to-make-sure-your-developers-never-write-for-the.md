@@ -1,0 +1,31 @@
+---
+title: How to make sure your developers never write for the company blog
+link: http://notes.eatonphil.com/2026-11-25-how-to-make-sure-developers-never-write-for-the-company-blog.html
+source: notes-eatonphil-com
+published: 2026-11-25T00:00:00Z
+updated: 2026-11-25T00:00:00Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+labels:
+- writing
+summary: Bring up writing blogs just once a year at your offsite. Make it clear you don't want writing now but after the next big release is out. Make sure writing blogs is seen as the function of the marketing team. When you get a draft, mark it all up with Claude comments. Rewrite it with Claude generally. Make it well understood there is a long and drawn out process to getting published. Make frequent changes to your website without looking at how code or technical articles look on the site, or if they even render at all. Have external consultants rewrite sections of published articles for SEO. Make sure not to ask the author for approval or let them know it happened. Do not reward publishing. VPs and directors, let alone founders, should not proudly share these posts on social media. Published blog posts are the author's own work, surely done on their own time (why waste company time on writing a blog post?), and not something to be rallied around. Always refer to social media and developer communities as cesspools to make it clear how little value there is in them. Use diminutive terms like "The Orange Site" so everyone knows it's bad. If a post happens to take off on any site, make sure no one in the company acknowledges this (internally or externally) or cheers it on (internally or externally). Make it really inconvenient for authors to get analytics on their post. Analytics is for the marketing team. Do not try to learn all the various programming communities (Reddit, Lobsters, LWN, Postgres Weekly, etc.). Hire "developer relations" (who are not experienced programmers) and keep them separate from marketing and engineering. Developers don't need to write because you've got "developer relations". Impress upon everyone the unimportance of domain experts speaking about their work. If you publish anything at all, publish thinkpieces by executives. But make sure they're written entirely by AI. You wouldn't want to invite humans to read your thoughts.
+content: extracted
+html: 2026-11-25-how-to-make-sure-your-developers-never-write-for-the.html
+---
+
+Bring up writing blogs just once a year at your offsite. Make it clear you don't want writing now but after the next big release is out.
+
+Make sure writing blogs is seen as the function of the marketing team. When you get a draft, mark it all up with Claude comments. Rewrite it with Claude generally. Make it well understood there is a long and drawn out process to getting published.
+
+Make frequent changes to your website without looking at how code or technical articles look on the site, or if they even render at all. Have external consultants rewrite sections of published articles for SEO. Make sure not to ask the author for approval or let them know it happened.
+
+Do not reward publishing. VPs and directors, let alone founders, should not proudly share these posts on social media. Published blog posts are the author's own work, surely done on their own time (why waste company time on writing a blog post?), and not something to be rallied around.
+
+Always refer to social media and developer communities as cesspools to make it clear how little value there is in them. Use diminutive terms like "The Orange Site" so everyone knows it's bad. If a post happens to take off on any site, make sure no one in the company acknowledges this (internally or externally) or cheers it on (internally or externally).
+
+Make it really inconvenient for authors to get analytics on their post. Analytics is for the marketing team.
+
+Do not try to learn all the various programming communities (Reddit, Lobsters, LWN, Postgres Weekly, etc.).
+
+Hire "developer relations" (who are not experienced programmers) and keep them separate from marketing and engineering. Developers don't need to write because you've got "developer relations". Impress upon everyone the unimportance of domain experts speaking about their work.
+
+If you publish anything at all, publish thinkpieces by executives. But make sure they're written entirely by AI. You wouldn't want to invite humans to read your thoughts.

@@ -1,0 +1,72 @@
+<div id="readability-page-1" class="page"><div><p>SaaS platforms don't fit a single mold when it comes to payments pricing. An early-stage vertical software company needs simple, flexible tools to experiment and iterate. A platform moving upmarket needs granular cost control and the ability to offer sophisticated pricing to enterprise customers. And as AI features reshape how platforms monetize, that diversity is only going to increase.</p>
+<p>Connect has made significant strides on both ends of that spectrum. For platforms that want flexibility without complexity, segmented pricing lets you set and manage rates directly from the Dashboard with the ability to differentiate by payment method, geography, and other attributes. For platforms moving upmarket, Interchange Plus Plus (IC++)&nbsp;takes things further: it gives you the ability to offer cost-plus pricing to your users, passing network costs transparently while protecting your margins, without the operational burden of managing rate tables, navigating messy reconciliation, or tracking constant interchange updates from the networks.</p>
+<p>That last capability is proving to be a meaningful unlock. In the article below, we dig into how network cost passthrough actually works: what it means for your pricing model, how to set it up and how it shows up in your users' fee reporting.</p>
+<h2 id="why-blended-pricing-hurts-platform-margins">Why blended pricing hurts platform margins</h2>
+<p>On a blended rate, the platform absorbs all interchange variance. When your card mix is predictable, this isn’t a problem. But premium rewards cards, corporate purchasing cards, and high-interchange consumer cards can cost materially more in network fees than your blended rate assumes. The difference comes straight out of your spread, and as platforms scale and attract larger, more sophisticated merchants, that card mix tends to shift in the higher cost direction.</p>
+<p>Network cost passthrough solves this by moving the platform to IC++: interchange and card scheme fees flow directly to connected accounts at cost, and the platform earns a clean, protected margin on top. Regardless of card mix, the economics become predictable. The operational headache of tracking interchange schedules, managing rate table updates, or reconciling cost variances disappears. And for connected accounts, the model is actually more transparent: they receive reporting on the network costs attributed to their payment, not a blended approximation of it.</p>
+<p>That combination: margin protection for the platform and cost transparency for users, is why IC++ is increasingly the default choice for platforms moving upmarket.</p>
+<h2 id="setting-the-stage-ic-vs-ic">Setting the stage: IC+ vs IC++</h2>
+<p>IC+&nbsp;and IC++&nbsp;are related but distinct offerings for Connect platforms:</p>
+<ul>
+<li>IC+ (Interchange Plus): A pricing model where the platform is charged the underlying network costs (interchange + scheme fees) plus a Stripe markup, instead of a single blended rate.</li>
+<li>IC++ (also referred to as network cost passthrough for platforms): A Connect capability&nbsp;built on top of IC+ that lets a platform pass its network costs through to its connected accounts. In this case, the platform can offer IC+pricing to its own connected accounts rather than charging them a blended rate.</li>
+</ul>
+<h2 id="how-network-cost-passthrough-ic-works">How network cost passthrough (IC++) works</h2>
+<h3 id="eligibility-requirements">Eligibility requirements</h3>
+<p>For your platform to be eligible for network cost passthrough, the following must be true:</p>
+<ul>
+<li>Your platform must be on IC+ pricing</li>
+<li>Your platform must control pricing&nbsp;(IC++ is only relevant if the platform is on a buy-rate, not on revenue share)</li>
+<li>The connected account must have the transfers capability enabled</li>
+<li>The connected account should be the Merchant of Record of the transaction: in practice, this means you’re either using Direct Charges or Destination Charges with the <code>on_behalf_of</code>&nbsp;parameter fund flows</li>
+<li>The platform and connected account pair must be in eligible geographies (you can work with your account team to ensure geographical availability)</li>
+</ul>
+<h3 id="enable-network-cost-passthrough-for-your-connected-accounts">Enable network cost passthrough for your connected accounts</h3>
+<p>You can enable Network Cost Passthrough for a connected account either on the Dashboard or through the Stripe API.</p>
+<p>In the Dashboard, navigate to the connected account's detail page. In the monetization section, toggle on "Pass through network costs"&nbsp;in the Network costs tab.</p>
+<p>Through the API, create a Pricing Config Scheme of type <code>network_costs</code>&nbsp;for the connected account using the Stripe-Account&nbsp;header:</p>
+<pre><code>curl POST https://api.stripe.com/v1/pricing_configs/network_costs/schemes \
+&nbsp; -u "sk_live_xxxx:" \
+&nbsp; -H "Stripe-Version: 2026-06-24.preview" \
+&nbsp; -H "Stripe-Account: CONNECTED_ACCOUNT_ID" \
+&nbsp; -d enabled=true</code></pre>
+<p>To check the current status for a connected account:</p>
+<pre><code>curl https://api.stripe.com/v1/pricing_configs/network_costs/schemes/current_at \
+&nbsp; -u "sk_live_xxxx:" \
+&nbsp; -H "Stripe-Version: 2026-06-24.preview" \
+&nbsp; -H "Stripe-Account: CONNECTED_ACCOUNT_ID"</code></pre>
+<p>Once enabled, IC++ passes eligible card-network costs, including interchange, scheme fees, and applicable adjustments, through to the connected account at cost. It does not pass through separate Stripe product fees.</p>
+<p>In practice, Stripe first charges network costs to your platform account on your IC+ billing schedule (typically within two days of the payment occuring). Within a few hours, we recover these costs from the connected account’s balance and add them to the platform’s balance via a&nbsp;Balance Transaction&nbsp;of type&nbsp;<code>platform_fee_transfer</code>. Note that if the connected account has paid out its funds, issued refunds, or otherwise reduced its balance before the recovery occurs, the network cost recovery can take the account negative. In this case, payouts are paused until the connected account’s balance goes positive again.</p>
+<h3 id="adjust-the-pricing-for-your-connected-accounts">Adjust the pricing for your connected accounts</h3>
+<p>To accommodate this change, your platform’s existing blended application fee, which was priced to absorb network costs, needs to come down.</p>
+<p>If you use Stripe's <a href="https://docs.corp.stripe.com/connect/platform-pricing-tools">Platform Pricing Tool</a>&nbsp;(no-code pricing management), the recommended approach is to create a dedicated pricing group for IC++ accounts rather than modifying your existing rules. Add a condition of "Network cost passthrough = Enabled" to scope the rule correctly, then set a lower volume fee that reflects your Stripe fees and your markup, without the network costs.</p>
+<p>Alternatively, if you manage pricing programmatically, you can update your own internal pricing engine to accommodate for this change.</p>
+<p><span><span><img src="https://stripe.dev/images/pass-network-costs-to-your-connected-accounts/image1.png" alt="Blended and passthrough pricing diagrams" loading="lazy" decoding="async"></span></span></p>
+<h2 id="reporting-and-reconciliation-for-your-merchants">Reporting and reconciliation for your merchants</h2>
+<p>As you change your pricing strategy for your connected accounts, you must accompany this change by providing them with new reporting capabilities. You can help your connected accounts understand their network costs by sharing the following reports with them:</p>
+<ul>
+<li>IC+ plan-level report: This report shows data aggregated at the calendar month level. This helps connected accounts understand the monthly network costs computed across all their charges. It provides interchange plan names and an aggregated scheme fee total</li>
+<li>IC+ transaction-level report: This report helps connected accounts understand transaction costs at an individual-transaction level. It provides information about which charges led to higher network costs and how refunds and disputes impact network costs. This report shows data aggregated by calendar month.</li>
+</ul>
+<p>Both reports provide complementary information. You can access the reports for a connected account in several ways:</p>
+<ul>
+<li>Stripe Dashboard&nbsp;(for connected accounts with Dashboard access): this route requires no technical lift at all from you as a platform.</li>
+<li>Network cost passthrough embedded component: you can use Connect embedded components to add connected account dashboard functionality to your website. These libraries allow you to grant your users access to Stripe products directly in your dashboard. This route requires very little technical lift from you as a platform.</li>
+<li><a href="https://docs.stripe.com/api/reporting/report_run">Reporting API</a>: our Reporting API lets you programmatically access the same financial data that's in your Dashboard’s financial reports. This route requires some technical lift from you as a platform.</li>
+<li>Sigma or Stripe Data Pipeline (for platforms with access to these two products): &nbsp;to run custom analyses and integrate network cost data into your existing workflows, you can access this report data in Sigma and Stripe Data Pipeline. Similarly, this route requires some technical lift from you as a platform.</li>
+</ul>
+<p>Regardless of how you access the report, the network cost schema is the same and is described <a href="https://docs.stripe.com/connect/network-cost-passthrough-platforms?core-dashboard-or-api=dashboard#network-cost-report-schema">here in our documentation</a>.</p>
+<h2 id="how-to-deploy-this-new-pricing-strategy">How to deploy this new pricing strategy</h2>
+<h3 id="start-with-a-pilot-cohort">Start with a pilot cohort</h3>
+<p>Enabling IC++ is a pricing change with real financial implications for your connected accounts. We recommend starting with a pilot cohort of a few connected accounts that are good candidates:</p>
+<ul>
+<li>High-volume, payment-aware accounts: merchants who already think carefully about their processing costs and will understand the change quickly</li>
+<li>Commercially engaged: accounts you have a close relationship with and can get feedback from</li>
+</ul>
+<h3 id="communicate-before-you-enable">Communicate before you enable</h3>
+<p>Connected accounts need context before they see new line items on their statements. Before enabling this change for a cohort, send a short explanation covering: what is changing, why (transparency and cost accuracy), what their new fee structure will look like, and where the connected accounts can find the IC++ reports.</p>
+<h3 id="embed-ic-into-yourgo-to-market-motion">Embed IC++ into your&nbsp;go-to-market motion</h3>
+<p>Once the pilot validates your rollout approach, IC++ becomes a commercial differentiator in addition to being an operational change. For prospecting, IC++ is a key value proposition with enterprise and payment-aware buyers who have outgrown blended pricing elsewhere. Position IC++ as a premium tier with greater transparency for sophisticated operators.</p>
+<h2 id="get-started">Get started</h2>
+<p>Network cost passthrough is available for eligible Connect platforms today. If you're ready to move your connected accounts to IC++, the <a href="https://docs.stripe.com/connect/network-cost-passthrough-platforms">full documentation</a>&nbsp;covers everything from enabling passthrough per account to reading the network cost reports.</p>
+<p>If you're not yet enabled for IC++ at the platform level, or you want to talk through whether this pricing model is the right fit for your business, reach out to your Stripe account team. They can confirm your eligibility and help you build a rollout plan.</p></div></div>

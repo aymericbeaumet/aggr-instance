@@ -1,0 +1,220 @@
+<div id="readability-page-1" class="page"><div><p>When you're working with Stripe webhooks, you might be using a popular pattern: treat the incoming event as a signal, then fetch the full, up-to-date resource from the Stripe API. This <a href="https://hookdeck.com/webhooks/guides/webhooks-fetch-before-process-pattern?ref=stripe-dev">fetch-before-process</a> approach is solid because it protects you from issues like duplicate or out-of-order webhooks. At scale, these problems aren't just possibilities - they're guarantees.</p>
+<p>But here’s the catch: as your application grows, this pattern can backfire. A sudden spike in events, such as a burst of invoice.payment_succeeded or checkout.session.completed webhooks can lead to a surge in API calls. If this exceeds your account’s rate limits (typically 100 read requests per second), Stripe begins returning 429 Too Many Requests responses to help protect service reliability.</p>
+<p>When you hit a rate limit, you can let the request fail and rely on Stripe’s automatic retries, or implement your own retry logic. A more resilient approach is to queue incoming events from the start and throttle outbound API requests, ensuring you stay within rate limits and handle spikes gracefully.</p>
+<p>This post walks you through a practical way to achieve the reliability of the fetch-before-process pattern without overwhelming the Stripe API. By using <a href="https://hookdeck.com/event-gateway?ref=stripe-dev">Hookdeck Event Gateway</a> to queue and control incoming webhooks, it’s possible to process them at a safe pace.</p>
+<h2 id="why-fetch-before-process-can-be-risky">Why fetch-before-process can be risky</h2>
+<p>Treating webhooks as signals and then fetching the latest data is a growing trend for a good reason. Webhook payloads can be outdated, contain partial data, or arrive in the wrong order. And you might get the same event more than once.</p>
+<p>As Alex, Hookdeck's CEO, explained in his <a href="https://www.youtube.com/watch?v=u2O-QS-A7jo">Stripe Meetup talk</a>, webhook-driven systems are event-driven by nature. This means you have to design for things like:</p>
+<ul>
+<li><strong>Idempotency:</strong> So duplicate events don’t cause problems.</li>
+<li><strong>Event ordering:</strong> Handling cases where an <code>update</code> event arrives before a <code>create</code> event.</li>
+<li><strong>Retries:</strong> Having a solid strategy for reprocessing failed events.</li>
+</ul>
+<p>Fetching the resource from Stripe’s API right before you process it helps you:</p>
+<ul>
+<li>Work with the most current data.</li>
+<li>Validate the resource's state.</li>
+<li>Simplify your retry logic, since the fetch will always get the latest version.</li>
+</ul>
+<p>Here's what the code might look like in an Express.js application:</p>
+<pre><code>const stripe = new Stripe(process.env.STRIPE_API_KEY);
+
+app.post(
+  "/api/stripe/invoices",
+  async (req: Request, res: Response) =&gt; {
+    try {
+      // Check Stripe signature and construct the Stripe event
+      const sig = req.headers["stripe-signature"] as string;
+      let event: Stripe.Event;
+      try {
+        event = stripe.webhooks.constructEvent(
+          req.body,
+          sig,
+          process.env.STRIPE_WEBHOOK_SECRET
+        );
+      } catch (err) {
+        console.log(`❌ Error:`, err);
+        res.status(400).json(err);
+        return;
+      }
+
+      if (event.type.startsWith("invoice.") === false) {
+        res.status(400).send("Unexpected event type");
+        return;
+      }
+
+      // Initially the webhook contains a snapshot of the invoice
+      const invoiceSnapshot = event.data.object as Stripe.Invoice;
+      const invoiceId = invoiceSnapshot.id;
+      if (!invoiceId) {
+        res.status(400).send("Invoice ID is missing");
+        return;
+      }
+
+      // Retrieve the latest version of the invoice
+      // You will hit the Stripe API rate limit here
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      console.log(`Processing event type: ${event.type}`);
+      console.log(`Invoice:`, invoice);
+
+      // Now you can process the invoice, knowing it's the latest version
+      // ...
+
+      res.sendStatus(200);
+    } catch (err) {
+      // Handle errors or network issues
+      console.error("Error fetching event:", err);
+      // Send Stripe error to Hookdeck for full observability
+      res.status(500).json(err);
+    }
+  }
+);</code></pre>
+<p>That’s all great, until your event volume grows. Stripe sends events fast. Imagine a flash sale, a large data migration, or a monthly subscription renewal run that generates thousands of events in just a few seconds. If your system tries to process events as they arrive, it may generate hundreds of API requests per second, quickly exceeding Stripe’s general 100 requests per second (RPS) limit and triggering 429 errors.</p>
+<h2 id="a-simple-scalable-pattern">A simple, scalable pattern</h2>
+<p>Here’s a more resilient approach:</p>
+<ol>
+<li><strong>Receive webhooks with Hookdeck:</strong> All your Stripe webhooks go to a single Hookdeck URL.</li>
+<li><strong>Throttle delivery to your service:</strong> Control the rate at which Hookdeck sends events to your application.</li>
+<li><strong>Fetch the resource from Stripe:</strong> Your code receives the throttled event and safely fetches the data.</li>
+</ol>
+<p>The idea is simple: instead of hitting Stripe’s API as fast as webhooks arrive, decouple ingestion from processing. Hookdeck queues the events, and you decide how many your app should handle per second.</p>
+<h2 id="step-by-step-building-the-flow">Step-by-step: Building the flow</h2>
+<h3 id="1-create-a-hookdeck-connection">1. Create a Hookdeck connection</h3>
+<p>Create a Hookdeck <strong>Connection</strong> in the <a href="https://dashboard.hookdeck.com?ref=stripe-dev">Hookdeck dashboard</a>. From the <strong>Connections</strong> page, click <strong>Create Connection</strong>.</p>
+<p><strong>Note</strong>: You can also create a connection with the <a href="https://github.com/hookdeck/terraform-provider-hookdeck">Hookdeck Terraform Provider</a> or directly with the Hookdeck API. Examples of both of these are in the <a href="https://github.com/hookdeck/hookdeck-demo/tree/main/stripe-fetch-before-process">Hookdeck Stripe Fetch Before Process example</a> on GitHub.</p>
+<p>First, define the <strong>Source</strong> and select <strong>Stripe</strong> as the source type. Give the source a name such as <code>stripe_invoice_webhooks</code>. Don't enable <strong>Authentication</strong> yet as you need the Stripe webhook secret for that.</p>
+<p><span><span><img src="https://stripe.dev/images/stay-within-the-limits/image1.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>Next, define the <strong>Destination</strong> for your connection.</p>
+<p><span><span><img src="https://stripe.dev/images/stay-within-the-limits/image5.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>Select <strong>HTTP</strong> as the destination type and enter the URL for the endpoint where you want to receive the events.</p>
+<p>Enable <strong>Max delivery rate</strong> to control how fast Hookdeck sends events to your service. Since you'll likely be working in a sandbox Stripe environment at the moment, set the rate-limit to 25 requests per second. In a live/production environment, you can increase this to 100 requests per second.</p>
+<p>Hookdeck automatically queues any incoming events and delivers them to your service at the rate you've set. This protects your Stripe API quota, your database, and your server's capacity.</p>
+<p>Name your connection something like <code>conn_stripe_invoices</code>, and click <strong>Save</strong>.</p>
+<p><span><span><img src="https://stripe.dev/images/stay-within-the-limits/image5.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>You'll be presented with a URL in the form <code>https://hkdk.events/your-unique-id</code>, which is the Hookdeck endpoint that receives your Stripe webhooks. Copy this URL, as you'll need it to set up the webhook in Stripe.</p>
+<p><span><span><img src="https://stripe.dev/images/stay-within-the-limits/image8.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<h3 id="2-create-a-webhook-event-destination-in-stripe">2. Create a webhook event destination in Stripe</h3>
+<p>From the <a href="https://dashboard.stripe.com/">Stripe Dashboard</a>, use the search and go to the <strong>Create a webhook</strong> (<strong>Create an event destination</strong>) page.</p>
+<p>Select the events you are interested in, such as <code>invoice.created</code>, <code>invoice.updated</code>, and <code>invoice.deleted</code>. Click <strong>Continue</strong>.</p>
+<p>Choose <strong>Webhook endpoint</strong> as the destination type, and click <strong>Continue</strong>.</p>
+<p>Enter a <strong>Destination name,</strong> such as <code>hookdeck: invoice webhook handler</code>, and paste the Hookdeck URL you copied earlier into the <strong>Endpoint URL</strong> field. Click <strong>Create destination</strong>.</p>
+<p><span><span><img src="https://stripe.dev/images/stay-within-the-limits/image6.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>Once your webhook event destination is created, you'll see a <strong>Signing secret</strong>. Copy this secret, as you'll need it to authenticate incoming webhooks from Stripe in Hookdeck.</p>
+<p><span><span><img src="https://stripe.dev/images/stay-within-the-limits/image9.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<h3 id="3-configure-hookdeck-to-authenticate-stripe-webhooks">3. Configure Hookdeck to authenticate Stripe webhooks</h3>
+<p>In the Hookdeck dashboard, go to the <strong>Connections</strong> page. Click on the Stripe <strong>Source</strong> and click <strong>Open Source</strong>.</p>
+<p>Within the Source page, enable <strong>Authentication</strong> and paste the Stripe webhook secret you copied earlier into the <strong>Webhook Signing Secret</strong> field. This ensures that Hookdeck verifies incoming webhooks from Stripe.</p>
+<p><span><span><img src="https://stripe.dev/images/stay-within-the-limits/image4.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>Back on the <strong>Connections</strong> page, the Stripe source shows a small icon next to it, indicating that it is authenticated.</p>
+<p><span><span><img src="https://stripe.dev/images/stay-within-the-limits/image2.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<h3 id="4-handle-webhook-and-fetch-the-stripe-event">4. Handle Webhook and fetch the Stripe event</h3>
+<p>When your endpoint receives an event from Hookdeck, you can use the <a href="https://docs.stripe.com/sdks">Stripe Software Development Kit (SDK)</a> to fetch the full event object. Because you've throttled the delivery, you don't have to worry about rate limits.</p>
+<p>Here's the slightly modified Express.js code:</p>
+<pre><code>const stripe = new Stripe(process.env.STRIPE_API_KEY);export const verifyHookdeck = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) =&gt; {
+  const hmacHeader = req.get("x-hookdeck-signature");
+  const hmacHeader2 = req.get("x-hookdeck-signature-2");
+
+  const hash = crypto
+    .createHmac("sha256", process.env.HOOKDECK_WEBHOOK_SECRET as string)
+    .update(req.body)
+    .digest("base64");
+
+  if (hash === hmacHeader || (hmacHeader2 &amp;&amp; hash === hmacHeader2)) {
+    next();
+  } else {
+    console.error("Signature is invalid, rejected");
+    res.sendStatus(403);
+  }
+};
+
+app.post(
+  "/api/stripe/invoices",
+  verifyHookdeck,
+  async (req: Request, res: Response) =&gt; {
+    try {
+      // Check Stripe signature and construct the Stripe event
+      const sig = req.headers["stripe-signature"] as string;
+      let event: Stripe.Event;
+      try {
+        event = stripe.webhooks.constructEvent(
+          req.body,
+          sig,
+          STRIPE_WEBHOOK_SECRET,
+          // Disable timestamp checking since event was already check by Hookdeck
+          // This also allows for failed events to be replayed.
+          -1
+        );
+      } catch (err) {
+        console.log(`❌ Error:`, err);
+        res.status(400).json(err);
+        return;
+      }
+
+      if (event.type.startsWith("invoice.") === false) {
+        res.status(400).send("Unexpected event type");
+        return;
+      }
+
+      // Initially the webhook contains a snapshot of the invoice
+      const invoiceSnapshot = event.data.object as Stripe.Invoice;
+      const invoiceId = invoiceSnapshot.id;
+      if (!invoiceId) {
+        res.status(400).send("Invoice ID is missing");
+        return;
+      }
+
+      // Retrieve the latest version of the invoice
+      // You will not hit the Stripe API rate limit here
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      console.log(`Processing event type: ${event.type}`);
+      console.log(`Invoice:`, invoice);
+
+      // Now you can process the invoice, knowing it's the latest version
+      // ...
+
+      res.sendStatus(200);
+    } catch (err) {
+      // Handle errors or network issues
+      console.error("Error fetching event:", err);
+      // Send Stripe error to Hookdeck for full observability
+      res.status(500).json(err);
+    }
+  }
+);</code></pre>
+<p>You may notice that the example uses a <code>verifyHookdeck</code> middleware function. This verifies that the incoming request is from Hookdeck, not directly from Stripe. However, the Stripe headers are still present, so you can verify the webhook signature if needed.</p>
+<p>You can find the full code for the Express.js server in the <a href="https://github.com/hookdeck/hookdeck-demo/tree/main/stripe-fetch-before-process">Hookdeck Stripe Fetch Before Process example</a> on GitHub.</p>
+<h3 id="5-test-your-endpoint-locally">5. Test your endpoint locally</h3>
+<p>Run your application locally and expose it to the public internet with a localtunnel solution such as ngrok.</p>
+<p><em><strong>Note</strong>: The <a href="https://hookdeck.com/docs/cli?ref=stripe-dev">Hookdeck Command Line Interface (CLI</a>) provides localtunnel functionality. However, CLI destinations can't presently have a delivery rate configured.</em></p>
+<p>Update the Destination URL to point to your localtunnel URL. Go to the <strong>Connections</strong> page in the Hookdeck dashboard, click on the <strong>Destination</strong>, update the URL (remember to include the <code>/api/stripe/invoices</code> path), and click <strong>Save</strong>.</p>
+<p>Ensure you have the <a href="https://docs.stripe.com/stripe-cli">Stripe Command Line Interface (CLI</a>) installed, and use it to send test webhooks to your Hookdeck endpoint:</p>
+<pre><code>stripe trigger invoice.created</code></pre>
+<p><span><span><img src="https://stripe.dev/images/stay-within-the-limits/image3.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>This helps with testing the general functionality. However, to test that Hookdeck is only delivering events to your endpoint at the defined delivery rate, you can change the rate to a very low value such as 10 per minute and trigger a number of test events and check how quickly the events reach your endpoint.</p>
+<h2 id="monitoring-and-backpressure">Monitoring and backpressure</h2>
+<p><span><span><img src="https://stripe.dev/images/stay-within-the-limits/image7.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>When you use Hookdeck to queue and control your webhooks, you gain visibility into your event processing. You can monitor the queue depth and delivery delays in real-time, which helps you understand how your system is performing.</p>
+<p>With the Hookdeck Event Gateway, it's simple to see what’s happening with your event queues:</p>
+<ul>
+<li>View queue depth and see delivery delays in real-time.</li>
+<li>Set up <a href="https://hookdeck.com/issues">alerts</a> for when backpressure is building.</li>
+<li><a href="https://hookdeck.com/docs/retries">Retry</a> failed events, either manually or automatically.</li>
+</ul>
+<p>If your processing starts to lag, you’ll know right away. You can then decide if you need to reach out to Stripe and ask for an API rate-limit increase, and then increase the delivery rate to catch up.</p>
+<h2 id="when-to-use-the-hookdeck-and-the-fetch-before-process-pattern">When to use the Hookdeck and the fetch-before-process pattern</h2>
+<p>This setup is useful if:</p>
+<ul>
+<li>You’re already hitting Stripe API rate limits.</li>
+<li>You expect bursts of traffic, like from end-of-month billing runs, or you run batch updates.</li>
+<li>You want more control and better observability over your webhooks.</li>
+<li>You want to standardize how you process events.</li>
+</ul>
+<p>The fetch-before-process pattern isn't always the right fit for every project, especially given the upper limits of Stripe's API rate limits. However, when used appropriately, it can significantly improve the reliability and resilience of your system.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Stripe’s webhook system is reliable, and the fetch-before-process pattern is a strong foundation. But as your volume grows, it becomes increasingly important to manage event handling with care to avoid bottlenecks and rate limits.</p>
+<p>Using Hookdeck Event Gateway to queue and throttle your webhooks gives you control over how your system consumes them. It’s a simple way to build a more resilient application, stay within API rate limits, and set your system up for sustainable growth.</p>
+<p>Catch more details on using Stripe with Hookdeck in <a href="https://www.youtube.com/watch?v=uwcSJFsQ83c">this interview</a> with co-founder Alexandre Bouchard, on the Stripe Developers YouTube channel.</p></div></div>

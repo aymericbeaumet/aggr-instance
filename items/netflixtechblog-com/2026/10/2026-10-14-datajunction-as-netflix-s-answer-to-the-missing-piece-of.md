@@ -1,0 +1,115 @@
+---
+title: DataJunction as Netflix’s answer to the missing piece of the modern data stack
+link: https://netflixtechblog.com/datajunction-as-netflixs-answer-to-the-missing-piece-of-the-modern-data-stack-92af926b40a5?source=rss----2615bd06b42e---4
+source: netflixtechblog-com
+published: 2026-10-14T19:59:08Z
+updated: 2026-10-14T19:59:09.563Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+authors:
+- Netflix Technology Blog
+labels:
+- analytics
+- data-engineering
+- modern-data-stack
+- open-source
+- semantic-layer
+content: feed
+html: 2026-10-14-datajunction-as-netflix-s-answer-to-the-missing-piece-of.html
+remote_preview:
+  url: https://cdn-images-1.medium.com/max/1024/1*dcANBgrIzPINy2sZeZNXMQ.png
+---
+
+by [Olek Gorajek](https://www.linkedin.com/in/agorajek/), [Samuel Redai](https://www.linkedin.com/in/sredai/), [Yian Shang](https://www.linkedin.com/in/shyiann/)
+
+### Intro
+
+Our Netflix journey from data to dashboards, particularly within the space of the experimentation platform, always presented a unique set of challenges. This blog post aims to illuminate these hurdles and explain how an innovative open-source metric platform became instrumental in overcoming some of them. We’ll showcase the critical role that DataJunction played in streamlining our data workflows and enhancing our ability to derive meaningful insights from our vast datasets.
+
+Metrics are the foundation of data-driven decision-making, but at many organizations, they are scattered, inconsistently defined, and difficult to discover or trust. At Netflix, this challenge first became apparent in our experimentation platform, where reliable metrics are essential for interpreting test results. But the complexity of the original tooling made it very difficult to understand and introspect these metrics both in terms of their definitions as well as their values.
+
+#### Initial Problem
+
+Scattered metric definitions, redundant datasets, and pipelines are often a natural effect of a fast-moving company with a large and powerful analytical workforce. This is a common problem in big data-driven firms, and it is not easy to solve across multiple departments, which are often governed by somewhat different rules and regulations. An easy-to-use, well-governed, and centralized semantic layer can help with these issues. Our initial problem was most evident in our Experimentation Platform team, where the previous system required:
+
+- extensive business knowledge
+- familiarity with experimentation conventions
+- and complex engineering practices
+
+This led to metric authoring processes that would take weeks, which was a prohibitive requirement for Data Scientists and Analytics Engineers who wanted to onboard new metrics to the Experimentation Platform.
+
+#### Enter DataJunction
+
+To address this problem and to set ourselves on the path to a successful semantic layer solution in the future, we looked at several candidates. Among other solutions we evaluated Mando (an internal framework), Minerva (an open source semantic layer from AirBnB), and DataJunction (another open source solution, “DJ” for short). All of them had some strength, but DJ offered one thing that the others did not at the time: a solid SQL parsing and SQL generation engine. At the time of the POC, DJ was also the only open-source solution that stored all its definitions in a connected graph, similar to how relational databases store metadata on their views and queries. Easy “SQL wrangling” with rich metadata was the main feature that convinced us to try it for our immediate use case.
+
+DataJunction originated from a similar internal Facebook project created (around 2015) by the data science and infrastructure (DSI) team, mainly as an answer to the need for metrics portability. During several iterations of the Deltoid project — which was the main experimentation platform at Facebook at the time — users were required to rebuild and repopulate their metrics when they wanted to move to the next version of Deltoid. But after implementing DJ and abstracting all metric definitions the team offered seamless migrations by separating the concerns between the metrics and the stats computation platform. That project was subsequently renamed to MDF (Metrics and Dimensions Factory) and promoted as a generic semantic layer used widely by various departments. In 2021, one of the Facebook engineers ([Beto Dealmeida](https://github.com/betodealmeida)), started the [DJ Github project](https://github.com/DataJunction/dj) and built out some basic functionality. Then together with some folks at Netflix expanded the scope further, and soon after that the project was introduced at Netflix. Following that introduction, three Netflix engineers (authors of this blog) together with a couple of external contributors, most notably [Nick Ouellet](https://github.com/CircArgs), have been building out the remaining features of the platform.
+
+![](https://cdn-images-1.medium.com/max/1024/1*dcANBgrIzPINy2sZeZNXMQ.png)
+
+### Architecture Decisions
+
+A critical design constraint for building DJ at Netflix was resource scarcity. We refused to compromise on product quality, choosing instead to limit the feature set. Although DJ was clearly capable of addressing many simultaneous problems across diverse use cases, our lack of adequate resources and official support meant we developed it as a side project for over two years. Our hope was that demonstrating its value would eventually secure management attention.
+
+#### API First, UI and Other Interfaces Later
+
+A metrics platform doesn’t need a flashy front-end to deliver value — its core is the semantic layer, which stores a consistent set of dimensions and metrics and serves this information through a rich API service. You can see below how we structured the main components of DataJunction in the Netflix implementation. Our DJ services (in the middle) interact with the underlying data (on the left) and supply our access layer with the business definitions in the form of SQL w/ metadata or directly with data depending on the client request.
+
+![](https://cdn-images-1.medium.com/max/512/1*yp7ewmMUnuEqKquBkCADTg.png)
+
+#### Consistent Graph First, Other Features Later
+
+A complete semantic layer system can seem like an octopus, with its tentacles reaching out into many functional areas and can expand from a basic semantic metadata stored for some datasets to full dashboard functionality. Let’s call out some of them:
+
+- semantic metadata authoring and management and monitoring
+- metric and dimension query / definition generation
+- metric and dimension data generation (requires a query engine)
+- data visualization and data tracking
+- performance optimization (aka caching or materialization)
+- integration layer with other tools and
+- any / all the above functionality served as: UI, API, client libraries, MCP servers and more.
+
+Of course it is extremely hard to provide the best in class functionality across all these layers, so with our small “unofficial” team we decided to focus on the most important piece: solid semantic layer engine (and API) with the ability to parse SQL as the input to the graph and generate SQL as the serving layer. That is the core of the system and everything else can be added later with less effort and w/o the need to rebuild the core.
+
+#### Cube as The Perfect Consumption Protocol
+
+Analytical multi-dimensional cubes have been a fundamental concept for decades, with their representation integrated across various data processing and analysis platforms. While definitions and features may vary between tools, they all serve the common purpose of encapsulating, or abstracting, a subset of semantic objects.
+
+In DataJunction, we adopted cubes as first-class features for two main reasons: their familiarity to users and their suitability as a serving interface. They efficiently deliver both the semantic definitions (of metrics and dimensions) and fast data access. See an example of data “flow” graph (dotted lines) and dimensional relationships graph (solid lines) below.
+
+![](https://cdn-images-1.medium.com/max/1024/1*w9KMcJqSumBk_bimonH-8Q.png)
+
+We simplified the creation of basic cubes, allowing them to easily aggregate arbitrary collections of shared metrics and dimensions. Furthermore, accessing, managing, and visualizing these cubes is straightforward for any client integrating with DJ. Custom integrations, such as for Netflix’s internal fast Druid data analysis tool (Data Explorer → see below), became trivial to build, and we also made it easy to materialize these cubes directly in our Druid clusters.
+
+![](https://cdn-images-1.medium.com/max/1024/1*FtAGCA-qrTHJ-W25E6hdpw.png)
+
+One of DJ’s most powerful client integrations is the ability to link any DJ-originating metric definition back to the DJ ecosystem. This creates a valuable feedback loop: troubleshooting and introspecting business dashboards becomes simple if they display DJ-defined metrics that include links back to the definition source. This link then makes inspecting and running ad-hoc analysis, by modifying existing metrics, a trivial process. This integration is not only possible with our inhouse tools, but also with other well known open-source products, like Superset.
+
+### Experimentation at Netflix
+
+Metrics are the backbone of experimentation. They translate data into signals that tell us whether a change is meaningful, safe, and worth scaling. Without trustworthy metrics and dimensions, experiments risk becoming inconclusive or misleading, so a robust metrics layer becomes crucial for data-driven decisions.
+
+At Netflix, the original metrics layer integrated into the experimentation platform was overly complicated. Creating new metrics not only required tribal knowledge of experimentation data artifacts, but also familiarity with complex engineering workflows. This unnecessary friction meant that onboarding a single new metric could take weeks, slowing adoption of new metrics and hindering experimentation.
+
+This is where DataJunction comes in: it provides a central hub for defining metrics and dimensions that can easily be shared and explored via the semantic graph. It also provides flexible, user-friendly interfaces (including a UI, API, and various clients), making it easy for users to author and manage their metrics and other semantic models.
+
+![](https://cdn-images-1.medium.com/max/1024/1*YrHR2wUvy6ZOn2VHya2oNQ.png)
+
+### Conclusions
+
+With experimentation domain well supported by DataJunction, we would like to take on next steps to unifying of the general analytics at Netflix and to make it easier for Netflix users to both:
+
+- find and use metric definitions across verticals (defined in DJ)
+- easily access, modify and experiment with new metrics across Netflix data stack
+
+That will require building out strong integrations between DJ and other tools, but that has been underway and it is one of the most enjoyable parts of this project, where most of the feature exists and we are simply enabling existing systems to exchange information in a structured and reliable way. With a system like DataJunction our internal LLMs can deliver accountable information about the business metrics as well as explanation of how they are defined and used across Netflix.
+
+Related resources:
+
+- 2023 : DataJunction at Netflix ([slide deck](https://github.com/DataJunction/dj/blob/main/talks/2023-03-02/DJ%40Netflix%20-%20A%20DJ%20Meetup.pdf))
+- 2025 : DataJunction talk at Data Engineering Open Forum 2025 ([video](https://www.youtube.com/watch?v=t9XEJnEyz3I))
+- 2025 : DataJunction: Unifying Experimentation and Analytics ([blog](https://netflixtechblog.com/part-1-a-survey-of-analytics-engineering-work-at-netflix-d761cfd551ee))
+
+![](https://medium.com/_/stat?event=post.clientViewed&referrerSource=full_rss&postId=92af926b40a5)
+
+* * *
+
+[DataJunction as Netflix’s answer to the missing piece of the modern data stack](https://netflixtechblog.com/datajunction-as-netflixs-answer-to-the-missing-piece-of-the-modern-data-stack-92af926b40a5) was originally published in [Netflix TechBlog](https://netflixtechblog.com) on Medium, where people are continuing the conversation by highlighting and responding to this story.

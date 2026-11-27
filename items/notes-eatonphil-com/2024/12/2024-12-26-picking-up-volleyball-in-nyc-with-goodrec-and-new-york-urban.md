@@ -1,0 +1,83 @@
+---
+title: Picking up volleyball in NYC with Goodrec and New York Urban
+link: http://notes.eatonphil.com/2024-12-26-volleyball-in-nyc.html
+source: notes-eatonphil-com
+published: 2024-12-26T00:00:00Z
+updated: 2024-12-26T00:00:00Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+labels:
+- nyc
+- volleyball
+summary: I was so intimidated to go at first, but it is in fact easy and fun to start playing beginner volleyball in New York. The people are so friendly and welcoming that it has been easy to keep playing consistently every week since I started for the first time this August. It's been a great workout and a great way to make friends! The two platforms I've used to find volleyball games are Goodrec and New York Urban. While these platforms may also offer classes and leagues, I mostly use them to play "pickup" games. Pickup games are where you show up and join (or get assigned to) a team to play for an hour or two. Easy to go on your own or with friends. I'm not an expert! My only hope with this post is that maybe it makes trying out volleyball in New York feel a little less intimidating for you! Goodrec With Goodrec you have to use their mobile app. Beginner tier is called "social" on Goodrec. So browse available games until you find one at the level you want to play. You enroll in (buy a place in) sessions individually. Sessions are between 90-120 minutes long. They ask you not to arrive more than 10 minutes early at the gym. When you arrive you tell the gym managers (usually in a desk up front somewhere) you're there for Goodrec and the tier (in case the gym has multiple level games going on at the same time). Then you wait until the Goodrec "host" arrives and they will organize everyone into teams. Goodrec hosts are players who volunteer to organize the games. They'll explain the rules of the game (makes Goodrec very good for beginners) and otherwise help you out. Always say thank you to your host! New York Urban With New York Urban, pickup sessions are called "open play". There is no mobile app, you just use the website to purchase a spot in a session. The sessions are longer and cheaper than Goodrec. But there is no host; players self-organize. The options are more limited too. You play at one of four high schools on either a Friday night or on Sunday. And session slots tend to sell out much more quickly than with Goodrec. Big City Volleyball You can also check out Big City Volleyball but I haven't used it yet. Volo I haven't ever done Volo but I think I've heard it described as "beer league". That even some of the beginner tier sessions with Goodrec and New York Urban are more competitive. But also, Volo is built around leagues so you have to get the timing right. Goodrec's and New York Urban's pickup games make it easy to get started playing any time of year. Making friends It was super awkward to go at first! I went by myself. I didn't know what I was doing. I couldn't remember, and didn't know, many rules. I didn't have court shoes or knee pads. But the Goodrec host system is particularly great for bringing beginners in and making them feel welcome. You have a great time even if you're terrible. The first game I went to, I tried to hang out afterward to meet people. But people either came with their SO or with their friends or by themselves so they all just left immediately or hung out in their group. So you can't just go once and expect to make friends immediately. But if you keep going at the same place and time regularly week over week, you'll see familiar faces. Maybe half the people I play with each week are regulars. If you're friendly you'll start making friends with these people and eventually start going out to bars with them after the games. Improving Even if you find yourself embarrassingly bad at first, just keep going! I'm 29, 6'1, 190lbs and from observation the past 5 months, age, height, and weight have a very indirect relation to playing ability. Most of the people who play are self-taught, especially at the lower tiers I've played at. But some people played for the school team in high school or college. These people are fun to play with and you can learn a lot from them. Most people who are self-taught seem to watch YouTube videos like Coach Donny, helpful for learning how to serve, set, block, etc. Or they take "clinics" (classes) with Goodrec or other platforms. (I have no idea about these, I've never done them before.) At first I played 2 hours a week and I was completely exhausted after the session. Over time it got easier so I started playing 2-3 sessions a week (6-9-ish hours). With practice and consistency (after about 3-4 months), I started playing Intermediate tier with Goodrec and New York Urban. And I don't think I'll play Beginner/Social at all anymore. I still primarily play for fun and for the workout and to meet people. But it's also fun to get better! I played with one person much better than myself in an Intermediate session one time and he mentioned he will probably stop playing Intermediate and only play High Intermediate. He mentioned you get better when you keep pushing yourself to play with better and better players. Good advice! I wrote a little post on picking up volleyball in new york. It's fun, and a great workout, and you meet interesting people!https://t.co/jEWHbRWF6C pic.twitter.com/ipuIUB1ZnM — Phil Eaton (@eatonphil) December 26, 2024
+content: extracted
+html: 2024-12-26-picking-up-volleyball-in-nyc-with-goodrec-and-new-york-urban.html
+remote_preview:
+  url: https://notes.eatonphil.com/assets/goodrec-social.png
+  alt: /assets/goodrec-social.png
+---
+
+I was so intimidated to go at first, but it is in fact easy and fun to start playing beginner volleyball in New York. The people are so friendly and welcoming that it has been easy to keep playing consistently every week since I started for the first time this August. It's been a great workout and a great way to make friends!
+
+The two platforms I've used to find volleyball games are [Goodrec](https://www.goodrec.com/) and [New York Urban](https://www.nyurban.com/). While these platforms may also offer classes and leagues, I mostly use them to play "pickup" games. Pickup games are where you show up and join (or get assigned to) a team to play for an hour or two. Easy to go on your own or with friends.
+
+I'm not an expert! My only hope with this post is that maybe it makes trying out volleyball in New York feel a little less intimidating for you!
+
+### Goodrec
+
+With Goodrec you have to use their mobile app. Beginner tier is called "social" on Goodrec. So browse available games until you find one at the level you want to play. You enroll in (buy a place in) sessions individually.
+
+Sessions are between 90-120 minutes long.
+
+![/assets/goodrec-social.png](https://notes.eatonphil.com/assets/goodrec-social.png)
+
+They ask you not to arrive more than 10 minutes early at the gym. When you arrive you tell the gym managers (usually in a desk up front somewhere) you're there for Goodrec and the tier (in case the gym has multiple level games going on at the same time). Then you wait until the Goodrec "host" arrives and they will organize everyone into teams.
+
+Goodrec hosts are players who volunteer to organize the games. They'll explain the rules of the game (makes Goodrec very good for beginners) and otherwise help you out.
+
+Always say thank you to your host!
+
+### New York Urban
+
+With New York Urban, pickup sessions are called ["open play"](https://www.nyurban.com/open-play-volleyball).
+
+There is no mobile app, you just use the website to purchase a spot in a session. The sessions are longer and cheaper than Goodrec. But there is no host; players self-organize.
+
+The options are more limited too. You play at one of four high schools on either a Friday night or on Sunday. And session slots tend to sell out much more quickly than with Goodrec.
+
+![/assets/nyurban-beginner.png](https://notes.eatonphil.com/assets/nyurban-beginner.png)
+
+### Big City Volleyball
+
+You can also check out [Big City Volleyball](https://bigcityvolleyball.com/) but I haven't used it yet.
+
+### Volo
+
+I haven't ever done Volo but I think I've heard it described as "beer league". That even some of the beginner tier sessions with Goodrec and New York Urban are more competitive.
+
+But also, Volo is built around leagues so you have to get the timing right. Goodrec's and New York Urban's pickup games make it easy to get started playing any time of year.
+
+### Making friends
+
+It was super awkward to go at first! I went by myself. I didn't know what I was doing. I couldn't remember, and didn't know, many rules. I didn't have court shoes or knee pads.
+
+But the Goodrec host system is particularly great for bringing beginners in and making them feel welcome. You have a great time even if you're terrible.
+
+The first game I went to, I tried to hang out afterward to meet people. But people either came with their SO or with their friends or by themselves so they all just left immediately or hung out in their group.
+
+So you can't just go once and expect to make friends immediately. But if you keep going at the same place and time regularly week over week, you'll see familiar faces. Maybe half the people I play with each week are regulars. If you're friendly you'll start making friends with these people and eventually start going out to bars with them after the games.
+
+### Improving
+
+Even if you find yourself embarrassingly bad at first, just keep going! I'm 29, 6'1, 190lbs and from observation the past 5 months, age, height, and weight have a very indirect relation to playing ability.
+
+Most of the people who play are self-taught, especially at the lower tiers I've played at. But some people played for the school team in high school or college. These people are fun to play with and you can learn a lot from them.
+
+Most people who are self-taught seem to watch YouTube videos like [Coach Donny](https://www.youtube.com/channel/UCoEMagRUvrXELuJZwS4DevA), helpful for learning how to serve, set, block, etc. Or they take "clinics" (classes) with Goodrec or other platforms. (I have no idea about these, I've never done them before.)
+
+At first I played 2 hours a week and I was completely exhausted after the session. Over time it got easier so I started playing 2-3 sessions a week (6-9-ish hours). With practice and consistency (after about 3-4 months), I started playing Intermediate tier with Goodrec and New York Urban. And I don't think I'll play Beginner/Social at all anymore.
+
+I still primarily play for fun and for the workout and to meet people. But it's also fun to get better!
+
+I played with one person much better than myself in an Intermediate session one time and he mentioned he will probably stop playing Intermediate and only play High Intermediate. He mentioned you get better when you keep pushing yourself to play with better and better players. Good advice!
+
+> — Phil Eaton (@eatonphil) [December 26, 2024](https://twitter.com/eatonphil/status/1872394142212661250?ref_src=twsrc%5Etfw)

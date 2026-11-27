@@ -1,0 +1,113 @@
+---
+title: Distinguishing yourself early in your career as a developer
+link: http://notes.eatonphil.com/2026-01-03-distinguishing-yourself.html
+source: notes-eatonphil-com
+published: 2026-01-03T00:00:00Z
+updated: 2026-01-03T00:00:00Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+labels:
+- letters
+summary: 'Sometimes I get asked questions that would be more fun to answer in public. All letters are treated as anonymous unless permission is otherwise granted. Hello [Redacted]! You asked about a friend''s son who is a recent graduate looking for work as a software developer and having a hard time. I like to think of three key aspects of getting a job: 1) knowing where to apply, 2) getting an interview at all, and 3) passing the interview. Knowing where to apply There are three different types of companies I think about: 1) local (non-VC backed, non-finance) and public non-tech companies, 2) VC-backed startups and public tech companies, and 3) Big Tech and finance companies. Category 3 companies pay the most (guesstimating the top 95th percentile) and receive the most applications. Everyone wants those jobs. They are surprisingly egalitarian about interviewing qualified applicants. They have the means and need to interview a large number of people. However, preparing for the interviews is very time-consuming. Category 2 companies pay very well (guesstimating the top 80th percentile). They get fewer applicants than Category 3 companies. The interviews are not horribly difficult but it is hard to distinguish yourself. There is not always as much capacity to interview every qualified applicant. Category 1 companies pay at the 50th percentile. They get very few qualified applicants. It is not difficult to distinguish yourself. Category 3 companies are where Computer Science departments attempt to funnel their students to as they graduate. A portion of them will get in. I think of Category 1 and Category 2 companies each making up 45% of all jobs while Category 3 companies make up the remaining 10% of jobs. Maybe that''s wrong. My path My career started with Category 1 companies that I found via Craigslist or Built In (NYC) or the monthly Hacker News Who''s Hiring thread. The interview lasted a few hours at most and involved fairly trivial demonstrations of knowledge or me sharing code snippets. The local company aspect of Category 1 seems seriously undervalued. How many web or application development companies are in your nearest small- or medium-sized city? I started interning for these types of companies in high school. And these were a repeat source of fallback contract work in my early years when I was in a pinch. I eventually moved on to Category 2 companies and that''s where I''m most comfortable. I used to learn about them through the Hacker News Who''s Hiring thread. There are a few levels of interviews but they aren''t incredibly intense. You don''t particularly need to do Leetcode to pass them. These days I prefer to track interesting companies on my own by observing what companies talk about in their blog and Twitter and who they employ. I never had the patience to stick with the long interviews at Category 3 companies, nor the stamina to keep up Leetcode, but I understand that some people work for FANG companies. Hedge funds (a component of Category 3 companies) don''t seem to accept people without a college degree unless they are truly exceptional (and I am not) so I never bothered with those either. Starting somewhere You want to be a software developer. But tech companies are also always looking for qualified technical support and QA. For many people it is (well for me it was anyway) most important early on to just have an income. And once you''re there you can be pickier and think longer term. I consistently see companies move technical support and QA employees into development roles after a year or few years with the company. This path seems underrated. Or at least something to consider. Getting an interview at all Early in your career getting an interview is more of a numbers game. In Category 1 companies if you can show basic competence (such as an actually-used Github or code snippets if you''re self-taught, or a Computer Science degree) you will likely get an interview. In Category 2 companies you will need to deal in more volume. Category 3 companies oddly enough seem a bit more egalitarian about interviewing everyone. It''s quite a slog though. So you need to be prepared for the process at a single company to take months, if you keep passing rounds (which require significant preparation themselves). In general I would estimate that even an experienced and competent developer should prepare for an average worst-case of 6-12 months to find a new job. So again in Category 1 companies it''s more a matter of demonstrating competence and in Category 3 companies every qualified person gets an interview. The companies you more so need to stand out in from the get-go are the Category 2 companies. So let''s talk about things that might stick out. You write blog posts I think writing is best done for the sake of the act itself (it helps you build confidence about concepts, and helps you develop your communication skills). In a conversation about interviews, I have to say it''s not very common in my experience to write even a popular blog post and get asked to interview. However, once you start writing about niche concepts (for example, how Postgres development works) you may start getting invited to interview more often. But I think that''s relatively rare and usually only happens to people who are already in the industry for a while. But having an active blog certainly shows that you''re passionate. When there are a bunch of competent candidates and one has an active blog, that might stand out. You did some side projects Doing side projects definitely helps build your skill. And I think it goes in a similar category as writing where it''s a great thing to do for its own sake. I don''t think it happens very often that you do your own side projects and get asked to interview because of them. However, just like writing, having side projects might be a differentiator between otherwise similarly competent developers because it demonstrates your passion. You contribute to OSS If it is a major OSS that the industry largely uses such as Linux, Postgres, Kubernetes, LLVM, etc. I think you can stand out if your contributions are consistent, even if they are not large. If they are too small, for example small docs changes, to one or even a few projects I don''t think this is going to make a big difference as a differentiator nor a reason for companies to invite you to interview. Behind almost every open-source project is one or more vendors who really want developers who know how the project works. And if you have a pattern of contributing to some open-source project it is likely that you will get invited to interview at one of the vendors who rely on or sell support for it. But because it''s a matter of there being a pattern this is something that you''d have to be doing for on the order of years before a company notices. You run a community If you run a book club or meetup group, I think this is a pretty decent way to stand out because it shows organization skills, which is an important component of leadership in general. But like with OSS contributions it is more meaningful if you can show the pattern of organizing over the years. You participate in a community I think this is a decent way to stand out because showing up consistently in a community is a way to demonstrate your passion. It''s not a good idea to go to any single event and hope to get hired from it. It''s a chance for you to build relationships that may help you in the long-term. It''s best to build relationships when you need nothing from them. You read books, watch lectures, get a certificate I don''t think this helps you stand out very much. It''s too difficult to really understand what this means or what you got out of it. I think everyone should read for its own sake. And it may help you build your own confidence, which is great. But I don''t think it''s going to make a difference between similarly competent candidates. You acquire a Master''s degree I don''t particularly think this helps you stand out. But it does give you more time to hunt for internships. More industry experience usually helps the entire process of staying in industry. Passing an interview I don''t really have anything to add here beyond the numerous books and apps that help you study common interview questions and patterns. That said, the way I preferred to prepare for interviews was not through the interview books or apps but to always be coding and always be building my confidence in all aspects of the technology stack. Do whatever you like. Recapping It helps your job prospects over the years to be building relationships with the community in general. And there are different tiers of companies to think about and different positions to consider in the short-term as you''re getting started. It is usually easier to transfer to a different job within a company rather than interview and get that new job while also switching companies. There are a lot of activities including side projects and writing that can immediately start to build your confidence. It''s important to be knowledgeable and confident once you do get interviews. Some of these activities may distinguish you in small ways immediately. But more so there are many things that you can start doing consistently in the meantime to become more hireable over the years. This response is generalizations based on my experience. You will find exceptions to everything I said but hopefully the generalizations are still broadly useful. Good luck to your friend''s son! Phil I wrote a blog post in response to a friend asking how to distinguish oneself as a developer early in your career. Curious for your thoughts. pic.twitter.com/RV2jTkdbcX — Phil Eaton (@eatonphil) January 4, 2026'
+content: extracted
+html: 2026-01-03-distinguishing-yourself-early-in-your-career-as-a-developer.html
+---
+
+Sometimes I get asked questions that would be more fun to answer in public. All letters are treated as anonymous unless permission is otherwise granted.
+
+Hello \[Redacted\]! You asked about a friend's son who is a recent graduate looking for work as a software developer and having a hard time.
+
+I like to think of three key aspects of getting a job: 1) knowing where to apply, 2) getting an interview at all, and 3) passing the interview.
+
+### Knowing where to apply
+
+There are three different types of companies I think about: 1) local (non-VC backed, non-finance) and public non-tech companies, 2) VC-backed startups and public tech companies, and 3) Big Tech and finance companies.
+
+Category 3 companies pay the most (guesstimating the top 95th percentile) and receive the most applications. Everyone wants those jobs. They are surprisingly egalitarian about interviewing qualified applicants. They have the means and need to interview a large number of people. However, preparing for the interviews is very time-consuming.
+
+Category 2 companies pay very well (guesstimating the top 80th percentile). They get fewer applicants than Category 3 companies. The interviews are not horribly difficult but it is hard to distinguish yourself. There is not always as much capacity to interview every qualified applicant.
+
+Category 1 companies pay at the 50th percentile. They get very few qualified applicants. It is not difficult to distinguish yourself.
+
+Category 3 companies are where Computer Science departments attempt to funnel their students to as they graduate. A portion of them will get in.
+
+I think of Category 1 and Category 2 companies each making up 45% of all jobs while Category 3 companies make up the remaining 10% of jobs. Maybe that's wrong.
+
+#### My path
+
+My career started with Category 1 companies that I found via Craigslist or Built In (NYC) or the monthly Hacker News Who's Hiring thread. The interview lasted a few hours at most and involved fairly trivial demonstrations of knowledge or me sharing code snippets.
+
+The local company aspect of Category 1 seems seriously undervalued. How many web or application development companies are in your nearest small- or medium-sized city? I started interning for these types of companies in high school. And these were a repeat source of fallback contract work in my early years when I was in a pinch.
+
+I eventually moved on to Category 2 companies and that's where I'm most comfortable. I used to learn about them through the Hacker News Who's Hiring thread. There are a few levels of interviews but they aren't incredibly intense. You don't particularly need to do Leetcode to pass them. These days I prefer to track interesting companies on my own by observing what companies talk about in their blog and Twitter and who they employ.
+
+I never had the patience to stick with the long interviews at Category 3 companies, nor the stamina to keep up Leetcode, but I understand that some people work for FANG companies. Hedge funds (a component of Category 3 companies) don't seem to accept people without a college degree unless they are truly exceptional (and I am not) so I never bothered with those either.
+
+#### Starting somewhere
+
+You want to be a software developer. But tech companies are also always looking for qualified technical support and QA. For many people it is (well for me it was anyway) most important early on to just have an income. And once you're there you can be pickier and think longer term. I consistently see companies move technical support and QA employees into development roles after a year or few years with the company. This path seems underrated. Or at least something to consider.
+
+### Getting an interview at all
+
+Early in your career getting an interview is more of a numbers game. In Category 1 companies if you can show basic competence (such as an actually-used Github or code snippets if you're self-taught, or a Computer Science degree) you will likely get an interview. In Category 2 companies you will need to deal in more volume. Category 3 companies oddly enough seem a bit more egalitarian about interviewing everyone. It's quite a slog though. So you need to be prepared for the process at a single company to take months, if you keep passing rounds (which require significant preparation themselves).
+
+In general I would estimate that even an experienced and competent developer should prepare for an average worst-case of 6-12 months to find a new job.
+
+So again in Category 1 companies it's more a matter of demonstrating competence and in Category 3 companies every qualified person gets an interview. The companies you more so need to stand out in from the get-go are the Category 2 companies. So let's talk about things that might stick out.
+
+#### You write blog posts
+
+I think writing is best done for the sake of the act itself (it helps you build confidence about concepts, and helps you develop your communication skills). In a conversation about interviews, I have to say it's not very common in my experience to write even a popular blog post and get asked to interview.
+
+However, once you start writing about niche concepts (for example, how Postgres development works) you may start getting invited to interview more often. But I think that's relatively rare and usually only happens to people who are already in the industry for a while.
+
+But having an active blog certainly shows that you're passionate. When there are a bunch of competent candidates and one has an active blog, that might stand out.
+
+#### You did some side projects
+
+Doing side projects definitely helps build your skill. And I think it goes in a similar category as writing where it's a great thing to do for its own sake. I don't think it happens very often that you do your own side projects and get asked to interview because of them.
+
+However, just like writing, having side projects might be a differentiator between otherwise similarly competent developers because it demonstrates your passion.
+
+#### You contribute to OSS
+
+If it is a major OSS that the industry largely uses such as Linux, Postgres, Kubernetes, LLVM, etc. I think you can stand out if your contributions are consistent, even if they are not large. If they are too small, for example small docs changes, to one or even a few projects I don't think this is going to make a big difference as a differentiator nor a reason for companies to invite you to interview.
+
+Behind almost every open-source project is one or more vendors who really want developers who know how the project works. And if you have a pattern of contributing to some open-source project it is likely that you will get invited to interview at one of the vendors who rely on or sell support for it.
+
+But because it's a matter of there being a pattern this is something that you'd have to be doing for on the order of years before a company notices.
+
+If you run a book club or meetup group, I think this is a pretty decent way to stand out because it shows organization skills, which is an important component of leadership in general. But like with OSS contributions it is more meaningful if you can show the pattern of organizing over the years.
+
+I think this is a decent way to stand out because showing up consistently in a community is a way to demonstrate your passion. It's not a good idea to go to any single event and hope to get hired from it. It's a chance for you to build relationships that may help you in the long-term. It's best to build relationships when you need nothing from them.
+
+#### You read books, watch lectures, get a certificate
+
+I don't think this helps you stand out very much. It's too difficult to really understand what this means or what you got out of it. I think everyone should read for its own sake. And it may help you build your own confidence, which is great. But I don't think it's going to make a difference between similarly competent candidates.
+
+#### You acquire a Master's degree
+
+I don't particularly think this helps you stand out. But it does give you more time to hunt for internships. More industry experience usually helps the entire process of staying in industry.
+
+### Passing an interview
+
+I don't really have anything to add here beyond the numerous books and apps that help you study common interview questions and patterns.
+
+That said, the way I preferred to prepare for interviews was not through the interview books or apps but to always be coding and always be building my confidence in all aspects of the technology stack. Do whatever you like.
+
+### Recapping
+
+It helps your job prospects over the years to be building relationships with the community in general. And there are different tiers of companies to think about and different positions to consider in the short-term as you're getting started. It is usually easier to transfer to a different job within a company rather than interview and get that new job while also switching companies.
+
+There are a lot of activities including side projects and writing that can immediately start to build your confidence. It's important to be knowledgeable and confident once you do get interviews. Some of these activities may distinguish you in small ways immediately. But more so there are many things that you can start doing consistently in the meantime to become more hireable over the years.
+
+This response is generalizations based on my experience. You will find exceptions to everything I said but hopefully the generalizations are still broadly useful.
+
+Good luck to your friend's son!
+
+Phil
+
+> I wrote a blog post in response to a friend asking how to distinguish oneself as a developer early in your career.
+>
+> Curious for your thoughts. [pic.twitter.com/RV2jTkdbcX](https://t.co/RV2jTkdbcX)
+>
+> — Phil Eaton (@eatonphil) [January 4, 2026](https://twitter.com/eatonphil/status/2007641358547452115?ref_src=twsrc%5Etfw)

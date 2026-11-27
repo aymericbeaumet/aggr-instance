@@ -1,0 +1,144 @@
+<div id="readability-page-1" class="page"><div id="post">
+
+
+
+
+
+
+
+
+
+
+
+
+<p>Is it just fancy write skew?</p>
+
+<p>In the first draft of <a href="https://brooker.co.za/blog/2025/02/04/versioning.html">yesterday’s post</a>, the example I used was one that showed Fekete’s anomaly. After drafting, I realized the example distracted too much from the story. But there’s still something I want to say about the anomaly, and so now we’re here.</p>
+
+<p>What is Fekete’s anomaly? It’s an example of a snapshot isolation behavior first described in Fekete, O’Neil, and O’Neil’s paper <a href="https://dl.acm.org/doi/abs/10.1145/1031570.1031573">A Read-Only Transaction Anomaly Under Snapshot Isolation</a>. The first time I read about it, I found it spooky. As in <em>five stages of grief</em> spooky. But the more I’ve thought about it, the more I think it’s just a great teaching example.</p>
+
+<p>To understand the anomaly, let’s talk about two people. We’ll call the <em>Pat</em> and <em>Betty</em>. Pat and Betty share a pair of bank accounts - a savings account and a current account. They bank at Alan’s bank, which charges a $1 overdraft fee any time a withdrawal will reduce the total value of their accounts below $0.</p>
+
+<p>One day, Pat and Betty are running separate errands. Pat goes to the ATM, checks the savings balance and sees $0, then deposits $20. After completing his transaction, Pat comes back to the ATM, checks their balance, and sees $20 in savings, and $0 in current. Around the same time, Betty goes to the ATM and withdraws $10 from the current account. Checking their account later, they notice a balance of -$11 in the current account, and $20 in savings.</p>
+
+<p>But that’s impossible! Pat saw $0 and $20, so Alan’s bank shouldn’t have charged them that $1. Did they get ripped off?</p>
+
+<p><em>In SQL</em></p>
+
+<p>Let’s tell the same story again, in SQL. Starting with some setup:</p>
+
+<pre><code data-language="sql">begin; -- T0
+create table test (id int primary key, balance int); -- T0
+insert into test (id, value) values (0, 0), (1, 0); -- T0
+commit; -- T0
+</code></pre>
+
+<p>Then we get to the anomaly itself, showing Pat’s two transactions (<code>P1</code> and <code>P2</code>), and Betty’s one (<code>B1</code>):</p>
+
+<pre><code data-language="sql">begin; -- P1
+begin; -- B1
+select balance from test where id in (0, 1); -- B1
+select balance from test where id = 0; -- P1
+update test set balance = balance + 20 where id = 0; -- P1
+commit; -- P1
+
+begin; -- P2
+select * from test where id in (0, 1); -- P2
+commit; -- P2
+
+update test set balance = balance - 11 where id = 1; -- B1
+commit; -- B1
+</code></pre>
+
+<p>Under snapshot isolation (SI), and other some other implementations of weaker-than-serializable isolation levels, this SQL can run as-is. Under <em>serializable</em> isolation, at least one of these transactions would be rejected (standard Postgres would reject the commit of <code>B1</code>).</p>
+
+<p>What’s interesting about this anomaly is that, if it wasn’t for <code>P2</code>, we could simply say that <code>B1</code> happens before <code>P1</code> and Alan’s Bank’s behavior was justified. But, by doing a read-only transaction, <code>P2</code> caught them in a weak isolation anomaly.</p>
+
+<p>But why, and what can we learn from this?</p>
+
+<p><em>In a Picture</em></p>
+
+<p>Before we answer that question, let’s draw a picture of the transactions and the database state:</p>
+
+<p><img src="https://brooker.co.za/blog/images/feketes_anomaly.svg" alt=""></p>
+
+<p>The interesting part, fittingly, is the bit marked <em>the interesting part is here</em>: the decision whether to commit <code>B1</code>.</p>
+
+<p>Why does <code>B1</code> commit under snapshot isolation? We can answer that in three ways:</p>
+
+<p><em>The OCC view:</em> <code>B1</code> is allowed to commit under SI, because it has no <em>write-write</em> conflicts with the transactions that committed between it’s start and end. <code>B1</code>’s write set is <code>{1}</code>, <code>P1</code>’s is <code>{0}</code>, and <code>P2</code>’s is <code>{}</code>. No conflict there. <code>B1</code> would not be allowed to commit under serializability because of <em>read-write</em> conflict with <code>P1</code>: <code>B1</code>’s read set is <code>{0, 1}</code> which intersects with <code>P1</code>’s write set <code>{0}</code>.</p>
+
+<p><em>The 2PL MVCC view:</em> Under SI, <code>B1</code> and <code>P1</code> read from different MVCC snapshots, and the write lock taken by <code>P1</code> on row <code>0</code> doesn’t conflict with the write lock taken by <code>B1</code> on row <code>1</code>.</p>
+
+<p><em>The theory view:</em> To quote from my favorite transaction theory paper, Crooks et al’s <a href="https://dl.acm.org/doi/pdf/10.1145/3087801.3087802">Seeing is Believing</a>:</p>
+
+<blockquote>
+  <p>Like serializability, SI prevents transactions T from seeing the effects of concurrently running transactions. The commit test enforces this requirement by having all operations in \(T\) read from the same state \(s\), produced by a transaction that precedes \(T\) …</p>
+</blockquote>
+
+<p>You can see that in the diagram: <code>B1</code> reads the results from our setup transaction <code>T0</code>, which directly precedes it in the history.</p>
+
+<blockquote>
+  <p>However, SI no longer insists on that state \(s\) being \(T\)’s parent state \(s_p\): other transactions, whose operations T will not observe, may commit in between \(s\) and \(s_p\).</p>
+</blockquote>
+
+<p>Here, \(s_p\) is the state that <code>B1</code> applies its changes to, which isn’t the same state as the one it reads.</p>
+
+<blockquote>
+  <p>The commit test only forbids \(T\) from modifying any of the keys that changed value as the system’s state progressed from \(s\) to \(s_p\).</p>
+</blockquote>
+
+<p>Which it hasn’t: only row <code>0</code> has changed, and <code>B1</code> only needs to change <code>0</code>.</p>
+
+<p><em>But What Does It Mean?</em></p>
+
+<p>Fekete’s anomaly sure is weird: by introducing a third read-only transaction, we get the database to show an anomalous behavior that would otherwise appear serializable. On the other hand, it also seems like a relatively straightforward case of constraint violation caused by write skew. To quote <a href="https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-95-51.pdf">A Critique of ANSI SQL Isolation Levels</a></p>
+
+<blockquote>
+  <p>Transactions must preserve the constraint predicate to maintain consistency: if the database is consistent when the transaction starts, the database will be consistent when the transaction commits. If a transaction reads a database state that violates the constraint predicate, then the transaction suffers from a constraint violation concurrency anomaly.</p>
+</blockquote>
+
+<p>From the perspective of the database system builder it’s a direct consequence of what we <a href="https://brooker.co.za/blog/2025/02/04/versioning.html">wrote about yesterday</a>: SI allows a database (single-system or distributed) to avoid the coordination (inter-machine, inter-process, or inter-thread) necessary to detect read-write conflicts. Because that coordination scales with reads, and reads tend to be more common than writes in many DB workloads, this can be a big win.</p>
+
+<p>What about the perspective of the application builder?</p>
+
+<p><em>The Application Builder’s View</em></p>
+
+<p>The application builder needs to answer two questions about this anomaly (and <em>write skew</em> and <em>constraint violation</em>) more generally:</p>
+
+<ol>
+  <li>Is it a problem?</li>
+  <li>If it is, what do I do about it?</li>
+</ol>
+
+<p>As much as it makes DB-heads uncomfortable, evidence shows that many (if not most) application builders have concluded that the answer to question 1 is <em>no</em>. This isn’t an unreasonable answer. But let’s assume they do care, what do they do?</p>
+
+<p>One option is to choose a serializable database and use its serializable isolation level. This can work for some workloads, but certainly not all. Serializability comes with significant performance and concurrency implications.</p>
+
+<p>But there are some more surgical fixes. For example, in Aurora DSQL’s snapshot mode you can use <code>FOR UPDATE</code><sup><a href="#foot1">1</a></sup>.</p>
+
+<pre><code data-language="sql">begin; -- P1
+begin; -- B1
+select balance from test where id = 0 for update; -- B1
+select balance from test where id = 1 for update; -- B1
+...
+commit; -- B1 (will not commit)
+</code></pre>
+
+<p>This works because the theoretical model of isolation levels doesn’t map to special SQL features like <code>FOR UPDATE</code> in a super clean way, but roughly they are ways to increase isolation for some transactions. The second way is to force the <em>write-write</em> conflict.</p>
+
+<pre><code data-language="sql">...
+update test set balance = balance - 11 where id = 1; -- B1
+update test set balance = balance where id = 0; -- B1
+commit; -- B1 (will not commit)
+</code></pre>
+
+<p>Overall, Fekete’s update isn’t something to be spooked about, but is an interesting example of the trade-off between serializability and weaker isolation levels. The anomaly is a direct result of the reduced coordination needed for SI: the very same reduced coordination that brings significant performance and scalability.</p>
+
+<p><em>Footnotes</em></p>
+
+<ol>
+  <li> This is broken up in a strange way, rather than using <code>OR</code> or <code>IN</code> because of a preview limitation in DSQL.</li>
+</ol>
+
+</div></div>

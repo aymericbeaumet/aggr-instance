@@ -1,0 +1,108 @@
+<div id="readability-page-1" class="page"><div><p>I hate shell scripting with a passion. Whenever I join a project, I
+go on a crusade to rewrite all bash scripts into the project’s main
+language. I have <a href="https://www.teamten.com/lawrence/writings/java-for-everything.html">Java
+For Everything</a> tattooed on my arm (no). The code I’ve written at
+TigerBeetle that I am most proud of is this:</p>
+<div id="cb1"><pre><code>while true
+do
+    rm -rf ./tigerbeetle
+    (
+        git clone https://github.com/tigerbeetle/tigerbeetle tigerbeetle
+        cd tigerbeetle
+        ./zig/download.sh
+        unshare --user -f --pid \
+            ./zig/zig build -Drelease scripts -- cfo --timeout=30m
+    ) || sleep 10
+done</code></pre></div>
+<p>This snippet encapsulates the pattern (<a href="https://joearms.github.io/published/2013-11-21-My-favorite-erlang-program.html">Erlang
+Universal Server</a>) which works really well for writing custom
+automations for software projects.</p>
+<h2 id="problem-statement"></h2>
+<p>When working on larger software projects, one often needs to run a
+custom piece of automation software somewhere. The most common case is
+running the set of CI checks. If the problem is roughly CI-shaped, you
+largely are covered by GitHub actions or your platform’s
+alternative.</p>
+<p>This post discusses what to do (and what to avoid) when implementing
+custom automation that doesn’t fit CI. In the case of TigerBeetle, we
+need to manage a fleet of machines continuously running our
+deterministic simulation testing harness (the <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.16.78/docs/internals/vopr.md">VOPR</a>).
+I gave a talk about that particular use case on <a href="https://www.hytradboi.com/2025/c222d11a-6f4d-4211-a243-f5b7fafc8d79-rocket-science-of-simulation-testing">HYTRADBOI
+2025</a> and I want to expand it into a series of articles extracting
+re-usable lessons.</p>
+<h2 id="naive-solution"></h2>
+<p>How would you implement an in-house fuzzing service for a database?
+Our V1 solution felt like a “standard” small scale approach to this sort
+of thing: a Go service in a separate repository, running under systemd
+on a couple of manually provisioned machines. A lot of custom automation
+I’ve seen worked along those lines, and shared the following set of
+problems:</p>
+<p>If you are a developer, it’s hard to know what automation even
+exists, because it is hidden in separate repositories. Once you find it,
+it is hard to modify, because it is using a different language and a
+different set of technologies (e.g., there are database developers, who
+don’t know how to write a systemd unit file (<span data-emoji="wave">👋</span>). Finally, even if you fix it, there are
+extra steps to make the fix go live — you need to find the devops person
+who has the permission to deploy the automation, and ask them kindly to
+redeploy. Friction, friction everywhere, and not a change to make!</p>
+<h2 id="universal-server"></h2>
+<p>The common thread here is that automation directly affects
+developers’ lives, but they don’t have the agency to go and make it
+better. Let’s fix that.</p>
+<p><em>First</em>, we make sure that automation lives in the same
+repository as the main project. <code>./src/scripts</code> is a good
+place.</p>
+<p><em>Second</em>, we make sure that automation is implemented in the
+same language as the project itself. Yes, bash is significantly more
+compact that <code>std::process::Command</code>. But adding one library
+(or even just one helper function) closes most of the gap. In return for
+a slight increase in verbosity you remove the need to context switch,
+stop worrying about semantic differences between BSD and GNU sed, and
+remove the need to set up ShellCheck on top of your usual linting
+setup.</p>
+<p><em>Third</em>, the secret sauce, you implement auto-deploy. The
+invariant you maintain is that the version of automation deployed
+matches the current tip of the main branch. That is, whoever can push to
+main is automatically able to deploy changes to automation. And the way
+you achieve that is via a self-bootstrapping pattern. What you actually
+deploy is a script that clones your repository, runs automation off the
+main branch, and then loops. <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.16.78/src/scripts/cfo_supervisor.sh">Here’s
+ours</a>:</p>
+<div id="cb2"><pre><code>set -eu
+git --version
+
+while true
+do
+    rm -rf ./tigerbeetle
+    (
+        git clone https://github.com/tigerbeetle/tigerbeetle tigerbeetle
+        cd tigerbeetle
+        ./zig/download.sh
+        unshare --user -f --pid \
+            ./zig/zig build -Drelease scripts -- cfo --timeout=30m
+    ) || sleep 10
+done</code></pre></div>
+<ul>
+<li>We start with removing the old version of the repository, to clean
+the slate.</li>
+<li>We then clone the repo and bootstrap the dev environment for our
+main language. Zig makes this particularly easy, but this should work
+for any language.</li>
+<li>We then compile and run the automation for some time (e.g., 30
+minutes). Ideally, the timeout is enforced externally, but, given the
+cooperative nature of the thing, we’ve found the internal timeout to
+work fine as well.</li>
+<li>Similarly, it’s pretty hard to robustly <em>not</em> leak any
+leftover processes on UNIX, so some lightweight sandboxing is in order
+(<a href="https://man7.org/linux/man-pages/man1/unshare.1.html"><code>unshare</code></a>
+works for us).</li>
+</ul>
+<p>You might be wondering who deploys the deployer script? We have a
+bunch of persistent <a href="https://github.com/tmux/tmux">tmux</a>
+sessions which run the above script in foreground, works like a charm at
+our scale!</p>
+<p>And that’s it — developers are now empowered to change the automation
+to their liking, because the only thing they need to do to effect change
+is <a href="https://github.com/tigerbeetle/tigerbeetle/pull/3209">a pull
+request</a>!</p>
+  </div></div>

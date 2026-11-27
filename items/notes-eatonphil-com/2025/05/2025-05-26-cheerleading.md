@@ -1,0 +1,53 @@
+---
+title: Cheerleading
+link: http://notes.eatonphil.com/2025-05-26-cheerleading.html
+source: notes-eatonphil-com
+published: 2025-05-26T00:00:00Z
+updated: 2025-05-26T00:00:00Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+labels:
+- humans
+summary: At work we're so absorbed in the difficulties we face that it becomes easy to forget what we appreciate and what we value in our coworkers. On social media we can be so focused on our own work that we forget to interact with others'. I have heard so many times from founders that they switch between heads down building, disappearing from the community, and then pop up to talk about what they've built. Engineers often say the exact same thing. This kills me. Though I probably still do it to a degree too. The easiest way for no one to give a shit about what you've done is for you to only interact at periodic intervals that are only convenient for you. With networking in general the most important time to interact and build relationships is when you do not need anything. By the time you want someone's support or you want someone to care about what you've done it is way too late to start building a relationship. One of the cheapest and most effective avenues to build genuine relationships is to be the biggest cheerleader you can be. At work this means when someone writes a fantastic blog post you call it out in a public channel. It means when a coworker's work is featured somewhere you call this out in a public channel. At least, this is what I do at work. I don't care that I have no leadership role or haven't met these people before. If I see something amazing that I'd like to see more of, I mention it in public and praise the person. Or when someone shares work they've done in a public channel, you hit all the emojis and you reply "that's awesome". On social media this means engaging seriously and (more) deeply with what people post. If the default behavior on social media is to passively observe, engaging more deeply can be liking a post. If you already show support through liking, engaging more deeply can be commenting or asking questions or (kindly) pointing out mistakes. Engagement is a spectrum. Genuine engagement consistently over time builds genuine relationships. I would not suggest that you do this without feeling it, or I'd rather only encourage you to respond to the degree that you feel. But I personally do feel so strongly when I cheer people on. So much of life and work is drudgery such that when you see something positive, someone taking initiative, someone with talent or potential doing something with their skills, how can you not feel an overwhelming urge to cheer them on and hope to see more of it? Hope to see it develop? What's more, I want to be around people who are trying new things and improving themselves. I want to be around people who celebrate. So I in turn try new things and work to improve myself and I celebrate the people around me. This energy is infectious. And I genuinely think even a single person in a group celebrating publicly changes the group dynamic. And I don't expect people to reciprocate in the same way or to the same degree that I show support. I'm particularly weird and confident and vocal. But if my cheerleading for some person seems like a complete sink then I'll not continue it and invest my time and energy elsewhere. Not everybody needs my support and that's ok! It is better that it's spent where it's most needed. There were people who used to cheer me on who don't much anymore and that's totally fine, I still have positive feelings for them for the time they did cheer me on. Cheerleading electrifies the work atmosphere. It is the proper use of social media. Cheerleading is the imperative of caring individuals as they become more experienced, gain confidence, command a wider audience, and want to continue their own growth through the development of genuine and supportive networks. And an ambitious, high-achieving, celebratory culture is simply the most fun to be a part of. I wrote a post on being a cheerleader. pic.twitter.com/mESNjSjQ0n — Phil Eaton (@eatonphil) May 26, 2025
+content: extracted
+html: 2025-05-26-cheerleading.html
+---
+
+At work we're so absorbed in the difficulties we face that it becomes easy to forget what we appreciate and what we value in our coworkers. On social media we can be so focused on our own work that we forget to interact with others'.
+
+I have heard so many times from founders that they switch between heads down building, disappearing from the community, and then pop up to talk about what they've built. Engineers often say the exact same thing. This kills me. Though I probably still do it to a degree too.
+
+The easiest way for no one to give a shit about what you've done is for you to only interact at periodic intervals that are only convenient for you.
+
+With networking in general the most important time to interact and build relationships is when you do not need anything. By the time you want someone's support or you want someone to care about what you've done it is way too late to start building a relationship.
+
+One of the cheapest and most effective avenues to build genuine relationships is to be the biggest cheerleader you can be.
+
+At work this means when someone writes a fantastic blog post you call it out in a public channel. It means when a coworker's work is featured somewhere you call this out in a public channel. At least, this is what I do at work.
+
+I don't care that I have no leadership role or haven't met these people before. If I see something amazing that I'd like to see more of, I mention it in public and praise the person.
+
+Or when someone shares work they've done in a public channel, you hit all the emojis and you reply "that's awesome".
+
+On social media this means engaging seriously and (more) deeply with what people post. If the default behavior on social media is to passively observe, engaging more deeply can be liking a post. If you already show support through liking, engaging more deeply can be commenting or asking questions or (kindly) pointing out mistakes.
+
+Engagement is a spectrum. Genuine engagement consistently over time builds genuine relationships.
+
+I would not suggest that you do this without feeling it, or I'd rather only encourage you to respond to the degree that you feel. But I personally do feel so strongly when I cheer people on.
+
+So much of life and work is drudgery such that when you see something positive, someone taking initiative, someone with talent or potential doing something with their skills, how can you not feel an overwhelming urge to cheer them on and hope to see more of it? Hope to see it develop?
+
+What's more, I want to be around people who are trying new things and improving themselves. I want to be around people who celebrate. So I in turn try new things and work to improve myself and I celebrate the people around me.
+
+This energy is infectious. And I genuinely think even a single person in a group celebrating publicly changes the group dynamic.
+
+And I don't expect people to reciprocate in the same way or to the same degree that I show support. I'm particularly weird and confident and vocal. But if my cheerleading for some person seems like a complete sink then I'll not continue it and invest my time and energy elsewhere.
+
+Not everybody needs my support and that's ok! It is better that it's spent where it's most needed. There were people who used to cheer me on who don't much anymore and that's totally fine, I still have positive feelings for them for the time they did cheer me on.
+
+Cheerleading electrifies the work atmosphere. It is the proper use of social media. Cheerleading is the imperative of caring individuals as they become more experienced, gain confidence, command a wider audience, and want to continue their own growth through the development of genuine and supportive networks.
+
+And an ambitious, high-achieving, celebratory culture is simply the most fun to be a part of.
+
+> I wrote a post on being a cheerleader. [pic.twitter.com/mESNjSjQ0n](https://t.co/mESNjSjQ0n)
+>
+> — Phil Eaton (@eatonphil) [May 26, 2025](https://twitter.com/eatonphil/status/1927031793204560023?ref_src=twsrc%5Etfw)

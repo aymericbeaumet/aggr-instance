@@ -1,0 +1,101 @@
+<div id="readability-page-1" class="page"><div><p>We’re huge fans of Deterministic Simulation Testing (DST) at
+TigerBeetle, which enables us to perfectly reproduce complex failures of
+a distributed system on a single laptop. But that’s not today’s story!
+We’ve added an intentionally non-deterministic testing harness, the
+Vörtex!</p>
+<p>TigerBeetle applies defense-in-depth to testing, with <a href="https://tigerbeetle.com/blog/2023-07-11-we-put-a-distributed-database-in-the-browser">Deterministic
+Simulation Testing</a> (DST), fuzzers, integration tests, unit tests, <a href="https://tigerbeetle.com/blog/2024-05-14-snapshot-testing-for-the-masses">snap
+tests</a>, large scale tests of up to 100 billion transactions, and
+6,000+ assertions in production for anything that slips past. While this
+covers some ground, we recently asked the question: how could we invest
+in yet another defense, to test TigerBeetle in a non-deterministic
+environment?</p>
+<h2 id="introducing-vortex"></h2>
+<p>To increase coverage, we’re building Vortex (Vörtex for a heavy metal
+vibe). It’s a generative full-system test suite, checking safety and
+liveness properties, multiple client languages, through fault injection.
+By not only testing “from the inside out” (with DST), but also testing
+compiled binaries and client libraries “from the outside in”, to subject
+them to the stress they might see in a real deployment, we can only
+increase the probability that we find and fix bugs before they reach
+users.</p>
+<p>Vortex therefore focuses on increasing our coverage of the
+non-deterministic parts of TigerBeetle. For example, while our client
+libraries build on a shared client library that is covered by DST, their
+(purposefully thin) native language binding and <a href="https://tigerbeetle.com/blog/2023-02-21-writing-high-performance-clients-for-tigerbeetle"><code>tb_client</code></a>
+wrapper nevertheless are not covered by DST, and may contain bugs that
+slip past other tests, since the integration of native code into a
+managed runtime can be tricky.</p>
+<p>Further, TigerBeetle replicas and clients communicate by message
+passing over the network, and this implementation is stubbed out in our
+DST. The same goes for the storage interface used to read and write data
+to disk. These interfaces were carefully designed in the first place to
+“promise nothing” and be as faulty as our underlying network and storage
+fault models (i.e. a message or disk write may be dropped). While they
+were subjected to fuzz tests, integration tests, and unit tests,
+nevertheless, they were not yet subjected to generative testing.</p>
+<h2 id="architecture"></h2>
+<p>We wanted Vortex to work on “the real thing”, the actual production
+binaries, rather than instrumented, customized or “resource constrained”
+builds. In addition, the need to test multiple language clients,
+possibly running concurrently in a single test, led us to the following
+architecture:</p>
+<ul>
+<li><em>Supervisor</em>: the main process, to coordinate the workload, a
+cluster of replicas, and a driver. It also injects faults and runs
+liveness checks.</li>
+<li><em>Workload</em>: a driver to create accounts and transfers, run
+queries, and check safety properties.</li>
+<li><em>Driver</em>: a small language-specific program that accepts
+requests from the workload, runs them using a client library, and
+returns the results.</li>
+<li><em>Replicas</em>: stock standard TigerBeetle release binaries
+forming a cluster.</li>
+</ul>
+<p>Vortex injects network faults (delay, loss, corruption) by wiring
+everything together through a TCP proxy controlled by the supervisor. We
+simulate process faults by killing or pausing replicas, and restarting
+or resuming them after some time.</p>
+<p>So far, we have Vortex drivers for the Zig and Java clients. This
+covers plenty of shared code already, but we aim for all clients to have
+drivers, including the <a href="https://github.com/tigerbeetle/tigerbeetle/tree/main/src/clients/python">new</a>
+<a href="https://www.youtube.com/playlist?list=PL9eL-xg48OM0iMz7n4bggGlFGdwB4Y6Sh">clients</a>
+<a href="https://x.com/errebino/status/1882851898623214036">coming</a>
+<a href="https://www.youtube.com/watch?v=4HcAcnJm5ig">out</a>.</p>
+<p>If you’re interested in learning more, go ahead and explore <a href="https://github.com/tigerbeetle/tigerbeetle/tree/main/src/testing/vortex">the
+source code</a>.</p>
+<h2 id="down-the-vortex-we-go"></h2>
+<p>Vortex is four months old and has already found two bugs!</p>
+<ul>
+<li><a href="https://github.com/tigerbeetle/tigerbeetle/pull/2401">#2401</a>:
+the shared client library incorrectly batched some combinations of
+requests, potentially creating open chains of linked events. The bug
+resided in <code>tb_client</code>.</li>
+<li><a href="https://github.com/tigerbeetle/tigerbeetle/pull/2430">#2430</a>:
+connections were terminated twice, caused by an interaction between
+process faults and clients being closed with a particular timing.</li>
+</ul>
+<p>Further, we’ve used Vortex to verify a recently discovered memory
+issue (<a href="https://github.com/tigerbeetle/tigerbeetle/pull/2413">#2413</a>),
+and we’re investigating a possible liveness issue that Vortex provokes
+within hours.</p>
+<p>We see Vortex as the perfect canary. After DST has already
+fast-forwarded (like a movie) the finding of rare bugs, and then
+replayed them again and again to fix them rapidly—if there’s anything
+that slips past, Vortex tells us where we have coverage gaps.</p>
+<p>This is just the beginning. We have many things in the pipeline for
+Vortex:</p>
+<ul>
+<li>Automation for running Vortex continuously for long stretches of
+time.</li>
+<li>Version upgrading procedures for replicas and clients.</li>
+<li>More advanced and non-global network faults, e.g. symmetric and
+asymmetric partitions.</li>
+<li>Storage faults, e.g. latent sector errors, corruption and torn
+writes.</li>
+<li>Concurrent heterogenous drivers, under a single workload.</li>
+</ul>
+<p>To maximize coverage, we’ll continue investing in defense-in-depth
+and venturing into the state space abyss, both deterministically and
+non-deterministically!</p>
+  </div></div>

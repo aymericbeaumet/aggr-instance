@@ -1,0 +1,140 @@
+<div id="readability-page-1" class="page"><div><p>An online marketplace is a digital platform connecting buyers and sellers, allowing them to conduct transactions over the internet. Typically, a marketplace relies on third-party vendors to fulfil products and services but may also host a mix of third and first-party products.</p>
+<p>To succeed, a marketplace should run on a business model that generates profits from funneling customers to sellers by managing all commercial relationships. Marketplace business models rely on monetizing the added value they provide to both customers and third-party sellers.</p>
+<p>Also read <a href="https://stripe.dev/blog/stripe-marketplaces-mapping-commercial-relationships-code">Stripe Connect programmatically powers marketplaces</a>, which covers how to configure <a href="https://docs.stripe.com/connect">Stripe Connect</a> to support different monetization strategies.</p>
+<h2 id="meet-greens--dairy-mart"><strong>Meet Greens &amp; Dairy Mart</strong></h2>
+<p>This example uses <em>Greens &amp; Dairy Mart</em>, a fictitious online marketplace that allows independent farmers to sell their produce directly to consumers.</p>
+<p>When using <em>Greens &amp; Dairy Mart,</em> buyers choose products from multiple farms and add them to a <em>Greens &amp; Dairy Mart</em> basket. Customers pay for the products on the website and receive the products directly from the farmers. Farmers receive the money once the product has been delivered.</p>
+<p><em>Greens &amp; Dairy Mart</em> uses <a href="https://docs.stripe.com/connect">Stripe Connect</a> and <a href="https://docs.stripe.com/billing">Stripe Billing</a>.</p>
+<h2 id="the-basics-of-marketplace-monetization">The basics of marketplace monetization</h2>
+<p>Marketplaces match buyers with sellers; they earn money from both sides of the commercial exchange. Typically, marketplaces add commission or fees to the base price provided by the sellers and, additionally, try to monetize each of the steps that adds value to the exchange.</p>
+<p>Example of commercial activities monetized by marketplaces:</p>
+<ul>
+<li><strong>Marketing:</strong> on top of the standard platform options, marketplaces can also offer sellers the possibility to do bespoke marketing on their platform and position exclusive deals and offers.</li>
+<li><strong>Shipping/delivery/returns:</strong> sellers usually manage order fulfilment. Sometimes, marketplaces offer shipping and delivery services to streamline the customer buying experience. Most of the time, sellers pay for the service, although it is not unusual for buyers to contribute to the cost of shipping too.</li>
+<li><strong>Payment and money management:</strong> when facilitating payments through their platform, marketplaces get the opportunity to monetise financial operations. Typical categories of service are:  pay-ins, payouts, refunds, disputes, currency exchange, tax management. Most of these services bring value to the sellers.</li>
+<li><strong>Insurance:</strong> When the value of the goods or services proposed is high, marketplaces might also offer insurance on the goods. This service is typically offered to both buyers and sellers.</li>
+</ul>
+<p>All these value-added services might be delivered directly by the marketplace or, alternatively, by a third-party provider. In this latter case, the marketplace will have to ensure payments for those services are disbursed correctly and compliantly. For instance, marketplaces do not usually hold insurance licenses, therefore, if they offer insurance, they offer a third-party product and often monetise the referral.</p>
+<p>To monetize services, marketplaces have multiple options:</p>
+<ul>
+<li>Take its fees directly from the transactions processed through the platform: common for buyer fees and seller payment-processing fees;</li>
+<li>Charge its fees recurrently (e.g. at the end of the month): common for volume based services like marketing leads.</li>
+<li>Invoice just once when the service is requested: e.g. common when offering insurance.</li>
+</ul>
+<p>Stripe helps marketplaces remain compliant with money management by staying outside the flow of funds and, at the same time, monetise:</p>
+<ul>
+<li>by enabling to programmatically add monetization fees on top of each money transaction,</li>
+<li>by providing a <a href="https://docs.stripe.com/billing/subscriptions/usage-based">user-based-billing API</a> and a <a href="https://docs.stripe.com/subscriptions">recurring payment API</a>;</li>
+<li>by providing an <a href="https://docs.stripe.com/invoicing">invoice API</a>;</li>
+<li>and by providing other APIs that help embed value-added financial services <a href="https://docs.stripe.com/money-management">like loans and other on top of their regular services</a>.</li>
+</ul>
+<h2 id="greens--dairy-mart-monetization-strategy"><strong>Greens &amp; Dairy Mart monetization strategy</strong></h2>
+<ol>
+<li><em>Greens &amp; Dairy Mart</em> charges sellers 15% flat rate to their farmers on the items they sell to cover for payment processing and operational costs.</li>
+<li>They offer sellers exclusive marketing options on the platform (e.g. premium positioning on page), and charge farmers a pay-per-click fee and additional fee based on conversion.</li>
+<li>Shipping is usually managed by the farmers and added at check-out. For those farmers who do not want to manage shipping logistics; <em>Greens &amp; Dairy Mart</em> offers running deliveries on their behalf. Their fee structure is a combined additional 5% per delivery charged to sellers and a tiered 5-10 GBP flat fee to buyers, based on the weight of the order. This service is provided by Green &amp; Dairy Mart's employees.</li>
+<li><em>Green &amp; Dairy Mart</em> usually pays out orders after they have been fulfilled. They have started offering faster payouts, at a fee, to those farms with a good track record. And those same sellers can opt into a “damaged goods” insurance, to cover the losses from refunding goods that did not arrive in acceptable condition.</li>
+</ol>
+<p>This diagram depicts the fund flows associated with the commercial exchanges:</p>
+<p><span><span><img src="https://stripe.dev/images/managing-marketplace-monetization-with-stripe/image1.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<h2 id="how-to-code-per-transaction-fees-to-sellers">How to code per-transaction fees to sellers</h2>
+<p>Stripe charges marketplaces <a href="https://stripe.com/pricing#connect">payment fees on each payment transaction</a> it processes. Marketplaces can mirror this behavior and charge sellers a fee that covers this cost and other operational costs. This fee comes back to the marketplace from the connected account balance after the payment is successfully processed.</p>
+<p><strong>Charging fees using the Stripe Platform pricing tool</strong></p>
+<p>Stripe provides a <a href="https://docs.stripe.com/connect/platform-pricing-tools">platform pricing tool</a>, which helps marketplaces create rules that apply different fees based on multiple payment conditions.</p>
+<p>When <em>Greens &amp; Dairy Mart</em> introduced the shipping service for sellers and charged an additional 5% to those that used it, they decided to move from managing fees explicitly on the business backend to adopting the Stripe platform pricing tool. They identify payments for orders whose delivery they will fulfil using the following <a href="https://docs.stripe.com/metadata">metadata</a> key:value pair:</p>
+<ul>
+<li><code>delivery_by: [farm / platform]</code></li>
+</ul>
+<p>And configure the pricing tool as follows:</p>
+<p><span><span><img src="https://stripe.dev/images/managing-marketplace-monetization-with-stripe/image3.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>Stripe pricing tools allow <em>Greens &amp; Dairy Mart</em> to create <a href="https://docs.stripe.com/connect/platform-pricing-tools/pricing-schemes">pricing schemes</a> to group farms that might be under better commercial terms and thus need different fees.</p>
+<p>The Stripe pricing tool can be tested in a <a href="https://docs.stripe.com/connect/platform-pricing-tools/testing#test-in-a-sandbox">Stripe sandbox</a>. Before activating a rule, it’s possible to <a href="https://docs.stripe.com/connect/platform-pricing-tools/testing#platform-pricing-testing-tool">test its impact across historical transactions</a>.</p>
+<h2 id="charging-fees-using-application-fees"><strong>Charging fees using application fees</strong></h2>
+<p>For those use cases where the marketplace prefers to control the fees on their own business logic, Stripe Connect allows marketplaces to add an <em>application_fee_amount</em> to the <a href="https://docs.stripe.com/api/payment_intents/object#payment_intent_object-application_fee_amount">PaymentIntent API call</a>.</p>
+<h2 id="how-to-code-invoiced-fees">How to code invoiced fees</h2>
+<p>Marketplaces fees that are not linked 1:1 to transactions are usually invoiced separately. Stripe offers a <a href="https://docs.stripe.com/billing">billing product suite</a> which includes an <a href="https://docs.stripe.com/invoicing">Invoice API</a> and a <a href="https://docs.stripe.com/subscriptions">Subscriptions API</a> that allow to programmatically automate the marketplace-fee requests.</p>
+<p>Invoices and subscriptions are usually paid using funds outside Stripe Connect. However, in certain countries, Stripe offers marketplaces the option to use Stripe account balances to pay for SaaS fees.</p>
+<h2 id="invoicing-at-regular-intervals"><strong>Invoicing at regular intervals</strong></h2>
+<p><em>Greens &amp; Dairy Mart</em> uses Stripe usage-based billing to invoice monthly for click-to-pay marketing services and to pass on any penalties generated from payment disputes or missed deliveries.</p>
+<p>The full process to invoice regularly for a metered service is:</p>
+<ol>
+<li><a href="https://docs.stripe.com/api/products/create">Create a product</a></li>
+<li><a href="https://docs.stripe.com/api/billing/meter/create">Create a billing meter</a></li>
+<li><a href="https://docs.stripe.com/api/prices/create">Create the price as a combination of 1 and 2</a>.</li>
+<li><a href="https://docs.stripe.com/api/subscriptions/create">Create subscription</a></li>
+<li><a href="https://docs.stripe.com/api/v2/billing/meter-event/create">Generate meter events per each chargeable action</a></li>
+</ol>
+<p>They use three <a href="https://docs.stripe.com/billing/subscriptions/usage-based/meters/configure">billing meters</a>: pay-per-click; pay-per-conversions and penalties.</p>
+<p>POST /v1/billing/meters:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/billing/meters" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "display_name"="Pay per click" \
+  -d "event_name"="clicks" \
+  -d "default_aggregation[formula]"="sum" \
+  -d "value_settings[event_payload_key]"="value" \
+  -d "customer_mapping[type]"="by_id" \
+  -d "customer_mapping[event_payload_key]"="stripe_customer_id"</code></pre>
+<p>All three meters will be managed by adding the values passed by the events. For instance, each time a customer clicks on a product ad, the meter event is triggered:</p>
+<p>POST /v2/billing/meter_events:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v2/billing/meter_events" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "identifier"="idmp_12345678" \
+  -d "event_name"="clicks" \
+  -d "timestamp"="2025-07-31T12:00:00.000Z" \
+  -d "payload[stripe_customer_id]"="cus_SrNgH2tpLj0nI3" \
+  -d "payload[value]"="1"</code></pre>
+<p>With the API call above, we assign the event to the <code>customer_id</code> linked to the connected account of the farm whose ad is clicked.</p>
+<p>The Stripe dashboard helps monitor events and analyse overall performance of the meters.</p>
+<p><span><span><img src="https://stripe.dev/images/managing-marketplace-monetization-with-stripe/image2.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>To periodically invoice and charge for the metered services, the marketplace will create a subscription for the Stripe prices related to the meters:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/subscriptions" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "customer"="cus_SrNgH2tpLj0nI3" \
+  -d "collection_method"="charge_automatically" \  -d "items[0][price]"="price_1RvgklRf11bwQ2gfntzciS2d" \ 
+  -d "items[1][price]"="price_2RvgklRf11bwQ2gluigaffea" \ 
+  -d "items[2][price]"="price_3RvgklRhhefkhfksdkazcS2d" \</code></pre>
+<p>Where <code>customer</code> is the customer ID associated with the Stripe account of the farm whose meter we are using. The <code>collection_method</code> is set to <code>charge_automatically</code> because this API call assumes that at the moment we are creating the subscription we have already saved the default payment method to pay with. Each price item is a line in the subscription invoice.</p>
+<p>For instance, the price for the pay per click service is:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/prices" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "currency"="gbp" \
+  -d "product_data[active]"="true" \
+  -d "product_data[name]"="pay per click" \
+  -d "product_data[statement_descriptor]"="pay per click" \
+  -d "recurring[meter]"="mtr_test_61T7aNt0FSlSNmCCc41I2RyGN8ci3UsS" \
+  -d "recurring[interval]"="month" \
+  -d "recurring[usage_type]"="metered" \
+  -d "unit_amount"=2
+</code></pre>
+<p>This uses the meter ID associated with this counter and a price of 0.02 GBP per click.</p>
+<h2 id="one-off-invoices"><strong>One-off invoices</strong></h2>
+<p>For services requested ad hoc, the Invoicing API can be used.</p>
+<p><em>Greens &amp; Dairy Mart</em> offer farms insurance for damaged deliveries. If food arrives to customers in suboptimal conditions, they refund the customer, no questions asked, and not pass the cost of that refund to the farms. This insurance is invoiced once a year.</p>
+<p>Generally the process for creating invoices goes as follows:</p>
+<ol>
+<li>Create an empty invoice with <code>pending_invoice_items_behaviour</code> set to “include”.</li>
+<li>Add the invoice items.</li>
+<li>Finalize the invoice to activate the invoice and get paid.</li>
+</ol>
+<p>POST /v1/invoices:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/invoices" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "customer"="cus_SrNgH2tpLj0nI3" \
+  -d "collection_method"="charge_automatically" \
+  -d "description"="Damaged goods insurance" \
+  -d "pending_invoice_items_behavior"="include"</code></pre>
+<p>POST /v1/invoiceitems:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/invoiceitems" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "customer"="cus_SrNgH2tpLj0nI3" \
+  -d "pricing[price]"="price_1RwIifRf11bwQ2gfORhzCrkX" \
+  -d "invoice"="in_1RwIl2Rf11bwQ2gfw90wN1Bd" \
+  -d "description"="Damaged goods insurance"</code></pre>
+<p>POST /v1/{insert your invoice ID}/finalize:</p>
+<pre><code>curl -X POST "https://api.stripe.com/v1/invoices/{invoice}/finalize" \
+  -u 'REPLACE_WITH_YOUR_SECRET_KEY':  \
+  -d "auto_advance"="true"</code></pre>
+<p>This invoice will be automatically paid when it's due provided a payment method has been saved before. Alternatively, Stripe can send an email with the invoice by setting the <code>collection_method</code> to <code>send_invoice</code>.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>The success of a marketplace relies on having a monetization strategy that generates profits from the activities they monetise. With Stripe Connect, marketplaces can enable the payment disbursement flows and manage their monetization programmatically. This provides a central point to monitor and report the health of their different monetization activities.</p>
+<p>To learn more about developing applications with Stripe, visit our <a href="https://www.youtube.com/stripedevelopers">YouTube Channel</a>.</p></div></div>

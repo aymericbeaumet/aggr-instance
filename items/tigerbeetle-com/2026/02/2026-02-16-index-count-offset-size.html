@@ -1,0 +1,135 @@
+<div id="readability-page-1" class="page"><div><p>Wherein we make progress towards solving one of the most vexing
+problems of Computer Science — naming things.</p>
+<p>I am at a point in my career where the bulk of my bugs are stupid — I
+simply fail to type in the code I have in my mind correctly. In
+languages with shadowing (like Rust), I will fail to use a shadowed
+variable from the outer scope. In languages without shadowing (like
+Zig), I will use the wrong version of a variable.</p>
+<p>Pests like these are annoying, so I am always on the lookout for
+tricks to minimize the probability of bugs. One of the best possible
+tricks is of course strong static typing. Types are good at preventing
+me from doing stupid things by accident. But types have limitations. The
+text of a well-typed program is a two-in-one artifact — a specification
+of behavior of a machine (the algorithm), and a proof that the behavior
+is not unacceptable. Zero cost abstractions are code without behavior,
+just proofs!</p>
+<p>The art of skillful typing lies in minimizing verbosity of the proof,
+while maximizing the amount of unwanted behaviors ruled out, weighted by
+the probability and the cost of misbehavior. But this ratio is not
+always favorable — the code can be so proof-heavy that it becomes
+impossible to understand what it actually <em>does</em>!</p>
+<p>There’s one particular cranny where types don’t seem to usefully
+penetrate yet: indexing and associated off-by-one errors.</p>
+<p>If you don’t need indexing <em>arithmetic</em>, you can use <a href="https://matklad.github.io/2025/12/23/zig-newtype-index-pattern.html">newtype
+pattern</a> to prevent accessing oranges with apple-derived indexes. You
+can even go further and bind indexes to <em>specific</em> arrays, using,
+e.g., <a href="https://faultlore.com/blah/papers/thesis.pdf#page=56">Gankra
+trick</a>, but I haven’t seen that to be useful in practice.</p>
+<p>If, however, you <em>compute</em> indexes, you need to be extra
+careful to stay in bounds of an array, and need to be mindful that the
+maximum valid index is one less than the length of the array. While we
+don’t solve this problem perfectly at TigerBeetle, I think we have a
+naming convention that helps:</p>
+<figure>
+    
+</figure>
+
+<p>Thanks <a href="https://ziggit.dev/t/a-rare-bug-in-audio-code-by-zig-s-creator-can-you-find-it/11366/6">@marler8997</a>
+for the illustration idea!</p>
+<p>We consistently use <code>count</code> whenever we talk about the
+number of items, and <code>index</code> to point to a particular item.
+The <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0.16.73/docs/TIGER_STYLE.md#:~:text=State%20invariants%20positively">positive
+invariant</a> is <code>index &lt; count</code>. Consistency is the trick
+— there are certain valid and invalid ways to combine indexes and counts
+in an expression, and, if there’s always an <code>_index</code> or a
+<code>_count</code> suffix in the name, wrong combinations immediately
+jump out at you, dear reader, even if you don’t understand the specifics
+of the code.</p>
+<p>In low-level code you often need to switch between a well-typed
+representation <code>[]T</code>and raw bytes <code>[]u8</code>. To not
+confuse the two index spaces, the “count of bytes” is always called a
+<code>size</code>. By definition,</p>
+<div id="cb1"><pre><code>size = @sizeOf(T) * count;</code></pre></div>
+<p>And <code>offset</code> is the bytewise counterpart of
+<code>index</code>.</p>
+<p>We don’t use <code>length</code> in our code, as its meaning is
+ambiguous. Rust <code>str::len</code> is the byte-<code>size</code> of
+the string, but Python’s <code>len(str)</code> is the <code>count</code>
+of Unicode code-points!</p>
+<p>Here’s an example of the naming convention in action from <a href="https://github.com/tigerbeetle/tigerbeetle/blob/0cd32077bff00b15b83b3417bf700ecb0c888f78/src/lsm/node_pool.zig#L70-L82">NodePool</a>:</p>
+<div id="cb2"><pre><code>pub fn release(pool: *NodePool, node: Node) void {
+    comptime assert(meta.Elem(Node) == u8);
+    comptime assert(meta.Elem(@TypeOf(pool.buffer)) == u8);
+
+    assert(@intFromPtr(node) &gt;= @intFromPtr(pool.buffer.ptr));
+    assert(
+        @intFromPtr(node) + node_size &lt;=
+            @intFromPtr(pool.buffer.ptr) + pool.buffer.len
+    );
+
+    const node_offset =
+        @intFromPtr(node) - @intFromPtr(pool.buffer.ptr);
+
+    const node_index =
+        @divExact(node_offset, node_size);
+
+    assert(!pool.free.isSet(node_index));
+    pool.free.set(node_index);
+}</code></pre></div>
+<p>You can see that the <code>node_index</code> calculation is correct
+mechanically, just from the names of the variables.</p>
+<p>And here’s an <code>index/count</code> example from our <a href="https://github.com/tigerbeetle/tigerbeetle/blob/81f78fe21a939ed1bffc43a10a484779e3866cf9/src/ewah.zig#L68-L95"><code>ewah</code></a>
+implementation:</p>
+<div id="cb3"><pre><code>pub fn decode(
+    source: []align(@alignOf(Word)) const u8,
+    target_words: []Word,
+) usize {
+    assert(source.len % @sizeOf(Word) == 0);
+    assert(disjoint_slices(u8, Word, source, target_words));
+
+    const source_words = mem.bytesAsSlice(Word, source);
+
+    var source_index: usize = 0;
+    var target_index: usize = 0;
+    while (source_index &lt; source_words.len) {
+        const marker: *const Marker =
+            @ptrCast(&amp;source_words[source_index]);
+        source_index += 1;
+
+        @memset(
+            target_words[target_index..][0..marker.uniform_word_count],
+            if (marker.uniform_bit == 1) ~@as(Word, 0) else 0,
+        );
+        target_index += marker.uniform_word_count;
+
+        stdx.copy_disjoint(
+            .exact,
+            Word,
+            target_words[target_index..][0..marker.literal_word_count],
+            source_words[source_index..][0..marker.literal_word_count],
+        );
+        source_index += marker.literal_word_count;
+        target_index += marker.literal_word_count;
+    }
+    assert(source_index == source_words.len);
+    assert(target_index &lt;= target_words.len);
+
+    return target_index;
+}</code></pre></div>
+<p>Note well that the <code>index/count</code> convention synergizes
+with two other TigerStyle shticks. We use “big endian naming”, where
+qualifiers are appended as suffixes:</p>
+<pre><code>source
+source_words
+source_index</code></pre>
+<p>And we try to make sure that dual names have the same length:</p>
+<pre><code>source
+target</code></pre>
+<p>The code aligns itself, and makes the bugs pop out:</p>
+<div id="cb6"><pre><code>source_index += marker.literal_word_count;
+target_index += marker.literal_word_count;</code></pre></div>
+<p>Of course, a simple naming convention by itself won’t make software
+significantly better. But grains of sand add up to Dune: there’s no one
+trick to get rid of the bugs, but you can layer your defenses to
+exponentially decrease the probability of a failure.</p>
+  </div></div>

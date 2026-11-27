@@ -1,0 +1,534 @@
+<div id="readability-page-1" class="page"><div>
+      <article>
+        <header>
+          
+          <time datetime="2026-09-19">Sep 19, 2026</time>
+        </header>
+        <p>Are generative (randomized) tests significantly more effective than example-based
+unit-tests at discovering bugs? There’s
+<a href="https://lobste.rs/s/mkv2pl/unit_tests_mark_territory_more_than#c_5nimhl">an interesting discussion about this on lobste.rs</a>.
+One argument in favor of unit tests is, paraphrasing</p>
+
+        <figure>
+          <blockquote>
+            <p>My generic fuzzer wasn’t able to find
+<a href="https://github.com/rust-lang/regex/issues/1354">this tricky bug</a>
+in Rust <code>regex</code> crate.</p>
+          </blockquote>
+        </figure>
+        <p>To me, it seems that generative testing should shake out that particular
+creature, so I wrote <a href="https://github.com/matklad/regex-fuzz">a lil fuzzer</a>
+of my own, and it indeed discovered <em>another</em> bug in that version of <code>regex</code>,
+and then the one I was after. I didn’t find anything in the latest version. I
+like to do a write up about the process, as it is a good case study for how one
+approaches a problem like this.</p>
+        <p>I want to be extra clear that my argument is very weak here, as I know exactly
+the bug I am after, and I even know that fuzzers can find it. My primary goal is
+to teach you the techniques, leaving it to your judgment just how effective they
+are. That being said, I think finding a <em>second</em> bug validates the approach
+somewhat.</p>
+        <p>I also want to emphasize that writing fuzzers to find known bugs is far from an
+idle amusement. While I believe that generative testing is very powerful,
+relative to its cost, it’s always a question whether a particular test is
+thorough enough. And it never is, you <em>will</em> find more bugs elsewhere (that’s
+why defense in depth and <em>runtime</em> mitigations are critical). And, whenever you
+have a pest that dodged your fuzzers, your first order of business is to treat
+this event as a bug in the <em>fuzzer</em>, and change it so that it can find this and
+related bugs. Only then you are allowed to add a fix and a unit test!</p>
+        <section id="The-Bug">
+          <h2><a href="#The-Bug">The Bug</a></h2>
+          <p>For <code>".abb|b"</code> regex and <code>"zabb"</code> input, an older version of <code>regex</code> crate
+returned <code>b</code> as the first match, which is incorrect, because the entire <code>zabb</code>
+matches:</p>
+
+          <figure>
+            <pre><code>use regex;
+
+fn main() {
+    let r = regex::Regex::new(".abb|b").unwrap();
+
+    let m = r.find("zabb").unwrap();
+
+    // Fails with regex-automata=0.4.15:
+    assert_eq!(m.as_str(), "zabb")
+}</code></pre>
+          </figure>
+          <p>How do we find this, or something <em>like</em> this?</p>
+          <p>Regular expression engines are one of the easiest things to apply generative
+testing to, they are pure algorithms. While few large systems are <em>just</em> an
+algorithm, algorithms are everywhere inside components of interesting systems,
+so this is a hands-on knowledge.</p>
+          <p>And by far the most important technique for testing algorithms is to compare
+with the known right answer, with an oracle. Implement both <code>O(N log N)</code> and
+<code>O(N^2)</code> versions of the algorithm, and match the answers.</p>
+          <p>To be fair, the original comment mentioned that the their fuzzer didn’t find the
+issue because they didn’t have access to an oracle. However, if you are
+designing a reliable system, it’s part of your job to ensure it has an oracle!
+One of the first things we did for our
+<a href="https://jepsen.io/analyses/tigerbeetle-0.16.11">Jepsen test</a> at TigerBeetle was to
+<a href="https://github.com/tigerbeetle/tigerbeetle/pull/2481">expose internal timestamps</a>
+via API, to make it easier for Jepsen to find bugs (TigerBeetle is
+<a href="https://tigerbeetle.com/blog/2026-08-20-protocol-aware-dst/">co-designed</a> with
+its internal simulator
+<a href="https://github.com/tigerbeetle/tigerbeetle/blob/47aeb2212a255273dda508288412e537d11e4b7c/docs/internals/vopr.md">VOPR</a>
+which naturally has access to timestamps and anything else). And for, a regex
+engine, coming up with an oracle shouldn’t be hard, as they typically already
+come with multiple specialized implementations under a single facade, and the
+implementations can be cross-checked against each other.</p>
+          <p>But the <code>regex</code> case is even simpler (which makes it an excellent case study).
+There’s <code>regex_lite</code> crate that provides the same API.</p>
+          <p>So here’s a plan: generate a regular expression, an input text, and check that
+<code>regex</code> and <code>regex_lite</code> give identical answers.</p>
+        </section>
+        <section id="Generating-a-String">
+          <h2><a href="#Generating-a-String">Generating a String</a></h2>
+          <p>I’ll start with code that generates a random string, as it is simpler, but still
+shows some non-trivial ideas. First, we’ll need a random number generator:</p>
+
+          <figure>
+            <pre><code>use fastrand::Rng;</code></pre>
+          </figure>
+          <p>There are fancier techniques, which can give you
+<a href="https://matklad.github.io/2026/04/20/test-case-minimization.html">test-case minimization</a>,
+<a href="https://matklad.github.io/2021/11/07/generate-all-the-things.html">exhaustive search</a>, or
+<a href="https://llvm.org/docs/LibFuzzer.html">coverage guided exploration</a>, but the
+insight is that even a humble PRNG is brutally effective, if you put it to good use.</p>
+          <p>When you start with randomized testing, the instinct is to generate something
+big, no, HUGE! Surely regex will choke on 5 GiBs of input? This is usually a
+wrong call. Bugs <em>usually</em> involve small, but tricky examples, weaponizing
+interactions between a few features. A string where all characters are the same
+is more likely to trigger a bug than a purely random string where every
+character is unique.</p>
+          <p>So my default approach to generating strings is this. <em>First</em>, I fix the
+alphabet of possible characters. A nice way to get one is to <code>sort | unique</code> all
+the unit tests. Then, for each particular string, I pick a <em>subset</em> of that
+alphabet. I want strings that use all the characters, but I also want long
+strings with only <code>a</code> and <code>b</code>! Then I generate a string using the given subset
+of the alphabet, where the length of the string is also picked at random.</p>
+          <p>To make fuzzing efficient, I want to keep each iteration as fast as possible, so
+I make sure to re-use the memory across iterations,
+<a href="https://github.com/tigerbeetle/tigerbeetle/blob/47aeb2212a255273dda508288412e537d11e4b7c/docs/ARCHITECTURE.md#static-memory-allocation">static allocation</a>
+in the small:</p>
+
+          <figure>
+            <pre><code>use fastrand::Rng;
+
+fn main() {
+    let mut rng = Rng::new();
+
+    // Re-use the same memory for all tests.
+    let mut text_alphabet: Vec&lt;u8&gt; = vec![];
+    let mut text: Vec&lt;u8&gt; = vec![];
+
+
+    for _ in 0..1_000_000 {
+        // It's unlikely that a counter example with
+        // 7 different letters exists, while there
+        // isn't one with just 6.
+        alphabet_swarm(&amp;mut rng, b"abcdef", &amp;mut text_alphabet);
+        let text =
+            gen_string(&amp;mut rng, &amp;text_alphabet, &amp;mut text);
+    }
+}
+
+fn alphabet_swarm&lt;'a&gt;(
+    rng: &amp;mut Rng,
+    all: &amp;[u8],
+    pick: &amp;'a mut Vec&lt;u8&gt;,
+) {
+    pick.clear();
+    pick.extend(all);
+    rng.shuffle(pick);
+    let count = rng.usize(1..=pick.len());
+    pick.truncate(count);
+}
+
+fn gen_string&lt;'a&gt;(
+    rng: &amp;mut Rng,
+    alphabet: &amp;[u8],
+    result: &amp;'a mut Vec&lt;u8&gt;,
+) -&gt; &amp;'a str {
+    result.clear();
+    // Again, this is a short string.
+    // Longer failures are not likely.
+    let count = rng.usize(0..8);
+    for _ in 0..count {
+        result.push(alphabet[rng.usize(0..alphabet.len())]);
+    }
+    str::from_utf8(result).unwrap()
+}</code></pre>
+          </figure>
+          <p>There’s a nice way to think about this two step process, generating alphabet
+first, and then generating a string. To generate a string, you need a
+distribution of characters. You <em>can</em> use the same distribution for each of the
+million iterations. But an easy way to spice things up is to make the
+distribution <em>itself</em> random. I file this “randomize distributions themselves” idea under
+<a href="https://tigerbeetle.com/blog/2025-04-23-swarm-testing-data-structures/">swarm testing</a>.</p>
+        </section>
+        <section id="Generating-a-Regex-Distribution">
+          <h2><a href="#Generating-a-Regex-Distribution">Generating a Regex Distribution</a></h2>
+          <p>Let’s apply the same tricks when generating a regex:</p>
+          <ul>
+            <li>
+pick a subset of active regex features,
+            </li>
+            <li>
+pick size at random,
+            </li>
+            <li>
+re-use memory.
+            </li>
+          </ul>
+          <p>Let’s start with the first one:</p>
+
+          <figure>
+            <pre><code>#[derive(Default, Debug)]
+struct ReOptions {
+    alt: u16, // |
+    rep: u16, // *
+    any: u16, // .
+    lit: u16, // 'a'
+    sum: u16,
+    alphabet: Vec&lt;u8&gt;,
+}</code></pre>
+          </figure>
+          <p>Regexes have alternation <code>r1|r2</code>, repetition <code>r*</code>, wildcard <code>.</code>, and literals
+<code>a</code>. Rather then binary enabling or disabling a particular feature, I assign
+each feature a weight between 0 and 100, which is a bit more general. The <code>sum</code>
+is the total of all weights. To select a feature at random, we need to generate
+a number in <code>0..sum</code> and find which segment it falls into.</p>
+          <p>In anything more serious, I’d introduce explicit types for probabilities and
+distributions, but just a two-digit number is perfectly serviceable in the
+small.</p>
+          <p>This is how I generate <code>ReOptions</code>, making sure that literals always have
+non-zero weight, and also selecting an alphabet for them:</p>
+
+          <figure>
+            <pre><code>impl ReOptions {
+    fn swarm(&amp;mut self, rng: &amp;mut Rng, alphabet_full: &amp;[u8]) {
+        // We _still_ want to enable a few features at a time.
+        self.alt = if rng.bool() { 0 } else { rng.u16(0..100) };
+        self.rep = if rng.bool() { 0 } else { rng.u16(0..100) };
+        self.any = if rng.bool() { 0 } else { rng.u16(0..100) };
+        self.lit = rng.u16(1..100);
+        self.sum = self.alt + self.rep + self.any + self.lit;
+        assert!(self.sum &gt; 0);
+        alphabet_swarm(rng, alphabet_full, &amp;mut self.alphabet);
+    }
+}</code></pre>
+          </figure>
+        </section>
+        <section id="Generating-a-Regex">
+          <h2><a href="#Generating-a-Regex">Generating a Regex</a></h2>
+          <p>So now we can generate a regular expression. This is convenient to do
+recursively. To avoid allocations, an output buffer is passed through. To
+control regex length, a <code>size</code> parameter is also threaded, and “branching”
+recursive invocations divide the <code>size</code> between the children:</p>
+
+          <figure>
+            <pre><code>fn gen_re(
+    rng: &amp;mut Rng,
+    options: &amp;ReOptions,
+    result: &amp;mut Vec&lt;u8&gt;,
+) {
+    result.clear();
+    let size = rng.u8(0..8);
+    gen_re_rec(rng, options, result, size);
+
+}
+
+fn gen_re_rec(
+    rng: &amp;mut Rng,
+    options: &amp;ReOptions,
+    result: &amp;mut Vec&lt;u8&gt;,
+    size: u8,
+) {
+    if size == 0 {
+        return; // Base case, empty regex.
+    }
+
+    // Pick one of the features, according to weights.
+    let mut p = rng.u16(0..options.sum);
+    if p &lt; options.alt {
+        // Alternation distributes the size
+        // among the two children.
+        let size_left = rng.u8(0..=size - 1);
+        let size_right = size - size_left - 1;
+        assert!(size == size_left + 1 + size_right);
+
+        result.push(b'(');
+        gen_re_rec(rng, options, result, size_left);
+        result.extend(b")|(");
+        gen_re_rec(rng, options, result, size_right);
+        result.push(b')');
+        return;
+    }
+    p -= options.alt;
+
+    if p &lt; options.rep {
+        result.push(b'(');
+        gen_re_rec(rng, options, result, size - 1);
+        result.extend(b")*");
+        return;
+    }
+    p -= options.rep;
+
+    if p &lt; options.any {
+        gen_re_rec(rng, options, result, size - 1);
+        result.push(b'.');
+        return;
+    }
+    p -= options.any;
+
+    if p &lt; options.lit {
+        gen_re_rec(rng, options, result, size - 1);
+        let index = rng.usize(0..options.alphabet.len());
+        let lit = options.alphabet[index];
+        result.push(lit);
+        return;
+    }
+    unreachable!();
+}</code></pre>
+          </figure>
+        </section>
+        <section id="Search-Loop">
+          <h2><a href="#Search-Loop">Search Loop</a></h2>
+          <p>Given that compiling regular expressions is somewhat slow, it seems like a good
+idea to try multiple strings for the same pair of regular expressions, which
+gives the following code:</p>
+
+          <figure>
+            <pre><code>fn main() {
+    let mut rng = Rng::new();
+
+    let mut options = ReOptions::default();
+    let mut text_alphabet: Vec&lt;u8&gt; = vec![];
+    let mut text: Vec&lt;u8&gt; = vec![];
+    let mut re: Vec&lt;u8&gt; = vec![];
+
+    let mut test_count: u32 = 0;
+    for _ in 0..1_000_000 {
+        options.swarm(&amp;mut rng, b"abcdef");
+        alphabet_swarm(&amp;mut rng, b"abcdefx", &amp;mut text_alphabet);
+
+        gen_re(&amp;mut rng, &amp;options, &amp;mut re);
+
+        let re = str::from_utf8(&amp;re).unwrap();
+        let r1 = regex::Regex::new(re).unwrap();
+        let r2 = regex_lite::Regex::new(re).unwrap();
+
+        for _ in 0..1000 {
+            test_count += 1;
+            let text =
+                gen_string(&amp;mut rng, &amp;text_alphabet, &amp;mut text);
+
+            let m1 = r1.find(text)
+                .map_or("not found", |it| it.as_str());
+            let m2 = r2.find(text)
+                .map_or("not found", |it| it.as_str());
+
+            if m1 != m2 {
+                eprintln!("err re={re} text={text} m1={m1} m2={m2}");
+                return;
+            }
+
+            if test_count % 500_000 == 0 {
+                eprintln!("ok  re={re} text={text}");
+            }
+        }
+    }
+}</code></pre>
+          </figure>
+          <p>It produces examples similar to those in the issue, with a common suffix:</p>
+
+          <figure>
+            <pre><code>err re=(e)|(fee) text=xxfee</code></pre>
+          </figure>
+          <p>but also examples which somewhat different, without the shared suffix:</p>
+
+          <figure>
+            <pre><code>err re=(f..)*.d text=xfcbdd</code></pre>
+          </figure>
+          <p>All together:</p>
+
+          <figure>
+            <pre><code>use fastrand::Rng;
+
+fn main() {
+    let mut rng = Rng::new();
+
+    let mut options = ReOptions::default();
+    let mut text_alphabet: Vec&lt;u8&gt; = vec![];
+    let mut text: Vec&lt;u8&gt; = vec![];
+    let mut re: Vec&lt;u8&gt; = vec![];
+
+    let mut test_count: u32 = 0;
+    for _ in 0..1_000_000 {
+        options.swarm(&amp;mut rng, b"abcdef");
+        alphabet_swarm(&amp;mut rng, b"abcdefx", &amp;mut text_alphabet);
+
+        gen_re(&amp;mut rng, &amp;options, &amp;mut re);
+
+        let re = str::from_utf8(&amp;re).unwrap();
+        let r1 = regex::Regex::new(re).unwrap();
+        let r2 = regex_lite::Regex::new(re).unwrap();
+
+        for _ in 0..1000 {
+            test_count += 1;
+            let text =
+                gen_string(&amp;mut rng, &amp;text_alphabet, &amp;mut text);
+
+            let m1 = r1.find(text)
+                .map_or("not found", |it| it.as_str());
+            let m2 = r2.find(text)
+                .map_or("not found", |it| it.as_str());
+
+            if m1 != m2 {
+                eprintln!("err re={re} text={text} m1={m1} m2={m2}");
+                return;
+            }
+
+            if test_count % 500_000 == 0 {
+                eprintln!("ok  re={re} text={text}");
+            }
+        }
+    }
+}
+
+fn alphabet_swarm&lt;'a&gt;(
+    rng: &amp;mut Rng,
+    all: &amp;[u8],
+    pick: &amp;'a mut Vec&lt;u8&gt;,
+) {
+    pick.clear();
+    pick.extend(all);
+    rng.shuffle(pick);
+    let count = rng.usize(1..=pick.len());
+    pick.truncate(count);
+}
+
+fn gen_string&lt;'a&gt;(
+    rng: &amp;mut Rng,
+    alphabet: &amp;[u8],
+    result: &amp;'a mut Vec&lt;u8&gt;,
+) -&gt; &amp;'a str {
+    result.clear();
+    let count = rng.usize(0..8);
+    for _ in 0..count {
+        result.push(alphabet[rng.usize(0..alphabet.len())]);
+    }
+    str::from_utf8(result).unwrap()
+}
+
+#[derive(Default, Debug)]
+struct ReOptions {
+    alt: u16, // |
+    rep: u16, // *
+    any: u16, // .
+    lit: u16, // 'a'
+    sum: u16,
+    alphabet: Vec&lt;u8&gt;,
+}
+
+impl ReOptions {
+    fn swarm(&amp;mut self, rng: &amp;mut Rng, alphabet_full: &amp;[u8]) {
+        self.alt = if rng.bool() { 0 } else { rng.u16(0..100) };
+        self.rep = if rng.bool() { 0 } else { rng.u16(0..100) };
+        self.any = if rng.bool() { 0 } else { rng.u16(0..100) };
+        self.lit = rng.u16(1..100);
+        self.sum = self.alt + self.rep + self.any + self.lit;
+        assert!(self.sum &gt; 0);
+        alphabet_swarm(rng, alphabet_full, &amp;mut self.alphabet);
+
+    }
+}
+
+fn gen_re(
+    rng: &amp;mut Rng,
+    options: &amp;ReOptions,
+    result: &amp;mut Vec&lt;u8&gt;,
+) {
+    result.clear();
+    let size = rng.u8(0..8);
+    gen_re_rec(rng, options, result, size);
+
+}
+
+fn gen_re_rec(
+    rng: &amp;mut Rng,
+    options: &amp;ReOptions,
+    result: &amp;mut Vec&lt;u8&gt;,
+    size: u8,
+) {
+    if size == 0 {
+        return; // Base case, empty regex.
+    }
+
+    // Pick one of the features, according to weights.
+    let mut p = rng.u16(0..options.sum);
+    if p &lt; options.alt {
+        // Alternation distributes the size
+        // among the two children.
+        let size_left = rng.u8(0..=size - 1);
+        let size_right = size - size_left - 1;
+        assert!(size == size_left + 1 + size_right);
+
+        result.push(b'(');
+        gen_re_rec(rng, options, result, size_left);
+        result.extend(b")|(");
+        gen_re_rec(rng, options, result, size_right);
+        result.push(b')');
+        return;
+    }
+    p -= options.alt;
+
+    if p &lt; options.rep {
+        result.push(b'(');
+        gen_re_rec(rng, options, result, size - 1);
+        result.extend(b")*");
+        return;
+    }
+    p -= options.rep;
+
+    if p &lt; options.any {
+        gen_re_rec(rng, options, result, size - 1);
+        result.push(b'.');
+        return;
+    }
+    p -= options.any;
+
+    if p &lt; options.lit {
+        gen_re_rec(rng, options, result, size - 1);
+        let index = rng.usize(0..options.alphabet.len());
+        let lit = options.alphabet[index];
+        result.push(lit);
+        return;
+    }
+    unreachable!();
+}</code></pre>
+          </figure>
+          <p><a href="https://github.com/matklad/regex-fuzz">https://github.com/matklad/regex-fuzz</a></p>
+          <p>Takeaways:</p>
+          <ul>
+            <li>
+Fuzzing against an oracle is effective, which is a strong motivation to build
+an oracle!
+            </li>
+            <li>
+Go for small, tricky examples, rather than large uniform ones.
+            </li>
+            <li>
+Real fuzzers are cool, but, if you know something, even xoroshiro can be dangerous.
+            </li>
+            <li>
+Black box testing is cool, but co-designing system and its testing harness is
+a point of leverage (build an oracle!).
+            </li>
+            <li>
+This stuff is not rocket science, you don’t need a Haskell PhD to apply these
+ideas.
+            </li>
+          </ul>
+        </section>
+      </article>
+    </div></div>

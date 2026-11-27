@@ -1,0 +1,116 @@
+<div id="readability-page-1" class="page"><div id="post">
+<h2 id="snapshot-isolation-vs-serializability">Snapshot Isolation vs Serializability</h2>
+
+
+
+
+
+<p>Getting into some fundamentals.</p>
+
+<p>In my <a href="https://www.youtube.com/watch?v=huGmR_mi5dQ">re:Invent talk on the internals of Aurora DSQL</a> I mentioned that I think snapshot isolation is a sweet spot in the database isolation spectrum for most kinds of applications. Today, I want to dive in a little deeper into why I think that, and some of the trade-offs of going stronger and weaker.</p>
+
+<p>This post is going to be a little deeper than the last few. If you’re not deeply familiar with SQL’s isolation levels, I recommend checking out Crooks et al’s <a href="https://dl.acm.org/doi/10.1145/3087801.3087802">Seeing is Believing: A Client-Centric Specification of Database Isolation</a>, Berenson et al’s <a href="https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-95-51.pdf">A Critique of ANSI SQL Isolation Levels</a>, or Adya et al’s <a href="https://pmg.csail.mit.edu/papers/icde00.pdf">Generalized Isolation Level Definitions</a>.</p>
+
+<p>Specifically, I’m going to talk about one very specific mental model of transaction isolation: read-write conflicts, and write-write conflicts.</p>
+
+<p>Let’s start our journey with a transaction, <code>T1</code>:</p>
+
+<div><pre><code data-language="plaintext">BEGIN;
+SELECT amnt FROM food WHERE id = 1 OR id = 2;
+UPDATE food SET amnt = amnt - 1 WHERE id = 1;
+COMMIT;
+</code></pre></div>
+
+<p>There are a few things to notice about this transaction, when run in a database system that offers interactive (i.e. back-and-forth with the client) transactions:</p>
+
+<ul>
+  <li>It directly reads two rows from the database, the rows <code>1</code> and <code>2</code> from the table <code>food</code>.</li>
+  <li>It directly writes one row in the database, the rows <code>1</code> from the table food.</li>
+  <li>It starts and ends at different times: starting during <code>BEGIN</code> and ending during <code>COMMIT</code>.</li>
+  <li>Depending on the way that database is implemented, it also likely reads other data (e.g. the system catalog which tells it which tables exist), and may write other data (e.g. a secondary index on the <code>amnt</code> column of <code>food</code>).</li>
+</ul>
+
+<p>The forth point here is critical in real systems, but let’s ignore it for now and focus only on the first three<sup><a href="#foot2">2</a></sup>. Before we do that, let’s introduce a second transaction, the first one’s parallel universe clone, <code>T2</code>. We’ll also assume these are the only transactions running at this time.</p>
+
+<div><pre><code data-language="plaintext">BEGIN;
+SELECT amnt FROM food WHERE id = 1 OR id = 2;
+UPDATE food SET amnt = amnt - 1 WHERE id = 2;
+COMMIT;
+</code></pre></div>
+
+<p>We’ll go a step further and explicitly interleave these transactions (as though they were happening at the same time on two different connections to the same database), taking a page from <a href="https://github.com/ept/hermitage/blob/master/postgres.md">Hermitage</a><sup><a href="#foot4">4</a></sup>.</p>
+
+<div><pre><code data-language="plaintext">BEGIN; -- T1, t1_start
+BEGIN; -- T2, t2_start
+SELECT amnt FROM food WHERE id = 1 OR id = 2; -- T1
+SELECT amnt FROM food WHERE id = 1 OR id = 2; -- T2
+UPDATE food SET amnt = amnt - 1 WHERE id = 1; -- T1
+UPDATE food SET amnt = amnt - 1 WHERE id = 2; -- T2
+COMMIT; -- T1, t1_commit
+COMMIT; -- T2, t2_commit, WHAT HAPPENS HERE?
+</code></pre></div>
+
+<p>What should happen to the second commit?</p>
+
+<p>Accepting that second commit is an example of <em>write skew</em>, and is generally a good minimal example of the difference between snapshot isolation (SI) and serializability.</p>
+
+<p>But that’s well documented, and not what I’m focussing on. What I’m focussing on is how we might prevent write skew.</p>
+
+<p><em>Read Sets and Write Sets</em></p>
+
+<p>Let’s abstract <code>T1</code> and <code>T2</code> a step further: into read sets and write sets. We’ll simplify everything more here by pretending our database has a single table (<code>food</code>).</p>
+
+<p><code>T1</code> then has the read set $R_1 = {1,2}$ and the write set $W_1 = {1}$</p>
+
+<p><code>T2</code> then has the read set $R_2 = {1,2}$ and the write set $W_2 = {2}$</p>
+
+<p>Under serializability, once <code>T1</code> is committed, <code>T2</code> can only commit if $R_2 \cap W_1 = \emptyset$ (or, more generally, the set of all writes accepted between <code>t2_start</code> and <code>t2_commit</code> does not intersect with <code>R_2</code><sup><a href="#foot1">1</a></sup>).</p>
+
+<p>Under snapshot isolation, once <code>T1</code> is committed, <code>T2</code> can only commit if $W_2 \cap W_1 = \emptyset$ (or, more generally, the set of all writes accepted between <code>t2_start</code> and <code>t2_commit</code> does not intersect with <code>W_2</code>).</p>
+
+<p>Ok?</p>
+
+<p>Notice how similar those two statements are: one about $R_2 \cap W_1$ and one about $W_2 \cap W_1$. That’s the only real difference in the rules.</p>
+
+<p>But it’s a <em>crucial</em> difference.</p>
+
+<p>It’s a crucial difference because of one of the cool and powerful things that SQL databases make easy: <code>SELECT</code>s. You can grow a transaction’s write set with <code>UPDATE</code> and <code>INSERT</code> and friends, but most OLTP applications don’t tend to. You can grow a transaction’s read set with any <code>SELECT</code>, and many applications do that. If you don’t believe me, go look at the ratio between predicate (i.e. not exact PK equality) <code>SELECT</code>s in your code base versus predicate <code>UPDATE</code>s and <code>INSERT</code>s. If the ratios are even close, you’re a little unusual.</p>
+
+<p><em>Concurrency versus Isolation</em></p>
+
+<p>This is where we enter a world of trade-offs<sup><a href="#foot3">3</a></sup>: avoiding SI’s write skew requires the database to abort (or, sometimes, just block) transactions based on what they <em>read</em>. That’s true for OCC, for PCC, or for nearly any scheme you can devise. To get good performance (and scalability) in the face of concurrency, applications using serializable isolation need to be extremely careful about <em>reads</em>.</p>
+
+<p>The trouble is that isolation primarily exists to simplify the lives of application programmers, and make it so they don’t have to deal with concurrency. SQL-like isolation models do that quite effectively, and are (in my opinion) one of the best ideas in the history of computing. But as we move up the isolation levels to serializability, we start pushing more complexity onto the application programmer by forcing them to worry more about concurrency from a performance and throughput perspective.</p>
+
+<p>This is the cause of my belief that snapshot isolation, combined with strong consistency, is the right default for most applications and most teams of application programmers: it provides a useful minimum in the sum of worries about anomalies and performance.</p>
+
+<p>Fundamentally, it does that by observing that write sets are smaller than read sets, for the majority of OLTP applications (often MUCH smaller).</p>
+
+<p><em>How Low Can We Go? How Low Should We Go?</em></p>
+
+<p>That raises the question of whether its worth going even lower in the isolation spectrum. I don’t have as crisp a general answer, but in Aurora DSQL’s case the answer is, mostly <em>no</em>. Reducing the isolation level from SI to <code>read committed</code> does not save any distributed coordination, because of the use of physical clocks and MVCC to provide a consistent read snapshot to transactions without coordination. It does save some local coordination on each storage replica, and the implementation of multiversioning in storage, but our measurements indicate those are minimal.</p>
+
+<p>If you’d like to learn more about that architecture, here’s me talking about it at re:Invent 2024:</p>
+
+
+
+<p><em>Optimistic versus Pessimistic Concurrency Control</em></p>
+
+<p>What I said above about SI is, from my perspective, equally true in both OCC and PCC designs, when combined with MVCC to form read snapshots and timestamps to choose a read snapshot. In both cases, the only coordination strictly required for SI is to look for write-write conflicts ($W_2 \cap W_1$) that occured between <code>t_start</code> and <code>t_commit</code>, and to choose a commit timestamp based on that detection.</p>
+
+<p>The big advantage OCC has in avoiding coordination has to do with how those write-write conflicts are detected. In backward validation OCC, the only state that is needed to decide whether to commit transaction $T$ is from <em>already committed transactions</em>. This means that all state in the commit protocol is transient, and can be reconstructed from the log of committed transactions, without causing any false aborts. This is a significant benefit!</p>
+
+<p>The other benefit of OCC, <a href="https://brooker.co.za/blog/2024/12/03/aurora-dsql.html">as I covered in my first post on DSQL</a> is that we can avoid all coordination during the process of executing a transaction, and only coordinate at <code>COMMIT</code> time. This is a huge advantage when coordination latency is considerable, like in the multi-region setting.</p>
+
+<p>As with SI versus serializability, the story of trade-offs between optimistic and pessimistic approaches is a long one. But, for similar reasons, I think OCC (when combined with MVCC) is the right choice for most transactional workloads.</p>
+
+<p><em>Footnotes</em></p>
+
+<ol>
+  <li> This general framing is my OCC backward validation bias showing, but it extends to most pessimistic approaches too.</li>
+  <li> These special cases, like the catalog and <code>FOR UPDATE</code>, don’t fit nicely into the academic framework of SI, and most databases will need to handle them differently from regular key accesses.</li>
+  <li> You will find, typically online, folks who deny that these trade-offs exist. Those people are wrong, both theoretically and practically.</li>
+  <li> You can find Aurora DSQL’s <a href="https://github.com/marcbrooker/hermitage/blob/master/dsql.md">hermitage SQL test set here</a>. You may notice that it’s very similar to PostgreSQL’s <code>repeatable read</code> set, but non-blocking instead of blocking.</li>
+</ol>
+
+</div></div>

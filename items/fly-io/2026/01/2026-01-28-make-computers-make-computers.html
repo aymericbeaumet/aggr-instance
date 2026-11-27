@@ -1,0 +1,100 @@
+<div id="readability-page-1" class="page"><article>
+         <dl>
+             <dt>Author</dt>
+             <dd>
+                 <img alt="Daniel Botha" src="https://fly.io/static/images/danielb.webp">
+               <dl>
+                 <dt>Name</dt>
+                 <dd>
+                   Daniel Botha
+                 </dd>
+               </dl>
+             </dd>
+         </dl>
+
+        <section>
+            <figure>
+                <img src="https://fly.io/blog/make-computers-make-computers/assets/mcmc.png" alt="Sprites orchestrating other Sprites" fetchpriority="high" decoding="async">
+            </figure>
+          <p>What’s better than one <a href="https://fly.io/sprites/" title="">Sprite</a>? Sprites making other Sprites.</p>
+
+<p>Claude (running in a Sprite) already knows how to use the <a href="https://docs.fly.io/sprites/api" title="">Sprites API</a>. So you can ask it to create new Sprites, configure their network policies, hit their HTTP endpoints etc. </p>
+
+<p>To authorise one Sprite to control others, you’ll need to visit <code>sprites.dev/account/{your-org}</code> and create a token. Then tell Claude to use it to authorise its Sprite. </p>
+
+<p>Here are a few ways that the Fly team is already using this capability on the daily:</p>
+<h2 id="central-auth-for-everything"><a href="#central-auth-for-everything" aria-label="Anchor"></a><span>Central Auth for Everything</span></h2>
+<p>A Sprite that handles OAuth flows for other Sprites.</p>
+
+<p>Say you have five Sprites that all need to talk to GitHub, Slack, or some other OAuth-protected service. Each one needs tokens. Managing that across five separate environments is annoying.</p>
+
+<p>Make an Auth Sprite do it for you instead. Workers call the Auth Sprite when they need a token. The Auth Sprite refreshes tokens, handles redirects and stores creds in one place.</p>
+<h2 id="ci-that-doesnt-share-state"><a href="#ci-that-doesnt-share-state" aria-label="Anchor"></a><span>CI That Doesn’t Share State</span></h2>
+<p>Traditional CI runs tests in containers that share… something. A docker daemon. A cache directory. A network namespace.</p>
+
+<p>With Sprites, each test run gets its own actual computer. Tell your orchestrator Sprite to spin up a worker for each test file, lock down its network to just what it needs (pypi, github), run the test, collect results, done.</p>
+
+<p>Each test runs in full isolation. Nothing is shared. One flaky test can’t poison another.</p>
+<h2 id="preview-environments-per-pr"><a href="#preview-environments-per-pr" aria-label="Anchor"></a><span>Preview Environments Per PR</span></h2>
+<p>Every pull request gets its own Sprite. Reviewers hit a real URL with a real running app.</p>
+
+<p>The orchestrator watches GitHub webhooks:</p>
+
+<ul>
+<li>PR opened → spin up a Sprite, deploy the branch, comment the URL
+</li><li>PR updated → redeploy to the same Sprite
+</li><li>PR merged/closed → destroy the Sprite
+</li></ul>
+
+<p>No resource contention between PRs. No “sorry, all the preview slots are taken.” No shared database bleeding state between reviews.</p>
+<h2 id="agent-delegation"><a href="#agent-delegation" aria-label="Anchor"></a><span>Agent Delegation</span></h2>
+<p>You have an AI agent that’s good at planning but you don’t want it directly touching production. Or you have specialized agents; one that’s great at frontend work, another that knows your database schema cold.</p>
+
+<p>The manager agent runs in one Sprite. It breaks down tasks and delegates to worker agents in their own Sprites. We go deeper on this pattern in <a href="https://fly.io/blog/agent-swarms-on-sprites/" title="">Agent Swarms on Sprites</a>.</p>
+
+<p>Each worker has network policy locked down to only what it needs. The React agent can hit npm but not your production database. The DB agent can hit Postgres but not the internet.</p>
+<h2 id="running-untrusted-code"><a href="#running-untrusted-code" aria-label="Anchor"></a><span>Running Untrusted Code</span></h2>
+<p>Someone (or something) gives you code. You need to run it. Fear increases. (<a href="https://fly.io/blog/running-untrusted-code/" title="">Here’s the longer version</a>.)</p>
+
+<p>Tell Claude in a Sprite to create a worker with a deny-all network policy. The worker can’t talk to anything. Run the untrusted code. Grab the output. <code>sprite destroy</code> it if it does something scary. </p>
+
+<p>The code can’t phone home, can’t exfiltrate data, can’t crypto-mine on your dime.</p>
+<h2 id="team-provisioning"><a href="#team-provisioning" aria-label="Anchor"></a><span>Team Provisioning</span></h2>
+<p>New developer joins. They need a Sprite with your standard tooling, your repos cloned, your services configured.</p>
+
+<p>One “provisioner” Sprite has a script that:</p>
+
+<ol>
+<li>Creates a new Sprite
+</li><li>Configures its network policy for your internal services
+</li><li>Clones your repos
+</li><li>Installs your standard dependencies
+</li><li>Creates a checkpoint (so they can always restore to “fresh”)
+</li><li>Sends them the URL
+</li></ol>
+
+<p>Onboarding is one API call.</p>
+<h2 id="bonus-level"><a href="#bonus-level" aria-label="Anchor"></a><span>Bonus Level</span></h2>
+<p>Add checkpoints to these workflows. Your controller can checkpoint a functioning worker, then restore to that checkpoint before each job. Immutable infrastructure, but fast.</p>
+
+          
+        </section>
+        <dl>
+            <dt>
+              Next post  ↑
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/litestream-writable-vfs/">
+                Litestream Writable VFS
+              </a>
+            </dd>
+            <dt>
+              Previous post  ↓
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/slack-bots-on-sprites/">
+                Slack Bots on Sprites: OAuth is Easy Now
+              </a>
+            </dd>
+        </dl>
+      </article></div>

@@ -1,0 +1,52 @@
+<div id="readability-page-1" class="page"><div><p>With Stripe’s MCP server, AI agents can build your checkout page, run financial reports, and automate refunds or price adjustments. Now, agents can even send money to others, using <a href="https://stripe.com/treasury">Stripe Treasury</a>.</p>
+<p>Automation makes running your business easier than ever. But how do you stay in control, when an agent can make refunds or payouts for potentially hundreds of dollars?</p>
+<p>We’ll cover the two ways to give an agent access to Stripe - acting on your behalf, or as an independent actor&nbsp;- and how Stripe always keeps you in control.</p>
+<h2 id="connect-your-agent-to-stripes-mcp-server-on-your-behalf">Connect your agent to Stripe's MCP server on your behalf</h2>
+<p>The easiest way to get started is to <a href="https://docs.stripe.com/mcp#manual">add Stripe’s MCP to your client</a>&nbsp;and authorize access to Stripe on behalf of your user account. You can select which accounts or sandboxes you want to grant access, and select read&nbsp;or write&nbsp;access to resources in each one. Once you’ve authenticated, your agent will determine which tools to call depending on your task.</p>
+<p><span><span><img src="https://stripe.dev/images/your-ai-agent-can-move-money-in-stripe/image3.png" alt="Adding Stripe's MCP to your client" loading="lazy" decoding="async"></span></span></p>
+<h2 id="confirming-sensitive-actions">Confirming sensitive actions</h2>
+<p>If your agent makes a refund or payout in live mode, Stripe requires you to confirm the action before money leaves your account. After confirmation, tell your agent to try again so the action can be completed.</p>
+<p><span><span><img src="https://stripe.dev/images/your-ai-agent-can-move-money-in-stripe/image5.png" alt="Refund daniel.smith@example.com&nbsp;for $65" loading="lazy" decoding="async"></span></span></p>
+<p>Human confirmation prevents an agent acting on your behalf from making mistakes, and is only required for certain write actions - even if you’ve disabled your client from asking for permission before making tool calls to Stripe.</p>
+<h2 id="giving-your-agent-its-own-identity">Giving your agent its own identity</h2>
+<p>Human confirmation keeps you in control when you're the one driving. But you need a different control when giving an agent its own identity in Stripe, independent of any one team member. For example, you may create a headless agent to monitor a customer support queue and reply to customer requests for refunds or price adjustments. OAuth doesn’t work here, because it’s tied to your login session, and every confirmation routes to you personally.</p>
+<p>To create an agent with its own identity in Stripe, create an agent-tagged API key so it has long-lived, independent access to your Stripe account. Just like regular API keys, agent-tagged API keys support permissions, rotation and expiration, but they are subject to Approval rules, which treat the agent as an independent actor and require approval by designated reviewers for sensitive actions. To get started, <a href="https://docs.stripe.com/keys">create an API key</a>&nbsp;from the Dashboard and select the option of "Giving an AI agent access to operate your account".</p>
+<p><span><span><img src="https://stripe.dev/images/your-ai-agent-can-move-money-in-stripe/image2.png" alt="Select the option of &quot;Giving an AI agent access to operate your account&quot;" loading="lazy" decoding="async"></span></span></p>
+<h2 id="approval-rulesfor-agents-acting-on-their-own">Approval rules&nbsp;for agents acting on their own</h2>
+<p>With <a href="https://docs.stripe.com/account/approvals">Approvals</a>, you can define rules to conditionally require approval from designated approvers before sensitive actions. For a refund bot, that might mean refunds under $50 go through automatically, while refunds over $500 need sign-off from someone on the support team, and no single actor (human or agent) can approve their own request by default.</p>
+<p>This is a general-purpose control. It applies to team members and agent keys alike, whether the action comes through the Dashboard or the API. Stripe also ships default rules scoped specifically to agent-tagged keys  -  covering refunds, payouts, and outbound transfers  -  so there's a baseline of oversight in place the moment you create the key. From there, you tune it: who reviews, what conditions trigger review, and whether to require approval or block the action outright.</p>
+<h2 id="create-an-approval-rule">Create an approval rule</h2>
+<p>Setting this up takes a few minutes in the Dashboard:</p>
+<ol>
+<li>Go to Settings &gt; Approvals &gt; Create rule.</li>
+<li>Choose a trigger&nbsp;action, such as Refund is created.</li>
+<li>Add a condition, such as Amount &gt; $500.</li>
+<li>[Optional] Set the actor condition&nbsp;to agent-tagged API keys&nbsp;(by default, rules apply to all team members and agent keys).</li>
+<li>Choose designated reviewers, such as users with the&nbsp;Support Specialist&nbsp;role.</li>
+<li>Set the control&nbsp;to Require approval, and activate.</li>
+</ol>
+<p><span><span><img src="https://stripe.dev/images/your-ai-agent-can-move-money-in-stripe/image4.png" alt="Creating an approval rule in the Stripe Dashboard" loading="lazy" decoding="async"></span></span></p>
+<p>When an agent performs an action that’s subject to an approval rule, the API returns an <code>approval_required</code>&nbsp;error instead of completing the action, and Stripe automatically submits an approval request for review. The agent can optionally provide additional justification.</p>
+<pre><code>curl&nbsp;-X&nbsp;POST&nbsp;https://api.stripe.com/v2/core/approval_requests/apreq_123/update \
+&nbsp; -H&nbsp;"Authorization:&nbsp;Bearer&nbsp;sk_live_..." \
+&nbsp; --json&nbsp;'{"reason":&nbsp;"Refund&nbsp;requested&nbsp;via&nbsp;support&nbsp;ticket&nbsp;#4821"}'</code></pre>
+<h2 id="reviewing-agent-requests">Reviewing agent requests</h2>
+<p>Designated reviewers can approve or deny requests in the Dashboard under Settings&nbsp;&gt; Approvals&nbsp;&gt; <a href="https://dashboard.stripe.com/settings/approvals/requests">Requests</a>. Here, you can see all the details of the request, including a justification provided by the agent summarizing the customer’s request.</p>
+<p><span><span><img src="https://stripe.dev/images/your-ai-agent-can-move-money-in-stripe/image1.png" alt="Request details in the Stripe Dashboard" loading="lazy" decoding="async"></span></span></p>
+<p>When a request is approved, Stripe automatically attempts the captured action. The request then transitions to <code>succeeded</code> or <code>failed</code>. When denied, the action is not completed. Requests that haven't been approved within 14 days expire automatically.</p>
+<h2 id="closing-the-loop-by-notifying-agents-about-approval">Closing the loop by notifying agents about approval</h2>
+<p>Your agent can listen for the outcome over webhooks, so that it knows when a request has been approved or denied, and whether the action was successfully completed. These are the supported webhook events:</p>
+<pre><code>v2.core.approval_request.created
+v2.core.approval_request.approved
+v2.core.approval_request.canceled
+v2.core.approval_request.rejected
+v2.core.approval_request.expired
+v2.core.approval_request.succeeded
+v2.core.approval_request.failed</code></pre>
+<h2 id="how-stripe-keeps-you-in-control">How Stripe keeps you in control</h2>
+<p>Together, scoped credentials, human confirmation, and configurable approval let you decide which actions an agent may perform automatically and which require review.</p>
+<ul>
+<li>Confirmation&nbsp;protects you automatically the moment you connect an agent via OAuth  -  no setup required, and it holds even if you've relaxed your own harness's safety checks.</li>
+<li>Two-party approval&nbsp;is what you design once your agent becomes its own actor  -  deciding exactly which actions need a second set of eyes, and whose eyes those should be.</li>
+</ul>
+<p>You don't have to choose one. Most teams start with the first and layer on the second the moment automation stops being an experiment and starts being infrastructure.</p></div></div>

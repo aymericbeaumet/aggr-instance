@@ -1,0 +1,146 @@
+<div id="readability-page-1" class="page"><div>
+          <p>There are a few interesting scenarios to keep in mind when writing
+applications (not just databases!) that read and write
+files, particularly in transactional contexts where you actually care
+about the integrity of the data and when you are editing data in place
+(versus copy-on-write for example).</p>
+<p>We'll go into a few scenarios where the following can happen:</p>
+<ul>
+<li>Data you write never actually makes it to disk</li>
+<li>Data you write get sent to the wrong location on disk</li>
+<li>Data you read is read from the wrong location on disk</li>
+<li>Data gets corrupted on disk</li>
+</ul>
+<p>And how real-world data systems think about these scenarios. (They
+don't always think of them at all!)</p>
+<p>If I don't say otherwise I'm talking about behavior on Linux.</p>
+<p>The post is largely a review of two papers: <a href="https://www.usenix.org/legacy/event/fast08/tech/full_papers/krioukov/krioukov.pdf">Parity Lost and Parity
+Regained</a>
+and <a href="https://citeseerx.ist.psu.edu/document?repid=rep1&amp;type=pdf&amp;doi=8e486139d944cc7291666082bc5a74814af6e388">Characteristics, Impact, and Tolerance of Partial Disk
+Failures</a>. These
+two papers also go into the frequency of some of the issues discussed
+here. These behaviors actually happen in real life!</p>
+<p>Thank you to Alex Miller and George Xanthakis for reviewing a draft of
+this post.</p>
+<h3 id="terminology">Terminology</h3><p>Some of these terms are reused in different contexts, and sometimes
+they are reused because they effectively mean the same thing in a
+certain configuration. But I'll try to be explicit to avoid confusion.</p>
+<h4 id="sector">Sector</h4><p>The smallest amount of data that can be read and written atomically by
+hardware. It used to be 512 bytes, but on modern disks it is often
+4KiB. There doesn't seem to be any safe assumption you can make about
+sector size, despite file system defaults (see below). You must check
+your disks to know.</p>
+<h4 id="block-(filesystem/kernel-view)">Block (filesystem/kernel view)</h4><p>Typically set to the sector size since only this block size is
+atomic. The <a href="https://docs.kernel.org/filesystems/ext4/overview.html">default in ext4 is
+4KiB</a>.</p>
+<h4 id="page-(kernel-view)">Page (kernel view)</h4><p>A disk block that is in memory. Any reads/writes less than the size of
+a block will read the entire block into kernel memory even if less
+than that amount is sent back to userland.</p>
+<h4 id="page-(database/application-view)">Page (database/application view)</h4><p>The smallest amount of data the system (database, application, etc.)
+chooses to act on, when it's read or written or held in memory. The
+page size is some multiple of the filesystem/kernel block size
+(including the multiple being 1). SQLite's <a href="https://www.sqlite.org/pgszchng2016.html">default page
+size</a> is 4KiB. MySQL's
+<a href="https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html#sysvar_innodb_page_size">default page
+size</a>
+is 16KiB. Postgres's <a href="https://www.postgresql.org/docs/current/storage-page-layout.html">default page
+size</a>
+is 8KiB.</p>
+<h3 id="things-that-go-wrong">Things that go wrong</h3><h4 id="the-data-didn't-reach-disk">The data didn't reach disk</h4><p>By default, file writes succeed when the data is copied into kernel
+memory (buffered IO). The man page for
+<a href="https://man7.org/linux/man-pages/man2/write.2.html">write(2)</a> says:</p>
+<blockquote><p>A successful return from write() does not make any guarantee that
+data has been committed to disk.  On some filesystems, including NFS,
+it does not even guarantee that space has successfully been reserved
+for the data.  In this case, some errors might be delayed until a
+future write(), fsync(2), or even close(2).  The only way to be sure
+is to call fsync(2) after you are done writing all your data.</p>
+</blockquote>
+<p>If you don't call fsync on Linux the data isn't necessarily durably on
+disk, and if the system crashes or restarts before the disk writes the
+data to non-volatile storage, you may lose data.</p>
+<p>With
+<a href="https://man7.org/linux/man-pages/man2/open.2.html#:~:text=O_DIRECT%20%28since%20Linux%202.4.10%29">O_DIRECT</a>,
+file writes succeed when the data is copied to at least the <em>disk
+cache</em>. Alternatively you could open the file with <code>O_DIRECT|O_SYNC</code>
+(or <code>O_DIRECT|O_DSYNC</code>) and forgo fsync calls.</p>
+<p>fsync on macOS is a no-op.</p>
+<p>If you're confused, read <a href="https://transactional.blog/how-to-learn/disk-io">Userland Disk
+I/O</a>.</p>
+<p>Postgres, SQLite, MongoDB, MySQL fsync data before considering a
+transaction successful by default. RocksDB does not.</p>
+<h4 id="the-data-was-fsynced-but-fsync-failed">The data was fsynced but fsync failed</h4><p>fsync isn't guaranteed to succeed. And when it fails you can't tell
+which write failed. It <a href="https://docs.kernel.org/filesystems/vfs.html">may not even be a failure of a write to a file
+that your process
+opened</a>:</p>
+<blockquote><p>Ideally, the kernel would report errors only on file descriptions
+on which writes were done that subsequently failed to be written
+back. The generic pagecache infrastructure does not track the file
+descriptions that have dirtied each individual page however, so
+determining which file descriptors should get back an error is not
+possible.</p>
+<p>Instead, the generic writeback error tracking infrastructure in the
+kernel settles for reporting errors to fsync on all file descriptions
+that were open at the time that the error occurred. In a situation
+with multiple writers, all of them will get back an error on a
+subsequent fsync, even if all of the writes done through that
+particular file descriptor succeeded (or even if there were no writes
+on that file descriptor at all).</p>
+</blockquote>
+<p>Don't be <a href="https://danluu.com/fsyncgate/">2018-era Postgres</a>.</p>
+<p>The only way to have known which exact write failed would be to open
+the file with <code>O_DIRECT|O_SYNC</code> (or <code>O_DIRECT|O_DSYNC</code>), though this
+is not the only way to handle fsync failures.</p>
+<h4 id="the-data-was-corrupted">The data was corrupted</h4><p>If you don't checksum your data on write and check the checksum on
+read (as well as periodic scrubbing a la ZFS) you will never be aware
+if and when the data gets corrupted and you will have to restore (who
+knows how far back in time) from backups if and when you notice.</p>
+<p><a href="https://openzfs.github.io/openzfs-docs/Basic%20Concepts/Checksums.html">ZFS</a>,
+MongoDB
+(<a href="https://source.wiredtiger.com/develop/tune_checksum.html">WiredTiger</a>),
+MySQL
+(<a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-parameters.html#sysvar_innodb_checksum_algorithm">InnoDB</a>),
+and
+<a href="https://github.com/facebook/rocksdb/wiki/Full-File-Checksum-and-Checksum-Handoff">RocksDB</a>
+checksum data by default. Postgres and
+<a href="https://www.sqlite.org/cksumvfs.html">SQLite</a> do not (though
+<a href="https://github.com/postgres/postgres/commit/04bec894a04c">databases created from Postgres
+18+</a> will).</p>
+<p>You should probably turn on checksums on any system that supports it,
+regardless of the default.</p>
+<h4 id="the-data-was-partially-written">The data was partially written</h4><p>Only when the page size you write = block size of your filesystem =
+sector size of your disk is a write guaranteed to be atomic. If you
+need to write multiple sectors of data atomically there is the risk
+that some sectors are written and then the system crashes or
+restarts. This behavior is called torn writes or torn pages.</p>
+<p><a href="https://wiki.postgresql.org/wiki/Full_page_writes">Postgres</a>,
+<a href="https://www.sqlite.org/psow.html">SQLite</a>, and MySQL
+(<a href="https://dev.mysql.com/doc/refman/8.4/en/glossary.html#glos_torn_page">InnoDB</a>)
+handle torn writes. Torn writes are by definition not relevant to
+immutable storage systems like RocksDB (and other LSM Tree or
+Copy-on-Write systems like MongoDB (WiredTiger)) unless writes (that
+update <em>metadata</em>) span sectors.</p>
+<p>If your file system duplicates all writes like MySQL (InnoDB) does
+(like you can with <a href="https://unix.stackexchange.com/a/129507">data=journal in
+ext4</a>) you may also not have
+to worry about torn writes. On the other hand, this amplifies writes
+2x.</p>
+<h4 id="the-data-didn't-reach-disk,-part-2">The data didn't reach disk, part 2</h4><p>Sometimes fsync succeeds but the data isn't actually on disk because
+the disk is lying. This behavior is called lost writes or phantom
+writes. You can be resilient to phantom writes by always reading back
+what you wrote (expensive) or versioning what you wrote.</p>
+<p>Databases and file systems generally do not seem to handle this
+situation.</p>
+<h4 id="the-data-was-written-to-the-wrong-place,-read-from-the-wrong-place">The data was written to the wrong place, read from the wrong place</h4><p>If you aren't including where data is supposed to be on disk as part
+of the checksum or page itself, you risk being unaware that you wrote
+data to the wrong place or that you read from the wrong place. This is
+called misdirected writes/reads.</p>
+<p>Databases and file systems generally do not seem to handle this
+situation.</p>
+<h3 id="further-reading">Further reading</h3><p>In increasing levels of paranoia (laudatory) follow
+<a href="https://research.cs.wisc.edu/wind/Publications/zfs-corruption-fast10.pdf">ZFS</a>,
+Andrea and Remzi Arpaci-Dusseau, and
+<a href="https://docs.tigerbeetle.com/concepts/safety/">TigerBeetle</a>.</p>
+<blockquote><p lang="en" dir="ltr">I wrote a post covering some of the scenarios you might want to be aware of, and resilient to, when you write systems that read and write files. <a href="https://t.co/7FxbpMo1xm">pic.twitter.com/7FxbpMo1xm</a></p>— Phil Eaton (@eatonphil) <a href="https://twitter.com/eatonphil/status/1905312781517123598?ref_src=twsrc%5Etfw">March 27, 2025</a></blockquote> 
+
+	</div></div>

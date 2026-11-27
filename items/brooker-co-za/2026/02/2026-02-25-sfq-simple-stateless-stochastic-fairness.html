@@ -1,0 +1,82 @@
+<div id="readability-page-1" class="page"><div>
+    <h2>About Me</h2><p>
+    My name is Marc Brooker. I like to build things that work, and do cool stuff. I like building big things. I also dabble in machining, welding, cooking, and skiing.</p><p>
+
+    I am an engineer at Amazon Web Services (AWS) in Seattle, where I work on agentic AI, especially safety and policy for agentic AI. Before that, I worked on EC2, EBS, databases, serverless, and serverless databases.<br>
+
+All opinions are my own.
+    </p><h2>Links</h2>
+    <p><a href="https://brooker.co.za/blog/publications.html">My Publications and Videos</a><br>
+    <a rel="me" href="https://fediscience.org/@marcbrooker">@marcbrooker on Mastodon</a>
+    <a href="https://twitter.com/MarcJBrooker">@MarcJBrooker on Twitter</a></p><p>
+    <a href="https://brooker.co.za/blog/2026/06/18/my-blog-and-ai.html">Is this blog written by AI?</a></p></div><div id="post">
+
+
+<p>Roll the dice.</p>
+
+
+
+<p>Paul E. McKenney’s 1990 paper <a href="https://courses.cs.duke.edu/spring09/cps214/papers/sfq.pdf">Stochastic Fairness Queuing</a> contains one of my favorite little algorithms for distributed systems. Stochastic Fairness Queuing is a way to stochastically isolate workloads from different customers in a way that significantly mitigates the effects of noisy neighbors, with O(1) queues and O(1) time.</p>
+
+<p>McKenney starts by describing Fairness Queuing (or <em>queue per client</em>):</p>
+
+<blockquote>
+  <p>This fairness-queuing algorithm operates by maintaining a separate first-come-first-served (FCFS) queue for each conversation. … Since the queues are serviced in a bit-by-bit round-robin fashion ill-behaved conversations that attempt to use more than their fair share of network resources will face longer delays and larger packet-loss rates than well-behaved conversations that remain within their fair share.</p>
+</blockquote>
+
+<p>That’s a network packet focused view, but the same thing can apply to RPC requests, for example, just by using a different key (e.g. the authorized customer id). The big downside of this in distributed systems is that it requires O(customers) queues, and the related O(customers) work of doing round-robin across those queues.</p>
+
+<blockquote>
+  <p>Stochastic fairness queuing can be most easily understood by comparing it to strict fairness queuing. The major differences are that the queues are serviced in strict round-robin order and that a simple hash function is used to map from source-destination address pair into a fixed set of queues.</p>
+</blockquote>
+
+<p>In SFQ, on the other hand, a fixed set of queues is used (so O(1) queues, not O(customers) queues), and customers are assigned to the queues based on a hash. That’s great, but still causes the problem of long-term bad luck. If I end up on a queue with a noisy neighbor, I end up there forever.</p>
+
+<blockquote>
+  <p>If two conversations collide, they will continue to collide, resulting in each conversation of the pair persistently receiving less than its share of bandwidth. This situation is deviated by periodically perturbing the hash function … so that conversations that collide during one time period are very unlikely to collide during the next.</p>
+</blockquote>
+
+<p>So noisy neighbors and non-noisy clients move around, preventing somebody from getting bad service for too long. You can use this on a single host for servicing multiple clients, or for load balancing across multiple hosts.</p>
+
+<p><em>SFQ, Shuffle Sharding, and Best-of-2</em></p>
+
+<p>We can avoid even those periodic times of bad service by combining three of my favorite small algorithms: SFQ, <a href="https://aws.amazon.com/blogs/architecture/shuffle-sharding-massive-and-magical-fault-isolation/">shuffle sharding</a>, and <a href="https://brooker.co.za/blog/2012/01/17/two-random.html">best of two</a>.</p>
+
+<p>In this variant we:</p>
+
+<ol>
+  <li>Map each customer to a subset of the queues (that subset could be only two), and</li>
+  <li>For each request put the customer’s request in the shortest queue in their subset, and</li>
+  <li>Periodically perturb the subsets.</li>
+</ol>
+
+<p>This approach has absolutely great properties: O(1) queues, O(1) enqueue effort, O(1) dequeue effort, and strong isolation of noisy neighbors from other customers (assuming only a relatively small portion of customers are noisy neighbors).</p>
+
+<div>
+    <p>
+      <h2>Single Hash</h2>
+      <canvas id="canvas1" width="580" height="380"></canvas>
+    </p>
+    <p>
+      <h2>Two-Choice Hash (Power of Two)</h2>
+      <canvas id="canvas2" width="580" height="380"></canvas>
+    </p>
+  </div>
+
+
+
+<div>
+    <p><span><strong>Customers:</strong></span></p><div><p>Noisy (3x)</p></div>
+    
+    
+    
+    
+    
+    
+    
+  </div>
+
+
+
+
+</div></div>

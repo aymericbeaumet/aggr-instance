@@ -1,0 +1,96 @@
+<div id="readability-page-1" class="page"><div><p>We all know the stereotypes of working at enterprise tech companies: endless bureaucracy and behemoth codebases running on a years-old language version. Most organizations know they should modernize quickly, but haven’t figured out how to build an upgrade path compatible with a large codebase. The recurring cost of upgrading keeps most large JVM codebases trailing behind the latest Java versions.</p>
+<p>As services slip further and further behind the cutting edge, they miss out on the cost savings and performance gains provided by years of JVM improvements. Developer experience degrades gradually enough that it can be hard to notice, but over time the lack of new language features eats into the velocity of shipping products. At Stripe, we weren’t willing to accept this, so we invested in a better way to stay current. Our Java team created a platform that could continuously evolve without burdensome migrations, fundamentally changing our approach from quarter-long, often unfinished migration projects to continuous, automated updates.</p>
+<h2 id="why-java-upgrades-stall-in-large-codebases">Why Java upgrades stall in large codebases</h2>
+<p>On paper, upgrading Java can look straightforward: just move the toolchain, update a few dependencies, fix a handful of compiler errors, and move on. In reality, there are myriad build-graph constraints to navigate. They require coordinated dependency and runtime moves across hundreds or even thousands of owners. This complexity is why Java upgrades are often left to languish in a backlog.</p>
+<p>Previously, our Java migrations looked a lot like other large organizations. We relied on bespoke scripts, stale inventory data, and lots of manual reasoning. While there have been some novel approaches to this (e.g., AST rewriting via <a href="https://github.com/openrewrite/rewrite">OpenRewrite</a>, a tool&nbsp;used by PayPal, Apple, and Walmart), the status quo has never shifted to a fully hands-free approach. A migration would begin with a burst of attention, make progress through the easy parts of the graph, and then slow down once it hit the hardest sections.</p>
+<p>Even when the migration itself was useful, the machinery didn’t survive the migration. That meant every new JDK move started by rediscovering the same facts:</p>
+<ul>
+<li>What was safe to upgrade?</li>
+<li>What was blocked (permanently or temporarily)?</li>
+<li>What required coordination with teams owning external frameworks?</li>
+<li>What needed special handling because it lived in an awkward part of the build graph/was a fork?</li>
+</ul>
+<p>We kept wasting our time solving the same problem over and over again. We wanted to stop re-running long migration projects and instead build a durable and future-proof upgrade process. And so, AutoJDK was built.</p>
+<p>Instead of treating each Java upgrade as a recurring quarter-long maintenance project, we built a system that continuously computes upgrade eligibility from the live build graph, applies safe migrations with reviewable PRs, leverages AI to fix certain classes of errors, and highlights blockers for code that can’t be upgraded yet.</p>
+<h2 id="automatic-jdk-upgrades-across-a-massive-jvm-monorepo">Automatic JDK upgrades across a massive JVM monorepo</h2>
+<p>Before getting into the technical details of how AutoJDK works, it’s useful to understand a few of the nuances of version upgrades in a Java codebase.</p>
+<p>You can compile Java code and run Java code on two different versions of the JDK; however, the runtime version must be greater than or equal to that of the compiled code. Compilation (upgrading language levels) is more restricted—it’s a matter of mass-modifying language version attributes directly in our JVM codebase in such a way that all transitive and reverse dependencies (parents and subtrees in the build graph) are satisfied with a version bump.</p>
+<p>This means that, with some caveats, it is relatively easy to move services onto the latest Java runtime (and this is a logical first step). But, to handle the challenges around upgrading language versions, we built an internal system to automatically upgrade JDK versions across our JVM monorepo.</p>
+<p>At a high level, the system:</p>
+<ol>
+<li>Analyzes the live build graph to determine upgrade eligibility</li>
+<li>Generates bounded, reviewable PRs instead of giant opaque rewrites</li>
+<li>Tracks adoption and blockers so the remaining hard parts are visible</li>
+</ol>
+<p>This allowed us to change our operating model from “How do we run a giant Java migration this quarter?” to “What did we upgrade today, and what is still blocked?”</p>
+<h3 id="1-reasoning-over-the-build-graph">1. Reasoning over the build graph</h3>
+<p>The language-version management problem in large codebases is fundamentally about build-graph structure and platform policy. If JDK upgrades are primarily a build-graph and compatibility problem, then the solution should start from the live (most recently cached) build graph.</p>
+<p>Our upgrader is build-graph driven. It uses graph analysis plus compatibility heuristics to determine which Java and Scala targets are eligible for upgrade.</p>
+<p>Eligibility is not based on a flat list of targets. It takes into account things like:</p>
+<ul>
+<li>Reverse dependencies—do consumers of this library allow for a higher Java version?</li>
+<li>Runtime JDK compatibility caps</li>
+<li>Dependency-ordering constraints</li>
+<li>Framework-specific guards</li>
+<li>Coordination between source and test targets</li>
+<li>Bazel macros that pin language versions or have brittle logic, which should be skipped</li>
+</ul>
+<h3 id="2-generating-reviewable-changes">2. Generating reviewable changes</h3>
+<p>Once the system identifies eligible targets, it generates target_jdk&nbsp;upgrades in bounded partitions.</p>
+<p>From an operational standpoint, this is huge. Large upgrade waves can create merge conflicts, overwhelm reviewers, and become hard to rerun safely. We wanted the output to remain readable to humans even when the system was operating quickly at monorepo scale.</p>
+<p>The upgrader is designed around:</p>
+<ul>
+<li>Partitioned change generation</li>
+<li>Automated PR creation</li>
+<li>Rerun-friendly, idempotent behavior</li>
+<li>The ability to run continuously in the background or ad hoc for a specific package or service</li>
+</ul>
+<h3 id="3-make-blockers-legible">3. Make blockers legible</h3>
+<p>One of the hardest parts of large-scale language upgrades is that blocked code tends to become folklore. Everyone knows some subsystem is “special” or some library is “still pinned,” but nobody has a crisp, live picture of how much is blocked, why it is blocked, and what would unblock it.</p>
+<p>A big part of our system is visibility for:</p>
+<ul>
+<li>Adoption trends over time</li>
+<li>Blocker classification</li>
+<li>A clearer view of where legacy JDKs still live in the graph</li>
+<li>Better prioritization signals for infra teams and service owners</li>
+</ul>
+<p>Some upgrade failures are genuinely deep compatibility issues, but others are more mechanical like CI cleanup, obvious fixes, or small changes needed to satisfy the new toolchain.</p>
+<p>We use AI assistance as part of that remediation loop, especially for fixable classes of failures that would otherwise create a lot of manual cleanup toil. <a href="https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents">Minions at Stripe</a>&nbsp;are very well-suited for this task since they can fix minor failures and use fresh git checkouts in sandboxes to do their work.</p>
+<h2 id="how-we-use-it">How we use it</h2>
+<p><a href="https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents-part-2">Minions</a>&nbsp;are used to easily launch upgrades directly from Slack:</p>
+<p><span><span><img src="https://stripe.dev/images/modern-java-at-stripe-language-upgrades-as-a-service/image4.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<blockquote>
+<p>Note: Zoolander&nbsp;is the name of our JVM codebase. It was named after the <a href="https://en.wikipedia.org/wiki/Zoolander">movie</a>&nbsp;because it originally housed Stripe’s (machine learning) models.</p>
+</blockquote>
+<p>For large upgrades, we created an agentic skill that can run upgrades across all codebase partitions we defined, monitor and fix CI, and cherry-pick commits together into massive (~10K targets upgraded) PRs:</p>
+<p><span><span><img src="https://stripe.dev/images/modern-java-at-stripe-language-upgrades-as-a-service/image1.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<blockquote>
+<p>Most build-time risk is caught by our CI system. We set up LogScale alerts for anticipated runtime failures like UnsupportedClassVersionError, which we can then issue a targeted rollback for.</p>
+</blockquote>
+<p>Some compatibility knowledge still needs to be kept current. Some targets remain intentionally skipped because the upgrade risk is higher than we want to absorb automatically, though the automation progress has encouraged efforts to unblock the risky migration targets.</p>
+<h2 id="impact">Impact</h2>
+<p>In under 1 week of rollout progress, service-level adoption reached 93%+ on JDK 17 while following constraints around framework and runtime compatibility. More broadly, the system made JDK 17 the most common target_jdk&nbsp;configuration in our monorepo, eliminated Java 8 services, and built the foundation to move much faster to Java 21, 25, and beyond.</p>
+<p><span><span><img src="https://stripe.dev/images/modern-java-at-stripe-language-upgrades-as-a-service/image3.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p><span><span><img src="https://stripe.dev/images/modern-java-at-stripe-language-upgrades-as-a-service/image2.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>Since going live 3 months ago, we:</p>
+<ul>
+<li>Merged 160+&nbsp;PRs using the automated upgrader</li>
+<li>Made JDK 17 the most widely used target_jdk&nbsp;configuration in the monorepo</li>
+<li>Eliminated all Java 8 services and most Java 11 services</li>
+<li>Shrunk the legacy-JDK footprint, specifically JDK 8 and 11, by roughly 25K&nbsp;targets</li>
+</ul>
+<h2 id="the-infrastructure-decisions-that-made-this-possible">The infrastructure decisions that made this possible</h2>
+<p>The automation only works because JDK selection is centralized and enforced by the build system. A build-graph-aware upgrader is powerful, but it becomes much more powerful when version policy lives in the platform rather than in thousands of individual service configurations.</p>
+<p>In our case, several infrastructure choices made that possible.</p>
+<ul>
+<li>Supported Java language (JDK) and runtime versions (JRE) are controlled centrally.</li>
+<li>Build-time checks in CI enforce dependency-ordering constraints. That prevents invalid mixed-version edges from slipping through silently.</li>
+<li>Our build system supports multiple JDKs at once, which allows the graph to transition gradually instead of requiring an all-at-once cutover.</li>
+<li>We utilize static analysis tools and custom allowlists to safely roll out new language versions while controlling available features.</li>
+<li>We own the underlying infrastructure with respect to Bazel Java and Scala rules, Java version manifests, and base containers.</li>
+<li>Our packaging model removes a common source of runtime drift by bundling a platform-specific JDK directly into deployable artifacts alongside the application artifact. This eliminates the need to rely on a matching JDK being pre-installed in a variety of deployment environments.</li>
+</ul>
+<p>Taken together, these decisions mean that raising the JDK floor repo-wide can be driven by a small number of centralized definitions plus automation, rather than a scavenger hunt across thousands of targets.</p>
+<p>A lot of upgrade pain disappears once the language-version policy lives in the platform.</p>
+<h2 id="whats-next">What’s next</h2>
+<p>We now have infrastructure that can do much of the heavy lifting for Java 21, 25, and beyond. This frees up our Java team to focus on solving complex problems such as enabling Java support outside of IntelliJ, making Bazel fast in our monorepo, and ensuring Stripe’s most latency-sensitive services are performing optimally. If you’re interested in improving developer infrastructure at Stripe, <a href="https://stripe.com/jobs">we’re hiring</a>.</p></div></div>

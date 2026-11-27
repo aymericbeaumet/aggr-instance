@@ -1,0 +1,245 @@
+<div id="readability-page-1" class="page"><div><p>We discovered a cute little pattern the other day when <a href="https://github.com/tigerbeetle/tigerbeetle/pull/2888/commits/af78262b5bbabde70792842bba9bd1bf9c4c3f0b">refactoring
+TigerBeetle’s intrusive queue</a> — using Zig’s comptime reflection for
+exhaustively testing data structure’s public API. Isn’t it cool when
+your property test fails when you add a new API, because “public API is
+tested” is one of the properties you test?!</p>
+<h2 id="time-for-reflection"></h2>
+<p>Let’s say you are implementing an abstract data type (ADT), such as
+an intrusive queue, and you want to test it. For data structures, by far
+the best power-to-weight ratio testing strategy is <a href="https://hypothesis.works/articles/what-is-property-based-testing/">property
+based testing</a>, especially if you can come up with a model that
+behaves exactly as the ADT you are implementing.</p>
+<p>For an intrusive queue, one possible model is a non-intrusive ring
+buffer. The test then invokes the same methods on the model and the data
+structure under test, and checks that the two behave identically under
+any sequence of operations. And you can use comptime reflection to
+extract the possible operations directly from the public API!</p>
+<p>If you have something like:</p>
+<div id="cb1"><pre><code>pub fn QueueType(comptime T: type) type {
+   return struct {
+       in: ?*T = null,
+       out: ?*T = null,
+       count: u64 = 0,
+
+       const Queue = @This();
+
+       pub fn push(self: *FIFO, elem: *T) void { ... }
+
+       pub fn pop(self: *FIFO) ?*T { ... }
+
+       pub fn empty(self: FIFO) bool { ... }
+   };
+}</code></pre></div>
+<p>Then, the magic spell of
+<code>std.meta.DeclEnum(QueueType(Item))</code> returns an enum that
+looks like this:</p>
+<div id="cb2"><pre><code>enum {
+   push,
+   pop,
+   empty,
+}</code></pre></div>
+<p>You can plug that directly into your property test:</p>
+<div id="cb3"><pre><code>const Queue = QueueType(Item);
+const Model = RingBufferType(Item);
+const N = 1_000;
+
+var queue: Queue = .{};
+var model = try Model.init(gpa);
+defer model.deinit(gpa);
+
+var prng = PRNG.from_seed(std.testing.random_seed);
+for (0..N) |_| {
+   switch (prng.enum_uniform(std.meta.DeclEnum(Queue))) {
+                         // ^ Magic 🪄!
+       .push =&gt; {
+           const item = random_item(&amp;prng);
+           model.push(item);
+           queue.push(item);
+       },
+       .pop =&gt; {
+           assert(model.pop() == queue.pop());
+       },
+       .empty =&gt; {
+           assert(model.empty() == queue.empty());
+       }
+   }
+}</code></pre></div>
+<p>The cool thing here is that if a new public method is added to the
+Queue in future, then the compiler will emit an error because of the
+non-exhaustive switch, reminding you to also cover this new method by a
+property test. This is not such a big deal of course, but we get it for
+free, thanks to Zig’s comptime!</p>
+<p>The <code>enum_uniform</code> is a helper that picks an enum value at
+random:</p>
+<div id="cb4"><pre><code>pub fn enum_uniform(prng: *PRNG, Enum: type) Enum {
+   const values = comptime std.enums.values(Enum);
+   return values[prng.index(values)];
+}
+
+pub fn index(prng: *PRNG, slice: anytype) usize {
+   assert(slice.len &gt; 0);
+   return prng.int_inclusive(usize, slice.len - 1);
+}</code></pre></div>
+<p>This is already good as a smoke test, to make sure you poke every
+public method. But just one small tweak can make this even more
+efficient.</p>
+<h2 id="hive-mind"></h2>
+<p>The main caveat with property-based testing is that you need to pay
+attention to your distribution. Picking things uniformly at random
+doesn’t necessarily give you interesting inputs! For example, for a
+binary search, a hard case that may uncover bugs is an array where all
+elements are the same, but generating integers at random uniformly
+almost guarantees that no two elements are the same.</p>
+<p>So the big idea in this area then is swarm testing — typically, the
+system under test has a lot of dimensionality (all the methods you might
+possibly call), but bugs can be triggered by tricky combinations of just
+a few features. So, instead of picking every feature uniformly at
+random, we first randomly pick a subset of features we are exercising,
+and then, during a single run, we sample only from that subset.</p>
+<p>There’s another way to say this. Suppose you write a property test,
+which decides on actions with some probabilities. The idea of swarm
+testing is that you should sample the probabilities themselves!</p>
+<p>For example, one weakness of our test above is that we chose to pop
+and push with equal probability. As a result, our queue is very short on
+average. We never exercise large queues!</p>
+<h2 id="randomizing-randomness"></h2>
+<p>As a reminder, this is how we select the method to call:</p>
+<div id="cb5"><pre><code>switch (prng.enum_uniform(std.meta.DeclEnum(Queue)))</code></pre></div>
+<p>For swarm testing, we want this to be non-uniform. This is easy. You
+can pass in weights, which give a relative probability for every enum
+variant. If you have something like this</p>
+<div id="cb6"><pre><code>const Actions = enum {
+    push,
+    pop,
+    empty,
+};</code></pre></div>
+<p>then it is convenient to specify the weights as a struct:</p>
+<div id="cb7"><pre><code>const ActionWeights = struct {
+    push: u64,
+    pop: u64,
+    empty: u64,
+};</code></pre></div>
+<p>And of course, Zig includes a helper function for exactly this kind
+of transformation!</p>
+<div id="cb8"><pre><code>pub fn EnumWeightsType(E: type) type {
+    return std.enums.EnumFieldStruct(E, u64, null);
+}</code></pre></div>
+<p>With this setup, picking a weighted enum is straightforward. Sum all
+the weights, toss a coin into the middle of the weight range, and pick
+the corresponding value:</p>
+<div id="cb9"><pre><code>pub fn enum_weighted(
+    prng: *PRNG,
+    Enum: type,
+    weights: EnumWeightsType(Enum),
+) Enum {
+    const fields = @typeInfo(Enum).Enum.fields;
+    var total: u64 = 0;
+    inline for (fields) |field| {
+        total += @field(weights, field.name);
+    }
+    assert(total &gt; 0);
+
+    var pick = prng.int_inclusive(u64, total - 1);
+    inline for (fields) |field| {
+        const weight = @field(weights, field.name);
+        if (pick &lt; weight) {
+            return @as(Enum, @enumFromInt(field.value));
+        }
+        pick -= weight;
+    }
+    unreachable;
+}</code></pre></div>
+<p>Finally, as per swarm testing, we should randomly pick weights. We do
+this by first randomly picking a subset of weights to be non-zero, then
+assigning random values to the selected weights:</p>
+<div id="cb10"><pre><code>pub fn random_enum_weights(
+    prng: *PRNG,
+    comptime Enum: type,
+) PRNG.EnumWeightsType(Enum) {
+    const fields = comptime std.meta.fieldNames(Enum);
+
+    var combination = PRNG.Combination.init(.{
+        .total = fields.len,
+        .sample = prng.range_inclusive(u32, 1, fields.len),
+    });
+    defer assert(combination.done());
+
+    var weights: PRNG.EnumWeightsType(Enum) = undefined;
+    inline for (fields) |field| {
+        @field(weights, field) = if (combination.take(prng))
+            prng.range_inclusive(u64, 1, 100)
+        else
+            0;
+    }
+
+    return weights;
+}</code></pre></div>
+<p>Here, <code>Combination</code> is a small helper to pick a random
+<code>k</code>-combination out of <code>n</code> without allocation:</p>
+<div id="cb11"><pre><code>pub const Combination = struct {
+    total: u32,
+    sample: u32,
+
+    taken: u32,
+    seen: u32,
+
+    pub fn init(options: struct {
+        total: u32,
+        sample: u32,
+    }) Combination {
+        assert(options.sample &lt;= options.total);
+        return .{
+            .total = options.total,
+            .sample = options.sample,
+            .taken = 0,
+            .seen = 0,
+        };
+    }
+
+    pub fn done(combination: *const Combination) bool {
+        return combination.taken == combination.sample and
+            combination.seen == combination.total;
+    }
+
+    pub fn take(combination: *Combination, prng: *PRNG) bool {
+        assert(combination.seen &lt; combination.total);
+        assert(combination.taken &lt;= combination.sample);
+
+        const n = combination.total - combination.seen;
+        const k = combination.sample - combination.taken;
+        const result = prng.chance(ratio(k, n));
+
+        combination.seen += 1;
+        if (result) combination.taken += 1;
+        return result;
+    }
+};</code></pre></div>
+<h2 id="testing-template"></h2>
+<p>Adding all of these helpers back to our property-based test, we get
+the following generic setup for swarm testing of an arbitrary data
+structure:</p>
+<div id="cb12"><pre><code>const Queue = QueueType(Item);
+const Model = RingBufferType(Item);
+const N = 1_000;
+
+var queue: Queue = .{};
+var model = try Model.init(gpa);
+defer model.deinit(gpa);
+
+var prng = PRNG.from_seed(std.testing.random_seed);
+const weights =
+    random_enum_weights(&amp;prng, std.meta.DeclEnum(Queue));
+
+for (0..N) |_| {
+    const swarm_distribution = prng.enum_weighted(
+        std.meta.DeclEnum(Queue),
+        weights,
+    );
+    switch (swarm_distribution) {
+        .push =&gt; { ... },
+        .pop =&gt; { ... },
+        .empty =&gt; { ... },
+    }
+}</code></pre></div>
+<p>Please steal this and use this!</p>
+  </div></div>

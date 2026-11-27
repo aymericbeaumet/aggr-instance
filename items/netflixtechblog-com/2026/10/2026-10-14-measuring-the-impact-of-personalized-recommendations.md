@@ -1,0 +1,142 @@
+---
+title: Measuring the Impact of Personalized Recommendations
+link: https://netflixtechblog.com/measuring-the-impact-of-personalized-recommendations-4c26be3a4d96?source=rss----2615bd06b42e---4
+source: netflixtechblog-com
+published: 2026-10-14T19:57:43Z
+updated: 2026-10-14T19:57:44.771Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+authors:
+- Netflix Technology Blog
+labels:
+- consumer-behavior
+- economics
+- personalization
+- recommendation-system
+- recommender-systems
+content: feed
+html: 2026-10-14-measuring-the-impact-of-personalized-recommendations.html
+remote_preview:
+  url: https://cdn-images-1.medium.com/max/1024/1*lWLZiuDQ7WWaPsdEHZoNnw.png
+---
+
+*By Kevin Zielnicki, Guy Aridor, Aurélien Bibaut, Allen Tran, Winston Chou, and Nathan Kallus*
+
+### Introduction
+
+Personalization is everywhere on the internet. It shapes the products we discover, the stories we read, the music we hear, and the movies and TV shows we watch. At Netflix, personalization has been central to the member experience for decades — from the Netflix Prize to our modern recommender system that helps members navigate a large and constantly changing catalog.
+
+But personalization is not only an algorithmic problem, it is also a measurement problem. How do we know how much value personalization creates? More precisely, how do we separate the appeal of a title from the value created by recommending that title to the right member at the right time?
+
+In a [new article](https://www.sciencedirect.com/science/article/pii/S0167718726000561) in the *International Journal of Industrial Organization* — which we are also presenting at this year’s [*ACM Conference on Economics & Computation*](https://ec26.sigecom.org/) *(EC ‘26)* — we develop a model of member behavior, title choice, and personalized recommendations. The model lets us estimate how recommendations affect both whether members choose to watch and, if so, which titles they choose. In this post, we summarize our approach and main findings.
+
+### The Measurement Challenge
+
+A natural first attempt at valuing recommendations is to ask: what share of viewing comes from titles that were recommended? This is an intuitive metric, but it fails to answer the causal question at hand.
+
+The problem is that recommendations are not randomly assigned. A title appears on a member’s homepage precisely because the recommender system predicts that the member might want to watch it. If a member watches that title, was it because the recommendation *caused* the member to watch it? Or would she have watched it anyway because of her underlying preference for that kind of title? This is the core measurement challenge: recommendations are targeted to demand, so viewing a recommended title combines the effect of personalization with the member’s underlying preferences.
+
+One way to solve this would be to run a large experiment that replaces Netflix’s personalized experience with an unpersonalized one. That would create clean variation — but it would also be a poor member experience. Personalization is a central part of how members locate valuable titles in a large catalog, so turning it off broadly is not an acceptable measurement strategy.
+
+Instead, we take a hybrid approach. We build a behavioral model that separates members’ underlying preferences from the incremental effect of recommendations. The model uses the natural variation in the recommendation system, for example due to algorithmic exploration, to estimate how recommendations affect choice. Then, to validate the model predictions about title substitutability, we use small-scale A/B tests that “nudge” the salience of a handful of titles exogenously, generating ground-truth substitution patterns for a subset of titles. This lets us combine the scale and richness of modeling with the credibility of experimental evidence.
+
+### A Model of Member Choice
+
+To measure the value of personalization, we need a model of what members would watch under different recommendation systems. Our model treats Netflix viewing as a day-by-day choice process. On each day, a member chooses among the titles available in the catalog, or she chooses not to watch anything. This gives us a concrete target to estimate: the probability that a member watches each title on a given day, as a function of their preferences, their viewing history, and the recommendations they see.
+
+A simple version of this model would be too restrictive. It might assume, for example, that removing one title from the catalog shifts viewing toward all other titles in roughly proportional ways. But that isn’t how member choice works. If a member is considering a romantic comedy, the closest substitutes are likely other romantic comedies, not every title on Netflix equally. For similar reasons, two members may react very differently to the same recommendation.
+
+To capture this complexity, we use a *low-rank choice model*. The model learns a representation of each title and a corresponding representation of each member’s current preferences. These representations are not limited to manually specified features like genre, cast, or language. Instead, they are learned from viewing behavior itself, allowing the model to capture nuanced similarities between titles that may be difficult to describe with coarse features, such as genre or release date, alone.
+
+![](https://cdn-images-1.medium.com/max/1024/1*lWLZiuDQ7WWaPsdEHZoNnw.png)\
+Our Model Attributes Choices to Dynamic Member-Title Affinity and the Effect of Recommendations
+
+Member preferences are dynamic. What someone wants to watch today depends on what they have watched recently. A member who just finished a crime thriller may be in a different preference state than the same member after watching a stand-up special or a kids’ movie. Rather than estimate a fixed preference vector for each member, the model summarizes each member’s past viewing history into a current preference state. This lets us capture heterogeneous and time-varying tastes while also scaling to millions of members.
+
+![](https://cdn-images-1.medium.com/max/1024/1*oB9yt-UxQag3NO7vBhugJQ.png)\
+Our Model Architecture Allows Us to Scale to Millions of Members Efficiently
+
+The key component for our purposes is that the model explicitly parameterizes the effect of recommendations. When a title is recommended, the model gives it an additional recommendation effect, or “bonus,” that increases its probability of being chosen. This bonus is a reduced-form way to capture two related mechanisms. First, recommendations can create awareness by helping members discover titles they may not have known about. Second, recommendations can provide information by signaling that a title is likely to be a good match.
+
+Once estimated, the model becomes an engine for predicting counterfactuals. We can ask what would happen if a title were not recommended, if a different set of titles were recommended, or if the current recommender system were replaced with simpler alternatives. Because the model separately represents member preferences, title appeal, and recommendation effects, it lets us estimate not only how recommendations affect total viewing, but also how they change which titles are watched.
+
+The model is only useful, however, if it captures real substitution patterns. The next step is therefore validation: comparing the model’s predictions to randomized experiments that directly perturb, on a small scale, the visibility that each title receives.
+
+### Validating the Model with Randomized Experiments
+
+The model relies on an important assumption. After conditioning on the member, title, and state information available to the recommender system, we treat the remaining variation in whether a title is recommended as if it were randomly assigned. In our setting, this assumption is reasonable: we observe all of the information available to the recommender system, so we should be able to model its behavior accurately. But it is still an assumption. A useful model should not only fit historical viewing patterns; it should also predict what happens when recommendations change for external reasons.
+
+Thus, to validate the model, we used randomized experiments that introduce variation in title visibility exogenously. These experiments mirror the kinds of variation that occur routinely when recommendation algorithms are updated: some titles receive more impressions, while others receive fewer. The key difference is that, in the validation experiment, this variation was prespecified so that we could estimate clean experimental benchmarks.
+
+Specifically, we randomly assigned members to treatment arms that slightly nudged recommendations towards and away from different categories of titles. This let us measure diversion ratios: when a set of titles becomes less visible, how much viewing shifts to other titles, and how much shifts out of Netflix viewing altogether?
+
+We then asked whether the model could reproduce those experimentally measured substitution patterns. We estimated the model on the control group, simulated the same recommendation changes, and compared the model-implied diversion ratios to the experimental ones. The agreement was strong: the model’s predicted diversion ratios had a correlation of 0.86 with the experimental estimates and an R-squared of 0.73.
+
+![](https://cdn-images-1.medium.com/max/1024/1*uTILkxkmtnndgCJev_zkQA.png)\
+Our Model Predicts Out-of-Sample Experimental Diversion Ratios Well
+
+This validation gives us confidence that the model captures counterfactual substitution patterns accurately. Subsequently, we ask what would happen under more dramatic changes, such as different recommender systems.
+
+### Counterfactuals: Aggregate Consumption and Diversity
+
+With a validated model in hand, we can move from measurement to counterfactuals. Instead of asking only what happened under the current Netflix experience, we can ask what would have happened if members had seen recommendations generated by a different system.
+
+We compare the current recommender system to three baselines:
+
+1. The first is *random recommendations*: every member receives titles selected uniformly at random from the catalog. This is not intended as a realistic product experience, but it helps isolate the value of having recommendations that are relevant.
+2. The second is *popularity-based recommendations*: every member receives broadly popular titles. This is a natural non-personalized benchmark.
+3. The third is a basic *matrix factorization* model, a classic personalized recommendation approach and a useful baseline for older generations of recommender systems.
+
+In each counterfactual, we replace the recommended titles while keeping the rest of the choice environment fixed. This lets us estimate how much viewing would change if the recommendation policy changed, holding constant the catalog, members, and model of member choice.
+
+The results show that the current recommender system generates substantially more engagement than each benchmark. Relative to the current system, random recommendations reduce engagement by 16%, popularity-based recommendations reduce engagement by 12%, and matrix factorization reduces engagement by 4%. These are large differences at Netflix scale. Even the comparison to matrix factorization — a personalized baseline — suggests that continued improvements in personalization translate into meaningful gains in how effectively members find titles they want to watch.
+
+![](https://cdn-images-1.medium.com/max/1024/1*HHRJPxHxvEKnIkyhEW1JnQ.png)\
+Personalized Recommendations Increase Engagement and its Diversity
+
+Engagement is only part of the story. A recommender system could increase viewing while concentrating attention on a narrow set of already-popular titles. That would be a worse experience for members whose tastes are not well represented by those titles, and it would make poorer use of a broad catalog.
+
+We therefore also examine consumption diversity: how broadly viewing is distributed across titles. The current system performs well on this dimension too. Popularity-based and matrix-factorization recommendations both substantially increase concentration, meaning that fewer titles receive meaningful viewership. Random recommendations produce slightly more diversity, as expected, but at a large cost to engagement.
+
+Taken together, these counterfactuals show that the value of personalization is not just that members watch more. It is also that members are matched to a broader set of titles. The current recommender system increases engagement while preserving a wide distribution of viewing, reflecting the diversity of member tastes across the Netflix catalog.
+
+### Decomposing the Impact on Titles
+
+The aggregate counterfactuals show that personalization increases engagement while maintaining broad consumption across the catalog. We can also use the model to ask a more granular question: why does a recommended title get watched?
+
+There are three conceptually distinct channels:
+
+1. The first is *exposure*: simply showing a title to a member can increase the probability that the member watches it. This captures the basic value of surfacing a title that may otherwise have been hard to find.
+2. The second is *selection*: recommended titles are shown to members who already have a relatively high baseline probability of watching them. This channel doesn’t lead to incremental engagement, but it can smooth the discovery experience and help users feel that the recommender system understands their preferences.
+3. The third is *targeting*: the recommender system may identify members for whom the recommendation itself is especially effective, meaning members who are much more likely to watch the title when it is recommended than when it is not.
+
+The distinction matters because not all recommendation-driven viewing should be interpreted the same way. If recommendations worked only through exposure, then any reasonably visible surface could generate much of the same value. If they worked mostly through selection, then recommendations would mainly be finding members who were already likely to watch a title. Targeting is different: it captures whether the system is placing titles in front of members for whom the recommendation changes the decision.
+
+![](https://cdn-images-1.medium.com/max/1024/1*WW5lIlFaHbW35BcjS1zaPQ.png)\
+Decomposing the Impact of Recommendations into Selection, Exposure, and Targeting
+
+Our model lets us estimate these channels title by title. For each title, we can compare the predicted probability that a targeted member watches it when recommended to the probability that an average member watches it when not recommended. We then decompose that difference into selection, exposure, and targeting.
+
+We first show that exposure is meaningful: showing a title to an average member roughly triples its consumption probability relative to the baseline. Exposure is not the main driver of differences in consumption, as mechanical exposure explains only about 7% of the gap under the current recommender system, while selection and targeting account for the vast majority of the difference and the targeting effect is nearly seven times larger than the exposure effect.
+
+This pattern is especially informative when compared with simpler recommendation systems. Random recommendations are dominated by exposure because they do not personalize: differences in consumption mostly reflect differences in what titles are shown. Matrix factorization changes this by making recommendations personal, reducing the role of exposure and leaving exposure, selection, and targeting to contribute nearly evenly to consumption differences. The current recommender system goes further: its gains come less from mechanical exposure, but more from targeting the right titles to the right viewers.
+
+Targeting is also not uniform across the catalog. It is strongest for mid-popularity titles: titles with enough potential audience to be broadly relevant, but not so much mass appeal that everyone already knows about them. Very popular titles need less help from targeting, while very niche titles may have too small an audience to target effectively. The largest gains come from the middle of the catalog, where personalization helps connect specific titles with specific member tastes.
+
+![](https://cdn-images-1.medium.com/max/1024/1*m_HbeqimgsdkEvyOGZE97A.png)\
+Personalized Recommendations Give the Strongest Boost to Medium-Popularity Titles
+
+### Conclusion
+
+Personalized recommendations are valuable because they help members navigate a large catalog and find titles they want to watch. They are also valuable to Netflix because they make the service more useful, more engaging, and better able to serve a wide range of tastes.
+
+But measuring that value is not straightforward. Recommendations are targeted by design, so we cannot simply compare recommended and non-recommended viewing. At the same time, turning off personalization at scale would create a worse member experience.
+
+Our approach combines a large-scale model of member choice with true experimental validation. The model lets us separate underlying title preferences from the incremental effect of recommendations, and the experiments verify that the model captures real substitution patterns.
+
+Using this framework, we find that personalization affects both how much members watch and which titles they watch. The value of recommendations comes not just from exposure, but from matching the right titles to the right members.
+
+![](https://medium.com/_/stat?event=post.clientViewed&referrerSource=full_rss&postId=4c26be3a4d96)
+
+* * *
+
+[Measuring the Impact of Personalized Recommendations](https://netflixtechblog.com/measuring-the-impact-of-personalized-recommendations-4c26be3a4d96) was originally published in [Netflix TechBlog](https://netflixtechblog.com) on Medium, where people are continuing the conversation by highlighting and responding to this story.

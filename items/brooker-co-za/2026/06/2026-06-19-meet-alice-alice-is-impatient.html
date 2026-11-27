@@ -1,0 +1,95 @@
+<div id="readability-page-1" class="page"><div id="post">
+
+
+<p>What do you mean?</p>
+
+
+
+
+
+
+
+
+
+
+
+<p>Meet Alice. Alice uses your web service. Alice, like most humans, measures her time in seconds and minutes. Alice says your service is slow. You tell Alice that the mean request to your service completes in 100ms, but Alice says that her mean wait time is 1s.</p>
+
+<p>You’re both right.</p>
+
+<p>Meet Alex. Alex uses your web service. Alex, like most humans, measures his time in seconds and minutes. Alex says that when you have outages, they last a long time and he gets really annoyed. You tell Alex that your MTTR is less than 1 minute. Alex says that he sees the mean outage lasting 1 hour.</p>
+
+<p>Again, you’re both right.</p>
+
+<p>What’s going on? What’s going on is that you’re measuring time in requests, or in outages, and Alex and Alice are measuring time in seconds and minutes. When you have a long pause or a long outage, Alex and Alice <em>sample</em> that outage multiple times (maybe because they have multiple customers angry at them). The number of times they experience the outage is proportional to the length of the outage. But you only count that as one.</p>
+
+<p>More technically, what’s going on here is the <em>inspection paradox</em>. Alex and Alice don’t experience your latency distribution $f(t)$, they experience a t-weighted version of it. If you have a MTTR or mean request time of $\mathbb{E}[X]$, Alex and Alice experience a mean recovery time $\mathbb{E}_a[X]$ where $\mathbb{E}_a[X] = \frac{\mathbb{E}[X^2]}{2 \mathbb{E}[X]} = \frac{1}{2} \left( \mathbb{E}[X] + \frac{\mathrm{Var}(X)}{\mathbb{E}[X]} \right)$.</p>
+
+<p>Let’s play with this with a little simulation. Plug in your median latency (or recovery time), and 99th percentile latency (or recovery time), we’ll fit a log-normal distribution to it, and then plot both what your service metrics see and what your customers see.</p>
+
+<div>
+<p>
+  Median:  ms
+  &nbsp;&nbsp;
+  p99:  ms
+</p>
+<canvas id="waitGraph" width="760" height="380"></canvas>
+<p>
+  What your service sees (mean): <strong><span id="meanService">–</span> ms</strong>.
+  What your customers experience (mean): <strong><span id="meanCustomer">–</span> ms</strong>.
+</p>
+</div>
+
+
+
+<p>For example, put in 30 as the median (let’s ignore the milliseconds and pretend these are minutes for now) for a 30 minute Median TTR (i.e. in half of your postmortems you see a recovery time of $\leq 30$ minutes), and 600 in as the p99 (one in every 100 events, recovery takes 10 hours). Your MTTR is just over an hour. Your customers experience a mean time to recovery of around 6 hours!</p>
+
+<p><em>Reasoning About Code, Instead</em></p>
+
+<p>The above argument may be a bit abstract for you, so let’s use another small simulator, presented as code this time, to communicate the core of the idea. Here, we have a server that experiences some periodic down-time (we haven’t simulated the times when it’s up, because they don’t interest us for now), and a Poisson process of arriving clients. We directly measure what the operator would measure as system downtime (e.g. <code>mttr</code>), and what the clients see.</p>
+
+<p>As you read this code, notice how each outage is sampled multiple times by the client, and how their samples are weighted by the remaining outage time (this is the <em>t-weighting</em> I talk about above).</p>
+
+<pre><code data-language="python">import random
+failure_mu = 1.0
+failure_sigma = 3.0
+client_arrival_rate = 100.0
+samples = 1000
+
+client_saw_times = []
+server_saw_times = []
+
+for i in range(samples):
+    this_outage = random.lognormvariate(failure_mu, failure_sigma)
+    server_saw_times.append(this_outage)
+    t = 0.0
+    while True:
+        next_arrival = random.expovariate(client_arrival_rate)
+        if t + next_arrival &gt; this_outage:
+            break
+        client_saw_times.append(this_outage - t)
+        t += next_arrival
+
+...
+
+print(f"""Client saw:
+    mean {mean(client_saw_times)} 
+    median {pctile(client_saw_times, 0.5)}
+    p99 {pctile(client_saw_times, 0.99)}""")
+print(f"""Model predicted: 
+    mean {mean(square(server_saw_times))/(2.0*mean(server_saw_times))}""")
+print(f"""Server saw:
+    mttr {mean(server_saw_times)}
+    median {pctile(server_saw_times, 0.5)}
+    p99 {pctile(server_saw_times, 0.99)}""")
+</code></pre>
+
+<p><em>Caring about tail latency (and long recovery times)</em></p>
+
+<p>There are many arguments for why tail latency (and long recovery times) are so important to understand (e.g. <a href="https://brooker.co.za/blog/2021/04/19/latency.html">multiple samples</a>), but this is the one that I think is the least widely understood. For service times, timeout-and-retry can hide this latency some of the time (as long as the running request doesn’t hold locks or other exclusive resources). But, for recovery time, no such hiding is possible. The heaviness if the tail matters a great deal. This is also one of the reasons I don’t like trimmed measurements (like trimmed means) as a way of thinking about service latency or recovery time. They throw out some really critical context about the shape of the right tail that dominates the customer experience (the other reason is related to Little’s Law and capacity usage, <a href="https://brooker.co.za/blog/2017/12/28/mean.html">which I’ve written about before</a>).</p>
+
+<p>In slightly more mathematical terms, the difference between MTTR ($\mathbb{E}[X]$) and what clients experience ($\mathbb{E}_a[X]$) is proportional to $\frac{Var(X)}{\mathbb{E}[X]}$. It’s not unusual, in real systems, for $Var(X)$ to be very large compared to $\mathbb{E}[X]$. These distributions tend to be very heavy-tailed, partially because the solutions to simple cases (like single host or even datacenter failures) are well-known and robust, while solutions to longer outages remain elusive industry-wide.</p>
+
+<p><em>A note on log-normal:</em> I chose log-normal here for numerical convenience. It has the nice property that $\mathrm{lognormal}(\mu, \sigma^2)$ becomes $\mathrm{lognormal}(\mu + \sigma^2, \sigma^2)$. Also it’s well-behaved around 0. I don’t believe that log-normal is a particularly good choice of distribution for latency or recovery time metrics, and generally would approach these problems entirely non-parametrically.</p>
+
+</div></div>

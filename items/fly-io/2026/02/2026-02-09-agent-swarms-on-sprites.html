@@ -1,0 +1,79 @@
+<div id="readability-page-1" class="page"><article>
+         <dl>
+             <dt>Author</dt>
+             <dd>
+                 <img alt="Daniel Botha" src="https://fly.io/static/images/danielb.webp">
+               <dl>
+                 <dt>Name</dt>
+                 <dd>
+                   Daniel Botha
+                 </dd>
+               </dl>
+             </dd>
+         </dl>
+
+        <section>
+            <figure>
+                <img src="https://fly.io/blog/agent-swarms-on-sprites/assets/agent-swarms-on-sprites.jpg" alt="Multiple AI agents coordinating across Sprites" fetchpriority="high" decoding="async">
+            </figure>
+          <p>There’s a lot of noise right now about agent teams and swarms. The idea is simple: instead of one code agent grinding through a task list, set up a group of agents that can split work, delegate, and check each other’s output. It works. Multiple agents in parallel genuinely get more done.</p>
+
+<p>The part that nobody has a great answer for is the environment. Where do these agents actually run? Most setups put them all on the same machine; same filesystem, same network, same blast radius. Agent A installs Node 23, Agent B needs Node 20. Two agents write to the same file. One runs <code>pip install sketchy-package</code> and now everyone’s environment is different.</p>
+
+<p>An agent swarm on <a href="https://fly.io/sprites/" title="">Sprites</a> comes with some handy capabilities. Full machine isolation per agent, checkpoints that let you roll back any agent independently, per-agent network policies, and persistence that survives you closing your laptop.</p>
+<h2 id="one-agent-one-sprite"><a href="#one-agent-one-sprite" aria-label="Anchor"></a><span>One Agent, One Sprite</span></h2>
+<p>When each agent lives in its own computer, agent teams work more like human teams. Everyone has their own desk. They can install whatever they need, make a mess, try things — without touching anyone else’s work. The orchestrator hands out assignments and collects results. No shared state to babysit.</p>
+
+<p>All you need is a Sprites API token (create one at <code>sprites.dev/account/{your-org}/tokens</code>) and Claude Code on the orchestrator.</p>
+
+<p>Prompt:</p>
+
+<blockquote>
+<p>Create a new Sprite called “researcher”. When it’s ready, open a console and tell Claude to read the codebase at /home/sprite/myproject and write a summary of the architecture to /home/sprite/output/architecture.md. Use <code>--dangerously-skip-permissions</code> so it can work autonomously.</p>
+</blockquote>
+
+<p>The orchestrator Sprite <a href="https://fly.io/blog/make-computers-make-computers/" title="">creates the worker</a>, gives it a task, and moves on. The worker does its thing independently. The orchestrator can check in later, read the output, or wait for the worker to finish.</p>
+<h2 id="checkpoints-are-your-undo-button"><a href="#checkpoints-are-your-undo-button" aria-label="Anchor"></a><span>Checkpoints Are Your Undo Button</span></h2>
+<p>Every Sprite has <a href="https://docs.fly.io/sprites/concepts/checkpoints" title="">checkpointing</a> built in. Claude inside a worker Sprite can checkpoint its own environment before doing anything risky — and the orchestrator can tell workers to do this as part of the task prompt. No human needs to be in the loop.</p>
+
+<p>An agent refactors half the codebase, installs new dependencies, rewrites the database schema. If the result is garbage, restore the checkpoint. Three seconds later the Sprite is back to exactly where it was — not just the code, the whole environment.</p>
+
+<p>This makes speculative execution practical. Tell the orchestrator to spin up three workers, have each one checkpoint, then attempt a different approach to the same problem. Pick the winner, restore or destroy the rest.</p>
+<h2 id="network-policy-per-agent"><a href="#network-policy-per-agent" aria-label="Anchor"></a><span>Network Policy Per Agent</span></h2>
+<p>Every Sprite has its own <a href="https://docs.fly.io/sprites/concepts/networking" title="">network policy</a>. The orchestrator can lock down each worker to only the domains it actually needs. Denied domains return REFUSED at the DNS level — fast-fail, no silent failures, no data going somewhere you didn’t intend.</p>
+<h2 id="communication-between-agents"><a href="#communication-between-agents" aria-label="Anchor"></a><span>Communication Between Agents</span></h2>
+<p>Workers are isolated, but they still need to share results. A few patterns:</p>
+
+<p><strong>HTTP endpoints.</strong> Every Sprite has a URL. A worker can serve its results on port 8080 and the orchestrator fetches them. Good for structured output — JSON reports, test results, generated files.</p>
+
+<p><strong>Shared database.</strong> Spin up a Postgres Sprite. Give every worker network access to it. Workers write results to tables. Orchestrator queries. Good when agents need to build on each other’s findings.</p>
+
+<p><strong>Orchestrator as relay.</strong> Workers write output to a local file. Orchestrator opens a console to each worker and reads the file. Simple, no extra infrastructure. Good enough for most cases.</p>
+<h2 id="persistence-for-free"><a href="#persistence-for-free" aria-label="Anchor"></a><span>Persistence for Free</span></h2>
+<p>Sprites don’t die when you close your laptop. They pause when idle and wake on demand. The orchestrator, the workers, the checkpoints — all still there when you come back.</p>
+
+<p>Start the swarm, close your laptop, come back later. Everything is exactly where you left it.</p>
+
+<p><em>Bonus level:</em> Checkpoint your orchestrator Sprite after it’s set up with the API token and your standard prompts. Now you can restore to a ready-to-swarm state in three seconds whenever you need a fresh team.</p>
+
+          
+        </section>
+        <dl>
+            <dt>
+              Next post  ↑
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/context-engineering-is-just-writing-things-down/">
+                Context Engineering Is Just Writing Things Down
+              </a>
+            </dd>
+            <dt>
+              Previous post  ↓
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/closing-the-loop/">
+                Closing the Loop: The Missing Ingredient in Agentic Development
+              </a>
+            </dd>
+        </dl>
+      </article></div>

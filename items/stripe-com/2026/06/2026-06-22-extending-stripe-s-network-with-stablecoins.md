@@ -1,0 +1,94 @@
+---
+title: Extending Stripe’s network with stablecoins
+link: https://stripe.dev/blog/extending-stripes-network-with-stablecoins
+source: stripe-com
+published: 2026-06-22T00:00:00Z
+updated: 2026-06-22T00:00:00Z
+first_seen: 2026-11-27T00:01:05.630507547Z
+authors:
+- Sai Samant
+summary: Most of the world's money still moves in batches. A wire submitted at 2pm might settle by end of day, if you made the cutoff. ACH takes one to three business days. Cross-border payments touch correspondent banks, each adding lag and a fee. Stripe has spent over a decade building the Global Payments and Treasury Network (GPTN), a programmable infrastructure for global money movement that batches transfers to reduce cost, nets opposing flows to minimize actual cash moved, and routes through the optimal path between accounts. Under the hood, it's a graph with accounts as nodes, and payment rails as edges.
+content: extracted
+html: 2026-06-22-extending-stripe-s-network-with-stablecoins.html
+remote_preview:
+  url: https://stripe.dev/og/blog/extending-stripes-network-with-stablecoins.png
+  alt: 'Stripe Developer Blog: Extending Stripe’s network with stablecoins'
+---
+
+Most of the world's money still moves in batches. A wire submitted at 2pm might settle by end of day, if you made the cutoff. ACH takes one to three business days. Cross-border payments touch correspondent banks, each adding lag and a fee. Stripe has spent over a decade building the [Global Payments and Treasury Network](https://stripe.com/newsroom/news/stripe-expands-global-infrastructure-with-new-funding) (GPTN), a programmable infrastructure for global money movement that batches transfers to reduce cost, nets opposing flows to minimize actual cash moved, and routes through the optimal path between accounts. Under the hood, it's a graph with accounts as nodes, and payment rails as edges.
+
+Stablecoins offered something new: a stablecoin transfer settles on-chain in seconds, 24/7, with global reach and no per-country rail integration. When we decided to add stablecoin support to Stripe, the challenge went beyond "support a new currency." We had to stitch blockchain-based settlement into the GPTN's existing graph of bank accounts, payment rails, and entity structures, while respecting safeguarding requirements and regional regulations, and making it work in both directions.
+
+## How stablecoins move through Stripe
+
+Here's a concrete example: a platform holds a USD balance on Stripe and wants to pay out a user in stablecoins.
+
+When the platform calls our Payouts API, we decrement their USD balance and record a pending stablecoin obligation. Then, crucially, we don't wait for fiat rails to catch up. We maintain a stablecoin liquidity pool at Bridge, our crypto infrastructure partner. Bridge can draw from this pool and credit the recipient's wallet directly, delivering the payout in seconds to minutes.
+
+Meanwhile, the dollars catch up asynchronously. Our cash management layer creates a request to move funds from the originating bank account to replenish the Bridge liquidity pool — but that movement happens over traditional fiat rails, and takes hours to days depending on the corridor. Opposing flows on the same route get batched and netted, so the number of actual bank transfers is a small fraction of the number of payouts.
+
+The reverse direction — stablecoins back to fiat — works the same way. Bridge liquidates the stablecoins, dollars flow back through intercompany channels, and liquidity at the fiat entity provides immediate availability while cash settles.
+
+Decoupling settlement and movement was our key insight. User-facing settlement runs at crypto speed, while the underlying cash movement runs at fiat speed. Liquidity pools on each side bridge the gap.
+
+## The role of Bridge
+
+Bridge, which Stripe acquired in 2025, is the orchestration layer between Stripe's fiat infrastructure and the blockchain. It manages wallet custody, executes on-chain transfers, and handles the minting and burning of stablecoins against reserve accounts. When we need to fund a recipient's wallet, Bridge handles the last mile: converting from the liquidity pool to stablecoins and executing the on-chain transfer to the destination address and replenishing the pool with stablecoins when incoming fiat settles.
+
+Because Stripe relies on Bridge for stablecoin custody and transactional services, every fiat-to-stablecoin conversion, in either direction, is a cross-entity cash movement. Payout and onramp transactions require cash to move from Stripe's fiat entities to Bridge; offramps and stablecoin-to-fiat conversions bring it back. Each flow needs to be tracked as an intercompany liability, settled through intercompany channels, and reconciled across both sets of books.
+
+The settlement graph had to integrate a new type of node — the wallet — with properties unlike any bank account it had handled before: near-instant finality, per-recipient (not pooled) balances, and no cutoff times.
+
+## Extending the existing graph
+
+When we integrated stablecoins, we had two choices: build a parallel system, or extend the existing GPTN. We chose to extend.
+
+The existing infrastructure already solves hard problems — orchestration, netting, cross-entity settlement, FX, reconciliation, and liquidity management — with years of investment behind them. Building stablecoins on top gave us those capabilities for free on day one, and improvements to shared infrastructure benefit both fiat and stablecoin flows.
+
+To understand what we extended, it helps to see how the fiat side works. Stripe operates entities in dozens of countries, each with its own bank accounts. We model cash movement as a directed graph: nodes are accounts, edges are the available rails between them (ACH, SEPA, wire, book transfer), each with properties for currency, speed, cost, and availability. When the cash management layer needs to move money from account A to account B, it finds the optimal path through this graph.
+
+At Stripe's scale, this graph handles millions of cash movement requests per day. Many of them never result in an actual bank transfer — we apply net settlement, which cancels them out. If account A owes account B 10M USD, and account B owes account A 8M USD, we send one 2M USD wire from account A to account B instead of two. With multilateral netting across entity pairs, we can net out a significant portion of overall daily volume across our entities—but getting it right means carefully tracking when cash needs to be available at the destination.
+
+Adding stablecoins meant adding new node types and edge types to this graph. The new nodes are wallets: Bridge's liquidity pool, and individual user wallets for recipients. The new edges connect fiat accounts to these wallets, in both directions. The same netting logic applies across fiat and stablecoin flows — if we're sending 5M USD to Bridge to fund payouts while 3M USD is flowing back from offramps, the engine nets this to a single 2M USD fiat transfer. Bilateral netting between fiat and stablecoin flows is one of our most important efficiency gains, because it directly reduces the number of cross-entity transfers needed to keep the whole system running.
+
+The composability of this approach also makes expansion practical. Adding a new currency pair or product is a matter of extending a path through the graph, rather than building a new pipeline. A EUR → stablecoin flow, for example, naturally composes from capabilities that already exist: the FX leg converts EUR to USD through our treasury hub, and the stablecoin leg mints at Bridge. Stablecoin support for new products can reuse the same architecture rather than requiring bespoke infrastructure each time.
+
+A USD → stablecoin payout starts with a standard fiat hop that already existed in the graph. The routing layer understands both fiat and wallet nodes, so it can construct end-to-end paths that cross the fiat-to-stablecoin boundary and complete the payout. Wallet edges will also eventually add routing redundancy: for example, a USD → MXN payout will be able to go via a traditional fiat partner or via Bridge (liquidating a stablecoin to MXN), giving the system multiple paths for the same funds and the ability to choose based on cost, speed, or availability.
+
+## Making it instant
+
+The net settlement engine was designed for a world where everything is measured in hours. It runs on a planning cycle of a few minutes, a negligible delay when your fastest rail settles in hours.
+
+Stablecoins changed that calculus. When a user is waiting for a stablecoin to land in their wallet, a few minutes of batching is the difference between "instant" and "not instant." Some wallet funding requests are urgent — maybe a high-priority payout is pending — and holding them for the next batch isn't acceptable.
+
+We introduced a direct mode that bypasses the planning cycle for time-sensitive requests, explicitly skipping batching and netting opportunities in exchange for speed. A request that could have netted against an opposing flow now goes out as its own transfer. The system now runs both modes simultaneously, with most flows going through the standard cycle and benefiting from netting, and urgent wallet funding going direct. The decision of which mode to use is made upstream based on urgency, and in the future could factor in real-time pool state and demand forecasts to make smarter tradeoffs between speed and netting efficiency.
+
+The liquidity pool is the tightest operational constraint in the system. Payouts and onramps reduce it; offramps and stablecoin-to-fiat conversions replenish it. On a day where payout volume and offramp volume are roughly balanced, the pool stays relatively stable with minimal fiat transfers needed. The netting engine makes this work: by netting opposing fiat-stablecoin flows before they hit the banking system, it directly reduces how much replenishment pressure ends up on fiat rails in the first place. Demand-driven forecasting — the ability to right-size the pool based on predicted flows in each direction—is one of our biggest near-term opportunities.
+
+## Running 24/7
+
+Fiat settlement follows banking hours. Blockchains don't, which has real operational consequences. With fiat, a problem detected in a batch process might give us hours to respond before users are affected. With stablecoins settling in minutes, our alerting SLAs tightened from hours to minutes. We designed routine operations like pool replenishment and reconciliation, to run without needing manual intervention outside business hours. We had to extend our operational tooling, too: the same dashboards that show bank account balances and sweep status now display wallet balances, pool utilization, and on-chain transaction status, with reconciliation that spans both bank statements and blockchain records.
+
+### Agent-accessible operations
+
+As SLAs tighten further, autonomous agents that can run routine diagnostics start to make a lot of sense. We're investing in making stablecoin operations more agent-accessible: giving agents visibility into the full transaction lifecycle, training them on patterns from past incidents, and enabling them to diagnose and respond to common issues without needing to wait for a human to come online.
+
+## What's next
+
+The infrastructure described in this post is live and handling real traffic, but we're early in what stablecoins at Stripe will become. Here's where we're headed.
+
+### Demand-driven liquidity forecasting
+
+Static pool buffers work, but they're not capital-efficient. The next step is moving to dynamic, forecast-driven sizing: right-sizing liquidity per corridor per time window based on historical usage patterns, time-of-day demand curves, redemption rates, and real-time inflow/outflow rates. Better forecasting also makes smarter batch-vs-direct decisions by pre-positioning liquidity ahead of predicted demand spikes rather than reacting after the pool dips.
+
+### Faster replenishment
+
+We're working on using real-time fiat rails like RTP and SEPA Instant to replenish the liquidity pool where available. Closing the gap between pool drain speed (minutes) and replenishment speed (currently hours to days) is one of the highest-leverage improvements we can make to give us smaller buffers, less idle capital, and more resilience to demand spikes.
+
+### Expanding to new products and corridors
+
+The composability of a settlement graph makes expansion practical. We can add stablecoins to a new product by connecting a new fiat leg to existing wallet edges, or add a new currency pair through the treasury hub's FX capabilities. This same architecture now powers [stablecoin payouts to Link](https://docs.stripe.com/global-payouts/send-money/link), enabling companies like [Meta](https://stripe.com/blog/everything-we-announced-at-sessions-2026) to pay content creators in dollars around the globe. Each of these are new edges in the graph—they all plug into the same netting, routing, reconciliation, and settlement infrastructure that already exists.
+
+* * *
+
+We want to make stablecoins a first-class rail at Stripe, alongside ACH, SEPA, and wires, as another edge type in the graph with its own speed and cost characteristics, available to every Stripe product that moves money. The architecture is designed to get us there. If these are the kinds of opportunities you want to work on, [we're hiring](https://stripe.com/jobs).

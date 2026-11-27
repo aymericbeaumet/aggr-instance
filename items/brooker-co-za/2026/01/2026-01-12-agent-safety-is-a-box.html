@@ -1,0 +1,95 @@
+<div id="readability-page-1" class="page"><div id="post">
+
+
+<p>Keep a lid on it.</p>
+
+<p>Before we start, let’s cover some terms so we’re thinking about the same thing. This is a post about AI agents, which I’ll define (riffing off <a href="https://simonwillison.net/2025/Sep/18/agents/">Simon Willison</a><sup><a href="#foot1">1</a></sup>) as:</p>
+
+<blockquote>
+  <p>An AI agent runs models and tools in a loop to achieve a goal.</p>
+</blockquote>
+
+<p>Here, goals can include coding, customer service, proving theorems, <a href="https://aws.amazon.com/devops-agent/">cloud operations</a>, or many other things. These agents can be interactive or one-shot; called by humans, other agents, or traditional computer systems; local or cloud; and short-lived or long-running. What they don’t tend to be is <a href="https://en.wikipedia.org/wiki/Pure_function">pure</a>. They typically achieve their goals by side effects. Side effects including modifying the local filesystem, calling another agent, calling a cloud service, making a payment, or starting a 3D print.</p>
+
+<p>The topic of today’s post is those side-effects. Simply, what agents can <em>do</em>. We should also be concerned with what agents can <em>say</em>, and I’ll touch on that topic a bit as I go. But the focus is on <em>do</em>.</p>
+
+<p><img src="https://brooker.co.za/blog/images/agent_loop.png" alt=""></p>
+
+<p>Agents <em>do</em> things with tools. These could be MCP-style tools, <a href="https://kiro.dev/powers/">powers</a>, <a href="https://www.anthropic.com/news/skills">skills</a>, or one of many other patterns for tool calling. But, crucially, the act of doing inference doesn’t <em>do</em> anything. Without the <em>do</em>, the <em>think</em> seems less important.</p>
+
+<p>The right way to control what agents <em>do</em> is to put them in a box.</p>
+
+<p>The box is a strong, deterministic, exact, layer of control outside the agent which limits which tools it can call, and what it can do with those tools.</p>
+
+<p><em>Why a Box?</em></p>
+
+<p>The most important one of those properties is <em>outside the agent</em>. Alignment and other AI safety topics are important. <a href="https://strandsagents.com/latest/documentation/docs/user-guide/concepts/experimental/steering/">Steering</a>, careful prompting, and context management help a lot. These techniques have a lot of value for <em>liveness</em> (success rate, cost, etc), but are insufficient for safety. They’re insufficient for safety for the same reason we’re building agents in the first place: because they’re flexible, adaptive, creative<sup><a href="#foot2">2</a></sup> problem solvers.</p>
+
+<p>Traditional old-school workflows are great. They’re cheap, predictable, deterministic, understandable, and well understood. But they aren’t flexible, adaptive, or creative. One change to a data representation or API, and they’re stuck. One unexpected exception case, and they can’t make progress. We’re interested in AI agents because they can make progress towards a broader range of goals without having a human think about all the edge cases before hand.</p>
+
+<p>Safety approaches which run inside the agent typically run against this hard trade-off: to get value out of an agent we want to give it as much flexibility as possible, but to reason about what it can <em>do</em> we need to constrain that flexibility. Doing that, with strong guarantees, by trying to constrain what an agent can think, is hard.</p>
+
+<p>The other advantage of the box, the deterministic layer around an agent, is that it allows us to make some crisp statements about what matters and doesn’t.</p>
+
+<p>For example, if the box deterministically implements the policy <em>a refund can only be for the original purchase price or less</em>, and <em>only one refund can be issued per order</em>, we can exactly reason about how much refunds can be without worrying about the prompt injection attack of the week.</p>
+
+<p><em>What is the Box?</em></p>
+
+<p>The implementation of the box depends a lot on the type of agent we’re talking about. In later posts I’ll look a bit at local agents (the kind I run on my laptop), but for today I’ll start with agents in the cloud.</p>
+
+<p><img src="https://brooker.co.za/blog/images/agent_box.png" alt=""></p>
+
+<p>In this cloud environment, agents implemented in code run in a secure execution environment like <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agents-tools-runtime.html">AgentCore Runtime</a>. Each <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-sessions.html">agent session</a> running inside this environment gets a secure, isolated, place to run its loop, execute generated code, store things in local memory, and so on.</p>
+
+<p>Then, we have to add a way to interact with the outside world. To allow the agent to <em>do</em> things. This is where gateways (like <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway.html">AgentCore Gateway</a>) come in. The gateway is the singular hole in the box. The place where tools are given to the agent, where those tools are controlled, and where policy is enforced. This scoping of tools differs from the usual concerns of authorization: typical authorization is concerned with what an actor can do with a tool, the gateway’s control is concerned with which tools are available.</p>
+
+<p><img src="https://brooker.co.za/blog/images/agent_gateway.png" alt=""></p>
+
+<p>Agents can’t bypass the Gateway, because the Runtime stops them from sending packets anywhere else. Old-school network security controls.</p>
+
+<p><em>The Box’s Policy</em></p>
+
+<p>The simplest way this version of the box constrains what an agent can <em>do</em> is by constraining which tools it can access<sup><a href="#foot3">3</a></sup>. Then we need to control what the agent can do with these tools. This is where <em>authorization</em> comes in. In the simplest case, the agent is working on behalf of a human user, and inherits a subset of its authorizations. In a future post I’ll write about other cases, where agents have their own authorization and the ability to escalate privilege, but none of that invalidates the box concept.</p>
+
+<p>Regardless, most of today’s authorization implementations don’t have sufficient power and flexibility to express some of the constraints we’d like to express as we control what an agent can do. And they don’t tend to compose across tools.</p>
+
+<p>So we need a policy layer at the gateway.</p>
+
+<p><img src="https://brooker.co.za/blog/images/agent_policy.png" alt=""></p>
+
+<p><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy.html">AgentCore Policy</a> gives fine-grained, deterministic, control over the ways that an agent can call tools. Using the powerful <a href="https://www.cedarpolicy.com/">Cedar policy language</a>, AgentCore Policy is super flexible. But most people don’t want to learn Cedar, so we built on <a href="https://arxiv.org/pdf/2511.09008">our research</a> on converting human intent to policy to allow policies to also be expressed in <a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-natural-language.html">natural language</a>.</p>
+
+<p>Here’s what a policy looks like:</p>
+
+<pre><code>
+permit(
+  principal is AgentCore::OAuthUser,
+  action == AgentCore::Action::"RefundTool__process_refund",
+  resource == AgentCore::Gateway::"arn:aws:bedrock-agentcore:us-west-2:123456789012:gateway/refund-gateway"
+)
+when {
+  principal.hasTag("username") &amp;&amp;
+  principal.getTag("username") == "refund-agent" &amp;&amp;
+  context.input.amount &lt; 500
+};
+</code></pre>
+
+<p>By putting these policies at the edge of the box, in the gateway, we can make sure they are true no matter what the agent does. No errant prompt, context, or memory can bypass this policy.</p>
+
+<p><em>Conclusion</em></p>
+
+<p>Anyway, this post has gotten very long, and there’s still some ground to cover. There’s more to say about multi-agent systems, memories, local agents, composition of polcies, and many other topics. But hopefully the core point is clear: by building a deterministic, strong, box around an agent we can get a level of safety and control that’s impossible to achieve without it.</p>
+
+<p>If this sounds interesting, and you’d like to spend an hour on it, here’s me talking about it at reInvent’25.</p>
+
+
+
+<p><em>Footnotes</em></p>
+
+<ol>
+  <li> Simon’s version is <em>An LLM agent runs tools in a loop to achieve a goal</em>, but I like to expand the definition to capture agents that may use smaller models and multiple models, and to highlight that inference is just one tool used by the larger system.</li>
+  <li> I don’t love using the word <em>creative</em> in this sense, because it implies something is happening that really isn’t. But it’s not a terrible mental model.</li>
+  <li> Which, of course, also requires that these tools are built in a way that they can’t be deputized to have their own unexpected side effects. In general, SaaS and cloud tools are built with an <em>adversarial</em> model which assumes that clients are badly-intentioned and so strictly scopes their access, so a lot of this work has already been done.</li>
+</ol>
+
+</div></div>

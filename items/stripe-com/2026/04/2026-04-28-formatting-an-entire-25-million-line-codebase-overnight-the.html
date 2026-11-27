@@ -1,0 +1,156 @@
+<div id="readability-page-1" class="page"><div><p>Stripe runs the <a href="https://newsletter.pragmaticengineer.com/p/stripe">world's largest Ruby codebase</a>. Before <code>rubyfmt</code>, no true autoformatter for Ruby existed anywhere in the industry. Previous tools had crashed just trying to process our files. Then, six years after I started <a href="https://github.com/fables-tales/rubyfmt"><code>rubyfmt</code></a> as a personal open-source project, two Stripe engineers got on a Saturday morning Zoom call with 25 million lines of Ruby and a plan that had never been attempted at this scale.</p>
+<p><span><span><img src="https://stripe.dev/images/formatting-an-entire-25-million-line-codebase-overnight-the-rubyfmt-story/image1.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<blockquote>
+<p>Sample created using <a href="https://rubyfmt.run/">rubyfmt playground</a></p>
+</blockquote>
+<h2 id="the-origin-of-rubyfmt">The origin of rubyfmt</h2>
+<p>At RubyConf 2018, over a rye Manhattan at the Millennium Biltmore, I found myself in a heated debate with Justin Searls and Aaron Patterson about how Ruby desperately needed an autoformatter. At the time, language servers in Ruby were nascent, if they existed at all. The cost of booting Ruby with gems and loading <code>bundler</code> made the idea of "format on save" editing too slow.</p>
+<p>We left that bar without a solution. But we knew what one would need to look like: zero configuration, fast, and accessible to engineers coming from other languages. That conversation was the spark. I went home and started building <code>rubyfmt</code> as a personal open source project.</p>
+<h3 id="no-configuration-no-arguments">No configuration, no arguments</h3>
+<p>If you've ever had a team debate about trailing commas, keyword layout, or conditional formatting, you already understand the core problem. If you've ever argued about what the correct configuration for a linter is, you understand it even better.</p>
+<p><code>rubocop</code> is the default linter for almost all Ruby teams. It's a popular and powerful tool, but it isn't an autoformatter. Its hundreds of individually configurable rules mean that any two engineers can reasonably disagree about the right setup, which just moves the bikeshedding from pull requests to configuration files.</p>
+<p>One thing I've learned during my career is that if engineers <em>can</em> disagree about something, they will. Style debates are no different, and they have a way of consuming far more time than anyone wants to admit.</p>
+<p>What the Ruby ecosystem was missing was something like <code>gofmt</code>, a zero-configuration autoformatter that simply makes the decisions for you, runs fast, and ensures you never argue about formatting again.</p>
+<h3 id="built-for-the-fastest-workflows-imaginable">Built for the fastest workflows imaginable</h3>
+<p>Starting a regular Ruby process takes around 158ms (Ruby 2.7 on my M4 Pro MacBook Pro). To the most productive engineers, that's an eternity for a save hook. Starting Ruby inside a <code>bundler</code> environment is worse, closer to 345ms.</p>
+<p>We set a strict budget of 100ms for <code>rubyfmt</code> to format all but the very largest files. To hit it, we couldn't invoke Ruby in the normal way. We had to go deeper, compiling a hand-authored C program directly against <code>libruby</code> to squeeze out every millisecond we could.</p>
+<h3 id="ruby-for-engineers-who-dont-speak-ruby-yet">Ruby for engineers who don't speak Ruby (yet)</h3>
+<p>At Stripe, we recruit great engineers regardless of their language background. Many engineers come to Stripe never having written a line of Ruby, and we then ask them to work on the world's largest Ruby codebase. The Go engineers I worked with told me they were struggling with Ruby. Its flexibility left too much room for uncertainty without an autoformatter. They missed <code>gofmt</code>, which would simply “snap the code into place” for them.</p>
+<p>A strict autoformatter removes that uncertainty. It lets engineers new to a language stop thinking about how code should look and start focusing on what it should do.</p>
+<h2 id="building-rubyfmt">Building rubyfmt</h2>
+<p>Ruby isn’t a syntactically simple language. Consider this perfectly valid Ruby program:</p>
+<pre><code>a = &lt;&lt;EOD
+part 1 of heredoc #{ "not a heredoc" + &lt;&lt;EOM }
+eom part
+EOM
+part 2 of heredoc
+EOD</code></pre>
+<p>Given that complexity, the hypothesis was simple: tackle the hardest syntax first and the rest will follow. <code>rubyfmt</code> started its life in 2018 as a pretty simple Ruby program built on top of <a href="https://ruby-doc.org/core-2.7.0/Ripper.html"><code>ripper</code></a>, a Ruby-level API built on top of Ruby’s parser.</p>
+<p>In <code>rubyfmt</code>'s early days, it was essentially a large switch statement over all possible <a href="https://github.com/fables-tales/rubyfmt/blob/cf08f1479b6063c34f3792f1854fc4c62c81c4dd/run.rb#L715-L748"><code>ripper</code></a> <a href="https://github.com/fables-tales/rubyfmt/blob/cf08f1479b6063c34f3792f1854fc4c62c81c4dd/run.rb#L715-L748">expression types</a>:</p>
+<pre><code>def format_expression(ps, expression)
+  type, rest = expression[0],expression[1...expression.length]
+  {
+    :return =&gt; lambda { |ps, rest| format_return(ps, rest) },
+    :def =&gt; lambda { |ps, rest| format_def(ps, rest) },
+    :if =&gt; lambda { |ps, rest| format_if(ps, rest) },
+    # ...and so on for all expression types
+  }.fetch(type).call(ps, rest)
+end</code></pre>
+<p>Speed was a priority, so users were advised to start <code>rubyfmt</code> with the <code>--disable=gems</code> flag. This meant <code>rubyfmt</code> couldn't depend on any gems or be part of a <code>bundler</code> environment. Loading either would have blown the 100ms speed budget before a single line was formatted.</p>
+<p>The distribution strategy was to <a href="https://github.com/fables-tales/rubyfmt/blob/v0.2.0/Makefile#L6-L7">literally combine all source files into one large Ruby file</a> and tell people to stick it in their path. Not a technique I’d recommend in most contexts, but given the constraints, it was the right tradeoff.</p>
+<h3 id="rewriting-in-rust-it-went-deeper-than-expected">Rewriting in Rust (it went deeper than expected)</h3>
+<p>As the complexity of <code>rubyfmt</code> grew, it became slower and slower to use Ruby to autoformat Ruby. <code>ripper</code> was originally chosen because it's the only Ruby parsing library built on top of <code>parse.y</code>, the exact same parser Ruby uses when executing code. But <code>rubyfmt</code> was blowing the 100ms latency budget autoformatting files of moderate complexity, so I rewrote <code>rubyfmt</code> in Rust.</p>
+<p>This turned out to be complicated. At the time there were no parsers for Ruby that could be compiled without the Ruby VM present. Ruby is itself a very complicated C program, so the result was a build process that <em>first</em> compiled all of Ruby, <em>then</em> linked it to a Rust program. Ultimately, this required evaluating Ruby code from within a Rust binary:</p>
+<pre><code>pub unsafe fn load_rubyfmt() -&gt; Result&lt;(), ()&gt; {
+    let rubyfmt_program = include_str!("../rubyfmt_lib.rb");
+    eval_str(rubyfmt_program)?;
+    Ok(())
+}</code></pre>
+<p>That’s when something "fun" emerged about the Ruby data structures <code>ripper</code> produces: all the output types are valid JSON (with the exception of symbols, which Ruby can turn into JSON strings when you dump JSON from primitives).</p>
+<pre><code>irb(main):001&gt; Ripper.sexp("def foo; 1 + 2; end")
+=&gt; [:program, [[:def, [:@ident, "foo", [1, 4]], [:params, nil, nil, nil, nil, nil, nil, nil], [:bodystmt, [[:binary, [:@int, "1", [1, 9]], :+, [:@int, "2", [1, 13]]]], nil, nil, nil]]]]
+</code></pre>
+<p>In the first Rust draft of <code>rubyfmt</code>, I didn’t want to get fancy with manipulating Ruby objects from Rust. So I took the entire <code>ripper</code> tree, encoded it to JSON (in Ruby), and deserialized it using <code>serde</code>. Super janky, but it allowed rapid processing of <code>ripper</code> parse trees in Rust.</p>
+<p>Eventually, going from Ruby objects to JSON to Rust objects became onerously slow. One extremely neat thing about <code>serde</code> is that it entirely separates the notion of schema from any specific serialization format.</p>
+<p>For example, here’s the schema definition for <code>ripper</code>'s <code>@ident</code> node type:</p>
+<pre><code>def_tag!(ident_tag, "@ident");
+#[derive(Deserialize, Debug, Clone)]
+pub struct Ident(pub ident_tag, pub String, pub LineCol);</code></pre>
+<p>Here's what that node looks like in <code>ripper</code>'s output:</p>
+<pre><code>irb(main):002&gt; Ripper.sexp("foo")
+=&gt; [:program, [[:vcall, [:@ident, "foo", [1, 0]]]]]
+</code></pre>
+<p>Converting that to JSON:</p>
+<pre><code>irb(main):003&gt; JSON.dump(Ripper.sexp("foo"))
+=&gt; "[\"program\",[[\"vcall\",[\"@ident\",\"foo\",[1,0]]]]]"</code></pre>
+<p>From there, I gave Rust a pointer to the Ruby string. Rust called back into Ruby to retrieve the raw bytes and handed them to <code>serde</code>, which decoded the JSON into Rust objects according to the schema. At the time, sharing objects across Ruby, C, and Rust was largely uncharted territory.</p>
+<p>This JSON serialization worked. But it was slow.</p>
+<p>In Ruby, the C type for a Ruby object is called <code>VALUE</code>. It’s an opaque wrapper around the structures Ruby uses to represent objects under the hood. I asked myself: the <code>ripper</code> parse tree is full of primitives—Can I just teach <code>serde</code> to walk through the Ruby objects in memory?</p>
+<p>The task was to unpack <code>VALUE</code>, determine what it represents, and tell <code>serde</code> if I’ve encountered some value type it understands:</p>
+<pre><code>    fn deserialize_any&lt;V: de::Visitor&lt;'de&gt;&gt;(self, visitor: V) -&gt; Result&lt;V::Value&gt; {
+        pub use ruby::ruby_value_type::*;
+
+        match unsafe { ruby::rubyfmt_rb_type(self.0) } {
+            RUBY_T_SYMBOL =&gt; visitor.visit_borrowed_str(sym_to_str(self.0)?),
+            RUBY_T_STRING =&gt; visitor.visit_borrowed_str(rstring_to_str(self.0)?),
+            RUBY_T_ARRAY =&gt; visitor.visit_seq(SeqAccess::new(self.0)),
+            RUBY_T_NIL =&gt; visitor.visit_none(),
+            RUBY_T_TRUE =&gt; visitor.visit_bool(true),
+            RUBY_T_FALSE =&gt; visitor.visit_bool(false),
+            RUBY_T_FIXNUM =&gt; visitor.visit_i64(unsafe { ruby::rubyfmt_rb_num2ll(self.0) }),
+            other =&gt; Err(de::Error::custom(format_args!(
+                "Unexpected type {:?}",
+                other
+            ))),
+        }
+    }
+</code></pre>
+<p>Ruby's C API lets us introspect a <code>VALUE</code>. <code>rubyfmt_rb_type</code> is equivalent to Ruby's <code>rb_type</code> macro, and returns a constant telling us what Ruby type is underneath. Most types map to Rust fairly easily, but <code>RUBY_T_ARRAY</code> needs its own special support code:</p>
+<pre><code>struct SeqAccess {
+    arr: VALUE,
+    idx: usize,
+    len: usize,
+}
+
+impl SeqAccess {
+    fn new(arr: VALUE) -&gt; Self {
+        let len = unsafe { ruby::rubyfmt_rb_ary_len(arr) } as usize;
+        Self { arr, len, idx: 0 }
+    }
+}
+
+impl&lt;'de&gt; de::SeqAccess&lt;'de&gt; for SeqAccess {
+    type Error = Error;
+
+    fn next_element_seed&lt;T: de::DeserializeSeed&lt;'de&gt;&gt;(
+        &amp;mut self,
+        seed: T,
+    ) -&gt; Result&lt;Option&lt;T::Value&gt;&gt; {
+        if self.idx &lt; self.len {
+            let elem = unsafe { ruby::rb_ary_entry(self.arr, self.idx as _) };
+            self.idx += 1;
+            seed.deserialize(Deserializer(elem)).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn size_hint(&amp;self) -&gt; Option&lt;usize&gt; {
+        Some(self.len - self.idx)
+    }
+}</code></pre>
+<p>With these changes, the schema of <code>ripper_tree_types</code> (the Rust module defining the shape of <code>ripper</code>’s output) didn’t need to change at all. All that was left to do was implement the Ruby <code>VALUE</code> deserializer and everything worked.</p>
+<p>Linking a full Ruby VM into a Rust binary to walk its parse tree in memory isn’t a normal thing to do. But it worked, and that was enough for now.</p>
+<h2 id="bringing-rubyfmt-to-stripe">Bringing rubyfmt to Stripe</h2>
+<h3 id="the-problems-we-couldnt-ignore">The problems we couldn't ignore</h3>
+<p><code>rubyfmt</code> was already two years in the making when I joined Stripe in 2020, though it wasn't finished yet. Stripe had already tried adopting <a href="https://github.com/prettier/plugin-ruby"><code>prettier-ruby</code></a>, but it was too slow (<code>prettier-ruby</code> is implemented in JavaScript) and too unstable. It had crashed outright on some of our larger files.</p>
+<p>The pain of not having an autoformatter was visible in how our engineers worked. Stripe's Developer Productivity org runs regular "shoulder surfing" sessions, where we watch engineers work to spot friction. In several sessions, we noticed engineers wrestling with <code>rubocop</code> and spending significant time just trying to get their code into the right place. They wanted to spend their time coding, not developing an intuition for Ruby formatting conventions.</p>
+<p>Something had to change. With 25 million lines of Ruby in Stripe's monorepo, we needed something purpose-built for Ruby at this scale. The manager and tech lead of Stripe's Ruby team came to me with a question: could <code>rubyfmt</code> work, and what would it take to fund it? <code>rubyfmt</code> wasn't done yet, but it was the best option we had. Stripe decided to bet on it. In 2022, two engineers from our Ruby infrastructure team started working on it full time, and <code>rubyfmt</code> remained open source throughout. As the author of <code>rubyfmt</code>, I was thrilled. Stripe was going to fund my project and keep it open source. This was exactly what I had hoped for.</p>
+<h3 id="62213-files-one-saturday-morning">62,213 files, one Saturday morning</h3>
+<p>Rolling out a novel autoformatter to 25 million lines of code has two big risks: merge conflicts and correctness. A bug affecting just 0.01% of lines would still touch tens of thousands of files. To manage both, we built in a per-file opt-in so <code>rubyfmt</code> would only format files that explicitly asked for it. Following the Developer Productivity org’s typical pattern, we started with systems we owned and could observe closely, then expanded coverage gradually as our confidence grew.</p>
+<p>We also built a tool to diff <code>ripper</code> trees across formatted files, accounting for things like <code>rubyfmt</code> converting single quotes to double quotes. Combined with our <a href="https://stripe.dev/blog/fast-secure-builds-choose-two">extensive test suite</a>, we built confidence slowly and deliberately.</p>
+<p>Then came that Saturday morning in 2024. We flipped the per-file opt-in model entirely: instead of files opting in, only the tiny minority <code>rubyfmt</code> couldn't yet handle were held back. We chose a Saturday to format the entire codebase to avoid merge conflicts. And while our test suite gave us high confidence we'd gotten everything right, it's always a bit daunting to have a diff so large that GitHub can't render it. It just shows <code>files changed: infinity</code>. We merged it anyway. From there, we burned down the remaining exceptions.</p>
+<p>The codebase has grown since. And today, 100% of Stripe's 42 million lines of Ruby are formatted with <code>rubyfmt</code>.</p>
+<h3 id="how-its-going">How it’s going</h3>
+<p>The thing that strikes us most about <code>rubyfmt</code> is how little anyone talks about it. Like the best infrastructure, it's mostly invisible. It just works.</p>
+<p>The engineers who feel it most are the ones who came to Stripe from other languages. One engineer, who joined Stripe having never written Ruby before, put it plainly:</p>
+<blockquote>
+<p>“I sometimes receive code format nits on code reviews. Coming from Python where e.g. black was very common I found this quite wasteful/frustrating. It was probably among the ~10 things that felt most obviously off about Stripe's developer productivity at the time. I haven't thought about this problem in years and I'm very glad that's the case.”</p>
+</blockquote>
+<p>Engineers across Stripe echo this. Faster PRs, less friction, and one less thing to think about:</p>
+<blockquote>
+<p>“It is very fast and it is format-on-save. Personally, I am very happy about it. Best formatting experience I've had in a while.”</p>
+</blockquote>
+<blockquote>
+<p>“It’s really nice not having to waste time giving or receiving PR feedback about simple formatting stuff.”</p>
+</blockquote>
+<blockquote>
+<p>“Very fast, no discussions on what format to use, when you have something you don’t even have to think about it means the tooling is at its best.”</p>
+</blockquote>
+<h3 id="were-not-done-yet">We're not done yet</h3>
+<p>For years, <code>rubyfmt</code> required linking to a full Ruby VM just to parse files. In 2025 that changed: <code>Prism</code>, a new parser built to replace <code>ripper</code>, became the official Ruby parser. Crucially, it can instantiate a parse tree without linking a Ruby VM at all.</p>
+<p>Migrating <code>rubyfmt</code> to <code>Prism</code> was gradual. We made the parser toolchain selectable, ran our full test suite against both <code>ripper</code> and <code>Prism</code> with all <code>Prism</code> tests marked as expected failures, and slowly burned down the <code>Prism</code> failing tests until <code>rubyfmt</code> produced identical output from both parsers. Because <code>Prism</code> loads native objects directly into memory, we no longer needed <code>serde</code> or the object deserialization code.</p>
+<p>Our binary shrank by megabytes and <code>rubyfmt</code> got dramatically faster.</p>
+<p>If you want to help figure out what comes next, or work on other developer productivity problems at scale, <a href="https://stripe.com/jobs">we’re hiring</a>.</p>
+<p>–</p>
+<p><em>We'd like to give special thanks to Reese, a former Stripe engineer. He worked on <code>rubyfmt</code> at Stripe and has continued to commit after leaving the company. We truly couldn't have achieved what's described here without him.</em></p></div></div>

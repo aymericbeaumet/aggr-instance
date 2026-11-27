@@ -1,0 +1,235 @@
+<div id="readability-page-1" class="page"><div><p>Onboarding accounts and keeping them compliant and activated is one of the most important parts of your Connect platform integration. The goal is for the experience to be as streamlined as possible to maximize conversion and minimize user friction and degradation. This blog post walks you through using <a href="https://docs.stripe.com/connect/get-started-connect-embedded-components">Connect embedded components</a> to achieve this.</p>
+<p>For this walkthrough, I am using <a href="https://www.furever.dev/">Furever</a>, a test Connect platform for pet grooming. Let’s start by <a href="https://docs.stripe.com/api/accounts/create">creating a connected account</a>. In order to allow for my connected accounts to process payments, I am adding the <code>card_payments</code> and <code>transfers</code> <a href="https://docs.stripe.com/connect/account-capabilities">capabilities</a> to an account fully controlled by Furever with no Stripe dashboard access, such as a Custom account. Since Furever uses <a href="https://nextjs.org/">Next.js</a>, I have added the <a href="https://www.npmjs.com/package/stripe?activeTab=readme">Stripe</a> npm package as a dependency and have included the create account API call in the sign up flow:</p>
+<pre><code>const account = await stripe.accounts.create({
+  // Account configuration
+  controller: {
+    stripe_dashboard: {
+      type: "none",
+    },
+    fees: {
+      payer: "application"
+    },
+    losses: {
+      payments: "application"
+    },
+    requirement_collection: "application",
+  },
+  capabilities: {
+    card_payments: {requested: true},
+    transfers: {requested: true}
+  },
+  // Options selected in the signup UI
+  country: credentials?.country || 'US',
+  business_type: businessType,
+  email: email,
+});
+
+console.log('Created stripe account', account.id);</code></pre>
+<p>The account ID is now created as part of the Furever signup process.</p>
+<p><span><span><img src="https://stripe.dev/images/connect-embedded-components-streamline-onboarding/image3.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p><span><span><img src="https://stripe.dev/images/connect-embedded-components-streamline-onboarding/image9.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>Now that we have a connected account, let’s first show how we would fully onboard this account without embedded components on Furever. First, I use the <a href="https://docs.stripe.com/api/account_links/create">create account link API</a> and expose an API on my platform that allows me to create account links for my connected accounts. I create a new api <code>/create_account_link</code>:</p>
+<pre><code>import {getServerSession} from 'next-auth/next';
+import {authOptions} from '@/lib/auth';
+import {stripe} from '@/lib/stripe';
+
+export async function POST() {
+  const session = await getServerSession(authOptions);
+  let stripeAccountId = session?.user?.stripeAccount?.id;
+
+  const accountLink = await stripe.accountLinks.create({
+    account: stripeAccountId,
+    refresh_url: `${process.env.NEXTAUTH_URL}/home`,
+    return_url: `${process.env.NEXTAUTH_URL}/home`,
+    type: 'account_onboarding',
+  });
+
+  return new Response(JSON.stringify(accountLink), {
+    status: 200,
+    headers: {'Content-Type': 'application/json'},
+  });
+}</code></pre>
+<p>On my frontend, I will create a simple component that renders a button that allows the user to navigate to this account link to onboard the account to Stripe:</p>
+<pre><code>
+export default function Onboarding() {
+  const {isLoading, error, data} = useAccountLinkCreate();
+
+  if (error) {
+    return &lt;div&gt;Error: {error.message}&lt;/div&gt;;
+  }
+  if (isLoading || !data) {
+    return &lt;div&gt;Loading...&lt;/div&gt;;
+  }
+
+  const {url} = data;
+  return &lt;a href={url}&gt;Open account link&lt;/a&gt;;
+}</code></pre>
+<p><span><span><img src="https://stripe.dev/images/connect-embedded-components-streamline-onboarding/image10.png" alt="" loading="lazy" decoding="async"></span></span>
+<span><span><img src="https://stripe.dev/images/connect-embedded-components-streamline-onboarding/image4.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>We now have a fully working onboarding UX and upon completion the account is now enabled for <code>card_payments</code> and <code>transfers</code>. I can now create payments and receive payouts with this account. However, I’m not sure I like this UX as my user had to open a separate window to onboard and was required to authenticate with Stripe. I wish I could onboard my accounts from within my site in a white-labeled fashion*.*</p>
+<p>Fortunately, you can do this with the <a href="https://docs.stripe.com/connect/supported-embedded-components/account-onboarding">embedded onboarding component</a>. First, we add a new endpoint <code>/create-account-session</code> that uses <a href="https://stripe.com/docs/api/account_sessions/create">the create account session API</a> and configures it to enable the onboarding component.</p>
+<pre><code>export async function POST() {
+  const session = await getServerSession(authOptions);
+  let stripeAccountId = session?.user?.stripeAccount?.id;
+
+  const accountSession = await stripe.accountSessions.create({
+    account: stripeAccountId,
+    components: {
+      account_onboarding: {
+        enabled: true,
+      },
+    },
+  });
+
+  return new Response(JSON.stringify(accountSession), {
+    status: 200,
+    headers: {'Content-Type': 'application/json'},
+  });
+}</code></pre>
+<p>Now, we'll use this API to initialize embedded components on my platform. I’ll need to add a dependency to the <code>@stripe/connect-js</code> and <code>@stripe/react-connect-js</code> packages.</p>
+<pre><code>yarn add @stripe/connect-js @stripe/react-connect-js</code></pre>
+<p>Now that we have these packages, I will import them and call <code>loadConnectAndInitialize</code> to initialize Connect embedded components. In this initialization, I am using the <code>/api/create_account_session</code> API we just created:</p>
+<pre><code>  
+import {loadConnectAndInitialize} from '@stripe/connect-js';
+import {
+  ConnectAccountOnboarding,
+  ConnectComponentsProvider,
+} from '@stripe/react-connect-js';
+
+export default function Onboarding() {
+  const [errorMessage, setErrorMessage] = React.useState&lt;string | null&gt;(null);
+  const [stripeConnectInstance] = React.useState(() =&gt; {
+    const fetchClientSecret = async () =&gt; {
+      const response = await fetch('/api/create_account_session', {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        setErrorMessage('Failed to initialize Session');
+        throw new Error('Failed to fetch account session');
+      } else {
+        const {client_secret} = await response.json();
+        return client_secret;
+      }
+    };
+
+    return loadConnectAndInitialize({
+      publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!, // Your publishable key goes here!
+      fetchClientSecret: fetchClientSecret,
+    });
+  });
+
+  return (
+    &lt;&gt;TODO: Render the component&lt;/&gt;
+  );
+}</code></pre>
+<p>Next, I can then render the <code>ConnectAccountOnboarding</code> component. Let’s replace the <code>TODO</code> in the component above:</p>
+<pre><code>  ...
+  return (
+    &lt;&gt;
+      {errorMessage ? (
+        &lt;div&gt;{`Error: ${errorMessage}`}&lt;/div&gt;
+      ) : (
+        &lt;div className="container"&gt;
+          &lt;ConnectComponentsProvider connectInstance={stripeConnectInstance}&gt;
+            &lt;ConnectAccountOnboarding
+              onExit={() =&gt; {
+                window.location.href = '/home'; // This is the action to perform after onboarding is exited
+              }}
+            /&gt;
+          &lt;/ConnectComponentsProvider&gt;
+        &lt;/div&gt;
+      )}
+    &lt;/&gt;
+);
+</code></pre>
+<p>With these changes, the embedded component renders.</p>
+<p><span><span><img src="https://stripe.dev/images/connect-embedded-components-streamline-onboarding/image7.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p><span><span><img src="https://stripe.dev/images/connect-embedded-components-streamline-onboarding/image1.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p><span><span><img src="https://stripe.dev/images/connect-embedded-components-streamline-onboarding/image5.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p><span><span><img src="https://stripe.dev/images/connect-embedded-components-streamline-onboarding/image6.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>We’ve successfully brought the onboarding UI within Furever and eliminated an external redirect.</p>
+<p>Now, let’s optimize this user experience. First, the look and feel of the onboarding flow does not match the rest of the site. Let’s use the <a href="https://docs.stripe.com/connect/customize-connect-embedded-components">appearance API</a> to make it match. Connect embedded components support a variety of appearance options, so I can make this look exactly like my site by simply passing in another parameter to my existing <code>loadConnectAndInitialize</code> call:</p>
+<pre><code>    return loadConnectAndInitialize({
+      publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!,
+      fetchClientSecret: fetchClientSecret,
+      appearance: {
+      variables: {
+        fontFamily: 'Sohne, inherit',
+        colorPrimary: '#27AE60',
+        colorBackground: '#ffffff',
+        colorBorder: '#D8DEE4',
+
+        buttonPrimaryColorBackground: '#27AE60',
+        buttonPrimaryColorText: '#f4f4f5',
+
+        badgeSuccessColorBackground: '#D6FCE6',
+        badgeSuccessColorText: '#1E884B',
+        badgeSuccessColorBorder: '#94D5AF',
+
+        badgeWarningColorBackground: '#FFEACC',
+        badgeWarningColorText: '#C95B4D',
+        badgeWarningColorBorder: '#FFD28C',
+
+        overlayBackdropColor: 'rgba(0,0,0,0.3)',
+      }
+      },
+    })</code></pre>
+<p>With this code, now the onboarding component fits more seamlessly into my page, as the colors, text and border radius are now matching the rest of my UI.</p>
+<p><span><span><img src="https://stripe.dev/images/connect-embedded-components-streamline-onboarding/image2.png" alt="" loading="lazy" decoding="async"></span></span></p>
+<p>As with the page hosted on Stripe, the embedded onboarding flow is requesting authentication with Stripe. This is the default behavior for embedded components. However, because I chose the <code>payments.losses = ‘application’</code> and <code>requirement_collection = ‘application’</code> options on this account (which means I as a platform <a href="https://docs.stripe.com/api/accounts/create#create_account-controller-losses-payments">own losses</a> and <a href="https://docs.stripe.com/api/accounts/create#create_account-controller-requirement_collection">requirements collection</a> for these connected accounts), I can disable stripe user authentication with <a href="https://docs.stripe.com/api/account_sessions/object?api-version=2024-10-28.acacia#account_session_object-components-account_onboarding-features-disable_stripe_user_authentication">disable_stripe_user_authentication</a>. My app already has secure authentication, and I am making the explicit decision to bypass the additional <a href="https://docs.stripe.com/connect/get-started-connect-embedded-components?platform=web#user-authentication-in-connect-embedded-components">Stripe user authentication</a> that comes by default with embedded components.</p>
+<pre><code>const accountSession = await stripe.accountSessions.create({
+  account: 'acct_YOUR_ACCOUNT_ID',
+  components: {
+    account_onboarding: {
+      enabled: true,
+      features: {
+        disable_stripe_user_authentication: true,
+      },
+    },
+  },
+});</code></pre>
+<p>Now my users don’t need to maintain a separate set of credentials with Stripe, and can jump straight into onboarding.</p>
+<p>One more thing - I want to know exactly the steps my users go through while onboarding. Let’s integrate with the account onboarding component's <code>onStepChange</code> API so I can know exactly where my users are dropping off in the funnel:</p>
+<pre><code>&lt;ConnectAccountOnboarding
+  onExit={() =&gt; {
+    console.log('Onboarding flow exited. Redirecting to home...');
+    window.location.href = '/home'; // This is the action to perform after onboarding is exited
+  }}
+  onStepChange={(step) =&gt; {
+    console.log(`User is in step ${step} of onboarding`)
+    // Send this information to my platform's analytics provider...
+  }}
+/&gt;</code></pre>
+<p>With this, all that is left is replacing this console log with my specific analytics tool, and now the data scientists back at Furever can link this data to all of our existing analytics.</p>
+<p>Since this worked so well in Furever, I’d like to show you how easy it is to include other components, like the <code>ConnectPayments</code> <a href="https://docs.stripe.com/connect/supported-embedded-components/payments">component</a> which would allow my connected accounts to view and manage payments from Furever.</p>
+<p>Let’s enable the component:</p>
+<pre><code>const accountSession = await stripe.accountSessions.create({
+  account: 'acct_YOUR_ACCOUNT_ID',
+  components: {
+    account_onboarding: {
+      enabled: true,
+    },
+    payments: {
+      enabled: true,
+    },
+  },
+});</code></pre>
+<p>And now I can render it in the frontend, just like I did for onboarding. Generally when using multiple components, you’ll want to reuse the same <code>connectInstance</code> (see our <a href="https://docs.stripe.com/connect/get-started-connect-embedded-components?platform=web#performance-best-practices">performance best practices</a>) and call <code>loadConnectAndInitialize</code> once. You can refactor this to a parent component, use react context, or any other state management solution to achieve this.</p>
+<pre><code>  return (
+    &lt;&gt;
+      {errorMessage ? (
+        &lt;div&gt;{`Error: ${errorMessage}`}&lt;/div&gt;
+      ) : (
+        &lt;div className="container"&gt;
+          &lt;ConnectComponentsProvider connectInstance={stripeConnectInstance}&gt;
+            &lt;ConnectPayments /&gt;
+          &lt;/ConnectComponentsProvider&gt;
+        &lt;/div&gt;
+      )}
+    &lt;/&gt;
+  );</code></pre>
+<p><span><span><img src="https://stripe.dev/images/connect-embedded-components-streamline-onboarding/image8.png" alt="" loading="lazy" decoding="async"></span></span>
+Now I have a fully operational payment list on my site that includes refunds and dispute management, and I no longer need to build it myself.</p>
+<p>This post has only scratched the surface of the customization that embedded components support - you can enable/disable permission-related features via <a href="https://stripe.com/docs/api/account_sessions/create">account sessions features</a>, or UX related features via component parameters specific to each component. We support <a href="https://docs.stripe.com/connect/get-started-connect-embedded-components?platform=web#update-connect-embedded-components-after-initialization">updating properties after initialization</a> (so supporting a dark mode toggle on your app would be easy), <a href="https://docs.stripe.com/connect/get-started-connect-embedded-components?platform=web#localization">localization</a>, and support all frontend UI frameworks (not just React) via our <a href="https://github.com/stripe/connect-js">vanilla JS SDK</a>.</p>
+<p>There are many <a href="https://docs.stripe.com/connect/supported-embedded-components">GA and preview components</a>, and more are on the way. Adding another component to your site is as easy as updating the Account Session creation call, and integrating the new component in the frontend - each new component respects the same theming parameters to fit seamlessly into your own UI. From account <a href="https://docs.stripe.com/connect/supported-embedded-components/account-onboarding">onboarding</a> and account <a href="https://docs.stripe.com/connect/supported-embedded-components/account-management">management</a>, to <a href="https://docs.stripe.com/connect/supported-embedded-components/payments">payments</a>, <a href="https://docs.stripe.com/connect/supported-embedded-components/payouts">payouts</a>, <a href="https://docs.corp.stripe.com/connect/supported-embedded-components/capital-financing-application">capital financing offers</a> and <a href="https://docs.stripe.com/connect/supported-embedded-components/balances">instant payouts</a>. These components are a great way to quickly implement deep, maintainable and high quality payments functionality into your site and avoid external redirects.</p>
+<p>For more Stripe learning resources, subscribe to our <a href="https://www.youtube.com/stripedevelopers">YouTube channel</a>.</p></div></div>

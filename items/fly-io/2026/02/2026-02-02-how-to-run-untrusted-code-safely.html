@@ -1,0 +1,159 @@
+<div id="readability-page-1" class="page"><article>
+         <dl>
+             <dt>Author</dt>
+             <dd>
+                 <img alt="Daniel Botha" src="https://fly.io/static/images/danielb.webp">
+               <dl>
+                 <dt>Name</dt>
+                 <dd>
+                   Daniel Botha
+                 </dd>
+               </dl>
+             </dd>
+         </dl>
+
+        <section>
+            <figure>
+                <img src="https://fly.io/blog/running-untrusted-code/assets/untrusted.jpg" alt="Running AI-generated and untrusted code in isolated Sprites" fetchpriority="high" decoding="async">
+            </figure>
+          <p>AI generates code faster than you can review it. Your agent wants to <a href="https://fly.io/learn/run-llm-generated-python-safely/" title="">run a Python script</a>. Your tool wants to execute user-submitted code. Your pipeline wants to test generated functions. All things you don’t want to be running locally or in production unless you’re just trying to add some drama to your life right now. </p>
+
+<p>If you want to walk the path of peace, you use a <a href="https://fly.io/learn/agent-sandbox/" title="">sandbox</a>. But as any kindergartener will tell you: not all sandboxes are created equal.</p>
+<h2 id="the-container-problem"><a href="#the-container-problem" aria-label="Anchor"></a><span>The Container Problem</span></h2>
+<p>The default for the longest time has been “spin up a container.” This is safer than running dodgy code on your machine. It’s also not good enough.</p>
+
+<p><a href="https://fly.io/learn/microvm-vs-container/" title="">Containers share the host kernel</a>. A kernel exploit in your untrusted code == emotional trauma. NIST SP 800-190 calls container escapes one of the most critical threats to container security. MITRE ATT&amp;CK classifies it as technique T1611. The threat is real.</p>
+
+<p>Truly untrusted code needs hardware isolation. A dedicated kernel. A non-fictional boundary between the code and everything else.</p>
+<h2 id="the-network-problem"><a href="#the-network-problem" aria-label="Anchor"></a><span>The Network Problem</span></h2>
+<p>Filesystem isolation helps, but code that can’t touch your files can still:</p>
+
+<ul>
+<li>Exfiltrate data to an attacker’s server
+</li><li>Download additional payloads
+</li><li>Call out to command-and-control infrastructure
+</li><li>Use your compute. Which isn’t free
+</li></ul>
+
+<p>Network egress control should not be considered optional. The code needs to run in an environment where outbound connections are explicitly allowed, not implicitly permitted.</p>
+<h2 id="what-you-really-need-from-a-sandbox"><a href="#what-you-really-need-from-a-sandbox" aria-label="Anchor"></a><span>What You Really Need From a Sandbox</span></h2>
+<ol>
+<li><strong>Hardware isolation</strong>
+</li><li><strong>Network control</strong> — allowlist-based, not denylist-based
+</li><li><strong>External policy enforcement</strong> — the code can’t modify its own permissions
+</li><li><strong>Rollback capability</strong> — undo damage quickly when something goes wrong
+</li><li><strong>Multiple runtimes</strong> — AI writes Python, JavaScript, Rust, Go, whatever
+</li></ol>
+
+<p>Spin up and configure your sandboxes with these features and you should be safe. </p>
+
+<p>Or just use <a href="https://fly.io/sprites/" title="">Sprites</a>. </p>
+<h2 id="setting-up-a-code-runner-in-a-sprite"><a href="#setting-up-a-code-runner-in-a-sprite" aria-label="Anchor"></a><span>Setting Up a Code Runner in a Sprite</span></h2>
+<p>Create a Sprite for running untrusted code. </p>
+<div>
+    <pre><code data-language="wrapper">sprite create code-runner
+</code></pre>
+  </div>
+<p>Then, lock down its <a href="https://docs.fly.io/sprites/concepts/networking" title="">network</a>:</p>
+<div>
+    <pre><code data-language="wrapper">curl -X POST https://api.sprites.dev/v1/sprites/{sprite-id}/policy/network \
+  -H "Authorization: Bearer $SPRITES_API_TOKEN" \
+  -d '{"rules": [{"domain": "*", "action": "deny"}]}'
+</code></pre>
+  </div>
+<p>This is a deny-all policy. The code inside cannot make any outbound connections. DNS queries return <code>REFUSED</code>. Raw IP connections are blocked.</p>
+
+<p>What’s super important is that this policy is set via the external API. Code running inside the Sprite cannot change it. Even if the code has root access, it cannot modify its own network policy.</p>
+<h2 id="running-code"><a href="#running-code" aria-label="Anchor"></a><span>Running Code</span></h2>
+<p>Proceed to laugh in the face of danger:</p>
+<div>
+    <pre><code data-language="wrapper"># runner.py - runs inside the Sprite
+import subprocess
+import sys
+
+def run_untrusted(code: str, language: str = "python") -&gt; dict:
+    """Execute code and capture output."""
+
+    if language == "python":
+        result = subprocess.run(
+            ["python", "-c", code],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+    elif language == "node":
+        result = subprocess.run(
+            ["node", "-e", code],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+    # Add other languages as needed
+
+    return {
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "returncode": result.returncode
+    }
+</code></pre>
+  </div>
+<p>Expose this as an HTTP endpoint on port 8080. Another Sprite acting as an orchestrator, or any external service can call this with code to execute.</p>
+<h2 id="selective-network-access"><a href="#selective-network-access" aria-label="Anchor"></a><span>Selective Network Access</span></h2>
+<p>Sometimes code needs <em>some</em> network access. An AI agent writing code that calls an API. A script that needs to fetch data from a specific endpoint.</p>
+
+<p>Allow only what’s needed:</p>
+<div>
+    <pre><code data-language="wrapper">curl -X POST https://api.sprites.dev/v1/sprites/{sprite-id}/policy/network \
+  -H "Authorization: Bearer $SPRITES_API_TOKEN" \
+  -d '{
+    "rules": [
+      {"domain": "api.openai.com", "action": "allow"},
+      {"domain": "api.anthropic.com", "action": "allow"},
+      {"domain": "*", "action": "deny"}
+    ]
+  }'
+</code></pre>
+  </div>
+<p>Now the code can call OpenAI and Anthropic. Nothing else. Can’t exfiltrate to gimmeallyourdata.com. Can’t download from sketchy-cdn.net.</p>
+<h2 id="when-code-breaks-the-sandbox"><a href="#when-code-breaks-the-sandbox" aria-label="Anchor"></a><span>When Code Breaks the Sandbox</span></h2>
+<p>In the entirely unsurprising case that something does blow up; the code did something weird to the filesystem, filled the disk, corrupted something.</p>
+
+<p>Sprites are disposable. Just <code>sprite destroy</code> it and spin up a fresh one. Problem solved.</p>
+
+<p>Or, if you’re running lots of code and want to reuse the same Sprite for efficiency, checkpoint your working state</p>
+<div>
+    <pre><code data-language="wrapper">sprite checkpoint create
+</code></pre>
+  </div>
+<p>Then restore to that working state in about a second:</p>
+<div>
+    <pre><code data-language="wrapper">sprite checkpoint restore &lt;working-checkpoint-id&gt;
+</code></pre>
+  </div><h2 id="runtimes-are-already-there"><a href="#runtimes-are-already-there" aria-label="Anchor"></a><span>Runtimes Are Already There</span></h2>
+<p>Sprites come with Python, Node, Ruby, Rust, Go, Java, Elixir, Bun, and Deno pre-installed. Version managers let you switch between versions. Your code runner doesn’t need to install anything. Just execute.</p>
+
+<p>Sprites sleep when idle and wake on demand. Your code runner costs nothing when it’s not running code.</p>
+
+<p>Run whatever you want. Dare it try any funny business.</p>
+
+          
+        </section>
+        <dl>
+            <dt>
+              Next post  ↑
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/i-build-everything-in-sprites-now/">
+                I Build Everything In Sprites Now
+              </a>
+            </dd>
+            <dt>
+              Previous post  ↓
+            </dt>
+            <dd>
+              <a href="https://fly.io/blog/litestream-writable-vfs/">
+                Litestream Writable VFS
+              </a>
+            </dd>
+        </dl>
+      </article></div>
