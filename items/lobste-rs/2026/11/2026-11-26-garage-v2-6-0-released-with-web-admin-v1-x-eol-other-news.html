@@ -1,0 +1,156 @@
+<div id="readability-page-1" class="page"><div>
+                        <p><em>We are glad to announce the release of Garage v2.6.0 that includes a brand-new
+web administration UI funded by NLnet. We also discuss many other small news:
+Helm chart repository release, Garage v1.x EoL, Garage v3.0.0 beta 1 and an
+outlook on upcoming work on S3 versioning.</em></p>
+<hr>
+<p>The Garage project has been quite active lately, so we thought it would be a
+good time to write a blog post to present new features and give some
+information on what's coming next.</p>
+<h2 id="garage-v2-6-0-and-the-web-administration-gui">Garage v2.6.0 and the web administration GUI</h2>
+<p>This is the culmination of almost two years of work by <a rel="noopener nofollow noreferrer external" target="_blank" href="https://guerilla.studio/">Tixie
+Salander</a>. We started this collaboration in 2024 when it
+was clear that a user interface was one of the most sorely lacking feature of Garage. We
+are very grateful that NLnet has again engaged with us and provided funding to
+make this a reality.</p>
+<p>Here's a minimal example to test 2.6.0 right away:</p>
+<pre><code>cat &gt; garage.toml &lt;&lt;'EOF'
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "lmdb"
+replication_factor = 1
+rpc_bind_addr = "[::]:3901"
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "[::]:3900"
+[admin]
+api_bind_addr = "[::]:3903"
+EOF
+
+TOKEN=$(openssl rand -base64 32)
+echo "Admin token: $TOKEN"
+
+docker run --name garage -p 3900:3900 -p 127.0.0.1:3903:3903 \
+  -e GARAGE_RPC_SECRET=$(openssl rand -hex 32) \
+  -e GARAGE_ADMIN_TOKEN="$TOKEN" \
+  -e GARAGE_DEFAULT_BUCKET=testbucket \
+  -e GARAGE_DEFAULT_ACCESS_KEY=GKthisisatestkey \
+  -e GARAGE_DEFAULT_SECRET_KEY=$(openssl rand -hex 32) \
+  -v $PWD/garage.toml:/etc/garage.toml:z -v garage:/var/lib/garage \
+  dxflrs/garage:v2.6.0 /garage server --single-node --default-bucket
+</code></pre>
+<p>Running 2.6.0 or above, you can access the web interface on the garage admin API port, by default port
+3903, so http://localhost:3903/ if you are running garage on your machine with the example above.</p>
+<p>Logging in requires a garage admin token. The example above prints it on the command line.
+If you have set the <code>admin_token</code> configuration variable
+in your configuration file, you may use that token. Otherwise, you'll need to create a separate token
+from the command line with <code>garage admin-token create</code>.</p>
+<p>One world of caution: <strong>administering a remote cluster over plain HTTP is NOT safe</strong>, as
+your admin token is transmitted in plain text with each request. You'll need to setup an HTTPS
+reverse proxy in front of your Garage node to encrypt the connection, or/and access your
+node through a VPN such as Wireguard to make sure no one can eavesdrop the credentials.</p>
+<p>Once logged in the cluster, you will be greeted by a cluster overview screen that looks like
+the following (this is a live example from our Deuxfleurs cluster):</p>
+<p><img src="https://garagehq.deuxfleurs.fr/blog/2026-11-webadmin-release/webadmin-overview.png" alt="Garage web admin overview screen"></p>
+<p>The web interface follows a similar pattern to the CLI: cluster monitoring,
+layout configuration, bucket and access credential management are all available
+as you expect.  Here are example videos (now included in the Quick Start guide
+as well) showing the setting up of a new cluster from scratch:</p>
+
+
+<p>From a development standpoint, the web UI currently lives in a <a rel="noopener nofollow noreferrer external" target="_blank" href="https://git.deuxfleurs.fr/Deuxfleurs/garage-webadmin/">separate Git
+repository</a> so please
+report any issues there and not in Garage's main issue tracker. Tixie will
+continue being the maintainer of the UI moving forward.</p>
+<h2 id="official-helm-chart-published-in-our-public-repository">Official Helm chart published in our public repository</h2>
+<p>This has also been one of the longstanding requests from our Kubernetes users, and it's
+now done! Starting today you can deploy Garage on Kubernetes easily thanks to our
+self-hosted Helm repository. Both "regular" (tgz+index.yml) helm chart repository as well as OCI artefacts
+are available. Instructions in the documentation
+<a rel="noopener nofollow noreferrer external" target="_blank" href="https://garagehq.deuxfleurs.fr/documentation/cookbook/kubernetes/">have been updated accordingly</a>.
+Happy Helming!</p>
+<p>Thanks to Boris M. and Maximilien for contributing this improvement to Garage,
+along the many contributors that participated in finding the right way to make this work.</p>
+<p>The Garage helm chart follows its own version scheme, with the current version being 0.10.7.</p>
+<h2 id="garage-v1-x-officially-end-of-life">Garage v1.x officially end-of-life</h2>
+<p>The last release of the 1.x branch was v1.3.1 in January 2026, almost a year ago.
+Many significant bug fixes, including security fixes, are currently only present on the v2.x
+branch. At this point, it would be too much work to backport them to 1.x
+and it didn't seem there was any ask to do so from the community either. So we are
+officially deprecating Garage v1.x and urging all users still on this branch to
+update to v2.x as soon as possible. The release note has been updated accordingly.</p>
+<h2 id="garage-v3-0-0-beta-1-release">Garage v3.0.0 beta 1 release</h2>
+<p>We have published a first beta release of Garage v3.0.0. This release <strong>does
+not yet include S3 versioning</strong> (sorry!). This unfortunately needed to be a major release
+because of a few breaking changes we wanted to release without
+waiting for s3 versioning to come though:</p>
+<ul>
+<li>anonymous S3 read access to buckets</li>
+<li>bucket and object tagging</li>
+<li>replacing the unmaintained node-to-node SSB handshake protocol with the Noise protocol,
+something we have been able to achieve without any user-facing breaking changes thanks
+to the close proximity between the two</li>
+</ul>
+<p>We are looking for testers for this beta so please give it a try and report any
+findings on our issue tracker!</p>
+<p>This beta release also marks the first step toward having a reliable Fjall metadata engine
+so please report to us not only problems, but also
+<em>cases of successfully running a Garage cluster on Fjall with significant
+activity</em>, so that we can gain confidence that it works well and potentially
+mark it stable soon. This also means we'll take bug report for Fjall issues,
+something that we explicitly disregarded so far for the 2.x experimental implementation.</p>
+<p>As per <a rel="noopener nofollow noreferrer external" target="_blank" href="https://git.deuxfleurs.fr/Deuxfleurs/garage/releases/tag/v3.0.0-beta1">the release
+notes</a>,
+the most important breaking changes for users to be aware of are:</p>
+<ul>
+<li>
+<p>To finally align with industry standard, most Prometheus metrics have been slighly renamed, we provide <a rel="noopener nofollow noreferrer external" target="_blank" href="https://git.deuxfleurs.fr/Deuxfleurs/garage/src/commit/0ed12c39962dd0d8481f5d9152663631cc20f4bb/script/telemetry/grafana-garage-dashboard-prometheus.json">an updated Grafana dashboard</a></p>
+</li>
+<li>
+<p>The Fjall major version update breaks compatibility with the Garage 2.x Fjall as data files from older
+versions are not supported. If you were using Fjall on v2.x, you will need
+to migrate manually: convert your metadata to another format (LMDB or SQlite) with <code>garage node convert-db</code>
+before upgrading. You can convert back to Fjall once you successfully upgraded to v3.</p>
+</li>
+</ul>
+<p>The complete list of breaking changes can be found in the changelog linked above.
+Happy testing!</p>
+<h2 id="coming-up-s3-versioning">Coming up: S3 versioning</h2>
+<p>Finally we want to close this post with an update on S3 versionning.</p>
+<p>In 2027 we will start a new collaboration with <a rel="noopener nofollow noreferrer external" target="_blank" href="https://isomorphis.me/">Armaël</a> to implement what
+is certainly <strong>the</strong> most requested feature in Garage: S3 object versioning.</p>
+<p>We understand that there has been growing impatience for this feature to be
+implemented in Garage, and rightfully so as it would enable
+new use-cases such as for long-term archiving where compliance is important, or
+as a backup target that cannot be tampered with.</p>
+<p>We thank the community for their patience, and kindly ask them to understand
+why this hasn't been done before: while there have been several attempts by community
+members, this is a deep problem that requires intricate
+understanding of how Garage stores metadata, and implementing it without taking
+this into account leads to code that, while it might appear to work on the
+surface, is in fact incorrect. A correct implementation requires a
+significant rewrite of core parts of Garage, which we believe can currently be
+accomplished only by experienced maintainers. We will also take this rewrite as an
+opportunity to fix some performance problems, such as those arising with
+extremely big objects.</p>
+<p>I would like to make an important note on object locking and WORM: we will
+provide an implementation of locking primitives/WORM per the S3 API
+specification, however note that due to Garage's lack of a consensus algorithm,
+<em>this implementation will not be fully correct</em>. This means that Garage will
+implement best-effort detection of access requests that would violate locks,
+but will not be able to guarantee that it upholds locks <em>in all cases</em>. More
+precisely: using conditional writes (<code>If-Match</code>, <code>If-None-Match</code>) as a
+substitute for a distributed mutex or to discriminate between concurrent write
+requests will obviously not work, but ensuring that a successfully uploaded
+object cannot be overwritten after the fact should work in most cases. We will
+take care of properly documenting what works and what doesn't, but in practice,
+this means that locking and WORM will be gated behind a feature flag (a
+configuration parameter) that requires cluster administrators to acknowledge
+that they might be running unsafe workloads if they don't understand exactly
+what the feature does.</p>
+<p>Thanks for reading, and for your continued support in our journey to a robust
+and resilient distributed storage system.</p>
+<p>Alex, Maximilien and Tixie,
+The Garage (and Garage UI!) Maintainers</p>
+
+                    </div></div>
