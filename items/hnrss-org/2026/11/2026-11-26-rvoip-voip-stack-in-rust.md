@@ -1,0 +1,493 @@
+---
+title: 'Rvoip: VoIP stack in Rust'
+link: https://github.com/eisenzopf/rvoip
+source: hnrss-org
+published: 2026-11-26T19:18:09Z
+updated: 2026-11-26T19:18:09Z
+first_seen: 2026-11-27T04:05:56.741343452Z
+authors:
+- zerosegfaults
+content: extracted
+html: 2026-11-26-rvoip-voip-stack-in-rust.html
+remote_preview:
+  url: https://opengraph.githubassets.com/80c2a9d3eabed30489008546c9438a2775bc072af79cc3980d0553b89152e8a1/eisenzopf/rvoip
+  alt: 'Open-source Rust SIP/VoIP stack: SIP, WebRTC, SRTP and AI voice agents behind one API. RFC 7502-benchmarked. - eisenzopf/rvoip'
+---
+
+[![rvoip — the Rust real-time communications platform](https://github.com/eisenzopf/rvoip/raw/main/rvoip-banner.svg)](https://github.com/eisenzopf/rvoip/blob/main/rvoip-banner.svg)
+
+**A Rust library for building communications applications. SIP, RTP, WebRTC, QUIC/WebTransport/WebSocket conversations, Media over QUIC, and voice-AI agents share one call model, and the whole stack is in the box: no external SIP server, media server, or RTP engine to install and wire together.**
+
+[![Rust 1.95+](https://camo.githubusercontent.com/f402484b96b11ae4751d08785302095bf066b4a0d69589593482f92aeb0e7cf7/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f727573742d312e39352532422d6f72616e67652e737667)](https://www.rust-lang.org) [![License: MIT](https://camo.githubusercontent.com/f0cb8ba13592d31161791daf5df230b9e7c063b00e304ac5a2f0661e7e2c8a57/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4c6963656e73652d4d49542d626c75652e737667)](https://github.com/eisenzopf/rvoip#license) [![rvoip](https://camo.githubusercontent.com/76ef9c2db13b5ef1ef60c2f4fb98c781462e8b045e565e39744362bd086410a0/68747470733a2f2f696d672e736869656c64732e696f2f6372617465732f762f72766f69702e7376673f6c6162656c3d72766f69702672656c656173653d302e352e31)](https://crates.io/crates/rvoip/0.5.1) [![rvoip-sip](https://camo.githubusercontent.com/ad7577295de11a41fdee7687be6152541d601812bdee5a064c1c2673f94c3084/68747470733a2f2f696d672e736869656c64732e696f2f6372617465732f762f72766f69702d7369702e7376673f6c6162656c3d72766f69702d7369702672656c656173653d302e352e31)](https://crates.io/crates/rvoip-sip/0.5.1) [![Facade API](https://camo.githubusercontent.com/051b171082a497d34e54efcba7ce688b8bc871bf593f55ae2c7d9bf8c55a273b/68747470733a2f2f696d672e736869656c64732e696f2f646f637372732f72766f69702f302e352e313f6c6162656c3d466163616465253230415049)](https://docs.rs/rvoip/0.5.1/rvoip/) [![SIP API](https://camo.githubusercontent.com/4ceecc0b16d76a7b78d591752c4d4471d1505b3b1a6923113599d1cdfc3c2afa/68747470733a2f2f696d672e736869656c64732e696f2f646f637372732f72766f69702d7369702f302e352e313f6c6162656c3d534950253230415049)](https://docs.rs/rvoip-sip/0.5.1/rvoip_sip/)
+
+[**Five-minute start**](https://github.com/eisenzopf/rvoip#five-minute-start) · [**For carriers**](https://github.com/eisenzopf/rvoip/blob/main/docs/CARRIERS.md) · [**Which crate?**](https://github.com/eisenzopf/rvoip#you-need-one-crate) · [**Pick a path**](https://github.com/eisenzopf/rvoip#pick-your-path) · [**How it fits together**](https://github.com/eisenzopf/rvoip#how-it-fits-together) · [**What ships**](https://github.com/eisenzopf/rvoip#what-ships-today) · [**Interop evidence**](https://github.com/eisenzopf/rvoip#sip-interoperability-and-release-evidence) · [**Changes**](https://github.com/eisenzopf/rvoip/blob/main/CHANGELOG.md) · [**Upgrading from 0.3**](https://github.com/eisenzopf/rvoip/blob/main/docs/MIGRATING_0.4.md)
+
+* * *
+
+## What rvoip is
+
+rvoip is a library, not a server you deploy next to your application. Signalling, media, codecs, NAT traversal, security, and the conversation model are all Rust crates in this workspace, so a call goes from your code to the wire without a separately installed SIP proxy, media server, or RTP engine. The examples below run on a laptop with nothing installed but Rust; the same crates carry the release-gated interoperability evidence against Asterisk, FreeSWITCH, Jambonz, Kamailio, and OpenSIPS. Carriers evaluating standards coverage, performance, and reliability should start with [For carriers](https://github.com/eisenzopf/rvoip/blob/main/docs/CARRIERS.md).
+
+## Historical performance: published 0.5.0
+
+One AWS c8i.4xlarge (16 vCPU, 8 cores, Intel Xeon 6, 32 GiB) running a single rvoip process, measured with the RFC 7501/7502 benchmark:
+
+| Workload                             | Max CPS | CPS per vCPU | Concurrent calls (10 s calls) | p50 setup at 90% load | p99 setup at 90% load |
+| ------------------------------------ | ------- | ------------ | ----------------------------- | --------------------- | --------------------- |
+| SIP over TLS, signaling only         | 8,348   | \~520        | n/a                           | 1 ms                  | 6 ms                  |
+| SIP over UDP, signaling only         | 8,256   | \~515        | n/a                           | 1 ms                  | 6 ms                  |
+| TLS + SRTP (SDES), G.711, 10 s calls | 1,124   | \~70         | \~11,200                      | 1 ms                  | 4 ms                  |
+| UDP + RTP, G.711, 10 s calls         | 1,204   | \~75         | \~12,000                      | n/m                   | n/m                   |
+
+At 2x capacity, rvoip keeps admitting calls at its max CPS, refuses the excess with fast 503 responses, and recovers cleanly once the load drops.
+
+- Max CPS (calls per second; RFC 7502's Session Establishment Rate) is the highest rate with zero failed calls over a trial of at least 180 s and 50,000 call attempts.
+- rvoip was measured as a terminating endpoint: it answers each call and echoes its media. A relaying B2BUA or SBC handles two call legs per session.
+- G.711 media is passed through; nothing is transcoded.
+- Concurrent calls is the CPS times the 10 s call length, not a measured maximum; long-call capacity, where most SBC datasheets quote their concurrency, has not been measured yet.
+- The server is a cloud VM, not an appliance.
+- p50 and p99 setup are the RFC 6076 session request delay measured at 90% of max CPS, recorded in whole milliseconds (so 1 ms means 1 ms or less); n/m = not measured.
+- The UDP + RTP max CPS was confirmed twice rather than three times.
+- The release check also passed at 5% above the TLS and UDP signaling max CPS, so those two figures may be slightly understated.
+- Not yet measured: B2BUA/relay mode (two legs per call), registrations, transcoding, WebRTC (DTLS-SRTP), and failover.
+
+Full method and per-trial data: [RFC 7501/7502 benchmark report](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/docs/releases/qualification/20261124T012650Z-45304004340/rfc7502-ietf-report.md).
+
+## Five-minute start
+
+**1\. Add one dependency.**
+
+```toml
+[dependencies]
+rvoip-sip = "0.5.1"
+tokio = { version = "1", features = ["full"] }
+```
+
+Upgrading an existing application from 0.3? The [0.4 migration guide](https://github.com/eisenzopf/rvoip/blob/main/docs/MIGRATING_0.4.md) has before/after code for every breaking change.
+
+**2\. Make a call.** Bob answers, Alice dials, Alice hangs up. Everything runs on loopback, so this works on a laptop with no PBX, no account, and no network setup.
+
+```rust
+use std::time::Duration;
+use rvoip_sip::{Config, Endpoint, EndpointProfile};
+
+#[tokio::main]
+async fn main() -> rvoip_sip::Result<()> {
+    let bob = tokio::spawn(async {
+        let mut bob = Endpoint::builder()
+            .name("bob")
+            .profile(EndpointProfile::Custom(Config::local("bob", 5071)))
+            .build()
+            .await?;
+        let incoming = bob.wait_for_incoming().await?;
+        let call = incoming.answer().await?;
+        call.wait_for_end(None).await?;
+        bob.shutdown().await
+    });
+
+    tokio::time::sleep(Duration::from_millis(300)).await;
+
+    let alice = Endpoint::builder()
+        .name("alice")
+        .profile(EndpointProfile::Custom(Config::local("alice", 5070)))
+        .build()
+        .await?;
+
+    let call = alice
+        .call_and_wait("sip:bob@127.0.0.1:5071", Some(Duration::from_secs(10)))
+        .await?;
+    call.hangup_and_wait(Some(Duration::from_secs(5))).await?;
+    alice.shutdown().await?;
+    bob.await.unwrap()
+}
+```
+
+**3\. Or run the same program from the checkout.**
+
+```shell
+git clone https://github.com/eisenzopf/rvoip.git && cd rvoip
+cargo run -p rvoip-sip --example endpoint_local_call
+```
+
+From here, [`examples/`](https://github.com/eisenzopf/rvoip/blob/main/examples) walks forward one step at a time: real microphone audio, registering to a PBX, hold/DTMF, transfers, SRTP and TLS, an IVR, a B2BUA, then browser and voice-AI gateways.
+
+## You need one crate
+
+The workspace contains 47 crates. You import **one** of them; it pulls in everything it needs. The rest are internal layers you never name in your own `Cargo.toml`.
+
+| You are building                                                             | Depend on                                                                                                  | Enable                       |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| A SIP phone, PBX, IVR, registrar, proxy, B2BUA, or trunk gateway             | [`rvoip-sip`](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip)                          | nothing extra                |
+| One server that takes SIP **and** browser (WebRTC) callers and connects them | [`rvoip`](https://github.com/eisenzopf/rvoip/blob/main/crates/rvoip)                                      | `features = ["app"]`         |
+| A SIP or WebRTC caller talking to a hosted voice agent (Vapi)                | [`rvoip`](https://github.com/eisenzopf/rvoip/blob/main/crates/rvoip)                                      | `features = ["app", "vapi"]` |
+| Your own ASR / TTS / dialog pipeline, with recordings and signed vCons       | [`rvoip`](https://github.com/eisenzopf/rvoip/blob/main/crates/rvoip)                                      | `features = ["voip-3"]`      |
+| A native, mobile, or embedded client SDK                                     | [`rvoip-client`](https://github.com/eisenzopf/rvoip/blob/main/crates/rvoip-client)                        | pick transports              |
+| Amazon Connect A2A callers bridged to an external agent                      | [`rvoip-amazon-a2a`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-amazon-a2a)     | —                            |
+| SIP calls delivered to Amazon Connect agents                                 | [`rvoip-amazon-connect`](https://github.com/eisenzopf/rvoip/blob/main/crates/webrtc/rvoip-amazon-connect) | —                            |
+| Media fan-out over Media over QUIC                                           | [`rvoip-moq`](https://github.com/eisenzopf/rvoip/blob/main/crates/moq/rvoip-moq)                          | —                            |
+
+Two shortcuts:
+
+- **`rvoip-sip` is the release-gated product.** If your application is telephony, start and stay there. It is the only crate with a signed interoperability attestation (see [evidence](https://github.com/eisenzopf/rvoip#sip-interoperability-and-release-evidence)).
+- **`rvoip` is the facade.** It re-exports `rvoip-sip` as `rvoip::sip` and adds the shared `Orchestrator` plus optional transports and extensions behind Cargo features. Its [feature table](https://github.com/eisenzopf/rvoip/blob/main/crates/rvoip/README.md#cargo-features) and the [deployment bundles](https://github.com/eisenzopf/rvoip/blob/main/docs/FEATURE_BUNDLES.md) (`bundle-sip-endpoint`, `bundle-carrier-sip`, `bundle-browser-gateway`, `bundle-ai-conversation`, `bundle-full-pure-rust`, `bundle-full-native`) are the only feature lists you need.
+
+Deployment backends (Keycloak, LDAP, Redis, Postgres vCon storage, audit and SIEM sinks, SAML, SCIM, WebAuthn, STIR/SHAKEN, IMS AKA) are separate `rvoip-*` extension crates you add only when you operate that backend. The [extension catalog](https://github.com/eisenzopf/rvoip#extensions) lists them.
+
+## Pick your path
+
+For JavaScript UCTP control, see the [experimental browser/Node WebSocket client](https://github.com/eisenzopf/rvoip/blob/main/sdk/uctp-js/README.md). It is available as source with TypeScript declarations; the package is not yet published to npm. Application-profile dispatch is a separate opt-in server extension that stock servers do not enable.
+
+### Path 1 — SIP telephony (`rvoip-sip`)
+
+Four API surfaces, from simplest to most control. Most applications use the first one.
+
+| Surface                                | Use it when                                                                  | Example                                                                                                                                                                                                                                                                                               |
+| -------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Endpoint`                             | You want a softphone, an account that registers, or a scripted caller/callee | [`01-quickstart-p2p`](https://github.com/eisenzopf/rvoip/blob/main/examples/01-quickstart-p2p), [`02-softphone-audio`](https://github.com/eisenzopf/rvoip/blob/main/examples/02-softphone-audio), [`03-register-to-pbx`](https://github.com/eisenzopf/rvoip/blob/main/examples/03-register-to-pbx) |
+| `StreamPeer`                           | You want a sequential "send, then wait for the matching event" client        | [`04-call-control`](https://github.com/eisenzopf/rvoip/blob/main/examples/04-call-control), [`05-blind-transfer`](https://github.com/eisenzopf/rvoip/blob/main/examples/05-blind-transfer)                                                                                                          |
+| `CallbackPeer`                         | You are writing a server that reacts to inbound calls (IVR, auto-attendant)  | [`09-ivr-server`](https://github.com/eisenzopf/rvoip/blob/main/examples/09-ivr-server)                                                                                                                                                                                                               |
+| `UnifiedCoordinator` + `server::b2bua` | You need a PBX, registrar, proxy, or B2BUA with routing and media bridging   | [`10-call-center-b2bua`](https://github.com/eisenzopf/rvoip/blob/main/examples/10-call-center-b2bua)                                                                                                                                                                                                 |
+
+Register an account on a PBX and place a call through it:
+
+```rust
+use std::time::Duration;
+use rvoip_sip::{Endpoint, EndpointProfile, Result};
+
+# async fn example() -> Result<()> {
+let mut endpoint = Endpoint::builder()
+    .name("alice")
+    .account("1001")
+    .password("secret")
+    .registrar("sips:pbx.example.com:5061")
+    .profile(EndpointProfile::AsteriskTlsSrtpRegisteredFlow)
+    .build()
+    .await?;
+
+endpoint.register().await?;
+
+let call = endpoint
+    .call_and_wait("1002", Some(Duration::from_secs(30)))
+    .await?;
+call.send_dtmf('1').await?;
+call.hangup_and_wait(Some(Duration::from_secs(5))).await?;
+endpoint.shutdown().await?;
+# Ok(())
+# }
+```
+
+Answer calls and react to key presses, the shape of an IVR or auto-attendant:
+
+```rust
+use rvoip_sip::{CallHandlerDecision, CallbackPeer, Config, Result};
+
+# async fn example() -> Result<()> {
+let peer = CallbackPeer::builder(Config::local("ivr", 5120))
+    .on_incoming(|call| async move {
+        println!("incoming call from {}", call.from);
+        CallHandlerDecision::Accept
+    })
+    .on_dtmf(|call, digit| async move {
+        if digit == '0' {
+            call.transfer_blind("sip:operator@127.0.0.1:5122").await?;
+        }
+        Ok(())
+    })
+    .on_ended(|call_id, reason| async move {
+        println!("call {call_id} ended: {reason:?}");
+        Ok(())
+    })
+    .build()
+    .await?;
+
+peer.run().await
+# }
+```
+
+Security and transports are configuration, not different APIs: SDES-SRTP in [`07-secure-call-srtp`](https://github.com/eisenzopf/rvoip/blob/main/examples/07-secure-call-srtp), TLS in [`08-tls-transport`](https://github.com/eisenzopf/rvoip/blob/main/examples/08-tls-transport), DTLS-SRTP, G.729, AMR-NB/WB, and Opus behind Cargo features. The full surface is documented in the [SIP crate README](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/README.md).
+
+### Path 2 — Browser and cross-transport gateways (`rvoip` + `app`)
+
+`RvoipApp` declares transports, roles, and routing through one builder and runs SIP, WebRTC, and UCTP listeners on the shared `Orchestrator`:
+
+```toml
+rvoip = { version = "0.5.1", features = ["app"] }
+```
+
+```rust
+use rvoip::app::*;
+
+# async fn run() -> rvoip::app::AppResult<()> {
+let app = RvoipApp::builder()
+    .webrtc(
+        WebRtcConfig::ws("127.0.0.1:8081")
+            .allow(Role::Customer, [Capability::Text, Capability::Voice]),
+    )
+    .sip(
+        SipConfig::bind("127.0.0.1:5060")
+            .domain("callcenter.local")
+            .allow(Role::Employee, [Capability::Voice])
+            .registrar_users([("alice", "password123")]),
+    )
+    .employees(EmployeePolicy::named(["alice"]))
+    .customers(CustomerPolicy::webrtc_only())
+    .assignment(AssignmentPolicy::fixed("alice"))
+    .on_message(|ctx, msg| async move {
+        ctx.reply("Alice", format!("Alice received: {}", msg.text)).await
+    })
+    .build()
+    .await?;
+
+app.run().await
+# }
+```
+
+Start from [`12-customer-escalation-sip-webrtc`](https://github.com/eisenzopf/rvoip/blob/main/examples/12-customer-escalation-sip-webrtc): a browser chat escalates to a SIP agent's phone. For SIP into Amazon Connect, see [`13-sip-to-amazon-connect`](https://github.com/eisenzopf/rvoip/blob/main/examples/13-sip-to-amazon-connect).
+
+### Path 3 — Voice AI (`rvoip` + `vapi` or `voip-3`)
+
+- **Hosted agent.** [`rvoip-vapi`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-vapi) speaks Vapi's bidirectional raw-audio WebSocket directly. Your SIP or WebRTC caller is bridged to the agent through the `Orchestrator`; the agent joins as its own AI participant with typed events, control messages, and supervised teardown. Start from [`14-vapi-agent`](https://github.com/eisenzopf/rvoip/blob/main/examples/14-vapi-agent), one server that accepts either kind of caller. Attaching an agent to a caller you already hold:
+
+  ```rust
+  use std::sync::Arc;
+  use rvoip::Orchestrator;
+  use rvoip::core_traits::ids::ConnectionId;
+  use rvoip::vapi::{VapiAdapter, VapiApiKey, VapiAssistant, VapiCallOptions, VapiConfig};
+
+  # async fn attach(orchestrator: Arc<Orchestrator>, caller: ConnectionId)
+  # -> Result<(), Box<dyn std::error::Error>> {
+  let key = VapiApiKey::new(std::env::var("VAPI_API_KEY")?)?;
+  let adapter = VapiAdapter::new(VapiConfig::new(key))?;
+  let options = VapiCallOptions::new(VapiAssistant::saved(std::env::var("VAPI_ASSISTANT_ID")?));
+
+  // Joins a distinct AI participant, originates the agent leg, bridges audio.
+  let mut call = adapter.attach_agent(&orchestrator, caller, options).await?;
+  call.say("One moment while I look that up.", false, true).await?;
+  let _outcome = call.wait().await;
+  # Ok(())
+  # }
+  ```
+
+- **Your own pipeline.** [`rvoip-harness`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-harness) gives you ASR, TTS, dialog, and recording provider traits, and [`rvoip-vcon`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-vcon) emits signed vCon records of the conversation. [`11-ai-harness-demo`](https://github.com/eisenzopf/rvoip/blob/main/examples/11-ai-harness-demo) runs the whole loop with deterministic providers, so you can see the shape before you plug in a real model.
+
+## How it fits together
+
+Every transport turns into the same objects, so an application written against the conversation model does not care whether a leg arrived over SIP, a browser, or QUIC. That is what lets one `Orchestrator` bridge them.
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│ Your application                                                  │
+│ softphone · PBX · contact center · browser gateway · AI agent     │
+└───────────────────────────────┬───────────────────────────────────┘
+                                │  rvoip-sip  /  rvoip (+ features)
+┌───────────────────────────────▼───────────────────────────────────┐
+│ Shared conversation model  (rvoip-core)                           │
+│ Orchestrator · Conversation · Session · Participant · Connection  │
+│ routing · admission · bridges · media graph · events              │
+└──────────────┬────────────────┬────────────────┬──────────────────┘
+               │                │                │
+        ┌──────▼──────┐  ┌──────▼──────┐  ┌──────▼───────────────┐
+        │ SIP + RTP   │  │ WebRTC      │  │ UCTP                 │
+        │ UDP/TCP/TLS │  │ ICE/DTLS    │  │ QUIC/WebTransport/WS │
+        └──────┬──────┘  └──────┬──────┘  └──────┬───────────────┘
+               └────────────────┼────────────────┘
+                                │
+             ┌──────────────────▼───────────────────┐
+             │ Optional products and extensions      │
+             │ Vapi · AI harness · vCon · MoQ        │
+             │ Amazon Connect · identity · audit     │
+             └───────────────────────────────────────┘
+```
+
+Words you will meet in the API:
+
+- **Conversation** — the thing people are in together. It outlives any one connection.
+- **Session** — one participant's time in a conversation.
+- **Participant** — a human or an AI agent. Roles (`Agent`, `Observer`, customer) can change without moving connections.
+- **Connection** — one transport leg: a SIP dialog, a browser peer connection, a UCTP session.
+- **Stream** — the audio (or video, or data) flowing on a connection. Bridges join streams across connections, transcoding when codecs differ.
+
+Adapters depend on the shared `ConnectionAdapter` trait; the core never imports a transport. The [design docs](https://github.com/eisenzopf/rvoip/blob/main/docs) go deeper, starting with [`INTERFACE_DESIGN.md`](https://github.com/eisenzopf/rvoip/blob/main/docs/INTERFACE_DESIGN.md) and [`CONVERSATION_PROTOCOL.md`](https://github.com/eisenzopf/rvoip/blob/main/docs/CONVERSATION_PROTOCOL.md).
+
+## What ships today
+
+| Product area                       | Available capabilities                                                                                                                    | Maturity                                          |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| **SIP telephony**                  | Endpoints, reactive servers, PBX/registrar/proxy building blocks, B2BUA bridging, call control, transfers, authentication, full RTP media | **Beta-qualified**                                |
+| **Media and devices**              | RTP/RTCP, SDES-SRTP, G.711, optional G.729/AMR/Opus/G.722, DTMF, OS microphone/speaker, resampling, jitter buffering, mixing primitives   | Beta-qualified core + preview additions           |
+| **WebRTC**                         | WHIP/WHEP and WebSocket signaling, full-gather and trickle ICE, DTLS-SRTP, Opus/G.711, VP8, SCTP data channels, RFC 4733 DTMF             | Developer preview                                 |
+| **UCTP substrates**                | One conversation protocol over raw QUIC, WebTransport, or WebSocket, with capability negotiation and RTP datagram framing                 | Developer preview                                 |
+| **Media over QUIC**                | MOQT draft-19 transport, native helper, embeddable relay, media-graph broadcast adapter                                                   | Developer preview                                 |
+| **Gateways and bridges**           | SIP ↔ WebRTC ↔ UCTP routing, the `RvoipApp` builder, SIP-to-Amazon-Connect audio and screen pops                                          | Developer preview                                 |
+| **Voice AI and conversation data** | Pluggable ASR/TTS/dialog/recording providers, native Vapi agents, signed vCons, Postgres vCon storage                                     | Developer preview                                 |
+| **Identity and compliance**        | Digest/Bearer, OIDC, Keycloak, LDAP, Redis, SAML, SCIM, WebAuthn, IMS AKA, STIR/SHAKEN, redacted audit and SIEM sinks                     | Beta-qualified SIP auth core + preview extensions |
+
+**Beta-qualified** means covered by the SIP release gate and its interoperability, security, standards, performance, and soak evidence. **Developer preview** means implemented and published, but API-unstable or outside that attestation. **Planned** items appear only in the [roadmap](https://github.com/eisenzopf/rvoip#roadmap). A published crate or Cargo feature is evidence of availability, not a blanket production-readiness statement.
+
+**Capability detail by area** (click to expand)
+
+### SIP application and signaling
+
+| Capability                   | Maturity           | Supported behavior                                                                                                                          | Start/evidence                                                                                                 |
+| ---------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Endpoint and server APIs     | **Beta-qualified** | Outbound/inbound calls through `Endpoint`, scripted `StreamPeer`, reactive `CallbackPeer`, and lower-level `UnifiedCoordinator`             | [`rvoip-sip`](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip)                              |
+| Core dialog control          | **Beta-qualified** | INVITE, ACK, BYE, CANCEL, REGISTER, OPTIONS, UPDATE, PRACK, REFER, SUBSCRIBE/NOTIFY, MESSAGE, and INFO within documented bounds             | [RFC matrix](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/docs/RFC_COMPLIANCE_MATRIX.md) |
+| PBX/gateway building         | **Beta-qualified** | Registrar bindings, stateful proxy primitives, B2BUA call-leg coordination, media bridging, custom SIP headers                              | [`10-call-center-b2bua`](https://github.com/eisenzopf/rvoip/blob/main/examples/10-call-center-b2bua)          |
+| Blind transfer               | **Beta-qualified** | REFER-driven transfer and typed NOTIFY progress/final outcomes                                                                              | [`05-blind-transfer`](https://github.com/eisenzopf/rvoip/blob/main/examples/05-blind-transfer)                |
+| Attended-transfer primitives | Developer preview  | Consultation dialog identity, `Replaces` construction, REFER delivery, working orchestration example; not a complete RFC 3891 qualification | [`06-attended-transfer`](https://github.com/eisenzopf/rvoip/blob/main/examples/06-attended-transfer)          |
+| SIP transport                | **Beta-qualified** | UDP, TCP, and TLS; plain SIP-over-WebSocket has bounded evidence                                                                            | [`rvoip-sip-transport`](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/sip-transport)                |
+| Secure WebSocket             | Developer preview  | WSS listener/lower-level support; outbound WSS dialing is not a SIP beta claim                                                              | [Transport README](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/sip-transport/README.md)           |
+| Ingress protection           | Developer preview  | Per-source request budget and an admission observer on the SIP listener                                                                     | [`rvoip-sip`](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip)                              |
+
+### Media
+
+| Capability         | Maturity           | Supported behavior                                                                                                                                                                                               | Start/evidence                                                                                                          |
+| ------------------ | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| RTP/RTCP and G.711 | **Beta-qualified** | PCMU/PCMA media delivery, RTCP receiver reports, telephone-event DTMF, hold/resume, bridging                                                                                                                     | [`rvoip-media-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/media/media-core)                             |
+| SDES-SRTP          | **Beta-qualified** | Tested AES-CM/HMAC profiles with negotiated encrypted media                                                                                                                                                      | [`07-secure-call-srtp`](https://github.com/eisenzopf/rvoip/blob/main/examples/07-secure-call-srtp)                     |
+| DTLS-SRTP for SIP  | Developer preview  | Feature-gated `dtls-srtp`: SAVPF and configurable DTLS-SRTP offers, authenticated SDP fingerprints                                                                                                               | [Compatibility matrix](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/docs/COMPATIBILITY_MATRIX.md) |
+| NAT traversal      | Developer preview  | STUN-discovered advertised addresses, with the mapping learned on the live RTP socket                                                                                                                            | [`rvoip-sip`](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip)                                       |
+| G.729A/G.729AB     | Developer preview  | Fully integrated optional path: PT 18 SDP/Annex B negotiation, RTP encode/decode, G.711 transcoding, Asterisk/FreeSWITCH matrix coverage                                                                         | [Compatibility matrix](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/docs/COMPATIBILITY_MATRIX.md) |
+| AMR-NB and AMR-WB  | Developer preview  | Bit-exact against the 3GPP reference over committed fixtures, RFC 4867 octet-aligned and bandwidth-efficient framing, DTX, CMR and mode negotiation, live calls through Asterisk, FreeSWITCH, Kamailio, OpenSIPS | [AMR status](https://github.com/eisenzopf/rvoip/blob/main/crates/media/codec-core/docs/AMR_IMPLEMENTATION_STATUS.md)   |
+| Opus and G.722     | Developer preview  | Feature-gated codec/media support; Opus needs libopus on the build host                                                                                                                                          | [`rvoip-media-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/media/media-core)                             |
+| OS audio devices   | Developer preview  | Microphone/speaker bridge, drift-free pacing, resampling, jitter buffering, mute-as-silence, VU metering                                                                                                         | [`02-softphone-audio`](https://github.com/eisenzopf/rvoip/blob/main/examples/02-softphone-audio)                       |
+| Conference mixing  | Developer preview  | Lower-level N-way/N-1 mixing and conference monitoring primitives                                                                                                                                                | [Media README](https://github.com/eisenzopf/rvoip/blob/main/crates/media/media-core/README.md)                         |
+
+### WebRTC, UCTP, MoQ, and integrations
+
+| Capability                  | Maturity             | Supported behavior                                                                                                                                                                                                         | Start/evidence                                                                                                |
+| --------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| WebRTC interop              | Developer preview    | WHIP/WHEP and WebSocket signaling, full-gather/trickle ICE, DTLS-SRTP, Opus/G.711, VP8, SCTP data channels, DTMF; mDNS and dual-stack browser candidates accepted                                                          | [`rvoip-webrtc`](https://github.com/eisenzopf/rvoip/blob/main/crates/webrtc/rvoip-webrtc)                    |
+| TURN integration            | Developer preview    | External TURN server configuration; rvoip does not ship a hosted TURN service                                                                                                                                              | [WebRTC scope](https://github.com/eisenzopf/rvoip/blob/main/crates/webrtc/rvoip-webrtc/README.md)            |
+| UCTP                        | Developer preview    | Envelopes, state machines, capability negotiation, authenticated resource binding, conversation dispatch, RTP datagram framing                                                                                             | [`rvoip-uctp`](https://github.com/eisenzopf/rvoip/blob/main/crates/uctp/rvoip-uctp)                          |
+| UCTP substrates             | Developer preview    | Raw QUIC, WebTransport (with origin allowlist), and WebSocket adapters                                                                                                                                                     | [`crates/uctp`](https://github.com/eisenzopf/rvoip/blob/main/crates/uctp)                                    |
+| Media over QUIC             | Developer preview    | MOQT draft-19 transport/native/relay packages plus media-graph broadcast integration                                                                                                                                       | [`crates/moq`](https://github.com/eisenzopf/rvoip/blob/main/crates/moq)                                      |
+| Cross-transport app builder | Developer preview    | Role/capability policy, assignment, callbacks, SIP/WebRTC/UCTP listeners, orchestration                                                                                                                                    | [`rvoip::app`](https://github.com/eisenzopf/rvoip/blob/main/crates/rvoip/src/app.rs)                         |
+| Amazon Connect              | Developer preview    | `StartWebRTCContact`, Amazon Chime WebRTC media, SIP-header contact attributes, G.711 ↔ Opus bridging, agent screen pops                                                                                                   | [`13-sip-to-amazon-connect`](https://github.com/eisenzopf/rvoip/blob/main/examples/13-sip-to-amazon-connect) |
+| Vapi voice agents           | Developer preview    | Native bidirectional μ-law/PCM raw-audio WebSocket sessions bridged to SIP or WebRTC legs; the agent is a distinct AI participant                                                                                          | [`rvoip-vapi`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-vapi)                    |
+| Webex Contact Center BYOVA  | Experimental adapter | `Transport::WebexByova` over Webex's WebSocket and gRPC protocols; Cisco JWS authentication, atomic admission, ordered unpaced media to agents such as Vapi; facade feature `webex-byova`; no live Cisco qualification yet | [`rvoip-webex-byova`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-webex-byova)      |
+| AI harness                  | Developer preview    | Provider-neutral ASR/TTS/dialog/recording attachments with bounded, fenced lifecycle and in-process bridge handoff                                                                                                         | [`rvoip-harness`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-harness)              |
+
+The WebRTC implementation of ICE and DTLS-SRTP is separate from the SIP beta claim. UCTP and MoQ availability does not imply that SIP-over-QUIC or RTP-over-QUIC has shipped.
+
+## Extensions
+
+All 14 extension crates ship at `0.5.1`. They stay optional so protocol crates depend on provider contracts, never on a deployment backend.
+
+| Group                        | Extensions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Available capability                                                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| **AI and conversation data** | [`rvoip-harness`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-harness), [`rvoip-vapi`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-vapi), [`rvoip-vcon`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-vcon), [`rvoip-vcon-postgres`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-vcon-postgres)                                                                                     | ASR/TTS/dialog/recording provider traits, native Vapi agents, signed vCon artifacts, Postgres storage                           |
+| **Caller trust**             | [`rvoip-stir-shaken`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-stir-shaken)                                                                                                                                                                                                                                                                                                                                                                                   | STIR/SHAKEN PASSporT signing and verification (RFC 8224/8225, ATIS profiles)                                                    |
+| **Authentication providers** | [`rvoip-oidc`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-oidc), [`rvoip-keycloak`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-keycloak), [`rvoip-ldap`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-ldap), [`rvoip-redis`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-redis), [`rvoip-ims-aka`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-ims-aka) | OIDC discovery and validation, Keycloak, LDAP password verification, clustered auth/revocation/replay state, IMS AKA            |
+| **User lifecycle**           | [`rvoip-saml`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-saml), [`rvoip-scim`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-scim), [`rvoip-webauthn`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-webauthn)                                                                                                                                                                                                 | SAML 2.0 service provider, SCIM 2.0 provisioning, WebAuthn/passkeys                                                             |
+| **Audit and observability**  | [`rvoip-audit`](https://github.com/eisenzopf/rvoip/blob/main/crates/extensions/rvoip-audit)                                                                                                                                                                                                                                                                                                                                                                                               | Redacted JSONL and tracing sinks plus OTLP and SIEM exports (generic webhook, Splunk, Elastic/ECS, Microsoft Sentinel, Datadog) |
+
+How they attach: `voip-3` on the facade brings in the harness, vCon, and the identity surface; `vapi` and `sip-stir-shaken` are their own facade features; everything else is a direct dependency.
+
+```toml
+rvoip = { version = "0.5.1", features = ["sip", "vapi", "sip-stir-shaken"] }
+rvoip-keycloak = "0.5.1"
+rvoip-redis = "0.5.1"
+rvoip-audit = "0.5.1"
+```
+
+The contracts they implement live in [`rvoip-auth-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/identity/auth-core), [`rvoip-users-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/identity/users-core), and [`rvoip-identity`](https://github.com/eisenzopf/rvoip/blob/main/crates/identity/rvoip-identity).
+
+## Workspace map
+
+For orientation only. Everything below the front doors is a transitive dependency of `rvoip` or `rvoip-sip`; depend on it directly only when you are extending the platform itself.
+
+| Family             | Crates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Front doors**    | [`rvoip`](https://github.com/eisenzopf/rvoip/blob/main/crates/rvoip), [`rvoip-sip`](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip), [`rvoip-client`](https://github.com/eisenzopf/rvoip/blob/main/crates/rvoip-client)                                                                                                                                                                                                                                                                                                                                                    |
+| Foundation         | [`rvoip-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/foundation/rvoip-core), [`rvoip-core-traits`](https://github.com/eisenzopf/rvoip/blob/main/crates/foundation/rvoip-core-traits), [`rvoip-infra-common`](https://github.com/eisenzopf/rvoip/blob/main/crates/foundation/infra-common)                                                                                                                                                                                                                                                                                       |
+| SIP internals      | [`rvoip-sip-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/sip-core), [`rvoip-sip-transport`](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/sip-transport), [`rvoip-sip-dialog`](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/sip-dialog), [`rvoip-sip-proxy`](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/sip-proxy), [`rvoip-sip-registrar`](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/sip-registrar)                                                                                                                      |
+| Media              | [`rvoip-media-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/media/media-core), [`rvoip-codec-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/media/codec-core), [`rvoip-rtp-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/media/rtp-core), [`rvoip-ice-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/media/ice-core), [`rvoip-audio-send-queue`](https://github.com/eisenzopf/rvoip/blob/main/crates/media/rvoip-audio-send-queue), [`rvoip-audio-device`](https://github.com/eisenzopf/rvoip/blob/main/crates/media/rvoip-audio-device) |
+| WebRTC and Connect | [`rvoip-webrtc`](https://github.com/eisenzopf/rvoip/blob/main/crates/webrtc/rvoip-webrtc), [`rvoip-rtc`](https://github.com/eisenzopf/rvoip/blob/main/crates/webrtc/rvoip-rtc), [`rvoip-webrtc-stack`](https://github.com/eisenzopf/rvoip/blob/main/crates/webrtc/rvoip-webrtc-stack), [`rvoip-amazon-connect`](https://github.com/eisenzopf/rvoip/blob/main/crates/webrtc/rvoip-amazon-connect)                                                                                                                                                                                             |
+| UCTP               | [`rvoip-uctp`](https://github.com/eisenzopf/rvoip/blob/main/crates/uctp/rvoip-uctp), [`rvoip-quic`](https://github.com/eisenzopf/rvoip/blob/main/crates/uctp/rvoip-quic), [`rvoip-webtransport`](https://github.com/eisenzopf/rvoip/blob/main/crates/uctp/rvoip-webtransport), [`rvoip-websocket`](https://github.com/eisenzopf/rvoip/blob/main/crates/uctp/rvoip-websocket)                                                                                                                                                                                                                 |
+| MoQ                | [`rvoip-moq`](https://github.com/eisenzopf/rvoip/blob/main/crates/moq/rvoip-moq), [`rvoip-moq-transport`](https://github.com/eisenzopf/rvoip/blob/main/crates/moq/rvoip-moq-transport), [`rvoip-moq-native`](https://github.com/eisenzopf/rvoip/blob/main/crates/moq/rvoip-moq-native), [`rvoip-moq-relay`](https://github.com/eisenzopf/rvoip/blob/main/crates/moq/rvoip-moq-relay)                                                                                                                                                                                                         |
+| Identity           | [`rvoip-auth-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/identity/auth-core), [`rvoip-users-core`](https://github.com/eisenzopf/rvoip/blob/main/crates/identity/users-core), [`rvoip-identity`](https://github.com/eisenzopf/rvoip/blob/main/crates/identity/rvoip-identity)                                                                                                                                                                                                                                                                                                   |
+| Extensions         | The [14 extension crates](https://github.com/eisenzopf/rvoip#extensions) above                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+
+## SIP interoperability and release evidence
+
+The full release path exercises `rvoip-sip` public APIs against independently implemented peers. The exact peer versions, scenarios, transports, results, and exclusions are recorded in signed qualification evidence; see the [compatibility matrix](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/docs/COMPATIBILITY_MATRIX.md).
+
+Patch releases can explicitly use the [shorter release path](https://github.com/eisenzopf/rvoip/blob/main/docs/RELEASING.md#shorter-patch-release-step-by-step): unit, integration, regression, example, and doc tests, including runnable [TURN/ICE examples](https://github.com/eisenzopf/rvoip/blob/main/docs/TURN_ICE.md), without benchmark, soak/load, or extended interoperability jobs. Each GitHub release links its tested commit and gate results; a reduced patch report marks performance qualification **NOT RUN**. The matrix below describes the full qualification scope, not a claim that a patch run repeated it.
+
+| Peer/tool              | Status        | Executed scope                                                                                                                                                                                    |
+| ---------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Asterisk**           | Release-gated | `Endpoint`, `StreamPeer`, and `CallbackPeer`; registration, calls/media, codecs, hold/resume, ring-cancel, RFC 4733 DTMF, rejection, and blind transfer over the documented UDP and TLS profiles  |
+| **FreeSWITCH**         | Release-gated | The corresponding public-API, scenario, codec, and transport matrix                                                                                                                               |
+| **Jambonz OSS 0.9.15** | Release-gated | Revision- and digest-pinned Jambonz SBC/registrar/RTPengine profile across the applicable public-API UDP/plain-RTP matrix                                                                         |
+| **SIPp**               | Release-gated | Standards scenarios and bounded signaling-load profiles                                                                                                                                           |
+| **baresip**            | Release-gated | External strict user-agent call against the RVoIP SIP listener                                                                                                                                    |
+| **Kamailio**           | Release-gated | RFC 3261 transaction-stateful proxy in both hop orders over UDP, TCP, and TLS, plus registrar-proxy with an rtpengine media relay: registration, calls, AMR in all four framings, DTMF, SDES-SRTP |
+| **OpenSIPS**           | Release-gated | The same proxy matrix in both hop orders over UDP, TCP, and TLS, and the same rtpengine lab scope                                                                                                 |
+
+### SIP interoperability attestation
+
+The strict full-beta gate requires an explicit PASS attestation for every required independently managed peer below. The report generator binds each row to the tested source tree, exact peer identity and configuration, selected matrix, and hashed evidence; it refuses to produce a strict release-candidate report if a required peer is missing, skipped, ambiguous, unpinned, or failing.
+
+| Peer            | Attested boundary                                    | Required release evidence                                                                                                                                |
+| --------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Asterisk**    | PBX/B2BUA call control and RTP media                 | Provider-specific all-PASS rows from the recorded API, scenario, codec, and security matrix, plus the exact local revision and configuration fingerprint |
+| **FreeSWITCH**  | PBX/B2BUA call control and RTP media                 | Provider-specific all-PASS rows from the recorded API, scenario, codec, and security matrix, plus the exact local revision and configuration fingerprint |
+| **Jambonz OSS** | SBC/B2BUA, registrar, and anchored RTP media         | Latest-version check, source and image pins, all-PASS applicable public-API UDP/plain-RTP matrix, and post-run cleanup                                   |
+| **Kamailio**    | RFC 3261 transaction-stateful proxy interoperability | Digest-pinned peer, both hop orders, UDP/TCP/TLS, packet assertions, verified TLS evidence, and post-retention cleanup                                   |
+| **OpenSIPS**    | RFC 3261 transaction-stateful proxy interoperability | Digest-pinned peer, both hop orders, UDP/TCP/TLS, packet assertions, verified TLS evidence, and post-retention cleanup                                   |
+
+The 0.5.1 release uses the shorter patch profile: regular unit, integration, regression, example, and doc tests, including TURN/ICE checks. Benchmarks and extended external interoperability were not rerun. See the [0.5.1 release notes](https://github.com/eisenzopf/rvoip/blob/main/docs/release/RELEASE_NOTES_NEXT.md) and the [release's qualification attachments](https://github.com/eisenzopf/rvoip/releases/tag/v0.5.1) for exact commands, results, and scope.
+
+Historical full-release evidence, retained at its original versions:
+
+- [Qualification report](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/docs/BETA_RELEASE_REPORT.md) — exact versions, row counts, scenarios, hashes, PASS status.
+- [Performance report](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/docs/BETA_PERFORMANCE_REPORT.md).
+- [RFC 7501/7502 benchmark report](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/docs/releases/qualification/20261124T012650Z-45304004340/rfc7502-ietf-report.md): sustained Session Establishment Rates for published 0.5.0 on one c8i.4xlarge, reported in IETF format (R1 TLS 8,348 and R5 UDP 8,256 sessions/s without media; R2 TLS+SRTP 1,124 and R6 UDP+RTP 1,204 with media).
+- [RFC evidence matrix](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/docs/RFC_COMPLIANCE_MATRIX.md) and [security posture](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/docs/SECURITY_POSTURE.md).
+- [Interop plan](https://github.com/eisenzopf/rvoip/blob/main/crates/sip/rvoip-sip/docs/INTEROP_CI_PLAN.md) — the evidence boundaries.
+- [Changelog](https://github.com/eisenzopf/rvoip/blob/main/CHANGELOG.md), [release notes](https://github.com/eisenzopf/rvoip/blob/main/docs/release/RELEASE_NOTES_NEXT.md) and the [0.4 migration guide](https://github.com/eisenzopf/rvoip/blob/main/docs/MIGRATING_0.4.md) — what changed in this release and how to upgrade from 0.3.
+
+This is bounded interoperability evidence, not a claim of compatibility with every version, module, configuration, transport, codec, or SIP extension, and not carrier certification. Anything outside a stated qualification boundary remains the application's responsibility to validate in its own deployment.
+
+Developer-preview products document their own supported scope and gaps in their crate READMEs. A published crate or Cargo feature is evidence of availability, not a blanket production-readiness statement.
+
+## Building and testing the workspace
+
+```shell
+git clone https://github.com/eisenzopf/rvoip.git
+cd rvoip
+
+# Build the default workspace members
+cargo build
+
+# Run a working SIP call
+cargo run -p rvoip-sip --example endpoint_local_call
+
+# Run the workspace test suite
+scripts/test_all.sh
+```
+
+Feature-gated targets (codecs, DTLS-SRTP, generated compliance suites) only build with their features on; use `--all-features` when you touch a gated path. [`docs/RELEASING.md`](https://github.com/eisenzopf/rvoip/blob/main/docs/RELEASING.md) describes the release train.
+
+## Roadmap
+
+Remaining major items, beyond the developer-preview products above:
+
+- **SIP-over-QUIC** and **RTP-over-QUIC (RoQ)** transport profiles.
+- Integrated multi-party **SFU/MCU** products beyond the existing media primitives.
+- Production graduation of **AAuth** as its standards work and deployment evidence mature.
+- Deeper **AI participants** with multi-agent orchestration beyond today's provider harness.
+- Additional qualification and release gates for the developer-preview products.
+
+Detailed engineering gaps are tracked in [`docs/GAP_PLAN.md`](https://github.com/eisenzopf/rvoip/blob/main/docs/GAP_PLAN.md) and in [issues](https://github.com/eisenzopf/rvoip/issues).
+
+## Contributing
+
+- **Bugs:** open an issue with reproduction steps.
+- **Feature requests:** use discussions or issues and describe the target product and compatibility expectations.
+- **Pull requests:** workspace-wide tests run through `scripts/test_all.sh`.
+
+## License
+
+Licensed under the [MIT License](https://github.com/eisenzopf/rvoip/blob/main/LICENSE).
