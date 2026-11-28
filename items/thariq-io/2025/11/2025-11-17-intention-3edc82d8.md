@@ -1,0 +1,37 @@
+---
+title: Intention
+link: https://www.thariq.io/blog/intention/
+source: thariq-io
+published: 2025-11-17T08:00:00Z
+updated: 2025-11-17T08:00:00Z
+first_seen: 2026-11-28T04:41:26.390181955Z
+summary: On the nature of intention, accountability, and why I write publicly about spirituality and personal growth.
+content: extracted
+html: 2025-11-17-intention-3edc82d8.html
+remote_preview:
+  url: https://www.thariq.io/og-image/intention.png
+---
+
+I think the only true thing is intention.
+
+It is both the start- everything we do has an intention whether we vocalize it or not. And the end- intentions are downstream of all our other actions. This loop of intention that feeds actions that then influences your future intention is the only thing that really matters.
+
+ **What is my intention for this?**
+
+My intention writing is to read more- about spirituality, Islam, sufisim, AI etc. And then to to reflect upon what I’ve been read and write about it.
+
+My higher level intention is to hopefully be a better person. I am often not happy with my character and wish to improve it.
+
+I have found that when trying to improve my career, it was most useful when I was public with my work. This had many benefits but mostly it was *accountability* & *community*.
+
+**Accountability** — It's easy to say you're doing something—reading, coding, writing—harder to actually do it. Working in public forces honesty. You can't pretend. My goal is to read more, and writing about what I've read makes that real.
+
+**Community** — I hope to meet others further along the path, people I can learn from and be accountable to.
+
+Unfortunately, I am afraid that I may have subpar intentions as well. I would like people I respect to read my thoughts and hopefully think better of me. I would like to feel like I am making progress in a meaningful way, when obviously writing a blog post is not meaningfully making progress towards being a better person at all.
+
+These are poor intentions! And I am trying to rid myself of them, but they exist nonetheless.
+
+In Islam we say, bismillah when we start an intention, in the hope that God will bless this undertaking and improve our intentions.
+
+بِسْمِ اللَّهِ (bismillah)
